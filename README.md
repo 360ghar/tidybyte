@@ -1,4 +1,4 @@
-# SnapClean
+# TidyByte
 
 [![CI](https://github.com/360ghar/snap-clean-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/360ghar/snap-clean-ios/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -32,7 +32,7 @@ A native iOS app that helps users clean up their photo library. Core UX is a Tin
 
 ## Requirements
 
-- Xcode 15+
+- Xcode 26+ (required for App Store builds; runtime supports iOS 17+)
 - iOS 17+ device (photo library operations require a physical device)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
@@ -43,14 +43,14 @@ A native iOS app that helps users clean up their photo library. Core UX is a Tin
 xcodegen generate
 
 # Build
-xcodebuild -project SnapClean.xcodeproj -scheme SnapClean \
-  -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -project Tidybyte.xcodeproj -scheme Tidybyte \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build
 ```
 
 ## Project Structure
 
 ```
-SnapClean/
+Tidybyte/
 ├── App/           # @main entry + RootView (TabView)
 ├── Models/        # SwiftData models + DTOs
 ├── Services/      # Actor-based services

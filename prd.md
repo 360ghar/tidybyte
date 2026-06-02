@@ -60,8 +60,7 @@ Request the following permissions at the appropriate moment (never upfront all a
 │   ├── LargeFilesView
 │   ├── BurstPhotosView
 │   ├── LivePhotosView
-│   ├── VideoCompressionView
-│   └── RecentlyDeletedView
+│   └── VideoCompressionView
 │
 ├── Storage Tab
 │   └── StorageDashboardView
@@ -351,29 +350,6 @@ A grid/list of cleanup modules. Each module shows: icon, name, a one-line descri
 
 ---
 
-#### 5.2.9 Recently Deleted Purge
-
-**What it does:** Shows the contents of the iOS "Recently Deleted" smart album and allows permanent deletion.
-
-**Data source:**
-```swift
-let deletedAlbum = PHAssetCollection.fetchAssetCollections(
-    with: .smartAlbum,
-    subtype: .smartAlbumDeletedAssets,
-    options: nil
-).firstObject
-```
-
-**UI:**
-- Grid of assets in recently deleted.
-- Show each item's original deletion date and how many days remain before auto-purge.
-- Show total size at top.
-- "Permanently Delete All" button → calls `PHAssetChangeRequest.deleteAssets` on all assets in this collection. This triggers the system confirmation alert; handle it.
-- Multi-select for partial deletion.
-- **Note:** iOS may restrict access to this album depending on system state. If `deletedAlbum` is nil or empty, show a message explaining that the Recently Deleted folder is not accessible from third-party apps on this iOS version, and guide the user to Photos app → Albums → Recently Deleted.
-
----
-
 ### 5.3 STORAGE DASHBOARD TAB
 
 A rich analytics screen showing the user's media storage breakdown and trends.
@@ -411,9 +387,39 @@ A quick-action section showing:
 - "X duplicate groups found — free up Y MB"
 - "X screenshots — free up Y MB"
 - "X videos over 100 MB — Y GB total"
-- Each row is tappable and navigates directly to that cleanup tool.
+- "X items in Recently Deleted — Y MB"
+- Each row is tappable. The first three navigate to that cleanup tool; the Recently Deleted row deep-links to the system Photos app via `photos-redirect://` (Tidybyte cannot permanently delete from this album because PHKit triggers a mandatory system confirmation alert that cannot be suppressed by a third-party app).
 
 This section is computed async when the tab loads. Show skeleton placeholders while computing.
+
+#### 5.3.5 Recently Deleted Reminder
+
+**What it does:** Surfaces a read-only reminder inside the Storage tab showing how much storage the iOS "Recently Deleted" smart album is currently holding. The row is rendered inside the *Cleanup Opportunities* `GlassCard` so it lives alongside the other storage hints.
+
+**Why read-only:** Permanently deleting items from Recently Deleted via `PHAssetChangeRequest.deleteAssets` triggers a mandatory system confirmation alert that cannot be suppressed or customised. TidyByte therefore does not attempt to perform this operation; it only shows the user the size impact and a one-tap path to the system Photos app where they can complete the action themselves.
+
+**Data source:**
+```swift
+// PhotoKit exposes no PHAssetCollectionSubtype for the system "Recently
+// Deleted" album, so we locate it by enumerating all smart albums and
+// matching the system-localised title (English: "Recently Deleted").
+let allSmartAlbums = PHAssetCollection.fetchAssetCollections(
+    with: .smartAlbum, subtype: .any, options: nil
+)
+let deletedAlbum = /* the album whose localizedTitle == "Recently Deleted" */
+let assets = PHAsset.fetchAssets(in: deletedAlbum, options: nil)
+// Sum `PHAssetResource.fileSize` (KVC-guarded) across all assets in the album.
+```
+
+**UI:**
+- Trash SF Symbol, grey colour, title "Recently Deleted".
+- Detail: `"\(count) items · \(bytes) · kept for 30 days"`.
+- Tap: open the system Photos app via `openURL(URL(string: "photos-redirect://")!)`.
+- Hidden silently when `count == 0` or when the smart album cannot be located (e.g., iOS version or locale where the English title doesn't match). No error toast, no empty state — just don't render the row.
+
+**Edge cases:**
+- iCloud-only deleted items: included in the count and size.
+- Permission: this fetch runs only after the user has granted photo library access (handled by the existing `permissionGatedView` wrapper around the Storage tab).
 
 ---
 
@@ -461,7 +467,7 @@ When **Cleanup Reminders** is enabled in Settings:
 - **iCloud download failure:** Show a non-blocking toast/snackbar. Let the user swipe past.
 - **AVAssetExportSession failure:** Show an alert with the specific error. Log to `os_log`. Do not silently discard.
 - **SwiftData errors:** Wrap all `modelContext.save()` calls in do/catch. Log errors. Non-critical (swipe records failing to save should not crash the app).
-- **Recently Deleted inaccessible:** Graceful fallback message (see 5.2.9).
+- **Recently Deleted smart album inaccessible:** Hide the Storage tab reminder row silently. Do not show an error toast.
 
 ---
 
@@ -471,7 +477,7 @@ When **Cleanup Reminders** is enabled in Settings:
 - Use **SF Symbols** for all iconography. No custom icon assets needed.
 - The swipe card stack is the hero UI. It must feel **physical and responsive** — match real-world card physics (spring animation, rotation tied to drag offset).
 - Transitions between screens: use SwiftUI's `.navigationTransition(.zoom)` (iOS 18) where available; fall back to `.slide`.
-- Destructive actions (delete, compress+replace, purge recently deleted): always confirm with an alert that explicitly states what will happen and is irreversible.
+- Destructive actions (delete, compress+replace): always confirm with an alert that explicitly states what will happen and is irreversible.
 - Loading/scanning states: use skeleton placeholders (rectangles with shimmer animation) rather than spinners for list/grid content.
 - Empty states: every list/grid must have a designed empty state view with an SF Symbol illustration and a short message.
 
@@ -514,7 +520,6 @@ When **Cleanup Reminders** is enabled in Settings:
 │   │   ├── BurstPhotos/
 │   │   ├── LivePhotos/
 │   │   ├── VideoCompression/
-│   │   └── RecentlyDeleted/
 │   ├── Storage/
 │   │   └── StorageDashboardView.swift
 │   └── Settings/
@@ -564,5 +569,4 @@ Explicitly out of scope — do not build:
 - Build and test on a **physical iPhone**. The simulator photo library is fake and will not reflect real-world performance.
 - Test with a large library (1,000+ assets) to validate background processing performance.
 - Test iCloud-only asset handling by using a device with "Optimise Storage" enabled.
-- Test the Recently Deleted flow on both iOS 16 and iOS 17+ as behaviour differs.
 

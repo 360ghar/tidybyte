@@ -1,0 +1,327 @@
+import SwiftUI
+import Photos
+
+/// Full-screen, paged preview of a Live Photo list. Lets the user open a
+/// single Live Photo to play its motion, then choose one of three actions:
+///
+/// - **Convert to Still** — the existing safe flow: a still asset is created
+///   from the Live Photo's still component, then the original Live Photo is
+///   deleted.
+/// - **Delete Live Photo** — deletes both the still and the motion
+///   component. Use when the user doesn't want to keep a still at all.
+/// - **Keep** — close the preview without changes.
+///
+/// Swipe horizontally (TabView page style) to review each Live Photo in
+/// sequence. The preview always reflects the latest list state from
+/// `viewModel.items` and auto-advances after a successful Convert/Delete.
+struct LivePhotoPreviewView: View {
+    @Bindable var viewModel: LivePhotosConverterViewModel
+    let startItemId: String
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var currentIndex: Int
+    @State private var showDeleteConfirm = false
+    @State private var albumNames: [String: [String]] = [:]
+
+    private let photoService = PhotoLibraryService()
+
+    init(viewModel: LivePhotosConverterViewModel, startItemId: String) {
+        self.viewModel = viewModel
+        self.startItemId = startItemId
+        let startIndex = viewModel.indexOfItem(id: startItemId) ?? 0
+        _currentIndex = State(initialValue: startIndex)
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if viewModel.items.isEmpty {
+                emptyState
+            } else {
+                contentView
+            }
+        }
+        .statusBarHidden()
+        .preferredColorScheme(.dark)
+        .task(id: viewModel.items.map(\.id).joined(separator: "|")) {
+            // Look up album membership once per list shape change.
+            albumNames = [:]
+            for item in viewModel.items {
+                let names = await photoService.albumsContaining(assetId: item.id)
+                albumNames[item.id] = names
+            }
+        }
+    }
+
+    // MARK: - Content
+
+    private var contentView: some View {
+        VStack(spacing: 0) {
+            topBar
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.sm)
+
+            pagedViewer
+
+            Spacer(minLength: 0)
+
+            metadataAndActions
+        }
+        .alert("Delete Live Photo?", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                HapticHelper.notification(.warning)
+                Task { await performDelete() }
+            }
+        } message: {
+            Text("This permanently removes both the still image and the motion component. This action cannot be undone.")
+        }
+    }
+
+    private var topBar: some View {
+        HStack {
+            Button {
+                HapticHelper.impact(.light)
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(Spacing.sm)
+                    .background(.white.opacity(0.12), in: Circle())
+            }
+            .accessibilityLabel("Close preview")
+
+            Spacer()
+
+            if !viewModel.items.isEmpty {
+                Text("\(currentIndex + 1) of \(viewModel.items.count)")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.xs)
+                    .background(.white.opacity(0.12), in: Capsule())
+            }
+        }
+    }
+
+    private var pagedViewer: some View {
+        TabView(selection: $currentIndex) {
+            ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { index, item in
+                ZStack {
+                    if shouldShowPlayer(for: item) {
+                        LivePhotoPlayerView(
+                            assetId: item.id,
+                            photoService: photoService,
+                            targetSize: CGSize(width: 1200, height: 1200)
+                        )
+                    }
+                    conversionStateOverlay(for: item)
+                }
+                .tag(index)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .ignoresSafeArea(edges: .horizontal)
+    }
+
+    private func shouldShowPlayer(for item: LivePhotoItem) -> Bool {
+        switch item.conversionState {
+        case .idle, .converting, .failed:
+            return true
+        case .completed:
+            return false
+        }
+    }
+
+    @ViewBuilder
+    private func conversionStateOverlay(for item: LivePhotoItem) -> some View {
+        switch item.conversionState {
+        case .idle, .converting:
+            EmptyView()
+        case .completed:
+            VStack(spacing: Spacing.md) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.green)
+                Text("Converted to Still")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                if item.savedBytes > 0 {
+                    Text("Saved \(item.savedBytes.formattedFileSize)")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            .padding(Spacing.xl)
+            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: CornerRadius.large))
+        case .failed(let message):
+            VStack(spacing: Spacing.md) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 56))
+                    .foregroundStyle(.red)
+                Text("Conversion Failed")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(Spacing.xl)
+            .frame(maxWidth: 320)
+            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: CornerRadius.large))
+        }
+    }
+
+    private var metadataAndActions: some View {
+        VStack(spacing: Spacing.md) {
+            if let item = currentItem {
+                metadataCard(for: item)
+            }
+            actionBar
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.bottom, Spacing.lg)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: Spacing.md) {
+            Text("No more Live Photos")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Button("Done") { dismiss() }
+                .buttonStyle(.borderedProminent)
+        }
+    }
+
+    @ViewBuilder
+    private func metadataCard(for item: LivePhotoItem) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            if let date = item.asset.creationDate {
+                Text(date.formatted(date: .abbreviated, time: .shortened))
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+            }
+            HStack(spacing: Spacing.md) {
+                Label(item.asset.resolution, systemImage: "rectangle.grid.1x2")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+                Label(item.asset.formattedFileSize, systemImage: "internaldrive")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+                if let names = albumNames[item.id], !names.isEmpty {
+                    Label(names.joined(separator: ", "), systemImage: "rectangle.stack")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .lineLimit(1)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.md)
+        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: CornerRadius.large))
+    }
+
+    private var actionBar: some View {
+        HStack(spacing: Spacing.sm) {
+            Button {
+                HapticHelper.impact(.light)
+                dismiss()
+            } label: {
+                Text("Keep")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
+                    .foregroundStyle(.white)
+            }
+            .scaleOnPress()
+            .accessibilityLabel("Keep Live Photo and close")
+
+            Button(role: .destructive) {
+                HapticHelper.impact(.medium)
+                showDeleteConfirm = true
+            } label: {
+                Text("Delete")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(Color.red.opacity(0.85), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
+                    .foregroundStyle(.white)
+            }
+            .scaleOnPress()
+            .accessibilityLabel("Delete Live Photo")
+            .disabled(currentItem == nil)
+
+            Button {
+                HapticHelper.impact(.medium)
+                Task { await performConvert() }
+            } label: {
+                Group {
+                    if isCurrentConverting {
+                        ProgressView()
+                            .tint(.white)
+                    } else if isCurrentConverted {
+                        Image(systemName: "checkmark")
+                    } else {
+                        Text("Convert")
+                    }
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.md)
+                .background(isCurrentConverted ? Color.gray.opacity(0.6) : Color.green, in: RoundedRectangle(cornerRadius: CornerRadius.medium))
+                .foregroundStyle(.white)
+            }
+            .scaleOnPress()
+            .disabled(currentItem == nil || isCurrentConverting || isCurrentConverted)
+            .accessibilityLabel("Convert Live Photo to Still")
+        }
+    }
+
+    // MARK: - State derived from current index
+
+    private var currentItem: LivePhotoItem? {
+        guard currentIndex >= 0, currentIndex < viewModel.items.count else { return nil }
+        return viewModel.items[currentIndex]
+    }
+
+    private var isCurrentConverting: Bool {
+        guard let item = currentItem else { return false }
+        if case .converting = item.conversionState { return true }
+        return false
+    }
+
+    private var isCurrentConverted: Bool {
+        guard let item = currentItem else { return false }
+        if case .completed = item.conversionState { return true }
+        return false
+    }
+
+    // MARK: - Actions
+
+    private func performConvert() async {
+        guard let item = currentItem else { return }
+        await viewModel.convertSingle(itemId: item.id)
+        HapticHelper.notification(.success)
+        // After convert, the item is still in the list (marked .completed) so we
+        // can stay on it. User can swipe or close.
+    }
+
+    private func performDelete() async {
+        guard let item = currentItem else { return }
+        let deletedIndex = currentIndex
+        await viewModel.deleteLivePhoto(itemId: item.id)
+        HapticHelper.notification(.success)
+        // If the list still has items, keep the cursor at the same index (which
+        // is now the next item). Otherwise let the empty state show.
+        if !viewModel.items.isEmpty {
+            let newIndex = min(deletedIndex, viewModel.items.count - 1)
+            if newIndex != currentIndex {
+                currentIndex = max(0, newIndex)
+            }
+        }
+    }
+}

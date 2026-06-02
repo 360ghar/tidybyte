@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SnapClean is a native iOS app (Swift/SwiftUI, iOS 17+) that helps users clean up their photo library. Core UX is a Tinder-style swipe interface for reviewing media. The app is free, has no backend, and all processing is on-device. **No third-party dependencies** — Apple frameworks only.
+TidyByte is a native iOS app (Swift/SwiftUI, iOS 17+) that helps users clean up their photo library. Core UX is a Tinder-style swipe interface for reviewing media. The app is free, has no backend, and all processing is on-device. **No third-party dependencies** — Apple frameworks only.
 
 ## Build & Run
 
-- **Xcode project**: `SnapClean.xcodeproj` (generated from `project.yml` via XcodeGen)
-- **Build**: `xcodebuild -project SnapClean.xcodeproj -scheme SnapClean -destination 'platform=iOS Simulator,name=iPhone 16' build`
+- **Xcode project**: `Tidybyte.xcodeproj` (generated from `project.yml` via XcodeGen)
+- **Build**: `xcodebuild -project Tidybyte.xcodeproj -scheme Tidybyte -destination 'platform=iOS Simulator,name=iPhone 16' build`
 - **Swift version**: 5.9, strict concurrency enabled (`SWIFT_STRICT_CONCURRENCY: complete`)
 - **Min deployment**: iOS 17
 - **iPhone only** (`TARGETED_DEVICE_FAMILY: 1`)
@@ -50,7 +50,7 @@ One `@Observable @MainActor` ViewModel per major screen. Progress reporting from
 ## File Layout
 
 ```
-SnapClean/
+Tidybyte/
 ├── App/           # @main entry + RootView (TabView)
 ├── Models/        # SwiftData models + DTOs
 ├── Services/      # Actor-based services

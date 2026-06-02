@@ -21,8 +21,8 @@ jobs:
       - name: Build
         run: |
           xcodebuild build \
-            -project SnapClean.xcodeproj \
-            -scheme SnapClean \
+            -project Tidybyte.xcodeproj \
+            -scheme Tidybyte \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO
@@ -30,8 +30,8 @@ jobs:
       - name: Test
         run: |
           xcodebuild test \
-            -project SnapClean.xcodeproj \
-            -scheme SnapCleanTests \
+            -project Tidybyte.xcodeproj \
+            -scheme TidybyteTests \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO

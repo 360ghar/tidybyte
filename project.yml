@@ -1,54 +1,105 @@
-name: SnapClean
+name: Tidybyte
 options:
-  bundleIdPrefix: com.snapclean
+  bundleIdPrefix: com.tidybyte
   deploymentTarget:
     iOS: "17.0"
-  xcodeVersion: "15.0"
+  xcodeVersion: "16.0"
   createIntermediateGroups: true
   groupSortPosition: top
 
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    TARGETED_DEVICE_FAMILY: "1"
-    INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "SnapClean needs access to your photo library to help you organize and clean up photos and videos."
-    INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "SnapClean needs write access to save compressed videos and converted photos."
+    TARGETED_DEVICE_FAMILY: "1,2"
+    INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "TidyByte needs access to your photo library to help you organize and clean up photos and videos."
+    INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "TidyByte needs write access to save compressed videos and converted photos."
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: HMWGCVU4SV
+    CODE_SIGN_IDENTITY: "Apple Development"
+    "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Development"
 
 targets:
-  SnapClean:
+  Tidybyte:
     type: application
     platform: iOS
     sources:
-      - path: SnapClean
+      - path: Tidybyte
         excludes:
           - "Scripts/**"
+          - "*.entitlements"
+          - "Info.plist"
     resources:
-      - path: SnapClean/Resources
+      - path: Tidybyte/Resources
         buildPhase: resources
+    dependencies:
+      - target: TidybyteWidget
+        embed: true
+    entitlements:
+      path: Tidybyte/Tidybyte.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.sakshammittal.tidybyte.shared
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.snapclean.app
-        TARGETED_DEVICE_FAMILY: "1"
-        INFOPLIST_KEY_CFBundleDisplayName: SnapClean
+        PRODUCT_BUNDLE_IDENTIFIER: com.sakshammittal.tidybyte
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_KEY_CFBundleDisplayName: TidyByte
         GENERATE_INFOPLIST_FILE: YES
+        # Seed Info.plist supplies a valid top-level UILaunchScreen dict; Xcode overlays
+        # the generated INFOPLIST_KEY_* values on top. A valid launch screen is required
+        # for the app to use the full screen on iPad (otherwise iOS letterboxes it).
+        # The INFOPLIST_KEY_UILaunchScreen_Generation build setting emits an invalid
+        # nested UILaunchScreen, so we provide the dict via this seed instead.
+        INFOPLIST_FILE: Tidybyte/Info.plist
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: "1.0"
         SWIFT_STRICT_CONCURRENCY: complete
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        # iPhone stays portrait-only (the swipe UX is portrait-centric); iPad supports all orientations.
+        # Xcode maps the _iPad-suffixed INFOPLIST_KEY to the UISupportedInterfaceOrientations~ipad plist key.
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
 
-  SnapCleanTests:
-    type: bundle.unit-test
+  TidybyteWidget:
+    type: app-extension
     platform: iOS
-    hostApplication: SnapClean
     sources:
-      - path: SnapCleanTests
-    dependencies:
-      - target: SnapClean
+      - path: TidybyteWidget
+        excludes:
+          - "*.entitlements"
+          - "Info.plist"
+      - path: Tidybyte/Shared/Widget
+    info:
+      path: TidybyteWidget/Info.plist
+      properties:
+        CFBundleDisplayName: TidyByte
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: TidybyteWidget/TidybyteWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.sakshammittal.tidybyte.shared
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.snapclean.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.sakshammittal.tidybyte.widget
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+
+  TidybyteTests:
+    type: bundle.unit-test
+    platform: iOS
+    hostApplication: Tidybyte
+    sources:
+      - path: TidybyteTests
+    dependencies:
+      - target: Tidybyte
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sakshammittal.tidybyte.tests
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_STRICT_CONCURRENCY: complete
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
