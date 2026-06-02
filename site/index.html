@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TidyByte &mdash; Swipe to clean your photos</title>
+  <meta name="description" content="Free up storage in minutes. Swipe to delete junk photos, find duplicates and blurry shots, and compress videos &mdash; all 100% on your device. No ads, no account.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="TidyByte &mdash; Swipe to clean your photos">
+  <meta property="og:description" content="Free up storage in minutes. Swipe to delete junk photos, find duplicates and blurry shots, and compress videos &mdash; all 100% on your device. No ads, no account.">
+  <meta property="og:image" content="/assets/img/og-cover.svg">
+  <meta property="og:url" content="https://tidybyte.360ghar.com/">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="TidyByte &mdash; Swipe to clean your photos">
+  <meta name="twitter:description" content="Free up storage in minutes. Swipe to delete junk photos, find duplicates and blurry shots, and compress videos &mdash; all 100% on your device. No ads, no account.">
+  <meta name="twitter:image" content="/assets/img/og-cover.svg">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+  <link rel="canonical" href="https://tidybyte.360ghar.com/">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <script src="/assets/js/nav.js" defer></script>
+</head>
+<body>
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-semibold focus:text-white">Skip to content</a>
+
+  <header class="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/70 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
+    <div class="container-prose flex h-14 items-center justify-between">
+      <a href="/" class="text-base font-semibold tracking-tight text-zinc-50">TidyByte</a>
+
+      <nav aria-label="Primary" class="hidden items-center gap-6 text-sm md:flex">
+        <a href="#features" class="text-zinc-300 transition hover:text-white">Features</a>
+        <a href="#faq" class="text-zinc-300 transition hover:text-white">FAQ</a>
+        <a href="/changelog" class="text-zinc-300 transition hover:text-white">Changelog</a>
+        <a href="/support" class="text-zinc-300 transition hover:text-white">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-zinc-300 transition hover:text-white" aria-label="TidyByte on GitHub">
+          <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
+        </a>
+      </nav>
+
+      <button type="button" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Toggle menu" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-100 transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-accent/50 md:hidden">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      </button>
+    </div>
+
+    <div id="mobile-menu" data-mobile-menu class="hidden border-t border-white/5 md:hidden">
+      <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
+        <a href="#features" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Features</a>
+        <a href="#faq" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">FAQ</a>
+        <a href="/changelog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Changelog</a>
+        <a href="/support" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">GitHub &rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- HERO -->
+    <section class="section relative overflow-hidden">
+      <div aria-hidden="true" class="absolute inset-x-0 -top-24 -z-10 h-[420px] bg-hero-glow"></div>
+      <div class="container-prose grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+        <div>
+          <p class="badge mb-5">
+            <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>
+            Free &middot; iPhone &middot; iOS 17+
+          </p>
+          <h1 class="h-display">Swipe your way to a cleaner photo library.</h1>
+          <p class="lede mt-5 max-w-prose">TidyByte turns photo cleanup into something you&rsquo;ll actually finish. Swipe left to delete, swipe right to keep &mdash; and reclaim gigabytes in minutes. 100% on-device, free forever, no account.</p>
+          <div class="mt-7 flex flex-wrap items-center gap-3">
+            <!-- TODO: replace with real App Store URL when published -->
+            <a href="#" data-todo="app-store-link" class="btn-primary">
+              <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+              Download on the App Store
+            </a>
+            <a href="#features" class="btn-ghost">How it works</a>
+          </div>
+        </div>
+
+        <div class="relative mx-auto w-full max-w-[260px] sm:max-w-[300px] lg:max-w-[380px]">
+          <div aria-hidden="true" class="absolute -inset-4 -z-10 rounded-[2.5rem] bg-gradient-to-br from-accent/30 via-accent/5 to-transparent blur-2xl"></div>
+          <div class="overflow-hidden rounded-[2.25rem] border border-white/10 bg-card-glass shadow-glass">
+            <img src="/assets/img/screenshots/05-swipe-session.png" alt="TidyByte swipe-review screen with photo cards stacked in the middle of a session." width="387" height="839" loading="eager" decoding="async" class="block w-full">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRUST STRIP -->
+    <section aria-label="Trust" class="container-prose pb-2">
+      <ul class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+        <li><span class="badge"><svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>100% on-device</span></li>
+        <li><span class="badge"><svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5 5l14 14"/></svg>No ads</span></li>
+        <li><span class="badge"><svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>No account</span></li>
+        <li><span class="badge"><svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Free forever</span></li>
+      </ul>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="how-it-works" class="section">
+      <div class="container-prose">
+        <div class="mx-auto max-w-2xl text-center">
+          <h2 class="h-section">The swipe, explained.</h2>
+          <p class="lede mt-4">One card. One decision. You&rsquo;ll clear years of photos before your coffee gets cold.</p>
+        </div>
+
+        <div class="mt-12 grid gap-6 md:grid-cols-3">
+          <!-- Left: DELETE -->
+          <article class="glass-card relative overflow-hidden p-6">
+            <div class="relative mx-auto aspect-[3/4] w-full max-w-[240px] overflow-hidden rounded-2xl border border-white/10">
+              <img src="/assets/img/screenshots/01-swipe-home.png" alt="" width="387" height="839" loading="lazy" decoding="async" class="h-full w-full object-cover">
+              <div aria-hidden="true" class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-red-500/30 to-red-700/40">
+                <span class="rotate-[-12deg] rounded-md border-2 border-red-300/90 px-3 py-1 text-xl font-bold uppercase tracking-widest text-white shadow-lg shadow-red-900/40">Delete</span>
+              </div>
+            </div>
+            <h3 class="mt-5 text-base font-semibold">Swipe left to delete.</h3>
+            <p class="muted mt-1 text-sm">A subtle haptic tap confirms the throw. Undo is always one tap away.</p>
+          </article>
+
+          <!-- Middle: CSS card stack -->
+          <article class="glass-card flex flex-col items-center p-6">
+            <div class="relative mx-auto aspect-[3/4] w-full max-w-[240px]">
+              <div aria-hidden="true" class="absolute inset-x-6 inset-y-3 rounded-2xl border border-white/10 bg-white/[0.04] shadow-card" style="transform: rotate(-6deg) scale(0.9)"></div>
+              <div aria-hidden="true" class="absolute inset-x-3 inset-y-1.5 rounded-2xl border border-white/10 bg-white/[0.06] shadow-card" style="transform: rotate(3deg) scale(0.95)"></div>
+              <div class="absolute inset-0 overflow-hidden rounded-2xl border border-white/15 bg-card-glass shadow-card">
+                <img src="/assets/img/screenshots/01-swipe-home.png" alt="" width="387" height="839" loading="lazy" decoding="async" class="h-full w-full object-cover">
+              </div>
+            </div>
+            <h3 class="mt-5 text-base font-semibold">A deck of photos.</h3>
+            <p class="muted mt-1 text-sm">Every review feels like flipping through a familiar stack.</p>
+          </article>
+
+          <!-- Right: KEEP -->
+          <article class="glass-card relative overflow-hidden p-6">
+            <div class="relative mx-auto aspect-[3/4] w-full max-w-[240px] overflow-hidden rounded-2xl border border-white/10">
+              <img src="/assets/img/screenshots/01-swipe-home.png" alt="" width="387" height="839" loading="lazy" decoding="async" class="h-full w-full object-cover">
+              <div aria-hidden="true" class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-emerald-500/30 to-emerald-700/40">
+                <span class="rotate-[12deg] rounded-md border-2 border-emerald-300/90 px-3 py-1 text-xl font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/40">Keep</span>
+              </div>
+            </div>
+            <h3 class="mt-5 text-base font-semibold">Swipe right to keep.</h3>
+            <p class="muted mt-1 text-sm">Saved photos flow straight to an album you pick, ready to revisit.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLEANUP TOOLKIT -->
+    <section id="features" class="section">
+      <div class="container-prose">
+        <div class="mx-auto max-w-2xl text-center">
+          <h2 class="h-section">Every kind of clutter, handled.</h2>
+          <p class="lede mt-4">Beyond swiping, TidyByte packs a full toolkit of smart cleanup tools &mdash; all on-device.</p>
+        </div>
+
+        <ul class="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><rect x="7" y="7" width="14" height="14" rx="2"/></svg></span>
+            <span class="text-sm font-semibold">Duplicates</span>
+            <span class="muted text-xs">Find exact copies, byte-for-byte.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="11" rx="2"/><rect x="10" y="10" width="11" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
+            <span class="text-sm font-semibold">Similar photos</span>
+            <span class="muted text-xs">Group near-identical shots.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M9 18h6"/><circle cx="12" cy="7" r="2"/></svg></span>
+            <span class="text-sm font-semibold">Screenshots</span>
+            <span class="muted text-xs">Round up and clear in one tap.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-3.5 4-6 6.5-6 10a6 6 0 0 0 12 0c0-3.5-2.5-6-6-10Z"/><path d="M4 4l16 16"/></svg></span>
+            <span class="text-sm font-semibold">Blurry photos</span>
+            <span class="muted text-xs">Spot out-of-focus and shaky shots.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg></span>
+            <span class="text-sm font-semibold">Large files</span>
+            <span class="muted text-xs">Surface the biggest space hogs.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="4" rx="1.5"/><rect x="5" y="11" width="14" height="4" rx="1.5"/><rect x="7" y="17" width="14" height="4" rx="1.5"/></svg></span>
+            <span class="text-sm font-semibold">Burst photos</span>
+            <span class="muted text-xs">Pick the best from a sequence.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></span>
+            <span class="text-sm font-semibold">Live Photos</span>
+            <span class="muted text-xs">Convert to stills to save space.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16"/><path d="M17 4v16"/><path d="M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+            <span class="text-sm font-semibold">Video compression</span>
+            <span class="muted text-xs">Shrink videos, keep them watchable.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="1.5"/><path d="M3 17l5-5 4 4 3-3 6 6"/><path d="M14 8l3-3M17 5h-3M17 5v3"/></svg></span>
+            <span class="text-sm font-semibold">Photo compression</span>
+            <span class="muted text-xs">Re-encode photos to reclaim space.</span>
+          </li>
+          <li class="glass-card flex flex-col gap-2 p-4">
+            <span class="text-accent"><svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg></span>
+            <span class="text-sm font-semibold">Smart Categories</span>
+            <span class="muted text-xs">Sort by content type, browse faster.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- PRIVACY PROMISE -->
+    <section class="section">
+      <div class="container-prose">
+        <div class="glass-card grid items-center gap-8 p-8 sm:p-10 md:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <h2 class="h-section">Your photos never leave your phone.</h2>
+            <ul class="mt-6 space-y-4 text-sm sm:text-base">
+              <li class="flex gap-3">
+                <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-accent/15 text-accent">
+                  <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+                </span>
+                All processing happens on-device using Apple&rsquo;s Vision and Photos frameworks.
+              </li>
+              <li class="flex gap-3">
+                <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-accent/15 text-accent">
+                  <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+                </span>
+                No backend, no analytics, no third-party scripts, no tracking &mdash; anywhere.
+              </li>
+              <li class="flex gap-3">
+                <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-accent/15 text-accent">
+                  <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+                </span>
+                We can&rsquo;t see your photos. We don&rsquo;t want to.
+              </li>
+            </ul>
+            <p class="muted mt-6 text-sm">Read the full <a href="/privacy" class="text-accent hover:underline">privacy policy</a>.</p>
+          </div>
+          <div class="relative mx-auto w-full max-w-[280px]">
+            <div class="overflow-hidden rounded-[1.75rem] border border-white/10 bg-card-glass shadow-glass">
+              <img src="/assets/img/icon-1024.png" alt="TidyByte app icon" width="280" height="280" loading="lazy" decoding="async" class="block w-full">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STORAGE DASHBOARD -->
+    <section class="section">
+      <div class="container-prose">
+        <div class="grid items-center gap-12 md:grid-cols-2">
+          <div>
+            <h2 class="h-section">See exactly what&rsquo;s using your space.</h2>
+            <p class="lede mt-4">A live donut chart of where your storage goes &mdash; photos, videos, screenshots, Live Photos, other. Tappable slices drill into the exact items you can free up.</p>
+            <ul class="mt-6 space-y-2 text-sm">
+              <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-photo"></span><span>Photos</span></li>
+              <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-video"></span><span>Videos</span></li>
+              <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-screenshot"></span><span>Screenshots</span></li>
+              <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-live"></span><span>Live Photos</span></li>
+              <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-other"></span><span>Other</span></li>
+            </ul>
+          </div>
+          <div class="relative mx-auto w-full max-w-[360px]">
+            <div aria-hidden="true" class="absolute -inset-4 -z-10 rounded-[2.25rem] bg-accent/15 blur-2xl"></div>
+            <div class="overflow-hidden rounded-[2rem] border border-white/10 bg-card-glass shadow-glass">
+              <img src="/assets/img/screenshots/03-storage-dashboard.png" alt="TidyByte storage dashboard with a donut chart of photos, videos, screenshots, Live Photos, and other." width="387" height="839" loading="lazy" decoding="async" class="block w-full">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OPEN-SOURCE CALLOUT -->
+    <section class="section-tight">
+      <div class="container-prose">
+        <div class="glass-card p-8 text-center sm:p-10">
+          <h3 class="h-section text-2xl sm:text-3xl">Open source. Audited by anyone.</h3>
+          <p class="lede mx-auto mt-4 max-w-2xl">TidyByte is MIT-licensed. Read the source, verify the claims, file an issue.</p>
+          <p class="mt-6">
+            <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="btn-primary">
+              <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
+              View on GitHub &rarr;
+            </a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="section">
+      <div class="container-prose">
+        <div class="mx-auto max-w-2xl text-center">
+          <h2 class="h-section">Frequently asked questions.</h2>
+        </div>
+
+        <div data-faq-accordion class="mx-auto mt-10 max-w-3xl divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-card-glass shadow-glass">
+          <details class="group p-5 sm:p-6 [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-zinc-100 transition">
+              <span>Does TidyByte upload my photos?</span>
+              <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-zinc-400 transition group-open:rotate-45"><path d="M12 5v14M5 12h14"/></svg>
+            </summary>
+            <p class="muted mt-3 text-sm sm:text-base">No. All processing happens locally on your iPhone using Apple&rsquo;s Photos and Vision frameworks. TidyByte has no backend, no analytics, and no network calls of any kind.</p>
+          </details>
+          <details class="group p-5 sm:p-6 [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-zinc-100 transition">
+              <span>What about iCloud-only photos?</span>
+              <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-zinc-400 transition group-open:rotate-45"><path d="M12 5v14M5 12h14"/></svg>
+            </summary>
+            <p class="muted mt-3 text-sm sm:text-base">TidyByte works with your full library, including assets stored only in iCloud. The system downloads them as needed; you can also swipe past without waiting.</p>
+          </details>
+          <details class="group p-5 sm:p-6 [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-zinc-100 transition">
+              <span>Are deleted photos gone immediately?</span>
+              <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-zinc-400 transition group-open:rotate-45"><path d="M12 5v14M5 12h14"/></svg>
+            </summary>
+            <p class="muted mt-3 text-sm sm:text-base">They go to the iOS Recently Deleted album, where they sit for 30 days before being permanently removed &mdash; exactly like deleting from the Photos app.</p>
+          </details>
+          <details class="group p-5 sm:p-6 [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-zinc-100 transition">
+              <span>Will it lower the quality of my photos?</span>
+              <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-zinc-400 transition group-open:rotate-45"><path d="M12 5v14M5 12h14"/></svg>
+            </summary>
+            <p class="muted mt-3 text-sm sm:text-base">No cleanup tool touches the originals. The only operation that re-encodes is the explicit Video Compression or Photo Compression tool, and you choose the preset.</p>
+          </details>
+          <details class="group p-5 sm:p-6 [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-zinc-100 transition">
+              <span>How are duplicates detected?</span>
+              <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-zinc-400 transition group-open:rotate-45"><path d="M12 5v14M5 12h14"/></svg>
+            </summary>
+            <p class="muted mt-3 text-sm sm:text-base">Exact duplicates are matched by SHA-256 hash of the file data. Near-duplicates use Apple Vision feature prints to find visually similar shots.</p>
+          </details>
+          <details class="group p-5 sm:p-6 [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-zinc-100 transition">
+              <span>Is there a free trial or subscription?</span>
+              <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-zinc-400 transition group-open:rotate-45"><path d="M12 5v14M5 12h14"/></svg>
+            </summary>
+            <p class="muted mt-3 text-sm sm:text-base">TidyByte is free, with no in-app purchases and no paywalls. Every feature is available to every user.</p>
+          </details>
+          <details class="group p-5 sm:p-6 [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-zinc-100 transition">
+              <span>Why is the app iPhone-only?</span>
+              <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-zinc-400 transition group-open:rotate-45"><path d="M12 5v14M5 12h14"/></svg>
+            </summary>
+            <p class="muted mt-3 text-sm sm:text-base">The swipe card UI is built for one-handed phone use. The app does still run on iPad in compatibility mode.</p>
+          </details>
+          <details class="group p-5 sm:p-6 [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-zinc-100 transition">
+              <span>How do I report a bug or request a feature?</span>
+              <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-zinc-400 transition group-open:rotate-45"><path d="M12 5v14M5 12h14"/></svg>
+            </summary>
+            <p class="muted mt-3 text-sm sm:text-base">Open an issue on <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-accent hover:underline">GitHub</a> or use the contact form on the <a href="/support" class="text-accent hover:underline">Support</a> page.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="section-tight">
+      <div class="container-prose text-center">
+        <h2 class="h-section">Clean your library in minutes.</h2>
+        <p class="lede mx-auto mt-4 max-w-xl">No account to create. No subscription to manage. Just one swipe at a time.</p>
+        <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+          <!-- TODO: replace with real App Store URL when published -->
+          <a href="#" data-todo="app-store-link" class="btn-primary">
+            <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+            Download on the App Store
+          </a>
+          <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="btn-ghost">View source</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-white/5">
+    <div class="container-prose grid gap-10 py-12 sm:grid-cols-2 md:grid-cols-3 md:py-16">
+      <div>
+        <p class="text-base font-semibold tracking-tight">TidyByte</p>
+        <p class="muted mt-2 text-sm">Swipe to clean your photos. Free, on-device, no account.</p>
+        <p class="muted mt-4 text-xs">&copy; 2026 TidyByte &middot; <a href="/LICENSE" class="hover:underline">MIT License</a></p>
+      </div>
+      <div>
+        <h2 class="text-sm font-semibold">Product</h2>
+        <ul class="muted mt-3 space-y-2 text-sm">
+          <li><a href="#features" class="hover:text-zinc-100">Features</a></li>
+          <li><a href="/changelog" class="hover:text-zinc-100">Changelog</a></li>
+          <li><a href="/support" class="hover:text-zinc-100">Support</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="text-sm font-semibold">Legal</h2>
+        <ul class="muted mt-3 space-y-2 text-sm">
+          <li><a href="/privacy" class="hover:text-zinc-100">Privacy</a></li>
+          <li><a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="hover:text-zinc-100">GitHub repository</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-white/5">
+      <p class="container-prose muted py-6 text-center text-xs">Made with care. Runs entirely on your device.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "tidybyte-site",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Marketing site for TidyByte iOS app",
+  "scripts": {
+    "build": "tailwindcss -i ./src/input.css -o ./site/assets/css/styles.css --minify",
+    "dev": "tailwindcss -i ./src/input.css -o ./site/assets/css/styles.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
