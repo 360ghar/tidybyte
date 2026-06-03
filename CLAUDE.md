@@ -12,7 +12,7 @@ TidyByte is a native iOS app (Swift/SwiftUI, iOS 17+) that helps users clean up 
 - **Build**: `xcodebuild -project Tidybyte.xcodeproj -scheme Tidybyte -destination 'platform=iOS Simulator,name=iPhone 16' build`
 - **Swift version**: 5.9, strict concurrency enabled (`SWIFT_STRICT_CONCURRENCY: complete`)
 - **Min deployment**: iOS 17
-- **iPhone only** (`TARGETED_DEVICE_FAMILY: 1`)
+- **Universal** (`TARGETED_DEVICE_FAMILY: 1,2`, iPhone + iPad) — iPhone is portrait-only (the swipe UX is portrait-centric), iPad supports all orientations. The `AppIcon.appiconset` must carry both `iphone` and `ipad` idiom slots, or actool fails validation demanding the iPad 152×152 icon.
 - Must test on a physical device for photo library operations — simulator has a fake photo library
 
 ## Architecture

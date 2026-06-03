@@ -90,7 +90,9 @@ struct SwipeSessionView: View {
                 .accessibilityHint("Reverts your last swipe")
             }
         }
-        .sheet(isPresented: $viewModel.showAlbumPicker) {
+        .sheet(isPresented: $viewModel.showAlbumPicker, onDismiss: {
+            viewModel.cancelPendingKeep()
+        }) {
             AlbumPickerSheet(
                 photoService: viewModel.photoService,
                 onAlbumSelected: { albumId in

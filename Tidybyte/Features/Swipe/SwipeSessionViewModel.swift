@@ -194,6 +194,17 @@ final class SwipeSessionViewModel {
         }
     }
 
+    /// Aborts a keep that is still awaiting album selection. Invoked when the album
+    /// picker is dismissed by any means. If the user swiped the sheet down (or tapped
+    /// outside) instead of choosing an album or tapping Skip, the keep must be
+    /// cancelled — otherwise `pendingKeepAsset` stays set and permanently blocks
+    /// `swipeRight()`'s guard. The card stays on top (we never advanced) so the user
+    /// can decide again. No-op if a clean exit (addToAlbum/skipKeep) already cleared it.
+    func cancelPendingKeep() {
+        guard pendingKeepAsset != nil else { return }
+        pendingKeepAsset = nil
+    }
+
     func skipKeep() {
         guard let asset = pendingKeepAsset else { return }
         sessionStats.skippedCount += 1

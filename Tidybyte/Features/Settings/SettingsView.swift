@@ -65,19 +65,27 @@ struct SettingsView: View {
                     }
                 }
 
-                Picker("Blur Detection Sensitivity", selection: $blurSensitivity) {
-                    ForEach(BlurSensitivity.allCases, id: \.self) { level in
-                        Text(level.rawValue).tag(level.rawValue)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Blur Detection Sensitivity")
+                    Picker("Blur Detection Sensitivity", selection: $blurSensitivity) {
+                        ForEach(BlurSensitivity.allCases, id: \.self) { level in
+                            Text(level.rawValue).tag(level.rawValue)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
                 }
-                .pickerStyle(.segmented)
 
-                Picker("Smart Category Sensitivity", selection: $smartCategorySensitivity) {
-                    ForEach(CategorySensitivity.allCases, id: \.self) { level in
-                        Text(level.rawValue).tag(level.rawValue)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Smart Category Sensitivity")
+                    Picker("Smart Category Sensitivity", selection: $smartCategorySensitivity) {
+                        ForEach(CategorySensitivity.allCases, id: \.self) { level in
+                            Text(level.rawValue).tag(level.rawValue)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
                 }
-                .pickerStyle(.segmented)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Large File Threshold")
