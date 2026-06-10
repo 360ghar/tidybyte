@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @State private var appNavigation = AppNavigation()
     @State private var permissionHandler = PhotoPermissionHandler()
+    @State private var libraryMonitor = LibraryChangeMonitor()
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -51,6 +52,7 @@ struct RootView: View {
             .tag(AppTab.settings)
         }
         .environment(appNavigation)
+        .environment(libraryMonitor)
         .tint(.blue)
         .onChange(of: appNavigation.selectedTab) { _, _ in
             HapticHelper.selection()
@@ -78,6 +80,7 @@ struct RootView: View {
             if let link = PendingRoute.shared.consume() {
                 appNavigation.handle(link)
             }
+            await libraryMonitor.start()
         }
     }
 

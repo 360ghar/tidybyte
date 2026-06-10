@@ -7,6 +7,7 @@ struct StorageDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @Environment(AppNavigation.self) private var appNavigation
+    @Environment(LibraryChangeMonitor.self) private var libraryMonitor
 
     var body: some View {
         ScrollView {
@@ -35,8 +36,8 @@ struct StorageDashboardView: View {
         .pullToRefresh {
             await viewModel.refresh(modelContext: modelContext)
         }
-        .task {
-            await viewModel.load(modelContext: modelContext)
+        .task(id: libraryMonitor.generation) {
+            await viewModel.sync(to: libraryMonitor.generation, modelContext: modelContext)
         }
     }
 

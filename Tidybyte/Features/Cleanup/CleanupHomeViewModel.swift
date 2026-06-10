@@ -20,10 +20,25 @@ final class CleanupHomeViewModel {
 
     private let photoService = PhotoLibraryService()
 
-    func loadCountsIfNeeded() async {
-        guard !hasLoadedCounts else { return }
-        hasLoadedCounts = true
-        await loadCounts()
+    private var syncedGeneration = Int.min
+    private var syncTask: Task<Void, Never>?
+
+    /// Generation-aware entry point driven by `.task(id: monitor.generation)`:
+    /// loads on first call, refreshes when the library generation advances, and
+    /// no-ops otherwise. The work runs in an unstructured Task so it survives
+    /// `.task` cancellation when the user switches tabs mid-fetch; the stored
+    /// handle serializes re-entrant callers.
+    func sync(to generation: Int) async {
+        if let syncTask { await syncTask.value }
+        guard !(hasLoadedCounts && generation == syncedGeneration) else { return }
+        syncedGeneration = generation
+        let task = Task {
+            await loadCounts()
+            hasLoadedCounts = true
+        }
+        syncTask = task
+        await task.value
+        syncTask = nil
     }
 
     func refreshCounts() async {

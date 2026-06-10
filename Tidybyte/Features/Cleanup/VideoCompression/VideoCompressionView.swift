@@ -26,6 +26,16 @@ struct VideoCompressionView: View {
         }
         .navigationTitle("Video Compression")
         .toolbar {
+            if !viewModel.isLoading && !viewModel.videos.isEmpty {
+                ToolbarItem(placement: .topBarLeading) {
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.allSelected,
+                        selectAll: { viewModel.selectAll() },
+                        deselectAll: { viewModel.deselectAll() }
+                    )
+                    .disabled(viewModel.isCompressing)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: Spacing.md) {
                     NavigationLink {

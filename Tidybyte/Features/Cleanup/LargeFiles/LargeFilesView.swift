@@ -93,14 +93,12 @@ struct LargeFilesView: View {
         .navigationTitle("Large Files")
         .toolbar {
             if !viewModel.filteredAssets.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(viewModel.areAllVisibleSelected ? "Deselect All" : "Select All") {
-                        if viewModel.areAllVisibleSelected {
-                            viewModel.deselectAll()
-                        } else {
-                            viewModel.selectAll()
-                        }
-                    }
+                ToolbarItem(placement: .topBarLeading) {
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.areAllVisibleSelected,
+                        selectAll: { viewModel.selectAll() },
+                        deselectAll: { viewModel.deselectAll() }
+                    )
                 }
             }
         }

@@ -109,6 +109,12 @@ final class BlurryPhotosViewModel {
         selectedIds.toggle(id)
     }
 
+    /// `allSatisfy` rather than count equality: `selectedIds` can briefly hold
+    /// off-tab ids between a tab change and `synchronizeSelectionWithActiveTab()`.
+    var allVisibleSelected: Bool {
+        !filteredPhotos.isEmpty && filteredPhotos.allSatisfy { selectedIds.contains($0.id) }
+    }
+
     func selectAll() {
         selectedIds = Set(filteredPhotos.map(\.id))
     }

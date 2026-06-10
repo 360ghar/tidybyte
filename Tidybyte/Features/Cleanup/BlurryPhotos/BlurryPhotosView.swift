@@ -35,6 +35,13 @@ struct BlurryPhotosView: View {
         .navigationTitle("Photo Quality")
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.filteredPhotos.isEmpty {
+                ToolbarItem(placement: .topBarLeading) {
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.allVisibleSelected,
+                        selectAll: { viewModel.selectAll() },
+                        deselectAll: { viewModel.deselectAll() }
+                    )
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: Spacing.md) {
                         Button {

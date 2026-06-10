@@ -79,14 +79,11 @@ struct SmartCategoriesView: View {
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.filteredPhotos.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(viewModel.allVisibleSelected ? "Deselect All" : "Select All") {
-                        HapticHelper.impact(.light)
-                        if viewModel.allVisibleSelected {
-                            viewModel.deselectAll()
-                        } else {
-                            viewModel.selectAll()
-                        }
-                    }
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.allVisibleSelected,
+                        selectAll: { viewModel.selectAll() },
+                        deselectAll: { viewModel.deselectAll() }
+                    )
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: Spacing.md) {

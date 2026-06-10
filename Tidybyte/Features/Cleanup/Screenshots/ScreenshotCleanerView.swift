@@ -97,13 +97,11 @@ struct ScreenshotCleanerView: View {
             }
             if !viewModel.screenshots.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(viewModel.selectedIds.count == viewModel.screenshots.count ? "Deselect All" : "Select All") {
-                        if viewModel.selectedIds.count == viewModel.screenshots.count {
-                            viewModel.deselectAll()
-                        } else {
-                            viewModel.selectAll()
-                        }
-                    }
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.selectedIds.count == viewModel.screenshots.count,
+                        selectAll: { viewModel.selectAll() },
+                        deselectAll: { viewModel.deselectAll() }
+                    )
                 }
             }
         }

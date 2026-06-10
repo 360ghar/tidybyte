@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CleanupHomeView: View {
     @Environment(AppNavigation.self) private var appNavigation
+    @Environment(LibraryChangeMonitor.self) private var libraryMonitor
     @State private var viewModel = CleanupHomeViewModel()
 
     private let columns = ResponsiveGrid.card()
@@ -26,13 +27,8 @@ struct CleanupHomeView: View {
         .pullToRefresh {
             await viewModel.refreshCounts()
         }
-        .task {
-            await viewModel.loadCountsIfNeeded()
-        }
-        .onAppear {
-            if viewModel.hasLoadedCounts {
-                Task { await viewModel.refreshCounts() }
-            }
+        .task(id: libraryMonitor.generation) {
+            await viewModel.sync(to: libraryMonitor.generation)
         }
     }
 

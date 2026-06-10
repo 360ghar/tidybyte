@@ -26,6 +26,16 @@ struct PhotoCompressionView: View {
         }
         .navigationTitle("Photo Compression")
         .toolbar {
+            if !viewModel.isLoading && !viewModel.photos.isEmpty {
+                ToolbarItem(placement: .topBarLeading) {
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.allSelected,
+                        selectAll: { viewModel.selectAll() },
+                        deselectAll: { viewModel.deselectAll() }
+                    )
+                    .disabled(viewModel.isCompressing)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: Spacing.md) {
                     NavigationLink {

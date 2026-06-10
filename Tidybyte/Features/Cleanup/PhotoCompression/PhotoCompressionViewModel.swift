@@ -77,6 +77,18 @@ final class PhotoCompressionViewModel {
         selectedIds.toggle(id)
     }
 
+    var allSelected: Bool {
+        !photos.isEmpty && selectedIds.count == photos.count
+    }
+
+    func selectAll() {
+        selectedIds = Set(photos.map(\.id))
+    }
+
+    func deselectAll() {
+        selectedIds.removeAll()
+    }
+
     func setPreset(_ preset: PhotoCompressionPreset, for photoId: String) {
         if let index = photos.firstIndex(where: { $0.id == photoId }) {
             photos[index].selectedPreset = preset

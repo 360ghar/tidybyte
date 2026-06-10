@@ -27,6 +27,16 @@ struct SimilarPhotosView: View {
         .navigationTitle("Similar Photos")
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.groups.isEmpty {
+                ToolbarItem(placement: .topBarLeading) {
+                    // Back to the idle screen, where the time-window slider lives —
+                    // otherwise there's no way to change the window once results show.
+                    Button {
+                        HapticHelper.impact(.light)
+                        viewModel.scanState = .idle
+                    } label: {
+                        Label("New Scan", systemImage: "arrow.counterclockwise")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Delete All") {
                         HapticHelper.impact(.light)

@@ -40,6 +40,10 @@ final class StorageDashboardViewModel {
 
     private let photoService = PhotoLibraryService()
 
+    private var hasLoaded = false
+    private var syncedGeneration = Int.min
+    private var syncTask: Task<Void, Never>?
+
     var totalLibrarySize: Int64 {
         categories.reduce(0) { $0 + $1.bytes }
     }
@@ -54,6 +58,28 @@ final class StorageDashboardViewModel {
     /// Estimated device storage TidyByte cannot itemize: apps, the OS, caches, mail, messages, etc.
     /// Clamped to ≥ 0 — purgeable-space accounting can briefly make media exceed measured "used".
     var appsAndOtherSize: Int64 { max(0, deviceStorage.usedCapacity - onDeviceMediaSize) }
+
+    /// Generation-aware entry point driven by `.task(id: monitor.generation)`:
+    /// loads on first call, refreshes when the library generation advances, and
+    /// no-ops otherwise. The work runs in an unstructured Task so it survives
+    /// `.task` cancellation when the user switches tabs mid-fetch; the stored
+    /// handle serializes re-entrant callers.
+    func sync(to generation: Int, modelContext: ModelContext) async {
+        if let syncTask { await syncTask.value }
+        guard !(hasLoaded && generation == syncedGeneration) else { return }
+        syncedGeneration = generation
+        let task = Task {
+            if hasLoaded {
+                await refresh(modelContext: modelContext)
+            } else {
+                await load(modelContext: modelContext)
+                hasLoaded = true
+            }
+        }
+        syncTask = task
+        await task.value
+        syncTask = nil
+    }
 
     func load(modelContext: ModelContext) async {
         isLoading = true

@@ -73,6 +73,18 @@ final class VideoCompressionViewModel {
         selectedIds.toggle(id)
     }
 
+    var allSelected: Bool {
+        !videos.isEmpty && selectedIds.count == videos.count
+    }
+
+    func selectAll() {
+        selectedIds = Set(videos.map(\.id))
+    }
+
+    func deselectAll() {
+        selectedIds.removeAll()
+    }
+
     func setPreset(_ preset: CompressionPreset, for videoId: String) {
         if let index = videos.firstIndex(where: { $0.id == videoId }) {
             videos[index].selectedPreset = preset
