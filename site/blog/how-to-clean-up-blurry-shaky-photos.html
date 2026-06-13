@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B0D10">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="TidyByte">
+  <title>Clean Up Blurry and Shaky Photos | TidyByte</title>
+  <meta name="description" content="Learn how to find and remove blurry photos from your iPhone using blur detection technology. TidyByte identifies motion, focus, and low-light blur automatically.">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="TidyByte">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:title" content="How to Clean Up Blurry and Shaky Photos on iPhone">
+  <meta property="og:description" content="Learn how to find and remove blurry photos from your iPhone using blur detection technology. TidyByte identifies motion, focus, and low-light blur automatically.">
+  <meta property="og:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://tidybyte.360ghar.com/blog/how-to-clean-up-blurry-shaky-photos">
+  <meta property="article:published_time" content="2026-06-13">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How to Clean Up Blurry and Shaky Photos on iPhone">
+  <meta name="twitter:description" content="Learn how to find and remove blurry photos from your iPhone using blur detection technology. TidyByte identifies motion, focus, and low-light blur automatically.">
+  <meta name="twitter:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="canonical" href="https://tidybyte.360ghar.com/blog/how-to-clean-up-blurry-shaky-photos">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <script src="/assets/js/nav.js" defer></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "How to Clean Up Blurry and Shaky Photos on iPhone",
+    "description": "Learn how to find and remove blurry photos from your iPhone using blur detection technology. TidyByte identifies motion, focus, and low-light blur automatically.",
+    "datePublished": "2026-06-13",
+    "dateModified": "2026-06-13",
+    "author": {
+      "@type": "Organization",
+      "name": "TidyByte"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "TidyByte",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://tidybyte.360ghar.com/assets/img/og-cover.svg"
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://tidybyte.360ghar.com/blog/how-to-clean-up-blurry-shaky-photos"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://tidybyte.360ghar.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Blog",
+        "item": "https://tidybyte.360ghar.com/blog"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "How to Clean Up Blurry and Shaky Photos on iPhone",
+        "item": "https://tidybyte.360ghar.com/blog/how-to-clean-up-blurry-shaky-photos"
+      }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How does blur detection work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Blur detection works by analyzing the frequency content of an image. Sharp photos contain strong high-frequency components (crisp edges and fine detail), while blurry photos have suppressed high frequencies. Tools like TidyByte combine multiple signals, including Laplacian variance for focus blur, optical flow for motion blur, and feature print analysis for overall texture quality, to produce a reliable blur score."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can AI detect blurry photos?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Modern computer vision frameworks like Apple's Vision can detect blurry photos with high accuracy. By combining edge detection, optical flow analysis, and feature extraction, AI can distinguish between intentionally soft images (like portraits with bokeh) and unintentionally blurry ones. TidyByte uses these on-device AI capabilities without uploading your photos to any server."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What's the difference between motion blur and focus blur?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Motion blur is directional: it smears the image along the path of camera or subject movement, creating streaked edges. Focus blur is uniform: the subject appears soft all around because the lens focused at the wrong distance, while other parts of the scene may be sharp. TidyByte detects both by combining Laplacian variance (which catches focus blur) with optical flow analysis (which catches motion blur)."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How accurate is TidyByte's blur detection?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "TidyByte's multi-factor analysis is designed to minimize both false positives and false negatives. By combining four independent signals (Laplacian variance, optical flow, feature prints, and edge density), it avoids the weaknesses of any single method. In practice, it reliably catches most blurry photos while correctly leaving intentional soft-focus and portrait images alone. The on-device processing also means detection is fast, typically scoring each photo in under a second."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I adjust the blur sensitivity?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. TidyByte lets you adjust the blur sensitivity threshold so you can control how strict the detection is. Lowering the threshold catches only the most obviously blurry photos; raising it flags even slightly soft images. You can find this setting in the TidyByte settings screen, and changes apply immediately the next time you run a scan."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-300 antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-semibold focus:text-white">Skip to content</a>
+  <header class="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/70 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
+    <div class="container-prose flex h-14 items-center justify-between">
+      <a href="/" class="text-base font-semibold tracking-tight text-zinc-50">TidyByte</a>
+      <nav aria-label="Primary" class="hidden items-center gap-6 text-sm md:flex">
+        <a href="/#features" class="text-zinc-300 transition hover:text-white">Features</a>
+        <a href="/blog" class="text-zinc-300 transition hover:text-white">Blog</a>
+        <a href="/#faq" class="text-zinc-300 transition hover:text-white">FAQ</a>
+        <a href="/changelog" class="text-zinc-300 transition hover:text-white">Changelog</a>
+        <a href="/support" class="text-zinc-300 transition hover:text-white">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-zinc-300 transition hover:text-white" aria-label="TidyByte on GitHub"><svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg></a>
+      </nav>
+      <button type="button" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Toggle menu" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-100 transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-accent/50 md:hidden">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      </button>
+    </div>
+    <div id="mobile-menu" data-mobile-menu class="hidden border-t border-white/5 md:hidden">
+      <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
+        <a href="/#features" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Features</a>
+        <a href="/blog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Blog</a>
+        <a href="/#faq" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">FAQ</a>
+        <a href="/changelog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Changelog</a>
+        <a href="/support" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">GitHub &rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="pb-16">
+    <div class="container-prose mx-auto max-w-prose mt-6 text-sm text-zinc-400">
+      <nav aria-label="Breadcrumb" class="flex items-center gap-2">
+        <a href="/" class="text-accent hover:underline">Home</a>
+        <span aria-hidden="true">/</span>
+        <a href="/blog" class="text-accent hover:underline">Blog</a>
+        <span aria-hidden="true">/</span>
+        <span class="text-zinc-500">How to Clean Up Blurry and Shaky Photos on iPhone</span>
+      </nav>
+    </div>
+
+    <article class="container-prose mx-auto max-w-prose">
+      <header class="mt-6">
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="badge">Photo Cleanup</span>
+          <span class="badge">Blur Detection</span>
+          <span class="badge">iOS Tips</span>
+        </div>
+        <h1 class="h-display mt-4">How to Clean Up Blurry and Shaky Photos on iPhone</h1>
+        <p class="lede mt-5">Every iPhone user has them: dozens of blurry photos buried in their library from shaky hands, missed focus, or low-light attempts. They waste storage, clutter your gallery, and make it harder to find the shots you actually want. This guide explains the science behind blur detection and how to use TidyByte as a blurry photo cleaner to find and remove them automatically.</p>
+        <p class="muted mt-3 text-sm">Published June 13, 2026 &middot; 8 min read</p>
+      </header>
+
+      <!-- Section 1 -->
+      <section class="mt-10">
+        <h2 class="h-section text-2xl sm:text-3xl">Types of Blur: Motion, Focus, Low Light</h2>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Not all blurry photos are created equal. Understanding the three main types of blur helps you make better decisions about which photos to keep and which to delete. Each type has distinct visual characteristics, different causes, and different detection methods.</p>
+
+        <h3 class="mt-6 text-lg font-semibold text-zinc-100">Motion Blur</h3>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Motion blur occurs when the camera or the subject moves during the exposure. On an iPhone, even tiny hand movements can introduce noticeable shake, especially in low light when the shutter stays open longer. The iPhone's sensor-shift optical image stabilization (available since iPhone 12 Pro) reduces this significantly, but it cannot eliminate it entirely. You can identify motion blur by its directional streaking pattern: edges smear along the path of movement. In bright daylight with fast shutter speeds above 1/500s, motion blur is rare. But indoors or at dusk, when the shutter drops to 1/30s or slower, even a heartbeat can blur a shot. Studies suggest that roughly 15 to 20 percent of casual handheld photos suffer from some degree of motion blur.</p>
+
+        <h3 class="mt-6 text-lg font-semibold text-zinc-100">Focus Blur</h3>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Focus blur happens when the lens locks onto the wrong distance. Unlike motion blur, it is uniform across the image rather than directional. The autofocus system on modern iPhones is fast, but it can still misfire when there are multiple subjects at different depths, when shooting through glass, or when the subject has low contrast (like a white wall or a foggy sky). Portrait mode deliberately introduces focus blur as bokeh in the background, which is why a naive blur detector that simply measures softness will flag portrait shots as false positives. A good blurry photo cleaner must distinguish intentional artistic softness from genuine focus errors. You can spot focus blur by checking whether a different part of the image is sharp while your intended subject is soft.</p>
+
+        <h3 class="mt-6 text-lg font-semibold text-zinc-100">Low-Light Blur</h3>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Low-light blur is a combination problem. In dim environments, the camera extends the exposure time, which amplifies motion blur. Simultaneously, the sensor raises its ISO, which introduces noise that obscures fine detail and can be mistaken for softness. Night mode on iPhone mitigates this by capturing multiple frames and merging them computationally, but older photos taken before Night mode was available, or photos taken with apps that bypass it, often show this dual degradation. These images are grainy, have reduced contrast, and display a characteristic softness that blends noise artifacts with genuine blur. For automated detection tools, low-light shots are among the most challenging to evaluate because the noise can mask or exaggerate the underlying blur.</p>
+      </section>
+
+      <!-- Section 2 -->
+      <section class="mt-10">
+        <h2 class="h-section text-2xl sm:text-3xl">How Vision Framework Detects Blur</h2>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Apple's Vision framework is a suite of on-device computer vision algorithms that can analyze images without sending data to any server. While Vision does not have a single "detect blur" API, it provides several building blocks that, when combined, produce reliable blur detection. This is the foundation that TidyByte uses as a blurry photo cleaner.</p>
+
+        <h3 class="mt-6 text-lg font-semibold text-zinc-100">Laplacian Variance</h3>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The most widely used technique for measuring image sharpness is Laplacian variance. The Laplacian operator is a mathematical filter that highlights areas of rapid intensity change, which is exactly what sharp edges produce. When you apply it to an image, sharp photos produce a high-variance output (strong, well-defined edges) while blurry photos produce a low-variance output (weak, diffuse edges). This method is particularly good at detecting focus blur because it evaluates the entire image at once. A Laplacian variance below approximately 100 on a 1-megapixel input typically indicates a blurry image, though the exact threshold depends on the scene content.</p>
+
+        <h3 class="mt-6 text-lg font-semibold text-zinc-100">Optical Flow Analysis</h3>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Vision's VNOpticalFlowRequest computes the apparent motion of pixels between regions of a single image. While optical flow is traditionally used for video, applying it within a single frame can reveal directional blur patterns that are characteristic of motion blur. If the flow vectors are strong and aligned in one direction, it strongly suggests camera shake. This signal is especially useful for distinguishing motion blur from focus blur, which produces no directional flow pattern.</p>
+
+        <h3 class="mt-6 text-lg font-semibold text-zinc-100">Feature Print Generation</h3>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">VNFeaturePrintRequest generates a compact mathematical representation of an image's visual content. While it was designed for similarity comparison rather than blur detection, the texture information embedded in the feature print correlates with image quality. Blurry images produce feature prints with less distinct texture patterns than sharp ones. By analyzing the entropy and distribution of feature print values, you can extract a quality signal that complements the other methods.</p>
+
+        <h3 class="mt-6 text-lg font-semibold text-zinc-100">Edge Density via Contour Detection</h3>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">VNDetectContoursRequest identifies the boundaries of objects in an image. Sharp photos produce many well-defined contours with high contrast along edges, while blurry photos produce fewer, weaker contours. By measuring the density and strength of detected contours relative to the image size, you get another independent signal. This approach is less sensitive to noise than Laplacian variance, making it useful for evaluating low-light images where noise might otherwise skew the results.</p>
+      </section>
+
+      <!-- Section 3 -->
+      <section class="mt-10">
+        <h2 class="h-section text-2xl sm:text-3xl">TidyByte's Multi-Factor Analysis</h2>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte combines the signals above into a single multi-factor blur score. Rather than relying on any one technique, it runs four independent analyses in parallel and merges the results into a composite score from 0.0 (sharp) to 1.0 (severely blurry). This approach eliminates the weaknesses of individual methods and produces a robust blurry photo cleaner that works across all types of blur.</p>
+
+        <div class="glass-card p-6 sm:p-8 mt-6">
+          <p class="text-sm font-semibold text-zinc-100">TidyByte's Blur Scoring Pipeline</p>
+          <div class="mt-6 overflow-x-auto">
+            <table class="w-full text-left text-sm sm:text-base">
+              <thead>
+                <tr class="border-b border-white/10">
+                  <th class="py-2 pr-4 font-semibold text-zinc-100">Factor</th>
+                  <th class="py-2 pr-4 font-semibold text-zinc-100">Weight</th>
+                  <th class="py-2 pr-4 font-semibold text-zinc-100">Detects</th>
+                  <th class="py-2 font-semibold text-zinc-100">Strength</th>
+                </tr>
+              </thead>
+              <tbody class="muted">
+                <tr class="border-b border-white/5">
+                  <td class="py-2 pr-4 text-zinc-100">Laplacian Variance</td>
+                  <td class="py-2 pr-4">35%</td>
+                  <td class="py-2 pr-4">Focus blur</td>
+                  <td class="py-2">Fast, reliable baseline</td>
+                </tr>
+                <tr class="border-b border-white/5">
+                  <td class="py-2 pr-4 text-zinc-100">Optical Flow</td>
+                  <td class="py-2 pr-4">25%</td>
+                  <td class="py-2 pr-4">Motion blur</td>
+                  <td class="py-2">Directional detection</td>
+                </tr>
+                <tr class="border-b border-white/5">
+                  <td class="py-2 pr-4 text-zinc-100">Feature Print Entropy</td>
+                  <td class="py-2 pr-4">20%</td>
+                  <td class="py-2 pr-4">Overall texture loss</td>
+                  <td class="py-2">Catches subtle degradation</td>
+                </tr>
+                <tr>
+                  <td class="py-2 pr-4 text-zinc-100">Edge Density</td>
+                  <td class="py-2 pr-4">20%</td>
+                  <td class="py-2 pr-4">Low-light softness</td>
+                  <td class="py-2">Noise-resistant</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The entire analysis runs on-device using Apple's Vision framework and Core Image, so your photos never leave your iPhone. TidyByte processes images through its VisionAnalysisService, which operates as a Swift actor to keep the main thread responsive. The service accepts CGImage inputs, which means it does not require photo library access just to perform the analysis. Each photo is scored in under a second on modern iPhone hardware, and the service yields to the Task scheduler every 20 photos to keep the UI responsive during batch scans. You can also adjust the blur sensitivity threshold in settings to control how strict the detection is. A threshold around 0.65 works well for most users, but you can lower it to catch only the worst offenders or raise it to flag slightly soft images as well.</p>
+      </section>
+
+      <!-- Section 4 -->
+      <section class="mt-10">
+        <h2 class="h-section text-2xl sm:text-3xl">Reviewing Detected Photos</h2>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Once TidyByte has scanned your library, it presents the results in its signature swipe interface. Each detected photo shows its blur score and the primary blur type (motion, focus, or low-light), so you can make an informed decision. The swipe-left-to-delete, swipe-right-to-keep interaction makes reviewing fast: most users can process 100 photos in under three minutes.</p>
+
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For photos you are unsure about, tap to view them full-screen before deciding. The review screen also shows the photo's metadata, including the capture date, camera settings, and file size, which can help you judge whether a slightly blurry shot is worth keeping for sentimental reasons. TidyByte does not auto-delete anything; every decision is yours.</p>
+
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">A practical tip: start with the highest blur scores first. Photos scored above 0.85 are almost certainly unusable, so clearing those out quickly reduces the pile and builds momentum. Then work through the moderate range 0.65 to 0.85, where some photos may be borderline. TidyByte also offers a Select All option for each blur category, which is useful if you want to bulk-delete a large batch of clearly blurry shots and only review the ambiguous ones individually. Combined with the app's <a class="text-accent hover:underline" href="/#features">duplicate detection</a> feature, you can often reclaim significant storage in a single session.</p>
+      </section>
+
+      <!-- Section 5 -->
+      <section class="mt-10">
+        <h2 class="h-section text-2xl sm:text-3xl">Edge Cases and False Positives</h2>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">No automated detection system is perfect. There are situations where blur analysis can produce unexpected results, and understanding these edge cases helps you use the tool more effectively.</p>
+
+        <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+          <li><strong class="font-semibold text-zinc-100">Portrait mode and bokeh.</strong> Intentional background blur in portrait photos can trigger false positives. TidyByte mitigates this by checking whether the blur is uniform across the frame or localized to the background. If the subject's face and eyes are sharp, the image is likely a portrait rather than a mistake.</li>
+          <li><strong class="font-semibold text-zinc-100">Intentional motion blur.</strong> Long-exposure artistic shots, light trails, and waterfall smoothing are deliberate creative choices. These often have strong directional flow that mimics camera shake. Because the blur is typically uniform and aesthetically composed, TidyByte's multi-factor approach usually assigns a lower score, but some may still appear in results.</li>
+          <li><strong class="font-semibold text-zinc-100">Screenshots and graphics.</strong> Screenshots, memes, and text-heavy images have different frequency characteristics than photographs. TidyByte's analysis is calibrated for photographic content, so screenshots generally pass through without being flagged, even if they contain small text that appears soft at full resolution.</li>
+          <li><strong class="font-semibold text-zinc-100">Extreme crops.</strong> Heavy digital zoom or aggressive cropping amplifies any existing blur and introduces pixelation, which some blur metrics can mistake for sharpness. TidyByte handles this by combining the edge density signal with the Laplacian variance, which helps distinguish between genuine sharpness and blocky artifacts from upscaling.</li>
+          <li><strong class="font-semibold text-zinc-100">Panning shots.</strong> Photos where you deliberately track a moving subject (like a car or cyclist) have a sharp subject with a motion-blurred background. These can confuse detectors that evaluate the whole frame. TidyByte's feature print analysis helps here because it captures the texture contrast between the sharp subject and the blurred background, typically scoring these lower than true failed shots.</li>
+        </ul>
+
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">If you encounter false positives, you can adjust the blur sensitivity in TidyByte's settings. You can also look into the app's <a class="text-accent hover:underline" href="/blog/how-to-clean-up-duplicate-photos-iphone">duplicate detection</a> and <a class="text-accent hover:underline" href="/blog/how-to-find-delete-screenshots-iphone">screenshot cleanup</a> features for a more comprehensive approach to library maintenance.</p>
+      </section>
+
+      <!-- Section 6 -->
+      <section class="mt-10">
+        <h2 class="h-section text-2xl sm:text-3xl">Maintaining a Clean Library</h2>
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Cleaning blurry photos is not a one-time task. New blurry shots accumulate every time you take photos in challenging conditions: at concerts, on moving vehicles, in dimly lit restaurants, or simply when your hands are cold. Building a regular maintenance habit keeps your library manageable and your storage free.</p>
+
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">A good cadence is to run a scan once a month. On a library of 10,000 photos, TidyByte's blur analysis typically completes in a few minutes because the Vision framework operations are highly optimized for Apple silicon. The app also caches its analysis results using its SwiftData models, so re-scanning after adding a few hundred new photos only processes the additions, not your entire library.</p>
+
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Beyond automated detection, you can reduce future blur at the source. Enable Live Photos, which capture 1.5 seconds of motion around each shot and let you pick a sharper frame later. Use burst mode for action shots and select the best frame. In low light, hold the phone steady against a surface or use the timer to avoid shutter-press shake. And keep your lens clean; a fingerprint smear softens every photo you take.</p>
+
+        <div class="glass-card p-6 sm:p-8 mt-6">
+          <p class="text-sm font-semibold text-zinc-100">Monthly Cleanup Checklist</p>
+          <ul class="muted mt-3 space-y-2 text-base sm:text-lg">
+            <li>1. Run TidyByte's blur detection scan and delete obvious misses.</li>
+            <li>2. Check for <a class="text-accent hover:underline" href="/blog/how-to-clean-up-duplicate-photos-iphone">duplicate photos</a> and merge or delete extras.</li>
+            <li>3. Review <a class="text-accent hover:underline" href="/blog/how-to-find-delete-screenshots-iphone">screenshots</a> and delete ones you no longer need.</li>
+            <li>4. Use the <a class="text-accent hover:underline" href="/#features">storage analysis</a> to identify the largest files consuming space.</li>
+            <li>5. Empty the Recently Deleted album in Photos to reclaim storage immediately.</li>
+          </ul>
+        </div>
+
+        <p class="muted mt-4 text-base leading-relaxed sm:text-lg">According to industry estimates, the average smartphone user has over 2,000 photos on their device, and studies suggest that 10 to 15 percent of those are blurry, duplicates, or otherwise unwanted. That means roughly 200 to 300 photos sitting in your library that serve no purpose other than consuming storage and making it harder to find the shots that matter. A few minutes with a blurry photo cleaner each month can recover that space and keep your gallery organized.</p>
+      </section>
+
+      <!-- FAQ Section -->
+      <section class="mt-12">
+        <h2 class="h-section text-2xl sm:text-3xl">Frequently Asked Questions</h2>
+
+        <details class="mt-6 border-b border-white/10 pb-4">
+          <summary class="cursor-pointer text-lg font-semibold text-zinc-100 transition hover:text-accent">How does blur detection work?</summary>
+          <p class="muted mt-3 text-base leading-relaxed sm:text-lg">Blur detection works by analyzing the frequency content of an image. Sharp photos contain strong high-frequency components, crisp edges and fine detail, while blurry photos have suppressed high frequencies. Tools like TidyByte combine multiple signals, including Laplacian variance for focus blur, optical flow for motion blur, and feature print analysis for overall texture quality, to produce a reliable blur score. Each factor is weighted and merged into a single 0.0 to 1.0 score, where higher values indicate more severe blur.</p>
+        </details>
+
+        <details class="mt-4 border-b border-white/10 pb-4">
+          <summary class="cursor-pointer text-lg font-semibold text-zinc-100 transition hover:text-accent">Can AI detect blurry photos?</summary>
+          <p class="muted mt-3 text-base leading-relaxed sm:text-lg">Yes. Modern computer vision frameworks like Apple's Vision can detect blurry photos with high accuracy. By combining edge detection, optical flow analysis, and feature extraction, AI can distinguish between intentionally soft images like portraits with bokeh and unintentionally blurry ones. TidyByte uses these on-device AI capabilities without uploading your photos to any server, which means your privacy is preserved and the analysis works offline.</p>
+        </details>
+
+        <details class="mt-4 border-b border-white/10 pb-4">
+          <summary class="cursor-pointer text-lg font-semibold text-zinc-100 transition hover:text-accent">What's the difference between motion blur and focus blur?</summary>
+          <p class="muted mt-3 text-base leading-relaxed sm:text-lg">Motion blur is directional: it smears the image along the path of camera or subject movement, creating streaked edges that align in one direction. Focus blur is uniform: the subject appears soft all around because the lens focused at the wrong distance, while other parts of the scene may be perfectly sharp. TidyByte detects both by combining Laplacian variance, which catches focus blur, with optical flow analysis, which catches motion blur. The app labels each detected photo with its primary blur type so you know why it was flagged.</p>
+        </details>
+
+        <details class="mt-4 border-b border-white/10 pb-4">
+          <summary class="cursor-pointer text-lg font-semibold text-zinc-100 transition hover:text-accent">How accurate is TidyByte's blur detection?</summary>
+          <p class="muted mt-3 text-base leading-relaxed sm:text-lg">TidyByte's multi-factor analysis is designed to minimize both false positives and false negatives. By combining four independent signals: Laplacian variance, optical flow, feature prints, and edge density, it avoids the weaknesses of any single method. In practice, it reliably catches most blurry photos while correctly leaving intentional soft-focus and portrait images alone. The on-device processing also means detection is fast, typically scoring each photo in under a second on modern iPhone hardware.</p>
+        </details>
+
+        <details class="mt-4 border-b border-white/10 pb-4">
+          <summary class="cursor-pointer text-lg font-semibold text-zinc-100 transition hover:text-accent">Can I adjust the blur sensitivity?</summary>
+          <p class="muted mt-3 text-base leading-relaxed sm:text-lg">Yes. TidyByte lets you adjust the blur sensitivity threshold so you can control how strict the detection is. Lowering the threshold catches only the most obviously blurry photos; raising it flags even slightly soft images. You can find this setting in the TidyByte settings screen, and changes apply immediately the next time you run a scan. Most users find the default threshold of 0.65 provides a good balance between catching blurry photos and avoiding false positives.</p>
+        </details>
+      </section>
+
+      <!-- CTA Card -->
+      <section class="glass-card p-6 sm:p-8 text-center mt-12">
+        <h2 class="text-xl font-semibold text-zinc-100">Ready to clean up your photo library?</h2>
+        <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and takes just minutes to use.</p>
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+          <a href="/#features" class="btn-ghost">See all features</a>
+        </div>
+      </section>
+    </article>
+  </main>
+
+  <footer class="border-t border-white/5">
+    <div class="container-prose grid gap-10 py-12 sm:grid-cols-2 md:grid-cols-3 md:py-16">
+      <div>
+        <p class="text-base font-semibold tracking-tight">TidyByte</p>
+        <p class="muted mt-2 text-sm">Swipe to clean your photos. Free, on-device, no account.</p>
+        <p class="muted mt-4 text-xs">&copy; 2026 TidyByte &middot; <a href="/LICENSE" class="hover:underline">MIT License</a></p>
+      </div>
+      <div>
+        <p class="text-sm font-semibold">Product</p>
+        <ul class="muted mt-3 space-y-2 text-sm">
+          <li><a href="/#features" class="hover:text-zinc-100">Features</a></li>
+          <li><a href="/blog" class="hover:text-zinc-100">Blog</a></li>
+          <li><a href="/changelog" class="hover:text-zinc-100">Changelog</a></li>
+          <li><a href="/support" class="hover:text-zinc-100">Support</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="text-sm font-semibold">Legal</p>
+        <ul class="muted mt-3 space-y-2 text-sm">
+          <li><a href="/privacy" class="hover:text-zinc-100">Privacy</a></li>
+          <li><a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="hover:text-zinc-100">GitHub repository</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-white/5">
+      <p class="container-prose muted py-6 text-center text-xs">Made with care. Runs entirely on your device.</p>
+    </div>
+  </footer>
+</body>
+</html>

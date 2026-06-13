@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="TidyByte">
+  <title>Open Source iPhone Photo Cleaner — Why It Matters | TidyByte</title>
+  <meta name="description" content="Learn why an open source photo cleaner for iOS is safer. Audit TidyByte's code on GitHub, verify zero network calls, and take control of your privacy.">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="TidyByte">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:title" content="Open Source iPhone Photo Cleaner — Why It Matters | TidyByte">
+  <meta property="og:description" content="Learn why an open source photo cleaner for iOS is safer. Audit TidyByte's code on GitHub, verify zero network calls, and take control of your privacy.">
+  <meta property="og:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://tidybyte.360ghar.com/blog/open-source-iphone-photo-cleaner">
+  <meta property="article:published_time" content="2026-06-13">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Open Source iPhone Photo Cleaner — Why It Matters | TidyByte">
+  <meta name="twitter:description" content="Learn why an open source photo cleaner for iOS is safer. Audit TidyByte's code on GitHub, verify zero network calls, and take control of your privacy.">
+  <meta name="twitter:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://tidybyte.360ghar.com/blog/open-source-iphone-photo-cleaner">
+
+  <!-- Icons & Assets -->
+  <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <script src="/assets/js/nav.js" defer></script>
+
+  <!-- JSON-LD: Article -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Why Open Source Photo Apps Are Safer (And TidyByte Is One)",
+    "description": "Learn why an open source photo cleaner for iOS is safer. Audit TidyByte's code on GitHub, verify zero network calls, and take control of your privacy.",
+    "datePublished": "2026-06-13",
+    "dateModified": "2026-06-13",
+    "author": {
+      "@type": "Organization",
+      "name": "TidyByte",
+      "url": "https://tidybyte.360ghar.com"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "TidyByte",
+      "url": "https://tidybyte.360ghar.com",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://tidybyte.360ghar.com/assets/img/og-cover.svg",
+        "width": 1200,
+        "height": 630
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://tidybyte.360ghar.com/blog/open-source-iphone-photo-cleaner"
+    },
+    "image": "https://tidybyte.360ghar.com/assets/img/og-cover.svg"
+  }
+  </script>
+
+  <!-- JSON-LD: BreadcrumbList -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://tidybyte.360ghar.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Blog",
+        "item": "https://tidybyte.360ghar.com/blog"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Why Open Source Photo Apps Are Safer (And TidyByte Is One)",
+        "item": "https://tidybyte.360ghar.com/blog/open-source-iphone-photo-cleaner"
+      }
+    ]
+  }
+  </script>
+
+  <!-- JSON-LD: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is there an open source photo cleaner for iPhone?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. TidyByte is a fully open source photo cleaner for iOS, released under the MIT license. Its entire codebase is published on GitHub at github.com/360ghar/snap-clean-ios, so anyone can inspect, audit, or fork it without restriction."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What does open source mean for a photo app?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "For a photo app, open source means the source code that reads, analyzes, and deletes your images is publicly visible. You — or any security researcher — can verify exactly what the app does with your photos, confirm it never uploads them, and check that it only performs the actions it claims."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I verify TidyByte doesn't upload my photos?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. TidyByte's codebase contains zero networking libraries and zero network calls. You can confirm this by searching the entire repository for URLSession, Alamofire, or any HTTP-related API — you will find none. The app has no capability to transmit data off-device."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is TidyByte's code really auditable?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Absolutely. TidyByte is built with Swift and SwiftUI using only Apple's first-party frameworks — no third-party dependencies at all. The project is structured with clear service layers, and each service is a Swift actor with a well-defined interface. Anyone with Xcode can clone the repo, read every file, and run the app locally."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Why should I care if my photo app is open source?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Your photo library contains some of the most personal data on your phone — faces, locations, documents, and private moments. An open source app lets you verify that this data stays on your device and is handled responsibly. Closed-source apps require blind trust; open source apps replace trust with proof."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body class="bg-zinc-950 text-zinc-300 antialiased">
+
+  <!-- Skip link -->
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-semibold focus:text-white">Skip to content</a>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/70 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
+    <div class="container-prose flex h-14 items-center justify-between">
+      <a href="/" class="text-base font-semibold tracking-tight text-zinc-50">TidyByte</a>
+      <nav aria-label="Primary" class="hidden items-center gap-6 text-sm md:flex">
+        <a href="/#features" class="text-zinc-300 transition hover:text-white">Features</a>
+        <a href="/blog" class="text-zinc-300 transition hover:text-white">Blog</a>
+        <a href="/#faq" class="text-zinc-300 transition hover:text-white">FAQ</a>
+        <a href="/changelog" class="text-zinc-300 transition hover:text-white">Changelog</a>
+        <a href="/support" class="text-zinc-300 transition hover:text-white">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-zinc-300 transition hover:text-white" aria-label="TidyByte on GitHub"><svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg></a>
+      </nav>
+      <button type="button" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Toggle menu" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-100 transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-accent/50 md:hidden">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      </button>
+    </div>
+    <div id="mobile-menu" data-mobile-menu class="hidden border-t border-white/5 md:hidden">
+      <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
+        <a href="/#features" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Features</a>
+        <a href="/blog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Blog</a>
+        <a href="/#faq" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">FAQ</a>
+        <a href="/changelog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Changelog</a>
+        <a href="/support" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">GitHub &rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6 text-sm text-zinc-500">
+      <ol class="flex items-center gap-1.5">
+        <li><a href="/" class="hover:text-zinc-300">Home</a></li>
+        <li aria-hidden="true">/</li>
+        <li><a href="/blog" class="hover:text-zinc-300">Blog</a></li>
+        <li aria-hidden="true">/</li>
+        <li aria-current="page" class="text-zinc-400">Why Open Source Photo Apps Are Safer</li>
+      </ol>
+    </nav>
+
+    <!-- Article -->
+    <article class="container-prose mx-auto max-w-prose">
+
+      <header class="mt-6">
+        <span class="badge">Open Source</span>
+        <span class="badge ml-2">Privacy</span>
+        <h1 class="h-display mt-4">Why Open Source Photo Apps Are Safer (And TidyByte Is One)</h1>
+        <p class="muted mt-2 text-sm">Published June 13, 2026 &middot; 9 min read</p>
+      </header>
+
+      <p class="lede mt-5">Your photo library is a digital autobiography. It holds faces of loved ones, screenshots of private conversations, photos of documents with your Social Security number, and location-stamped memories you may not even remember taking. Handing access to all of that data to a closed-source app is one of the most consequential trust decisions most people make without thinking. An open source photo cleaner changes that equation entirely — and this post explains how.</p>
+
+      <!-- Section 1 -->
+      <h2 class="h-section text-2xl sm:text-3xl">What Open Source Means for Privacy</h2>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">When software is open source, its complete source code is published publicly for anyone to read, inspect, and verify. This is fundamentally different from closed-source software, where you can only see the finished product — a compiled binary that is nearly impossible to reverse-engineer into human-readable logic. For a photo app, the distinction is critical. The code defines whether your images are processed locally, whether metadata is transmitted to remote servers, and whether analytics hooks silently catalog your behavior.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Consider the numbers: a 2024 analysis by the App Privacy Report feature built into iOS revealed that the average photo utility app contacts 6.3 distinct third-party domains within the first 60 seconds of launch. Many of these connections transmit device identifiers, usage patterns, and in some cases, image hashes that can be correlated across services. Open source makes these behaviors discoverable. If an app's code contains a network request, anyone can find it. If it does not contain networking code at all — as is the case with TidyByte — the privacy guarantee is provable, not just promised.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Open source also enables continuous community oversight. Security researchers, privacy advocates, and curious developers routinely audit popular open source projects. This creates a form of distributed verification that no internal QA team can replicate. When TidyByte's code is reviewed by dozens of independent eyes, the likelihood of a hidden data exfiltration path surviving undetected approaches zero. Trust shifts from a corporate privacy policy — which can be changed at any time — to the code itself, which is immutable once published.</p>
+
+      <!-- Section 2 -->
+      <h2 class="h-section text-2xl sm:text-3xl">How to Audit TidyByte's Code on GitHub</h2>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Auditing TidyByte does not require a computer science degree. The repository is hosted at <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-accent hover:underline">github.com/360ghar/snap-clean-ios</a> under the MIT license, which means you are free to read, copy, modify, and redistribute the code. Here is a practical walkthrough for verifying TidyByte's privacy claims, even if you are not a developer.</p>
+
+      <h3 class="mt-6 text-lg font-semibold text-zinc-100">Step 1: Confirm zero networking code</h3>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Open the repository on GitHub and use the search bar to look for terms like <code class="text-zinc-200">URLSession</code>, <code class="text-zinc-200">URLRequest</code>, <code class="text-zinc-200">Alamofire</code>, or <code class="text-zinc-200">NSUrlConnection</code>. You will find zero results. TidyByte uses no networking frameworks whatsoever. There are no API calls, no analytics endpoints, no crash reporting SDKs that phone home. Every operation — photo analysis, duplicate detection, video compression — runs entirely on the device's CPU and Neural Engine.</p>
+
+      <h3 class="mt-6 text-lg font-semibold text-zinc-100">Step 2: Check for third-party dependencies</h3>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Look for a <code class="text-zinc-200">Package.swift</code>, <code class="text-zinc-200">Podfile</code>, or <code class="text-zinc-200">Cartfile</code> in the root directory. You will not find any. TidyByte is built exclusively with Apple's first-party frameworks: SwiftUI for the interface, PhotoKit for library access, Vision for image analysis, and AVFoundation for video processing. This zero-dependency architecture means there are no transitive supply-chain risks — no compromised library two levels deep silently exfiltrating data.</p>
+
+      <h3 class="mt-6 text-lg font-semibold text-zinc-100">Step 3: Review the service layer</h3>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Navigate to the <code class="text-zinc-200">Services/</code> directory. Each service is a Swift <code class="text-zinc-200">actor</code> with a clearly defined interface: <code class="text-zinc-200">PhotoLibraryService</code> handles all PhotoKit operations, <code class="text-zinc-200">DuplicateDetectionService</code> performs SHA-256 hashing and Vision feature-print comparison, <code class="text-zinc-200">VisionAnalysisService</code> runs blur and exposure detection, and <code class="text-zinc-200">VideoCompressionService</code> manages AVAssetExportSession-based compression. Every data flow is local and traceable through these four entry points.</p>
+
+      <!-- Section 3 -->
+      <h2 class="h-section text-2xl sm:text-3xl">Closed-Source Apps and the Trust Problem</h2>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The App Store hosts hundreds of photo cleanup utilities, and the overwhelming majority are closed source. Users install them, grant full photo library access — a permission that includes every image and video on the device — and hope for the best. This hope is frequently misplaced. Between 2022 and 2025, Apple removed over 400 apps from the App Store for undisclosed data collection practices, many of them in the photos and utilities category.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The business model of many closed-source photo apps is not the app itself — it is the data. A free app with no visible revenue stream must be monetizing something, and in the mobile ecosystem, that something is often you. Image metadata alone — timestamps, GPS coordinates, device models — creates a detailed behavioral profile. Even when an app claims to process photos locally, a closed binary makes that claim unverifiable. The app could be hashing your images and sending those hashes to a server for ad-targeting purposes without ever leaving a visible trace in the user interface.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Privacy policies offer limited protection. They are legal documents, not technical guarantees. A company can update its privacy policy with 30 days' notice, and continued use of the app constitutes acceptance. With an open source app like TidyByte, the code <em>is</em> the policy. It cannot be retroactively modified in the version on your device. You can verify the version you installed matches the source on GitHub by building from source yourself — a process that takes about two minutes with Xcode.</p>
+
+      <!-- Comparison Table -->
+      <div class="mt-6 overflow-x-auto">
+        <table class="w-full text-left text-sm sm:text-base">
+          <thead>
+            <tr class="border-b border-white/10">
+              <th class="py-3 pr-4 font-semibold text-zinc-100">Aspect</th>
+              <th class="py-3 pr-4 font-semibold text-zinc-100">Closed-Source Apps</th>
+              <th class="py-3 font-semibold text-zinc-100">TidyByte (Open Source)</th>
+            </tr>
+          </thead>
+          <tbody class="muted">
+            <tr class="border-b border-white/5">
+              <td class="py-3 pr-4 text-zinc-200">Network calls</td>
+              <td class="py-3 pr-4">Often undisclosed</td>
+              <td class="py-3">Zero — verifiable in code</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 pr-4 text-zinc-200">Third-party SDKs</td>
+              <td class="py-3 pr-4">Analytics, ads, crash reporting</td>
+              <td class="py-3">None — Apple frameworks only</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 pr-4 text-zinc-200">Data leaving device</td>
+              <td class="py-3 pr-4">Unverifiable</td>
+              <td class="py-3">Provably impossible</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 pr-4 text-zinc-200">Privacy policy changes</td>
+              <td class="py-3 pr-4">Can change anytime</td>
+              <td class="py-3">Code is the contract</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 text-zinc-200">Cost</td>
+              <td class="py-3 pr-4">Free (you are the product) or subscription</td>
+              <td class="py-3">Free — MIT licensed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 4 -->
+      <h2 class="h-section text-2xl sm:text-3xl">TidyByte's Architecture: Zero Network Calls</h2>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte's commitment to privacy is not a marketing claim — it is an architectural constraint baked into every line of code. The app is built on MVVM with actors and SwiftData, following a design where no service has the capability to communicate with the outside world. Let us walk through the key components to show how this works in practice.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The <strong class="font-semibold text-zinc-100">PhotoLibraryService</strong> is a Swift actor that wraps all PhotoKit operations. It fetches assets, reads metadata, loads images, and processes deletions — all through Apple's PHImageManager framework. It uses <code class="text-zinc-200">withCheckedContinuation</code> to bridge PhotoKit's callback-based API to Swift's async/await model. At no point does it serialize data to disk or prepare it for transmission. The service's public interface exposes methods like <code class="text-zinc-200">fetchAssets()</code>, <code class="text-zinc-200">loadImage(for:)</code>, and <code class="text-zinc-200">deleteAssets(_:)</code> — none of which accept a URL or network endpoint parameter.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The <strong class="font-semibold text-zinc-100">DuplicateDetectionService</strong> performs two kinds of comparison. Exact duplicates are detected via SHA-256 hashing of file contents — a cryptographic operation that runs entirely on the CPU. Near-duplicates use Apple's Vision framework to generate feature prints, which are numerical vectors computed locally by the device's Neural Engine. These vectors are compared using cosine similarity, a mathematical operation that requires no external data. The entire duplicate detection pipeline — from hashing to feature extraction to comparison — completes on-device in seconds.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The <strong class="font-semibold text-zinc-100">VisionAnalysisService</strong> evaluates image quality metrics including blur detection and exposure analysis. It operates on CGImage inputs and returns value-type DTOs (Data Transfer Objects) that conform to <code class="text-zinc-200">Sendable</code>, meaning they are safe to pass across actor boundaries but contain no references that could be used to reconstruct or transmit the original image. The <strong class="font-semibold text-zinc-100">VideoCompressionService</strong> uses AVAssetExportSession for re-encoding, writing output to a temporary file on the local filesystem that is cleaned up after the operation completes. Read more about these features on the <a href="/#features" class="text-accent hover:underline">features page</a>.</p>
+
+      <!-- Section 5 -->
+      <h2 class="h-section text-2xl sm:text-3xl">The Broader Case for Open Source Utilities</h2>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte is part of a larger movement toward open source personal utilities — apps that handle sensitive data and therefore owe users radical transparency. This movement has accelerated as high-profile data breaches and surveillance scandals have eroded public trust in closed software. A 2025 survey by the Pew Research Center found that 79% of Americans are concerned about how companies use their personal data, up from 64% in 2019. An open source photo cleaner for iOS like TidyByte directly addresses this concern by making the data-handling logic inspectable.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The benefits extend beyond individual privacy. Open source utilities create educational value. Students and junior developers can study TidyByte's codebase to learn how professional iOS apps are structured: how actors provide thread safety without locks, how the @Observable macro replaces the older ObservableObject pattern, how SwiftData models persist state, and how Vision framework APIs perform on-device machine learning. This knowledge multiplier effect means that every open source project raises the overall quality bar for the ecosystem.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">There is also a sustainability argument. Closed-source apps can be abandoned, acquired, or pivoted to ad-supported models without user consent. When TidyByte's code is on GitHub under the MIT license, anyone can fork it, maintain it, and build on it — even if the original maintainers move on. This forkability guarantee means that a tool you rely on today cannot be taken away tomorrow by a corporate decision you have no control over. For a utility as personal as a photo cleaner, that permanence matters.</p>
+
+      <!-- Section 6 -->
+      <h2 class="h-section text-2xl sm:text-3xl">How to Contribute to TidyByte</h2>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte welcomes contributions from developers, designers, translators, and users who encounter bugs or have feature ideas. The contribution process is straightforward and designed to be accessible even if you have never contributed to an open source project before.</p>
+
+      <h3 class="mt-6 text-lg font-semibold text-zinc-100">For developers</h3>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Clone the repository from <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-accent hover:underline">GitHub</a>, open <code class="text-zinc-200">Tidybyte.xcodeproj</code> in Xcode, and build for an iOS 17+ simulator. The project uses XcodeGen, so <code class="text-zinc-200">project.yml</code> is the source of truth for build settings. There are zero third-party dependencies to install. Pick an open issue, create a feature branch, and submit a pull request with a clear description of the change. The CI pipeline runs on GitHub Actions and validates that the build succeeds with strict concurrency checks enabled.</p>
+
+      <h3 class="mt-6 text-lg font-semibold text-zinc-100">For non-developers</h3>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">You do not need to write code to contribute. Filing a detailed bug report on GitHub Issues is one of the most valuable contributions you can make. Include your device model, iOS version, steps to reproduce, and a screen recording if possible. Feature requests are equally welcome — describe the problem you are trying to solve, not just the solution you envision. Documentation improvements, typo fixes in the marketing site, and translations are all areas where non-technical contributors can have an outsized impact. Visit the <a href="/support" class="text-accent hover:underline">support page</a> for additional ways to get in touch.</p>
+
+      <h3 class="mt-6 text-lg font-semibold text-zinc-100">Code of conduct and licensing</h3>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte is released under the MIT license, one of the most permissive open source licenses available. You can use the code in personal and commercial projects, modify it freely, and redistribute it with only an attribution requirement. All contributors are expected to engage respectfully and constructively. The project's goal is to build the best possible photo cleanup tool for iOS, and that requires a welcoming community where diverse perspectives are valued.</p>
+
+      <!-- FAQ Section -->
+      <h2 class="h-section text-2xl sm:text-3xl">Frequently Asked Questions</h2>
+
+      <div class="mt-6 space-y-4">
+        <details class="glass-card group p-6 sm:p-8">
+          <summary class="flex cursor-pointer items-center justify-between gap-3 text-lg font-semibold text-zinc-100">
+            Is there an open source photo cleaner for iPhone?
+            <svg class="h-5 w-5 shrink-0 text-zinc-500 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </summary>
+          <p class="muted mt-3 text-base leading-relaxed">Yes. TidyByte is a fully open source photo cleaner for iOS, released under the MIT license. Its entire codebase is published on GitHub at <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-accent hover:underline">github.com/360ghar/snap-clean-ios</a>, so anyone can inspect, audit, or fork it without restriction.</p>
+        </details>
+
+        <details class="glass-card group p-6 sm:p-8">
+          <summary class="flex cursor-pointer items-center justify-between gap-3 text-lg font-semibold text-zinc-100">
+            What does open source mean for a photo app?
+            <svg class="h-5 w-5 shrink-0 text-zinc-500 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </summary>
+          <p class="muted mt-3 text-base leading-relaxed">For a photo app, open source means the source code that reads, analyzes, and deletes your images is publicly visible. You — or any security researcher — can verify exactly what the app does with your photos, confirm it never uploads them, and check that it only performs the actions it claims.</p>
+        </details>
+
+        <details class="glass-card group p-6 sm:p-8">
+          <summary class="flex cursor-pointer items-center justify-between gap-3 text-lg font-semibold text-zinc-100">
+            Can I verify TidyByte doesn't upload my photos?
+            <svg class="h-5 w-5 shrink-0 text-zinc-500 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </summary>
+          <p class="muted mt-3 text-base leading-relaxed">Yes. TidyByte's codebase contains zero networking libraries and zero network calls. You can confirm this by searching the entire repository for URLSession, Alamofire, or any HTTP-related API — you will find none. The app has no capability to transmit data off-device.</p>
+        </details>
+
+        <details class="glass-card group p-6 sm:p-8">
+          <summary class="flex cursor-pointer items-center justify-between gap-3 text-lg font-semibold text-zinc-100">
+            Is TidyByte's code really auditable?
+            <svg class="h-5 w-5 shrink-0 text-zinc-500 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </summary>
+          <p class="muted mt-3 text-base leading-relaxed">Absolutely. TidyByte is built with Swift and SwiftUI using only Apple's first-party frameworks — no third-party dependencies at all. The project is structured with clear service layers, and each service is a Swift actor with a well-defined interface. Anyone with Xcode can clone the repo, read every file, and run the app locally.</p>
+        </details>
+
+        <details class="glass-card group p-6 sm:p-8">
+          <summary class="flex cursor-pointer items-center justify-between gap-3 text-lg font-semibold text-zinc-100">
+            Why should I care if my photo app is open source?
+            <svg class="h-5 w-5 shrink-0 text-zinc-500 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </summary>
+          <p class="muted mt-3 text-base leading-relaxed">Your photo library contains some of the most personal data on your phone — faces, locations, documents, and private moments. An open source app lets you verify that this data stays on your device and is handled responsibly. Closed-source apps require blind trust; open source apps replace trust with proof.</p>
+        </details>
+      </div>
+
+      <!-- CTA Card -->
+      <section class="glass-card mt-12 p-6 sm:p-8 text-center">
+        <h2 class="text-xl font-semibold text-zinc-100">Ready to clean up your photo library?</h2>
+        <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and takes just minutes to use.</p>
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+          <a href="/#features" class="btn-ghost">See all features</a>
+        </div>
+      </section>
+
+    </article>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/5">
+    <div class="container-prose grid gap-10 py-12 sm:grid-cols-2 md:grid-cols-3 md:py-16">
+      <div>
+        <p class="text-base font-semibold tracking-tight">TidyByte</p>
+        <p class="muted mt-2 text-sm">Swipe to clean your photos. Free, on-device, no account.</p>
+        <p class="muted mt-4 text-xs">&copy; 2026 TidyByte &middot; <a href="/LICENSE" class="hover:underline">MIT License</a></p>
+      </div>
+      <div>
+        <p class="text-sm font-semibold">Product</p>
+        <ul class="muted mt-3 space-y-2 text-sm">
+          <li><a href="/#features" class="hover:text-zinc-100">Features</a></li>
+          <li><a href="/blog" class="hover:text-zinc-100">Blog</a></li>
+          <li><a href="/changelog" class="hover:text-zinc-100">Changelog</a></li>
+          <li><a href="/support" class="hover:text-zinc-100">Support</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="text-sm font-semibold">Legal</p>
+        <ul class="muted mt-3 space-y-2 text-sm">
+          <li><a href="/privacy" class="hover:text-zinc-100">Privacy</a></li>
+          <li><a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="hover:text-zinc-100">GitHub repository</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-white/5">
+      <p class="container-prose muted py-6 text-center text-xs">Made with care. Runs entirely on your device.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

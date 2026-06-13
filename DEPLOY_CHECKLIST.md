@@ -24,10 +24,8 @@ In `site/index.html` (hero CTA + footer CTA) there are comments like:
 Update the `href` on the next link from `#` to:
 
 ```
-https://apps.apple.com/app/idYOUR_APP_ID
+https://apps.apple.com/in/app/tidybyte/id6775769763
 ```
-
-(Use the numeric App ID from App Store Connect, not the slug.)
 
 ## 3. Verify URLs match App Store Connect
 

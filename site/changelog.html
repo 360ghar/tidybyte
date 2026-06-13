@@ -2,28 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Changelog &mdash; TidyByte</title>
-  <meta name="description" content="Release notes for TidyByte. Every release, newest first.">
+  <title>Changelog &mdash; TidyByte Photo Cleaner for iPhone</title>
+  <meta name="description" content="Release notes for TidyByte, the free iPhone photo cleaner. See what's new in each version &mdash; features, fixes, and improvements.">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="TidyByte">
 
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="TidyByte">
+  <meta property="og:locale" content="en_US">
   <meta property="og:title" content="Changelog &mdash; TidyByte">
   <meta property="og:description" content="Release notes for TidyByte. Every release, newest first.">
-  <meta property="og:image" content="/assets/img/og-cover.svg">
+  <meta property="og:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="TidyByte &mdash; Free iPhone app to clean your photo library">
   <meta property="og:url" content="https://tidybyte.360ghar.com/changelog">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Changelog &mdash; TidyByte">
   <meta name="twitter:description" content="Release notes for TidyByte. Every release, newest first.">
-  <meta name="twitter:image" content="/assets/img/og-cover.svg">
+  <meta name="twitter:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
 
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
   <link rel="canonical" href="https://tidybyte.360ghar.com/changelog">
   <link rel="stylesheet" href="/assets/css/styles.css">
   <script src="/assets/js/nav.js" defer></script>
+
+  <!-- Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://tidybyte.360ghar.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Changelog",
+        "item": "https://tidybyte.360ghar.com/changelog"
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-semibold focus:text-white">Skip to content</a>
@@ -34,6 +63,7 @@
 
       <nav aria-label="Primary" class="hidden items-center gap-6 text-sm md:flex">
         <a href="/#features" class="text-zinc-300 transition hover:text-white">Features</a>
+        <a href="/blog" class="text-zinc-300 transition hover:text-white">Blog</a>
         <a href="/#faq" class="text-zinc-300 transition hover:text-white">FAQ</a>
         <a href="/changelog" class="text-zinc-300 transition hover:text-white" aria-current="page">Changelog</a>
         <a href="/support" class="text-zinc-300 transition hover:text-white">Support</a>
@@ -50,6 +80,7 @@
     <div id="mobile-menu" data-mobile-menu class="hidden border-t border-white/5 md:hidden">
       <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
         <a href="/#features" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Features</a>
+        <a href="/blog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Blog</a>
         <a href="/#faq" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">FAQ</a>
         <a href="/changelog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5" aria-current="page">Changelog</a>
         <a href="/support" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Support</a>
@@ -57,6 +88,14 @@
       </nav>
     </div>
   </header>
+
+  <nav aria-label="Breadcrumb" class="container-prose pt-6 text-sm">
+    <ol class="flex items-center gap-2 text-zinc-400">
+      <li><a href="/" class="hover:text-zinc-100">Home</a></li>
+      <li aria-hidden="true">/</li>
+      <li class="text-zinc-100" aria-current="page">Changelog</li>
+    </ol>
+  </nav>
 
   <main id="main" class="section">
     <div class="container-prose">
@@ -105,6 +144,7 @@
         <hr class="my-12 border-white/10">
 
         <p class="muted text-center text-sm">No older releases &mdash; TidyByte 1.0 is the first public build.</p>
+        <p class="mt-6 text-center text-sm"><a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="text-accent hover:underline" target="_blank" rel="noopener">Download TidyByte</a> &middot; <a href="/support" class="text-accent hover:underline">Get support</a></p>
       </div>
     </div>
   </main>
@@ -117,15 +157,16 @@
         <p class="muted mt-4 text-xs">&copy; 2026 TidyByte &middot; <a href="/LICENSE" class="hover:underline">MIT License</a></p>
       </div>
       <div>
-        <h2 class="text-sm font-semibold">Product</h2>
+        <p class="text-sm font-semibold">Product</p>
         <ul class="muted mt-3 space-y-2 text-sm">
           <li><a href="/#features" class="hover:text-zinc-100">Features</a></li>
+          <li><a href="/blog" class="hover:text-zinc-100">Blog</a></li>
           <li><a href="/changelog" class="hover:text-zinc-100">Changelog</a></li>
           <li><a href="/support" class="hover:text-zinc-100">Support</a></li>
         </ul>
       </div>
       <div>
-        <h2 class="text-sm font-semibold">Legal</h2>
+        <p class="text-sm font-semibold">Legal</p>
         <ul class="muted mt-3 space-y-2 text-sm">
           <li><a href="/privacy" class="hover:text-zinc-100">Privacy</a></li>
           <li><a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="hover:text-zinc-100">GitHub repository</a></li>

@@ -95,13 +95,11 @@ Notes: Do not repeat words already in the App Name/Subtitle to save space. Avoid
 
 | Field | Value | Required? |
 |---|---|---|
-| Support URL | `https://TODO-your-domain.example/support` | Required |
-| Marketing URL | `https://TODO-your-domain.example` | Optional |
-| Privacy Policy URL | `https://TODO-your-domain.example/privacy` | **Required** |
+| Support URL | `https://tidybyte.360ghar.com/support` | Required |
+| Marketing URL | `https://tidybyte.360ghar.com` | Optional |
+| Privacy Policy URL | `https://tidybyte.360ghar.com/privacy` | **Required** |
 
-**TODO (human):** All three are placeholders.
-- The **Privacy Policy URL is mandatory** for every App Store submission — even for "Data Not Collected" apps. The developer must host a reachable privacy policy page (it can be short: state that no data is collected, all processing is on-device, no networking, photo/notification permissions are used only locally).
-- Support URL must resolve to a real, reachable page (a simple contact/FAQ page is fine).
+All three URLs are live and reachable.
 
 ---
 

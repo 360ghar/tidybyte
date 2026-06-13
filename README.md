@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/360ghar/snap-clean-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/360ghar/snap-clean-ios/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/in/app/tidybyte/id6775769763)
 
 A native iOS app that helps users clean up their photo library. Core UX is a Tinder-style swipe interface for reviewing media.
 

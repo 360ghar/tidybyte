@@ -9,6 +9,13 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# llms.txt content-type for AI crawlers.
+[[headers]]
+  for = "/llms*.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "public, max-age=86400"
+
 # Cache and security headers.
 [[headers]]
   for = "/*"
@@ -51,4 +58,9 @@
 [[redirects]]
   from = "/changelog"
   to = "/changelog.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog"
+  to = "/blog/index.html"
   status = 200

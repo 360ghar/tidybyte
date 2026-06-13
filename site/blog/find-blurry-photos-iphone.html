@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Find &amp; Delete Blurry Photos on iPhone | Step-by-Step Guide</title>
+  <meta name="description" content="Thousands of blurry, dark, or shaky photos in your camera roll? Learn how TidyByte automatically detects blurry and poorly-exposed photos so you can delete them.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="TidyByte">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="TidyByte">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:title" content="Find &amp; Delete Blurry Photos on iPhone | Step-by-Step Guide">
+  <meta property="og:description" content="Thousands of blurry, dark, or shaky photos in your camera roll? Learn how TidyByte automatically detects blurry and poorly-exposed photos so you can delete them.">
+  <meta property="og:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="TidyByte &mdash; Free iPhone app to clean your photo library">
+  <meta property="og:url" content="https://tidybyte.360ghar.com/blog/find-blurry-photos-iphone">
+  <meta property="article:published_time" content="2026-06-13T00:00:00Z">
+  <meta property="article:author" content="TidyByte">
+  <meta property="article:tag" content="blurry photos">
+  <meta property="article:tag" content="iPhone storage">
+  <meta property="article:tag" content="photo cleanup">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Find &amp; Delete Blurry Photos on iPhone | Step-by-Step Guide">
+  <meta name="twitter:description" content="Thousands of blurry, dark, or shaky photos in your camera roll? Learn how TidyByte automatically detects blurry and poorly-exposed photos so you can delete them.">
+  <meta name="twitter:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+  <link rel="canonical" href="https://tidybyte.360ghar.com/blog/find-blurry-photos-iphone">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <script src="/assets/js/nav.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Find & Delete Blurry Photos on iPhone | Step-by-Step Guide",
+    "description": "Thousands of blurry, dark, or shaky photos in your camera roll? Learn how TidyByte automatically detects blurry and poorly-exposed photos so you can delete them.",
+    "url": "https://tidybyte.360ghar.com/blog/find-blurry-photos-iphone",
+    "datePublished": "2026-06-13",
+    "dateModified": "2026-06-13",
+    "author": {
+      "@type": "Organization",
+      "name": "TidyByte",
+      "url": "https://tidybyte.360ghar.com"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "TidyByte",
+      "url": "https://tidybyte.360ghar.com",
+      "logo": "https://tidybyte.360ghar.com/assets/img/icon-1024.png"
+    },
+    "image": "https://tidybyte.360ghar.com/assets/img/og-cover.svg",
+    "mainEntityOfPage": "https://tidybyte.360ghar.com/blog/find-blurry-photos-iphone"
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://tidybyte.360ghar.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Blog",
+        "item": "https://tidybyte.360ghar.com/blog"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Find Blurry Photos on iPhone",
+        "item": "https://tidybyte.360ghar.com/blog/find-blurry-photos-iphone"
+      }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Why doesn't iPhone have a built-in blurry photo finder?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Apple's Photos app focuses on surfacing your best memories through features like Memories and Featured Photos. It doesn't include a dedicated tool for identifying and cleaning up low-quality shots. Finding blurry photos requires image analysis that goes beyond what the Photos app currently offers."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does TidyByte detect blurry photos?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "TidyByte uses Apple's Vision framework to analyze each photo's sharpness. It calculates a blur score by examining edge contrast and high-frequency detail across the image. Photos that fall below a sharpness threshold are flagged as blurry. The entire analysis happens on your device — no photos are uploaded anywhere."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can TidyByte detect dark or overexposed photos too?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Beyond blur detection, TidyByte analyzes exposure levels across the image. It flags photos that are significantly underexposed (too dark to see clearly) or overexposed (washed out with blown highlights). These poorly-exposed photos are grouped alongside blurry ones in the cleanup results."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is it safe to delete blurry photos?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. When you delete photos through TidyByte, they go to the iOS Recently Deleted album where they remain for 30 days. You can recover any photo within that window if you change your mind."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How many blurry photos does the average person have?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Most iPhone users have hundreds of blurry, dark, or poorly-exposed photos in their library. For a typical 10,000-photo library, you might find 200-500 low-quality shots worth deleting. These waste 1-3 GB of storage on average."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-semibold focus:text-white">Skip to content</a>
+
+  <header class="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/70 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
+    <div class="container-prose flex h-14 items-center justify-between">
+      <a href="/" class="text-base font-semibold tracking-tight text-zinc-50">TidyByte</a>
+      <nav aria-label="Primary" class="hidden items-center gap-6 text-sm md:flex">
+        <a href="/#features" class="text-zinc-300 transition hover:text-white">Features</a>
+        <a href="/blog" class="text-zinc-300 transition hover:text-white">Blog</a>
+        <a href="/#faq" class="text-zinc-300 transition hover:text-white">FAQ</a>
+        <a href="/changelog" class="text-zinc-300 transition hover:text-white">Changelog</a>
+        <a href="/support" class="text-zinc-300 transition hover:text-white">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-zinc-300 transition hover:text-white" aria-label="TidyByte on GitHub">
+          <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
+        </a>
+      </nav>
+      <button type="button" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Toggle menu" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-100 transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-accent/50 md:hidden">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      </button>
+    </div>
+    <div id="mobile-menu" data-mobile-menu class="hidden border-t border-white/5 md:hidden">
+      <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
+        <a href="/#features" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Features</a>
+        <a href="/blog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Blog</a>
+        <a href="/#faq" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">FAQ</a>
+        <a href="/changelog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Changelog</a>
+        <a href="/support" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">GitHub &rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <nav aria-label="Breadcrumb" class="container-prose pt-6 text-sm">
+    <ol class="flex items-center gap-2 text-zinc-400">
+      <li><a href="/" class="hover:text-zinc-100">Home</a></li>
+      <li aria-hidden="true">/</li>
+      <li><a href="/blog" class="hover:text-zinc-100">Blog</a></li>
+      <li aria-hidden="true">/</li>
+      <li class="text-zinc-100" aria-current="page">Find Blurry Photos on iPhone</li>
+    </ol>
+  </nav>
+
+  <main id="main" class="section">
+    <article class="container-prose mx-auto max-w-prose">
+      <header>
+        <div class="flex items-center gap-3 text-sm text-zinc-400">
+          <time datetime="2026-06-13">June 13, 2026</time>
+          <span aria-hidden="true">&middot;</span>
+          <span>7 min read</span>
+        </div>
+        <h1 class="h-display mt-4">Find &amp; Delete Blurry Photos on Your iPhone</h1>
+        <p class="lede mt-5">Your camera roll is full of shots you meant to delete &mdash; blurry selfies, dark concert videos, shaky snapshots. TidyByte uses Apple's Vision framework to automatically detect and surface low-quality photos so you can clean them out in minutes.</p>
+      </header>
+
+      <div class="prose-section mt-12 space-y-8">
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">How blurry photos accumulate</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Every iPhone user has them. You swipe through your camera roll and stumble on photo after photo that's too blurry, too dark, or too shaky to keep. They pile up for reasons that are hard to avoid:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li><strong class="font-semibold text-zinc-100">Low light</strong> &mdash; in dim restaurants, concerts, or at night, the camera needs a longer exposure. Any hand movement during that exposure turns the photo into a smear.</li>
+            <li><strong class="font-semibold text-zinc-100">Motion</strong> &mdash; snapping a photo of a moving pet, child, or car often captures the motion blur instead of the moment.</li>
+            <li><strong class="font-semibold text-zinc-100">Quick snaps</strong> &mdash; when you're trying to capture something fast, the camera doesn't always have time to lock focus. The result is a soft, out-of-focus image.</li>
+            <li><strong class="font-semibold text-zinc-100">Pocket photos</strong> &mdash; accidental shutter presses while your phone is in your pocket or bag produce completely unusable frames.</li>
+            <li><strong class="font-semibold text-zinc-100">Shaky video frames</strong> &mdash; screenshots taken from shaky videos, or Live Photo key frames caught mid-motion, often look worse than you'd expect.</li>
+          </ul>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Over months and years, these add up. A typical user has <strong class="font-semibold text-zinc-100">hundreds of blurry or poorly-exposed photos</strong> sitting in their library, eating storage and cluttering their camera roll.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">Why iOS doesn't have a built-in blurry photo finder</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">You might wonder why Apple hasn't added a tool to automatically find and remove blurry photos. The answer comes down to priorities.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Apple's Photos app is designed to <strong class="font-semibold text-zinc-100">surface your best memories</strong>, not help you clean up the bad ones. Features like Memories, Featured Photos, and the People album are built to highlight great shots &mdash; not flag the ones you should delete.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">There's no "blurry" filter, no quality score, and no way to sort photos by sharpness. The closest iOS comes is the Screenshots album, which separates screenshots from camera photos. But for blurry, dark, or overexposed photos, you're on your own.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">That's where a dedicated cleanup tool like TidyByte fills the gap. It runs the kind of image-quality analysis that the Photos app doesn't expose &mdash; and it does it all on your device.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">How TidyByte's Vision-based blur detection works</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte uses <strong class="font-semibold text-zinc-100">Apple's Vision framework</strong> &mdash; the same on-device machine learning framework that powers Face ID and Live Text &mdash; to analyze every photo in your library. Here's what happens under the hood:</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Sharpness analysis</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Every image contains a mix of sharp edges and smooth areas. A blurry photo has fewer and softer edges than a sharp one. TidyByte measures the <strong class="font-semibold text-zinc-100">high-frequency detail</strong> across the image &mdash; essentially counting how many crisp transitions between light and dark exist. More crisp transitions means a sharper photo. When those transitions are weak or missing, the photo is flagged as blurry.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Exposure analysis</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">A photo can be technically sharp but still unusable if it's too dark or too bright. TidyByte analyzes the <strong class="font-semibold text-zinc-100">histogram</strong> of each image &mdash; a map of how many pixels fall at each brightness level. If most pixels are clustered near black (underexposed) or near white (overexposed), the photo gets flagged. This catches dark concert photos, blown-out sky shots, and everything in between.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Everything stays on your device</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">All of this analysis runs <strong class="font-semibold text-zinc-100">entirely on your iPhone</strong>. Your photos are never uploaded to a server, never sent to the cloud, and never leave your device. The Vision framework processes images locally using Apple's Neural Engine, so the analysis is both fast and private.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">Step-by-step: finding blurry photos with TidyByte</h2>
+          <ol class="muted mt-4 space-y-4 text-base sm:text-lg">
+            <li>
+              <strong class="font-semibold text-zinc-100">Download TidyByte from the App Store.</strong> It's free, requires no account, and asks only for photo library access.
+            </li>
+            <li>
+              <strong class="font-semibold text-zinc-100">Open the app and tap "Blurry photos"</strong> from the cleanup toolkit on the home screen.
+            </li>
+            <li>
+              <strong class="font-semibold text-zinc-100">Wait for the scan to finish.</strong> TidyByte analyzes every photo in your library for sharpness and exposure. The scan typically takes 30-90 seconds depending on library size.
+            </li>
+            <li>
+              <strong class="font-semibold text-zinc-100">Review the flagged photos.</strong> TidyByte presents each blurry, dark, or overexposed photo so you can decide what to do. Swipe right to keep, swipe left to delete &mdash; or use Select All for a bulk cleanup.
+            </li>
+            <li>
+              <strong class="font-semibold text-zinc-100">Confirm your deletions.</strong> Deleted photos move to the iOS Recently Deleted album, where they stay for 30 days before permanent removal. You can always recover them.
+            </li>
+          </ol>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The entire process takes under two minutes for most libraries. TidyByte shows you exactly how much storage you'll reclaim before you confirm anything.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">What TidyByte detects</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte's quality scan catches four categories of low-quality photos:</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Blurry photos</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Photos where the subject is out of focus or the entire image is soft due to camera shake. These are the most common type of low-quality photo in any library.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Dark / underexposed photos</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Shots taken in low light where the camera couldn't gather enough exposure. The image is so dark that details are lost in the shadows. Common in nighttime shots, indoor events, and concert photos.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Overexposed photos</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">The opposite problem &mdash; too much light. Highlights are completely blown out to white, and details are lost. Often happens with direct sunlight, flash too close to the subject, or pointing the camera at the sky.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Shaky / motion-blurred photos</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Photos where the camera or subject moved during the exposure. The blur is directional (streaky rather than uniformly soft), and it's especially common in action shots and low-light photography.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">Tips for preventing blurry photos in the future</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Cleaning up your existing blurry photos is half the battle. Here's how to take fewer of them going forward:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li><strong class="font-semibold text-zinc-100">Hold steady and tap to focus.</strong> Before pressing the shutter, tap on your subject to lock focus and exposure. Hold the phone with both hands and brace your elbows against your body.</li>
+            <li><strong class="font-semibold text-zinc-100">Use the volume button as a shutter.</strong> Pressing the volume button reduces the hand movement that comes from tapping the screen, resulting in sharper photos.</li>
+            <li><strong class="font-semibold text-zinc-100">Enable Live Photos.</strong> With Live Photos on, you can pick a different frame from the short video clip. If the main frame is blurry, another frame a fraction of a second earlier or later might be sharp.</li>
+            <li><strong class="font-semibold text-zinc-100">Use Night Mode in low light.</strong> On iPhone 11 and later, Night Mode activates automatically in dim conditions. Let the longer exposure complete &mdash; hold the phone still or rest it on a surface.</li>
+            <li><strong class="font-semibold text-zinc-100">Clean your lens.</strong> A smudged camera lens is one of the most common causes of soft, hazy photos. Wipe the lens with a soft cloth before shooting.</li>
+            <li><strong class="font-semibold text-zinc-100">Run a monthly blurry photo scan.</strong> Open TidyByte once a month to catch and delete blurry photos before they accumulate. A quick 60-second scan keeps your library clean.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">Frequently asked questions</h2>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Why doesn't iPhone have a built-in blurry photo finder?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Apple's Photos app focuses on surfacing your best memories through features like Memories and Featured Photos. It doesn't include a dedicated tool for identifying and cleaning up low-quality shots. Finding blurry photos requires image analysis that goes beyond what the Photos app currently offers.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">How does TidyByte detect blurry photos?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">TidyByte uses Apple's Vision framework to analyze each photo's sharpness. It calculates a blur score by examining edge contrast and high-frequency detail across the image. Photos that fall below a sharpness threshold are flagged as blurry. The entire analysis happens on your device &mdash; no photos are uploaded anywhere.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Can TidyByte detect dark or overexposed photos too?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Yes. Beyond blur detection, TidyByte analyzes exposure levels across the image. It flags photos that are significantly underexposed (too dark to see clearly) or overexposed (washed out with blown highlights). These poorly-exposed photos are grouped alongside blurry ones in the cleanup results.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">Is it safe to delete blurry photos?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Yes. When you delete photos through TidyByte, they go to the iOS Recently Deleted album where they remain for 30 days. You can recover any photo within that window if you change your mind.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-zinc-100">How many blurry photos does the average person have?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Most iPhone users have hundreds of blurry, dark, or poorly-exposed photos in their library. For a typical 10,000-photo library, you might find 200-500 low-quality shots worth deleting. These waste 1-3 GB of storage on average.</p>
+        </section>
+
+        <section class="glass-card p-6 sm:p-8 text-center">
+          <h2 class="text-xl font-semibold text-zinc-100">Ready to find and delete your blurry photos?</h2>
+          <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and finds every blurry, dark, and shaky photo in your library.</p>
+          <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+            <a href="/#features" class="btn-ghost">See all features</a>
+          </div>
+        </section>
+      </div>
+    </article>
+  </main>
+
+  <footer class="border-t border-white/5">
+    <div class="container-prose grid gap-10 py-12 sm:grid-cols-2 md:grid-cols-3 md:py-16">
+      <div>
+        <p class="text-base font-semibold tracking-tight">TidyByte</p>
+        <p class="muted mt-2 text-sm">Swipe to clean your photos. Free, on-device, no account.</p>
+        <p class="muted mt-4 text-xs">&copy; 2026 TidyByte &middot; <a href="/LICENSE" class="hover:underline">MIT License</a></p>
+      </div>
+      <div>
+        <p class="text-sm font-semibold">Product</p>
+        <ul class="muted mt-3 space-y-2 text-sm">
+          <li><a href="/#features" class="hover:text-zinc-100">Features</a></li>
+          <li><a href="/blog" class="hover:text-zinc-100">Blog</a></li>
+          <li><a href="/changelog" class="hover:text-zinc-100">Changelog</a></li>
+          <li><a href="/support" class="hover:text-zinc-100">Support</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="text-sm font-semibold">Legal</p>
+        <ul class="muted mt-3 space-y-2 text-sm">
+          <li><a href="/privacy" class="hover:text-zinc-100">Privacy</a></li>
+          <li><a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="hover:text-zinc-100">GitHub repository</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-white/5">
+      <p class="container-prose muted py-6 text-center text-xs">Made with care. Runs entirely on your device.</p>
+    </div>
+  </footer>
+</body>
+</html>
