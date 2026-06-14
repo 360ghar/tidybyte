@@ -2,6 +2,11 @@ import SwiftUI
 import Charts
 import UIKit
 
+enum BreakdownMode: String, CaseIterable {
+    case byYear = "By Year"
+    case bySource = "By Source"
+}
+
 struct StorageDashboardView: View {
     @State private var viewModel = StorageDashboardViewModel()
     @Environment(\.modelContext) private var modelContext
@@ -9,23 +14,38 @@ struct StorageDashboardView: View {
     @Environment(AppNavigation.self) private var appNavigation
     @Environment(LibraryChangeMonitor.self) private var libraryMonitor
 
+    @State private var breakdownMode: BreakdownMode = .byYear
+
     var body: some View {
         ScrollView {
             if viewModel.isLoading {
                 dashboardSkeleton
             } else {
                 VStack(spacing: Spacing.xl) {
+                    if !viewModel.wins.isEmpty {
+                        reclaimHeroSection
+                            .fadeSlideIn(delay: 0.0)
+                    }
+
+                    recentlyDeletedSection
+                        .fadeSlideIn(delay: 0.05)
+
                     storageBreakdownSection
-                        .fadeSlideIn(delay: 0.0)
+                        .fadeSlideIn(delay: 0.05)
+
                     deviceStorageSection
                         .fadeSlideIn(delay: 0.1)
+
                     appsAndOtherStorageSection
                         .fadeSlideIn(delay: 0.15)
-                    iCloudSection
+
+                    whereStorageGoesSection
                         .fadeSlideIn(delay: 0.2)
-                    trendSection
+
+                    iCloudSection
                         .fadeSlideIn(delay: 0.25)
-                    cleanupOpportunitiesSection
+
+                    trendSection
                         .fadeSlideIn(delay: 0.3)
                 }
                 .padding(Spacing.lg)
@@ -45,21 +65,75 @@ struct StorageDashboardView: View {
 
     private var dashboardSkeleton: some View {
         VStack(spacing: Spacing.xl) {
-            storageBreakdownSkeleton
+            reclaimHeroSkeleton
                 .fadeSlideIn(delay: 0.0)
+
+            storageBreakdownSkeleton
+                .fadeSlideIn(delay: 0.05)
+
             deviceStorageSkeleton
                 .fadeSlideIn(delay: 0.1)
+
             appsAndOtherStorageSkeleton
                 .fadeSlideIn(delay: 0.15)
-            iCloudSkeleton
+
+            whereStorageGoesSkeleton
                 .fadeSlideIn(delay: 0.2)
-            trendSkeleton
+
+            iCloudSkeleton
                 .fadeSlideIn(delay: 0.25)
-            cleanupOpportunitiesSkeleton
+
+            trendSkeleton
                 .fadeSlideIn(delay: 0.3)
         }
         .padding(Spacing.lg)
         .readableWidth()
+    }
+
+    private var reclaimHeroSkeleton: some View {
+        GlassCard {
+            VStack(spacing: Spacing.lg) {
+                SkeletonBar(width: 140, height: 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                SkeletonBar(height: 16)
+
+                VStack(spacing: Spacing.sm) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        HStack(spacing: Spacing.sm) {
+                            SkeletonCircle(size: 10)
+                            SkeletonBar(height: 12)
+                            Spacer()
+                        }
+                    }
+                }
+
+                SkeletonBar(width: 100, height: 16)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private var whereStorageGoesSkeleton: some View {
+        GlassCard {
+            VStack(spacing: Spacing.md) {
+                SkeletonBar(width: 140, height: 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                SkeletonBar(width: 120, height: 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, Spacing.sm)
+
+                VStack(spacing: 0) {
+                    ForEach(0..<3, id: \.self) { index in
+                        SkeletonActionRow()
+                        if index < 2 {
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var storageBreakdownSkeleton: some View {
@@ -176,25 +250,123 @@ struct StorageDashboardView: View {
         }
     }
 
-    private var cleanupOpportunitiesSkeleton: some View {
-        GlassCard {
-            VStack(spacing: Spacing.md) {
-                SkeletonBar(width: 170, height: 16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+    // MARK: - Reclaimable Hero
 
-                VStack(spacing: 0) {
-                    ForEach(0..<3, id: \.self) { index in
-                        SkeletonActionRow()
-                        if index < 2 {
-                            Divider()
+    private var reclaimHeroSection: some View {
+        GlassCard {
+            VStack(spacing: Spacing.lg) {
+                HStack {
+                    Image(systemName: "sparkles")
+                        .font(.title3)
+                        .foregroundStyle(.blue)
+                    Text("Reclaimable Space")
+                        .font(.headline)
+                    Spacer()
+                }
+
+                VStack(spacing: Spacing.xs) {
+                    Text("Up to \(viewModel.totalReclaimable.formattedFileSize) reclaimable")
+                        .font(.title3.bold())
+                    Text("Review and clean up to free space")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Segmented wins bar — each segment is tappable. Segment widths are
+                // sized off a budget that subtracts inter-segment spacing, so the HStack
+                // fills the GeometryReader width exactly instead of overflowing by
+                // (n−1)×spacing and clipping the last segment.
+                let total = viewModel.totalReclaimable
+                let segmentSpacing: CGFloat = 2
+                if total > 0 {
+                    GeometryReader { geometry in
+                        let gapBudget = segmentSpacing * CGFloat(max(0, viewModel.wins.count - 1))
+                        let usable = max(0, geometry.size.width - gapBudget)
+                        HStack(spacing: segmentSpacing) {
+                            ForEach(viewModel.wins) { win in
+                                Button {
+                                    handle(win.action)
+                                } label: {
+                                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                                        .fill(win.color.gradient)
+                                        .frame(maxWidth: usable * CGFloat(win.bytes) / CGFloat(total))
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
+                    .frame(height: 24)
+                }
+
+                // Legend rows — each win is tappable.
+                VStack(spacing: Spacing.sm) {
+                    ForEach(viewModel.wins) { win in
+                        Button {
+                            handle(win.action)
+                        } label: {
+                            HStack(spacing: Spacing.sm) {
+                                Circle()
+                                    .fill(win.color.gradient)
+                                    .frame(width: 10, height: 10)
+                                Text(win.title)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Text(win.detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                // Primary CTA — routes to the biggest win.
+                if let firstWin = viewModel.wins.first {
+                    Button {
+                        handle(firstWin.action)
+                    } label: {
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: "play.fill")
+                            Text("Review now")
+                                .font(.subheadline.bold())
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.md)
+                        .background(Color.cardSurface)
+                        .foregroundStyle(.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                    }
+                    .scaleOnPress()
                 }
             }
         }
     }
 
-    // MARK: - Donut Chart
+    // MARK: - Recently Deleted
+
+    /// Always-shown shortcut to empty the Photos trash. PhotoKit doesn't expose the
+    /// "Recently Deleted" album (Apple hides it from third-party apps), so — unlike the
+    /// reclaim wins — this can't be counted or sized; it's a static hand-off to Photos.
+    /// Rendered outside `reclaimHeroSection` so it stays visible even when there are no
+    /// data-backed reclaimable wins.
+    private var recentlyDeletedSection: some View {
+        GlassCard {
+            Button {
+                if let url = URL(string: "photos-redirect://") { openURL(url) }
+            } label: {
+                opportunityRow(
+                    icon: "trash",
+                    color: .gray,
+                    title: "Recently Deleted",
+                    detail: "Empty the trash in Photos to reclaim space"
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Library Breakdown (Donut)
 
     private var storageBreakdownSection: some View {
         GlassCard {
@@ -229,26 +401,54 @@ struct StorageDashboardView: View {
                         }
                     }
 
-                    // Legend
+                    // Tappable legend
                     VStack(spacing: Spacing.sm) {
                         ForEach(viewModel.categories) { category in
-                            HStack {
-                                Circle()
-                                    .fill(category.color)
-                                    .frame(width: 10, height: 10)
-                                Text(category.name)
-                                    .font(.subheadline)
-                                Spacer()
-                                Text("\(category.count)")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                Text(category.bytes.formattedFileSize)
-                                    .font(.subheadline.monospacedDigit().bold())
-                            }
+                            tappableLegendRow(category: category)
                         }
                     }
                 }
             }
+        }
+    }
+
+    /// Legend row that navigates to the appropriate tool when tapped.
+    @ViewBuilder
+    private func tappableLegendRow(category: StorageCategory) -> some View {
+        let action: StorageAction? = {
+            switch category.id {
+            case "screenshots": return .cleanup(.screenshots)
+            case "videos": return .cleanup(.videoCompression)
+            case "livePhotos": return .cleanup(.livePhotos)
+            default: return nil  // Photos and Other have no direct cleanup tool
+            }
+        }()
+
+        if let action {
+            Button {
+                handle(action)
+            } label: {
+                legendRowContent(category: category)
+            }
+            .buttonStyle(.plain)
+        } else {
+            legendRowContent(category: category)
+        }
+    }
+
+    private func legendRowContent(category: StorageCategory) -> some View {
+        HStack(spacing: Spacing.sm) {
+            Circle()
+                .fill(category.color)
+                .frame(width: 10, height: 10)
+            Text(category.name)
+                .font(.subheadline)
+            Spacer()
+            Text("\(category.count)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text(category.bytes.formattedFileSize)
+                .font(.subheadline.monospacedDigit().bold())
         }
     }
 
@@ -376,6 +576,79 @@ struct StorageDashboardView: View {
         }
     }
 
+    // MARK: - Where Your Storage Goes
+
+    private var whereStorageGoesSection: some View {
+        GlassCard {
+            VStack(spacing: Spacing.md) {
+                Text("Where Your Storage Goes")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Picker("", selection: $breakdownMode) {
+                    ForEach(BreakdownMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                let buckets = breakdownMode == .byYear ? viewModel.byYear : viewModel.bySource
+
+                if buckets.isEmpty {
+                    VStack(spacing: Spacing.sm) {
+                        Image(systemName: "chart.bar.doc.horizontal")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                        Text("No data available")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(height: 80)
+                    .frame(maxWidth: .infinity)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(buckets.enumerated()), id: \.element.id) { index, bucket in
+                            Button {
+                                handle(.swipe(.customAssetIds(Set(bucket.assetIds))))
+                            } label: {
+                                breakdownRow(label: bucket.label, count: bucket.count, bytes: bucket.bytes)
+                            }
+                            .buttonStyle(.plain)
+
+                            if index < buckets.count - 1 {
+                                Divider()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func breakdownRow(label: String, count: Int, bytes: Int64) -> some View {
+        HStack(spacing: Spacing.md) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(label)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.primary)
+                Text("\(count) items")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(bytes.formattedFileSize)
+                .font(.subheadline.monospacedDigit().bold())
+                .foregroundStyle(.primary)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.bold())
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, Spacing.xs)
+    }
+
     // MARK: - iCloud
 
     private var iCloudSection: some View {
@@ -492,40 +765,6 @@ struct StorageDashboardView: View {
 
     // MARK: - Cleanup Opportunities
 
-    private var cleanupOpportunitiesSection: some View {
-        GlassCard {
-            VStack(spacing: Spacing.md) {
-                Text("Cleanup Opportunities")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                ForEach(viewModel.opportunities) { opportunity in
-                    Button {
-                        appNavigation.showCleanup(tool: opportunity.tool)
-                    } label: {
-                        opportunityRow(icon: opportunity.icon, color: opportunity.color, title: opportunity.title, detail: opportunity.detail)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                // Recently Deleted isn't readable via PhotoKit (Apple hides the trash
-                // album from third-party apps), so surface a static shortcut into the
-                // Photos app instead of a data-backed count.
-                Button {
-                    if let url = URL(string: "photos-redirect://") { openURL(url) }
-                } label: {
-                    opportunityRow(
-                        icon: "trash",
-                        color: .gray,
-                        title: "Recently Deleted",
-                        detail: "Permanently remove deleted items in Photos to reclaim space"
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
     private func opportunityRow(icon: String, color: Color, title: String, detail: String) -> some View {
         HStack(spacing: Spacing.md) {
             Image(systemName: icon)
@@ -548,5 +787,19 @@ struct StorageDashboardView: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, Spacing.xs)
+    }
+
+    // MARK: - Action Handling
+
+    /// Central dispatcher for all Storage‑initiated actions.
+    private func handle(_ action: StorageAction) {
+        switch action {
+        case .cleanup(let tool):
+            appNavigation.showCleanup(tool: tool)
+        case .swipe(let filter):
+            appNavigation.showSwipeSession(filter: filter)
+        case .url(let url):
+            openURL(url)
+        }
     }
 }

@@ -351,6 +351,14 @@ actor PhotoLibraryService {
                 } else if !isDegraded {
                     resumer.resume(livePhoto)
                 }
+                // A degraded result without an error means the full-quality Live
+                // Photo is still coming — keep waiting. Unlike `requestImage`,
+                // network access is always allowed here, so there is no
+                // "no result will ever arrive" case to short-circuit; the
+                // `requestTimeoutSeconds` fallback is the only backstop for a
+                // stalled iCloud download. Do NOT copy `requestImage`'s
+                // `isInCloud && !allowsNetworkAccess` give-up branch — it can
+                // never fire on this path and would be dead code.
             }
         }
     }
@@ -407,6 +415,13 @@ actor PhotoLibraryService {
                 } else if isCancelled {
                     resumer.resume(image)
                 } else if !isDegraded {
+                    resumer.resume(image)
+                } else if deliveryMode == .fastFormat {
+                    // .fastFormat delivers exactly one callback; for iCloud-optimized
+                    // assets that single result is flagged degraded. No non-degraded
+                    // result is coming, so the degraded image IS the terminal result —
+                    // resume with it rather than waiting out the timeout (which would
+                    // yield nil → a gray placeholder for the thumbnail).
                     resumer.resume(image)
                 } else if isInCloud && !allowsNetworkAccess {
                     // The full asset lives only in iCloud and network access is

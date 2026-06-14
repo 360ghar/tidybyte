@@ -29,6 +29,12 @@ struct SwipeHomeView: View {
         .onChange(of: appNavigation.swipeDismissRequestID) { _, _ in
             selectedRoute = nil
         }
+        .onChange(of: appNavigation.pendingSwipeFilter) { _, _ in
+            consumePendingFilter()
+        }
+        .onAppear {
+            consumePendingFilter()
+        }
         .sheet(isPresented: $showAlbumSelection, onDismiss: {
             // Start the session only after the sheet has fully dismissed —
             // pushing a navigationDestination while a sheet is dismissing in the
@@ -224,6 +230,12 @@ struct SwipeHomeView: View {
     }
 
     private func startSwipeSession(with filter: SwipeFilter) {
+        selectedRoute = SwipeSessionRoute(filter: filter)
+    }
+
+    /// Consumes a pending filter set by another tab (e.g., Storage → Swipe deep-link).
+    private func consumePendingFilter() {
+        guard let filter = appNavigation.consumePendingSwipeFilter() else { return }
         selectedRoute = SwipeSessionRoute(filter: filter)
     }
 }

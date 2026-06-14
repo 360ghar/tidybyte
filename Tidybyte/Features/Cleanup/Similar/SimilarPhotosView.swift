@@ -4,6 +4,10 @@ struct SimilarPhotosView: View {
     @State private var viewModel = SimilarPhotosViewModel()
     @State private var showDeleteConfirm = false
     @State private var selectedGroup: SimilarGroup?
+    // Shared with the Settings mirror on the same key — @AppStorage is the single
+    // source of truth, so a change in either screen is observed by the other (the
+    // value is invisible to @Observable if held on the VM, hence it lives here).
+    @AppStorage(AppPreferences.Key.similarPhotoTimeWindow) private var timeWindow: Double = 5.0
     private let photoService = PhotoLibraryService()
 
     var body: some View {
@@ -109,7 +113,7 @@ struct SimilarPhotosView: View {
                     Text("Find Similar Photos")
                         .font(.title2.bold())
 
-                    Text("Groups photos taken within \(Int(viewModel.timeWindow)) seconds of each other.")
+                    Text("Groups photos taken within \(Int(timeWindow)) seconds of each other.")
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -119,13 +123,13 @@ struct SimilarPhotosView: View {
 
                 // Time window slider
                 VStack(spacing: Spacing.sm) {
-                    Text("Time Window: \(Int(viewModel.timeWindow))s")
+                    Text("Time Window: \(Int(timeWindow))s")
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
 
-                    Slider(value: $viewModel.timeWindow, in: 1...60, step: 1)
+                    Slider(value: $timeWindow, in: 1...60, step: 1)
                         .padding(.horizontal, Spacing.xxxl)
-                        .onChange(of: viewModel.timeWindow) {
+                        .onChange(of: timeWindow) {
                             HapticHelper.selection()
                         }
                 }
@@ -135,7 +139,7 @@ struct SimilarPhotosView: View {
 
                 Button {
                     HapticHelper.impact(.light)
-                    Task { await viewModel.scan() }
+                    Task { await viewModel.scan(timeWindow: timeWindow) }
                 } label: {
                     Text("Start Scan")
                         .font(.headline)
@@ -261,7 +265,7 @@ struct SimilarPhotosView: View {
                         }
                     }
                     .listStyle(.plain)
-                    .pullToRefresh { await viewModel.scan() }
+                    .pullToRefresh { await viewModel.scan(timeWindow: timeWindow) }
 
                     // Bottom action bar
                     if !viewModel.selectedForDeletion.isEmpty {

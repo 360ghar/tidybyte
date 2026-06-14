@@ -43,11 +43,6 @@ final class SimilarPhotosViewModel {
     var errorMessage: String?
     var isDeleting = false
 
-    var timeWindow: Double {
-        get { AppPreferences.similarPhotoTimeWindow() }
-        set { AppPreferences.saveSimilarPhotoTimeWindow(newValue) }
-    }
-
     /// Vision feature-print distance threshold used to confirm that photos in the
     /// same time cluster actually look alike. Lower = stricter.
     private static let visualSimilarityThreshold: Float = 0.7
@@ -73,13 +68,16 @@ final class SimilarPhotosViewModel {
         }
     }
 
-    func scan() async {
+    /// `timeWindow` (seconds) is owned by the view as shared `@AppStorage` on
+    /// `AppPreferences.Key.similarPhotoTimeWindow`, so the Similar Photos slider
+    /// and the Settings mirror are a single source of truth. It's passed in (by
+    /// value) at scan start so changing the slider mid-scan can't produce
+    /// inconsistent grouping.
+    func scan(timeWindow: Double) async {
         scanState = .scanning(0)
         selectedForDeletion.removeAll()
         errorMessage = nil
 
-        // Capture timeWindow at scan start to avoid inconsistent grouping
-        // if the user changes the slider during the scan
         let capturedTimeWindow = timeWindow
         let threshold = Self.visualSimilarityThreshold
 

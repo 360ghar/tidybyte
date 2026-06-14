@@ -79,6 +79,12 @@ enum AppPreferences {
         defaults.set(value, forKey: Key.largeFileThresholdMB)
     }
 
+    /// Convenience: the threshold in bytes (decimal MB), so callers don't each
+    /// re-derive `Int64(thresholdMB * 1_000_000)` and risk drifting apart.
+    static func largeFileThresholdBytes(in defaults: UserDefaults = .standard) -> Int64 {
+        Int64(largeFileThresholdMB(in: defaults) * 1_000_000)
+    }
+
     static func defaultCompressionPresetID(in defaults: UserDefaults = .standard) -> String {
         defaults.string(forKey: Key.defaultCompressionPreset) ?? "1080p"
     }

@@ -38,7 +38,9 @@ final class LargeFilesViewModel {
     private let photoService = PhotoLibraryService()
 
     var thresholdBytes: Int64 {
-        Int64(thresholdMB * 1_000_000)
+        // Delegate to the shared helper so this stays in lockstep with any other
+        // call site (e.g. the Storage dashboard's "Large Files" reclaim win).
+        AppPreferences.largeFileThresholdBytes()
     }
 
     var filteredAssets: [AssetSummary] {
