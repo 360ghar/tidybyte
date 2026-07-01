@@ -236,7 +236,13 @@ struct SwipeHomeView: View {
     /// Consumes a pending filter set by another tab (e.g., Storage → Swipe deep-link).
     private func consumePendingFilter() {
         guard let filter = appNavigation.consumePendingSwipeFilter() else { return }
-        selectedRoute = SwipeSessionRoute(filter: filter)
+        // If a previous swipe session is still mounted, clear it first so the
+        // next route builds a fresh view model for the new filter.
+        selectedRoute = nil
+        Task { @MainActor in
+            await Task.yield()
+            startSwipeSession(with: filter)
+        }
     }
 }
 

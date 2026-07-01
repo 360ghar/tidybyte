@@ -54,6 +54,7 @@ actor PhotoLibraryService {
     // MARK: - Change Observation
 
     func startObservingChanges(onChange: @escaping @Sendable () -> Void) {
+        guard changeObserverHelper == nil else { return }
         self.onLibraryChange = onChange
         let helper = PhotoLibraryChangeObserverHelper { [weak self] in
             Task { [weak self] in
@@ -87,9 +88,10 @@ actor PhotoLibraryService {
             subtype: .any,
             options: nil
         )
-        smartAlbums.enumerateObjects { collection, _, _ in
+        for index in 0..<smartAlbums.count {
+            let collection = smartAlbums.object(at: index)
             let count = PHAsset.fetchAssets(in: collection, options: nil).count
-            guard count > 0 else { return }
+            guard count > 0 else { continue }
             let thumbnailId = self.firstThumbnailId(in: collection)
             albums.append(AlbumInfo(
                 id: collection.localIdentifier,
@@ -106,9 +108,10 @@ actor PhotoLibraryService {
             subtype: .any,
             options: nil
         )
-        userAlbums.enumerateObjects { collection, _, _ in
+        for index in 0..<userAlbums.count {
+            let collection = userAlbums.object(at: index)
             let count = PHAsset.fetchAssets(in: collection, options: nil).count
-            guard count > 0 else { return }
+            guard count > 0 else { continue }
             let thumbnailId = self.firstThumbnailId(in: collection)
             albums.append(AlbumInfo(
                 id: collection.localIdentifier,
@@ -197,7 +200,8 @@ actor PhotoLibraryService {
         let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
 
         var groups: [String: [AssetSummary]] = [:]
-        allAssets.enumerateObjects { asset, _, _ in
+        for index in 0..<allAssets.count {
+            let asset = allAssets.object(at: index)
             if asset.representsBurst, let burstId = asset.burstIdentifier {
                 let summary = self.makeSummary(from: asset)
                 groups[burstId, default: []].append(summary)
@@ -519,9 +523,14 @@ actor PhotoLibraryService {
             throw PhotoServiceError.albumNotFound
         }
 
+        var success = false
         try await PHPhotoLibrary.shared().performChanges {
             guard let albumChangeRequest = PHAssetCollectionChangeRequest(for: album) else { return }
             albumChangeRequest.addAssets(assets)
+            success = true
+        }
+        guard success else {
+            throw PhotoServiceError.albumNotFound
         }
     }
 
@@ -533,9 +542,14 @@ actor PhotoLibraryService {
             throw PhotoServiceError.albumNotFound
         }
 
+        var success = false
         try await PHPhotoLibrary.shared().performChanges {
             guard let albumChangeRequest = PHAssetCollectionChangeRequest(for: album) else { return }
             albumChangeRequest.removeAssets(assets)
+            success = true
+        }
+        guard success else {
+            throw PhotoServiceError.albumNotFound
         }
     }
 

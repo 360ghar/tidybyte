@@ -51,7 +51,9 @@ struct PhotoCompressionView: View {
             Button("Compress \(viewModel.selectedIds.count) Photos", role: .destructive) {
                 Task {
                     await viewModel.compressSelected(modelContext: modelContext)
-                    HapticHelper.notification(.success)
+                    if viewModel.errorMessage == nil && !viewModel.insufficientDiskSpace {
+                        HapticHelper.notification(.success)
+                    }
                 }
             }
         } message: {

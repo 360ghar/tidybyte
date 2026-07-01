@@ -5,6 +5,7 @@ enum SwipeDecision: String, Codable {
     case deleted
     case addedToAlbum
     case skipped
+    case kept
 }
 
 @Model

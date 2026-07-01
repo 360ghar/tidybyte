@@ -111,6 +111,7 @@ final class PhotoCompressionViewModel {
 
     func deletePhoto(id: String) async {
         guard !isDeleting, !isCompressing else { return }
+        errorMessage = nil
         isDeleting = true
         do {
             try await photoService.deleteAssets(identifiers: [id])
@@ -124,9 +125,11 @@ final class PhotoCompressionViewModel {
 
     func compressSelected(modelContext: ModelContext) async {
         guard !selectedIds.isEmpty, !isCompressing else { return }
+        errorMessage = nil
 
         // Re-encoding needs scratch space for the temp file; keep parity with the
         // video tool's headroom check.
+        insufficientDiskSpace = false
         let totalSelectedSize = selectedSize
         if let freeSpace = try? URL(fileURLWithPath: NSHomeDirectory())
             .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])

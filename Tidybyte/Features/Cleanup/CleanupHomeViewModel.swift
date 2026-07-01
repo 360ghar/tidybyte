@@ -49,12 +49,12 @@ final class CleanupHomeViewModel {
         // Load counts for each tool asynchronously
         async let screenshotCount = photoService.fetchScreenshots().count
         async let livePhotoCount = photoService.fetchLivePhotos().count
-        async let burstCount = photoService.fetchBurstPhotos().values.reduce(0) { $0 + $1.count }
+        async let burstGroups = photoService.fetchBurstPhotos()
         async let videoCount = photoService.fetchAssetsByMediaType(.video).count
 
         let screenshots = await screenshotCount
         let livePhotos = await livePhotoCount
-        let bursts = await burstCount
+        let bursts = await Self.burstBadgeCount(from: burstGroups)
         let videos = await videoCount
 
         updateTool(.screenshots, count: screenshots)
@@ -85,5 +85,9 @@ final class CleanupHomeViewModel {
             tools[index].count = count
             tools[index].isLoading = isLoading
         }
+    }
+
+    nonisolated static func burstBadgeCount(from groups: [String: [AssetSummary]]) -> Int {
+        groups.count
     }
 }

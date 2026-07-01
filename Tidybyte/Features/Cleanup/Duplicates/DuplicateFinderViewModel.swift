@@ -99,6 +99,7 @@ final class DuplicateFinderViewModel {
 
     func deleteSelected() async {
         guard !selectedForDeletion.isEmpty, !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
         do {

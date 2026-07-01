@@ -64,7 +64,9 @@ struct SimilarPhotosView: View {
             Button("Delete \(viewModel.selectedForDeletion.count) Items", role: .destructive) {
                 Task {
                     await viewModel.deleteSelected()
-                    HapticHelper.notification(.success)
+                    if viewModel.errorMessage == nil {
+                        HapticHelper.notification(.success)
+                    }
                 }
             }
         } message: {

@@ -2,9 +2,9 @@ import AppIntents
 
 /// Opens the app and starts a swipe cleanup session.
 struct StartCleanupIntent: AppIntent {
-    static var title: LocalizedStringResource = "Start a Cleanup Session"
-    static var description = IntentDescription("Open TidyByte and start reviewing photos.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Start a Cleanup Session"
+    static let description = IntentDescription("Open TidyByte and start reviewing photos.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -15,9 +15,9 @@ struct StartCleanupIntent: AppIntent {
 
 /// Opens the app on the Storage dashboard.
 struct ShowStorageIntent: AppIntent {
-    static var title: LocalizedStringResource = "Show Storage"
-    static var description = IntentDescription("Open TidyByte's storage dashboard.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Show Storage"
+    static let description = IntentDescription("Open TidyByte's storage dashboard.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -28,9 +28,9 @@ struct ShowStorageIntent: AppIntent {
 
 /// Opens the app directly in the Screenshots cleanup tool.
 struct CleanScreenshotsIntent: AppIntent {
-    static var title: LocalizedStringResource = "Clean Screenshots"
-    static var description = IntentDescription("Open TidyByte's screenshot cleaner.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Clean Screenshots"
+    static let description = IntentDescription("Open TidyByte's screenshot cleaner.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {

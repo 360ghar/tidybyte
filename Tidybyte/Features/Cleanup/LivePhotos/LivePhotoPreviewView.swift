@@ -305,7 +305,11 @@ struct LivePhotoPreviewView: View {
     private func performConvert() async {
         guard let item = currentItem else { return }
         await viewModel.convertSingle(itemId: item.id)
-        HapticHelper.notification(.success)
+        // The local `item` is a captured struct copy; read the current state
+        // from the view model's array to know if conversion succeeded.
+        if case .completed = viewModel.items.first(where: { $0.id == item.id })?.conversionState {
+            HapticHelper.notification(.success)
+        }
         // After convert, the item is still in the list (marked .completed) so we
         // can stay on it. User can swipe or close.
     }
@@ -314,7 +318,10 @@ struct LivePhotoPreviewView: View {
         guard let item = currentItem else { return }
         let deletedIndex = currentIndex
         await viewModel.deleteLivePhoto(itemId: item.id)
-        HapticHelper.notification(.success)
+        // Only confirm success if the item was actually removed.
+        if !viewModel.items.contains(where: { $0.id == item.id }) {
+            HapticHelper.notification(.success)
+        }
         // If the list still has items, keep the cursor at the same index (which
         // is now the next item). Otherwise let the empty state show.
         if !viewModel.items.isEmpty {

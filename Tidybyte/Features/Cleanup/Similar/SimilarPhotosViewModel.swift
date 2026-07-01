@@ -108,8 +108,9 @@ final class SimilarPhotosViewModel {
         // visually similar (via Vision feature prints), so shots of different
         // subjects taken close together aren't lumped together.
         var foundGroups: [SimilarGroup] = []
-        let totalClusters = max(clusters.count, 1)
-        for (index, cluster) in clusters.enumerated() {
+        let totalPhotosInClusters = clusters.reduce(0) { $0 + $1.count }
+        var processedPhotos = 0
+        for cluster in clusters {
             if Task.isCancelled { scanState = .idle; return }
             let (subgroups, quality) = await visuallyCoherentSubgroups(from: cluster, threshold: threshold)
             for subgroup in subgroups {
@@ -127,7 +128,9 @@ final class SimilarPhotosViewModel {
                     bestReason: pick.reason
                 ))
             }
-            scanState = .scanning(Float(index + 1) / Float(totalClusters))
+            processedPhotos += cluster.count
+            let progress = totalPhotosInClusters > 0 ? Float(processedPhotos) / Float(totalPhotosInClusters) : 1.0
+            scanState = .scanning(progress)
         }
 
         groups = foundGroups
@@ -198,6 +201,7 @@ final class SimilarPhotosViewModel {
 
     func deleteSelected() async {
         guard !selectedForDeletion.isEmpty, !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
         do {

@@ -129,6 +129,7 @@ final class LargeFilesViewModel {
 
     func deleteSelected() async {
         guard !selectedIds.isEmpty, !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         do {
             let visibleSelectedIds = Set(filteredAssets.map(\.id)).intersection(selectedIds)
@@ -145,6 +146,7 @@ final class LargeFilesViewModel {
     /// in-preview Delete action). Leaves selection mode untouched.
     func deleteAsset(id: String) async {
         guard !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         do {
             try await photoService.deleteAssets(identifiers: [id])

@@ -108,6 +108,7 @@ final class BurstCleanerViewModel {
 
     func deleteSelected() async {
         guard !selectedForDeletion.isEmpty, !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
         do {
@@ -149,6 +150,7 @@ final class BurstCleanerViewModel {
     /// frame. Other groups' selections are left untouched.
     func deleteAsset(id: String, fromGroup groupId: String) async {
         guard !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
         do {

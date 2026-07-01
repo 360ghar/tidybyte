@@ -14,9 +14,12 @@ final class LibraryChangeMonitor {
     private(set) var generation = 0
 
     private let photoService = PhotoLibraryService()
+    private var isObserving = false
     private var debounceTask: Task<Void, Never>?
 
     func start() async {
+        guard !isObserving else { return }
+        isObserving = true
         await photoService.startObservingChanges { [weak self] in
             Task { @MainActor [weak self] in
                 self?.scheduleGenerationBump()
@@ -32,6 +35,7 @@ final class LibraryChangeMonitor {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             self?.generation += 1
+            self?.debounceTask = nil
         }
     }
 }

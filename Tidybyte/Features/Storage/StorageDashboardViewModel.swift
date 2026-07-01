@@ -198,7 +198,10 @@ final class StorageDashboardViewModel {
             matching predicate: (AssetSummary) -> Bool,
             estimate: (Int64) -> Int64 = { $0 }
         ) {
-            let picks = assets.filter { predicate($0) && !claimed.contains($0.id) }
+            var picks: [AssetSummary] = []
+            for asset in assets where predicate(asset) && !claimed.contains(asset.id) {
+                picks.append(asset)
+            }
             guard !picks.isEmpty else { return }
             winsMap[key] = (
                 count: picks.count,
@@ -381,11 +384,10 @@ final class StorageDashboardViewModel {
     }
 
     private func fetchSnapshots(modelContext: ModelContext) {
-        var descriptor = FetchDescriptor<StorageSnapshot>(
-            sortBy: [SortDescriptor(\.capturedAt, order: .forward)]
-        )
+        let descriptor = FetchDescriptor<StorageSnapshot>()
         let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
-        descriptor.predicate = #Predicate { $0.capturedAt >= thirtyDaysAgo }
-        snapshots = (try? modelContext.fetch(descriptor)) ?? []
+        snapshots = ((try? modelContext.fetch(descriptor)) ?? [])
+            .filter { $0.capturedAt >= thirtyDaysAgo }
+            .sorted { $0.capturedAt < $1.capturedAt }
     }
 }

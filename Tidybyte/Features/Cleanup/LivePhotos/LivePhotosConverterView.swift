@@ -27,7 +27,9 @@ struct LivePhotosConverterView: View {
             Button("Convert All", role: .destructive) {
                 Task {
                     await viewModel.convertAll()
-                    HapticHelper.notification(.success)
+                    if viewModel.errorMessage == nil {
+                        HapticHelper.notification(.success)
+                    }
                 }
             }
         } message: {

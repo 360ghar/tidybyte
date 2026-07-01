@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import Photos
 
 struct SettingsView: View {
     // Swipe
@@ -29,11 +30,14 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.Key.reminderWeekday) private var reminderWeekday: Int = 1 // Sunday
 
     @State private var showResetConfirm = false
+    @State private var showResetErrorAlert = false
+    @State private var photoPermissionStatus: PHAuthorizationStatus = .notDetermined
     @State private var isRequestingNotificationPermission = false
     @State private var showNotificationDeniedAlert = false
     @State private var showMailUnavailableAlert = false
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     private let feedbackEmail = "contact@sakshammittal.com"
 
@@ -41,6 +45,33 @@ struct SettingsView: View {
         (1, "Sunday"), (2, "Monday"), (3, "Tuesday"), (4, "Wednesday"),
         (5, "Thursday"), (6, "Friday"), (7, "Saturday")
     ]
+
+    private var photoPermissionLabel: String {
+        switch photoPermissionStatus {
+        case .notDetermined: return "Not Determined"
+        case .restricted: return "Restricted"
+        case .denied: return "Denied"
+        case .authorized: return "Full Access"
+        case .limited: return "Limited Access"
+        @unknown default: return "Unknown"
+        }
+    }
+
+    private var photoPermissionIcon: String {
+        switch photoPermissionStatus {
+        case .authorized, .limited: return "checkmark.shield"
+        case .denied, .restricted: return "exclamationmark.shield"
+        default: return "questionmark.shield"
+        }
+    }
+
+    private var photoPermissionColor: Color {
+        switch photoPermissionStatus {
+        case .authorized, .limited: return .green
+        case .denied, .restricted: return .red
+        default: return .orange
+        }
+    }
 
     var body: some View {
         Form {
@@ -201,6 +232,24 @@ struct SettingsView: View {
             }
 
             // MARK: - Privacy
+            Section("Permissions") {
+                HStack {
+                    Image(systemName: photoPermissionIcon)
+                        .foregroundStyle(photoPermissionColor)
+                    Text("Photo Library")
+                    Spacer()
+                    Text(photoPermissionLabel)
+                        .foregroundStyle(.secondary)
+                }
+                if photoPermissionStatus != .authorized && photoPermissionStatus != .limited {
+                    Button {
+                        openSystemSettings()
+                    } label: {
+                        Label("Open Settings", systemImage: "arrow.up.right.square")
+                    }
+                }
+            }
+
             Section {
                 Label("All processing happens on your device.", systemImage: "lock.shield")
                     .font(.subheadline)
@@ -209,12 +258,22 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .task {
+            refreshPhotoPermissionStatus()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                refreshPhotoPermissionStatus()
+            }
+        }
         // Settings shows only `@AppStorage`-backed controls and inline `Bundle.main`
         // version/build reads — all synchronous and always current — so there's no
         // async/derived state to re-fetch. The gesture is wired purely for app-wide
         // consistency (every screen pulls-to-refresh); the helper still fires its
         // completion haptic to acknowledge the gesture.
-        .pullToRefresh { }
+        .pullToRefresh {
+            refreshPhotoPermissionStatus()
+        }
         .alert("Reset Swipe History", isPresented: $showResetConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Reset", role: .destructive) {
@@ -233,6 +292,11 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("No email account is set up on this device. Please email us at \(feedbackEmail).")
+        }
+        .alert("Reset Failed", isPresented: $showResetErrorAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Could not clear swipe history. Please try again.")
         }
     }
 
@@ -285,12 +349,17 @@ struct SettingsView: View {
         UIApplication.shared.open(url)
     }
 
+    private func refreshPhotoPermissionStatus() {
+        photoPermissionStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    }
+
     private func resetSwipeHistory() {
         do {
             try modelContext.delete(model: SwipeRecord.self)
             try modelContext.save()
         } catch {
-            // Non-critical
+            AppLog.data.error("Failed to reset swipe history: \(error.localizedDescription, privacy: .public)")
+            showResetErrorAlert = true
         }
     }
 }

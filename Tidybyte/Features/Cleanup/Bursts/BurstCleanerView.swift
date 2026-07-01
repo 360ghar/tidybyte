@@ -36,7 +36,9 @@ struct BurstCleanerView: View {
             Button("Delete \(viewModel.deletableCount) Photos", role: .destructive) {
                 Task {
                     await viewModel.autoCleanAll()
-                    HapticHelper.notification(.success)
+                    if viewModel.errorMessage == nil {
+                        HapticHelper.notification(.success)
+                    }
                 }
             }
         } message: {
@@ -47,7 +49,9 @@ struct BurstCleanerView: View {
             Button("Delete \(viewModel.selectedCount) Photos", role: .destructive) {
                 Task {
                     await viewModel.deleteSelected()
-                    HapticHelper.notification(.success)
+                    if viewModel.errorMessage == nil {
+                        HapticHelper.notification(.success)
+                    }
                 }
             }
         } message: {

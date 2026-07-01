@@ -72,7 +72,7 @@ actor VideoCompressionService {
             throw CompressionError.assetNotFound
         }
 
-        let avAsset = try await loadAVAsset(from: phAsset)
+        let avAsset = try await loadAVAsset(from: phAsset).value
         let originalSize = getFileSize(for: phAsset)
 
         // Export to a temp file; guarantee it is removed on every exit path.
@@ -170,7 +170,7 @@ actor VideoCompressionService {
 
     // MARK: - Helpers
 
-    private func loadAVAsset(from phAsset: PHAsset) async throws -> AVAsset {
+    private func loadAVAsset(from phAsset: PHAsset) async throws -> UncheckedSendableBox<AVAsset> {
         try await withCheckedThrowingContinuation { continuation in
             let options = PHVideoRequestOptions()
             options.deliveryMode = .highQualityFormat
@@ -184,7 +184,7 @@ actor VideoCompressionService {
                 guard !hasResumed else { return }
                 hasResumed = true
                 if let avAsset {
-                    continuation.resume(returning: avAsset)
+                    continuation.resume(returning: UncheckedSendableBox(avAsset))
                 } else {
                     continuation.resume(throwing: CompressionError.videoLoadFailed)
                 }

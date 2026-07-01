@@ -110,6 +110,7 @@ final class VideoCompressionViewModel {
     /// in-preview Delete action).
     func deleteVideo(id: String) async {
         guard !isDeleting, !isCompressing else { return }
+        errorMessage = nil
         isDeleting = true
         do {
             try await photoService.deleteAssets(identifiers: [id])
@@ -123,8 +124,10 @@ final class VideoCompressionViewModel {
 
     func compressSelected(modelContext: ModelContext) async {
         guard !selectedIds.isEmpty, !isCompressing else { return }
+        errorMessage = nil
 
         // Check available disk space before starting
+        insufficientDiskSpace = false
         let totalSelectedSize = selectedSize
         if let freeSpace = try? URL(fileURLWithPath: NSHomeDirectory())
             .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])

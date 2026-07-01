@@ -51,7 +51,9 @@ struct VideoCompressionView: View {
             Button("Compress \(viewModel.selectedIds.count) Videos", role: .destructive) {
                 Task {
                     await viewModel.compressSelected(modelContext: modelContext)
-                    HapticHelper.notification(.success)
+                    if viewModel.errorMessage == nil && !viewModel.insufficientDiskSpace {
+                        HapticHelper.notification(.success)
+                    }
                 }
             }
         } message: {
@@ -66,6 +68,11 @@ struct VideoCompressionView: View {
             }
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+        .alert("Not Enough Space", isPresented: $viewModel.insufficientDiskSpace) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("There isn't enough free space to compress the selected videos. Free up some space and try again.")
         }
         .alert("Delete Video", isPresented: .init(
             get: { rowToDelete != nil },

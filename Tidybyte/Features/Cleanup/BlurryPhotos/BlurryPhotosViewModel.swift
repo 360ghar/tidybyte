@@ -129,6 +129,7 @@ final class BlurryPhotosViewModel {
 
     func deleteSelected() async {
         guard !selectedIds.isEmpty, !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
         do {
@@ -142,6 +143,7 @@ final class BlurryPhotosViewModel {
 
     func delete(assetId: String) async {
         guard !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
         do {

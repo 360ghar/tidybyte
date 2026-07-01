@@ -73,6 +73,7 @@ final class ScreenshotCleanerViewModel {
 
     func deleteSelected() async {
         guard !selectedIds.isEmpty, !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
         do {
@@ -86,6 +87,7 @@ final class ScreenshotCleanerViewModel {
 
     func delete(assetId: String) async {
         guard !isDeleting else { return }
+        errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
         do {

@@ -17,6 +17,11 @@ settings:
     DEVELOPMENT_TEAM: HMWGCVU4SV
     CODE_SIGN_IDENTITY: "Apple Development"
     "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Development"
+    # Xcode "Update to Recommended Settings" — this project is XcodeGen-managed, so
+    # these live here rather than in .pbxproj (which is wiped on regen).
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
 
 targets:
   Tidybyte:
@@ -51,8 +56,8 @@ targets:
         # The INFOPLIST_KEY_UILaunchScreen_Generation build setting emits an invalid
         # nested UILaunchScreen, so we provide the dict via this seed instead.
         INFOPLIST_FILE: Tidybyte/Info.plist
-        CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: 3
+        MARKETING_VERSION: "1.0.2"
         SWIFT_STRICT_CONCURRENCY: complete
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         # iPhone stays portrait-only (the swipe UX is portrait-centric); iPad supports all orientations.
@@ -74,6 +79,10 @@ targets:
       path: TidybyteWidget/Info.plist
       properties:
         CFBundleDisplayName: TidyByte
+        # Version is build-setting-driven (not hardcoded) so the widget tracks the
+        # app target's MARKETING_VERSION / CURRENT_PROJECT_VERSION automatically.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
@@ -85,8 +94,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sakshammittal.tidybyte.widget
         TARGETED_DEVICE_FAMILY: "1,2"
-        CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: 3
+        MARKETING_VERSION: "1.0.2"
         SWIFT_STRICT_CONCURRENCY: complete
 
   TidybyteTests:

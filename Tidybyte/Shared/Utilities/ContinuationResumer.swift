@@ -25,7 +25,7 @@ final class ContinuationResumer<T>: @unchecked Sendable {
 
     /// Resumes the continuation with `value` if it has not already been resumed.
     /// Subsequent calls are no-ops.
-    func resume(_ value: T) {
+    func resume(_ value: sending T) {
         lock.lock()
         guard !resumed, let continuation else {
             lock.unlock()
@@ -69,7 +69,7 @@ final class ThrowingContinuationResumer<T>: @unchecked Sendable {
         return continuation
     }
 
-    func resume(returning value: T) {
+    func resume(returning value: sending T) {
         take()?.resume(returning: value)
     }
 

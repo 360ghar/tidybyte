@@ -167,11 +167,23 @@ final class SwipeSessionViewModel {
         // Photos already organized into a user album don't need re-organizing —
         // keep and advance without showing the "Add to Album" picker.
         if assetIdsInUserAlbums.contains(asset.id) {
-            skip()
+            keepAlreadyOrganized()
             return
         }
         pendingKeepAsset = asset
         showAlbumPicker = true
+    }
+
+    /// Handles a right-swipe on a photo that is already in a user album.
+    /// Records `.kept` so the completion stats distinguish "already organized"
+    /// from true skips, and writes a SwipeRecord so the photo is excluded from
+    /// future "Not Swiped Yet" sessions.
+    private func keepAlreadyOrganized() {
+        guard let asset = currentAsset, !isPerformingMutation else { return }
+        sessionStats.organizedCount += 1
+        undoStack.append(SwipeUndoEntry(asset: asset, decision: .kept, albumId: nil))
+        upsertSwipeRecord(asset: asset, decision: .kept)
+        advance()
     }
 
     func addToAlbum(albumId: String) async -> Bool {
@@ -255,6 +267,11 @@ final class SwipeSessionViewModel {
             sessionStats.skippedCount = max(0, sessionStats.skippedCount - 1)
             currentIndex = max(0, currentIndex - 1)
             deleteSwipeRecord(for: entry.asset.id)
+        case .kept:
+            undoStack.removeLast()
+            sessionStats.organizedCount = max(0, sessionStats.organizedCount - 1)
+            currentIndex = max(0, currentIndex - 1)
+            deleteSwipeRecord(for: entry.asset.id)
         }
     }
 
@@ -309,10 +326,7 @@ final class SwipeSessionViewModel {
 
     private func upsertSwipeRecord(asset: AssetSummary, decision: SwipeDecision, albumId: String? = nil) {
         let assetId = asset.id
-        let descriptor = FetchDescriptor<SwipeRecord>(
-            predicate: #Predicate { $0.assetLocalIdentifier == assetId }
-        )
-        let existingRecords = (try? modelContext.fetch(descriptor)) ?? []
+        let existingRecords = fetchSwipeRecords(matching: assetId)
 
         let record = existingRecords.first ?? SwipeRecord(
             assetLocalIdentifier: assetId,
@@ -335,15 +349,19 @@ final class SwipeSessionViewModel {
     }
 
     private func deleteSwipeRecord(for assetId: String) {
-        let descriptor = FetchDescriptor<SwipeRecord>(
-            predicate: #Predicate { $0.assetLocalIdentifier == assetId }
-        )
-        if let records = try? modelContext.fetch(descriptor) {
-            for record in records {
-                modelContext.delete(record)
-            }
+        let records = fetchSwipeRecords(matching: assetId)
+        for record in records {
+            modelContext.delete(record)
+        }
+        if !records.isEmpty {
             save(context: "delete swipe record")
         }
+    }
+
+    private func fetchSwipeRecords(matching assetId: String) -> [SwipeRecord] {
+        let descriptor = FetchDescriptor<SwipeRecord>()
+        return ((try? modelContext.fetch(descriptor)) ?? [])
+            .filter { $0.assetLocalIdentifier == assetId }
     }
 
     private func save(context: String) {

@@ -51,6 +51,7 @@ final class LivePhotosConverterViewModel {
     /// automatically by iOS on delete.
     func deleteLivePhoto(itemId: String) async {
         guard indexOfItem(id: itemId) != nil else { return }
+        errorMessage = nil
         do {
             try await photoService.deleteAssets(identifiers: [itemId])
             items.removeAll { $0.id == itemId }
@@ -85,6 +86,7 @@ final class LivePhotosConverterViewModel {
 
     func convertSingle(itemId: String) async {
         guard let index = items.firstIndex(where: { $0.id == itemId }) else { return }
+        errorMessage = nil
         items[index].conversionState = .converting
 
         do {
@@ -105,6 +107,7 @@ final class LivePhotosConverterViewModel {
     }
 
     func convertAll() async {
+        errorMessage = nil
         convertingAll = true
         let pendingIds = items.map(\.id)
         for itemId in pendingIds {

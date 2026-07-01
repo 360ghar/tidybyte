@@ -49,4 +49,18 @@ final class AppNavigationTests: XCTestCase {
         XCTAssertTrue(navigation.cleanupPath.isEmpty)
         XCTAssertNotEqual(navigation.swipeDismissRequestID, initialDismissID)
     }
+
+    func testShowSwipeSessionStoresOneShotPendingFilter() {
+        let navigation = AppNavigation()
+        navigation.selectedTab = .storage
+        let initialDismissID = navigation.swipeDismissRequestID
+        let filter = SwipeFilter.customAssetIds(["asset-1", "asset-2"])
+
+        navigation.showSwipeSession(filter: filter)
+
+        XCTAssertEqual(navigation.selectedTab, .swipe)
+        XCTAssertEqual(navigation.consumePendingSwipeFilter(), filter)
+        XCTAssertNil(navigation.consumePendingSwipeFilter())
+        XCTAssertEqual(navigation.swipeDismissRequestID, initialDismissID)
+    }
 }

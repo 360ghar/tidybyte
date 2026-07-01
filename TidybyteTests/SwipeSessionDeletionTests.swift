@@ -12,9 +12,9 @@ final class SwipeSessionDeletionTests: XCTestCase {
     // model's ModelContext, which is this container's mainContext) stays valid.
     private var container: ModelContainer!
 
-    override func tearDown() {
+    override func tearDown() async throws {
         container = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     private func makeViewModel(assetCount: Int = 3) throws -> SwipeSessionViewModel {
@@ -92,12 +92,13 @@ final class SwipeSessionDeletionTests: XCTestCase {
 
         XCTAssertFalse(vm.showAlbumPicker, "Already-organized photo should not prompt the picker")
         XCTAssertNil(vm.pendingKeepAsset)
-        XCTAssertEqual(vm.sessionStats.skippedCount, 1)
+        XCTAssertEqual(vm.sessionStats.organizedCount, 1)
+        XCTAssertEqual(vm.sessionStats.skippedCount, 0)
         XCTAssertEqual(vm.currentIndex, 1, "Should advance to the next card")
         let records = try container.mainContext.fetch(FetchDescriptor<SwipeRecord>())
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records.first?.assetLocalIdentifier, "asset-0")
-        XCTAssertEqual(records.first?.decision, .skipped)
+        XCTAssertEqual(records.first?.decision, .kept)
     }
 
     func testUndoOfDeleteRestoresStateAndKeepsNoRecord() async throws {
