@@ -5,6 +5,9 @@ struct LargeFilesView: View {
     @State private var showDeleteConfirm = false
     @State private var previewStart: AssetSummary?
     @State private var rowToDelete: AssetSummary?
+    /// Mirrors SettingsView's control so the threshold never diverges between
+    /// screens while the tool is open (LF-06).
+    @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var thresholdMB: Double = 10.0
     private let photoService = PhotoLibraryService()
 
     var body: some View {
@@ -22,14 +25,16 @@ struct LargeFilesView: View {
                     // Controls
                     VStack(spacing: Spacing.sm) {
                         HStack {
-                            Text("Min size: \(Int(viewModel.thresholdMB)) MB")
+                            // Binary display, consistent with each row's
+                            // `formattedFileSize` (LF-05).
+                            Text(LargeFilesViewModel.minSizeLabel(thresholdMB: thresholdMB))
                                 .font(.caption)
                             Spacer()
                             Text("\(viewModel.filteredAssets.count) files \u{00B7} \(viewModel.totalSize.formattedFileSize)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Slider(value: $viewModel.thresholdMB, in: 5...500, step: 5)
+                        Slider(value: $thresholdMB, in: 5...500, step: 5)
 
                         Picker("Filter", selection: $viewModel.mediaFilter) {
                             ForEach(LargeFileFilter.allCases, id: \.self) { filter in
@@ -54,6 +59,12 @@ struct LargeFilesView: View {
                         List {
                             ForEach(viewModel.filteredAssets) { asset in
                                 fileRow(asset)
+                            }
+                            if viewModel.zeroSizeCount > 0 {
+                                Text("\(viewModel.zeroSizeCount) items with unknown size are not listed")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .listRowSeparator(.hidden)
                             }
                         }
                         .listStyle(.plain)
@@ -144,7 +155,7 @@ struct LargeFilesView: View {
         .sheet(item: $viewModel.sharePayload, onDismiss: { viewModel.cleanupShareExport() }) { payload in
             ShareSheet(urls: payload.urls)
         }
-        .onChange(of: viewModel.thresholdMB) { _, _ in
+        .onChange(of: thresholdMB) { _, _ in
             viewModel.synchronizeSelection()
         }
         .onChange(of: viewModel.mediaFilter) { _, _ in
@@ -171,6 +182,23 @@ struct LargeFilesView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Spacing.xl)
+            if viewModel.zeroSizeCount > 0 {
+                Text("\(viewModel.zeroSizeCount) items with unknown size are not listed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                Task { await viewModel.refresh() }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+                    .font(.headline)
+                    .padding(.horizontal, Spacing.xxxl)
+                    .padding(.vertical, Spacing.md)
+                    .background(.blue)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+            }
+            .scaleOnPress()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -192,7 +220,7 @@ struct LargeFilesView: View {
     }
 
     private var emptyMessage: String {
-        let threshold = Int(viewModel.thresholdMB)
+        let threshold = Int(thresholdMB)
         switch viewModel.mediaFilter {
         case .all:
             return "No files larger than \(threshold) MB. Lower the threshold to see more."

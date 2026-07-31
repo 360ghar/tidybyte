@@ -16,12 +16,18 @@ enum LargeFileSortOrder: String, CaseIterable {
 @Observable
 @MainActor
 final class LargeFilesViewModel {
-    var assets: [AssetSummary] = []
+    var assets: [AssetSummary] = [] {
+        didSet { invalidateFilterCache() }
+    }
     var isLoading = true
     private(set) var hasLoadedAssets = false
     var selectedIds: Set<String> = []
-    var mediaFilter: LargeFileFilter = .all
-    var sortOrder: LargeFileSortOrder = .largest
+    var mediaFilter: LargeFileFilter = .all {
+        didSet { invalidateFilterCache() }
+    }
+    var sortOrder: LargeFileSortOrder = .largest {
+        didSet { invalidateFilterCache() }
+    }
     var errorMessage: String?
     var isDeleting = false
 
@@ -29,10 +35,17 @@ final class LargeFilesViewModel {
     var isPreparingShare = false
     var shareProgress: (completed: Int, total: Int) = (0, 0)
     var sharePayload: SharePayload?
+    /// Temp folder backing the current share payload (or the just-finished
+    /// export), tracked independently of `urls` so cleanup can always find it
+    /// (LF-09).
+    private(set) var shareExportFolder: URL?
     private var shareTask: Task<Void, Never>?
 
-    var thresholdMB: Double = AppPreferences.largeFileThresholdMB() {
-        didSet { AppPreferences.saveLargeFileThresholdMB(thresholdMB) }
+    /// Live view of the persisted preference (LF-06): never diverges from what
+    /// Settings wrote, and any write goes straight to `AppPreferences`.
+    var thresholdMB: Double {
+        get { AppPreferences.largeFileThresholdMB() }
+        set { AppPreferences.saveLargeFileThresholdMB(newValue) }
     }
 
     private let photoService = PhotoLibraryService()
@@ -43,8 +56,58 @@ final class LargeFilesViewModel {
         AppPreferences.largeFileThresholdBytes()
     }
 
+    /// "Min size" label for the threshold slider. Uses the SAME byte formatter
+    /// as the list rows (LF-05), so the stated minimum can never disagree with
+    /// how a threshold-sized file renders in the list (a decimal "10 MB" label
+    /// next to a binary "9.5 MB" row was the pre-fix inconsistency).
+    static func minSizeLabel(thresholdMB: Double) -> String {
+        "Min size: \(Int64(thresholdMB * 1_000_000).formattedFileSize)"
+    }
+
+    // MARK: - Filtering cache (LF-07)
+
+    private var cachedFiltered: [AssetSummary]?
+    private var cachedThreshold: Int64?
+    private var cacheDirty = true
+
+    /// Assets whose `fileSize` came back 0 (unknown) and are therefore excluded
+    /// from the list; surfaced in the UI so big files don't vanish silently (LF-10).
+    /// Derived directly from `assets` (not from the filtered-cache) so it can
+    /// never go stale between cache invalidations.
+    var zeroSizeCount: Int {
+        assets.lazy.filter { $0.fileSize == 0 }.count
+    }
+
     var filteredAssets: [AssetSummary] {
-        var result = assets.filter { $0.fileSize >= thresholdBytes }
+        let threshold = thresholdBytes
+        if !cacheDirty, let cached = cachedFiltered, cachedThreshold == threshold {
+            return cached
+        }
+        let result = Self.computeFilteredAssets(
+            from: assets,
+            threshold: threshold,
+            mediaFilter: mediaFilter,
+            sortOrder: sortOrder
+        )
+        cachedFiltered = result
+        cachedThreshold = threshold
+        cacheDirty = false
+        return result
+    }
+
+    private func invalidateFilterCache() {
+        cacheDirty = true
+    }
+
+    /// Pure filter+sort pipeline so the cached getter stays a thin wrapper and
+    /// ordering semantics are easy to pin down in tests.
+    static func computeFilteredAssets(
+        from assets: [AssetSummary],
+        threshold: Int64,
+        mediaFilter: LargeFileFilter,
+        sortOrder: LargeFileSortOrder
+    ) -> [AssetSummary] {
+        var result = assets.filter { $0.fileSize >= threshold }
         switch mediaFilter {
         case .all: break
         case .photos: result = result.filter { $0.mediaType == .photo }
@@ -95,9 +158,7 @@ final class LargeFilesViewModel {
         isLoading = true
         errorMessage = nil
         let allAssets = await photoService.fetchAssets(filter: .allMedia)
-        assets = allAssets.sorted { $0.fileSize > $1.fileSize }
-        synchronizeSelection()
-        hasLoadedAssets = true
+        apply(allAssets)
         isLoading = false
     }
 
@@ -106,7 +167,12 @@ final class LargeFilesViewModel {
     func refresh() async {
         errorMessage = nil
         let allAssets = await photoService.fetchAssets(filter: .allMedia)
-        assets = allAssets.sorted { $0.fileSize > $1.fileSize }
+        apply(allAssets)
+    }
+
+    /// Shared load/refresh pipeline (de-slop D3).
+    private func apply(_ newAssets: [AssetSummary]) {
+        assets = newAssets.sorted { $0.fileSize > $1.fileSize }
         synchronizeSelection()
         hasLoadedAssets = true
     }
@@ -167,21 +233,31 @@ final class LargeFilesViewModel {
         guard !ids.isEmpty, !isPreparingShare else { return }
         isPreparingShare = true
         shareProgress = (0, ids.count)
-        shareTask = Task { [weak self] in
-            guard let self else { return }
+        // Strong capture (LF-09): the VM stays alive for the whole export so the
+        // cleanup below always runs, even if the owning view is torn down while
+        // the export is in flight.
+        shareTask = Task {
             let urls = await self.photoService.exportAssetsForSharing(identifiers: ids) { [weak self] completed, total in
                 self?.shareProgress = (completed, total)
             }
-            self.isPreparingShare = false
-            if Task.isCancelled {
-                self.deleteExportFolder(for: urls)
-                return
-            }
+            let folder = urls.first?.deletingLastPathComponent()
+            self.shareExportFolder = folder
             if urls.isEmpty {
+                // Every resource failed to write. The temp folder's name is only
+                // known inside the service, so sweep the app's export folders
+                // (this VM is the only ShareExport-* user and exports are
+                // serialized by `isPreparingShare`).
+                Self.removeOrphanedShareExportFolders()
+                self.shareExportFolder = nil
                 self.errorMessage = "Couldn't prepare the selected items to share."
-            } else {
+            } else if !Task.isCancelled {
+                // Folder stays on disk until the share sheet is dismissed.
                 self.sharePayload = SharePayload(urls: urls)
+            } else {
+                if let folder { Self.removeExportFolder(at: folder) }
+                self.shareExportFolder = nil
             }
+            self.isPreparingShare = false
         }
     }
 
@@ -193,14 +269,26 @@ final class LargeFilesViewModel {
 
     /// Removes the temp export folder once the share sheet is dismissed.
     func cleanupShareExport() {
-        if let payload = sharePayload {
-            deleteExportFolder(for: payload.urls)
+        if let folder = shareExportFolder {
+            Self.removeExportFolder(at: folder)
         }
+        shareExportFolder = nil
         sharePayload = nil
     }
 
-    private func deleteExportFolder(for urls: [URL]) {
-        guard let folder = urls.first?.deletingLastPathComponent() else { return }
+    /// Idempotent: removing a folder that no longer exists is a no-op (LF-09).
+    static func removeExportFolder(at folder: URL) {
         try? FileManager.default.removeItem(at: folder)
+    }
+
+    /// Removes leftover `ShareExport-*` temp folders (used on the all-fail path
+    /// where the exact folder name is unknowable from the VM).
+    static func removeOrphanedShareExportFolders(in directory: URL = FileManager.default.temporaryDirectory) {
+        guard let contents = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
+            return
+        }
+        for url in contents where url.lastPathComponent.hasPrefix("ShareExport-") {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 }

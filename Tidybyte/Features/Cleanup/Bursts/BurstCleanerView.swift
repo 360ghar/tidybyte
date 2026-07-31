@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// Identifies which burst group (and which frame) a full-screen preview was
-/// opened from, so the preview's Delete action can target the right group.
+/// opened from. The preview resolves its assets *live* from the view model on
+/// presentation (LF-04), so in-preview deletes re-render against the updated
+/// group instead of a frozen snapshot.
 private struct BurstPreviewContext: Identifiable {
     let id: String
     let groupId: String
-    let assets: [AssetSummary]
-    let startIndex: Int
 }
 
 struct BurstCleanerView: View {
@@ -24,7 +24,9 @@ struct BurstCleanerView: View {
                 EmptyStateView(
                     icon: "square.stack.3d.up",
                     title: "No Burst Photos",
-                    message: "You don't have any burst photo groups."
+                    message: "You don't have any burst photo groups.",
+                    actionTitle: "Refresh",
+                    action: { Task { await viewModel.refresh() } }
                 )
             } else {
                 contentView
@@ -80,12 +82,23 @@ struct BurstCleanerView: View {
             Text(viewModel.statusMessage ?? "")
         }
         .fullScreenCover(item: $preview) { context in
-            MediaPreviewView(
-                assets: context.assets,
-                startIndex: context.startIndex,
-                photoService: photoService,
-                onDelete: { await viewModel.deleteAsset(id: $0.id, fromGroup: context.groupId) }
-            )
+            // Resolve the group's assets live so an in-preview delete re-renders
+            // the pager against the updated frames (LF-04).
+            if let group = viewModel.groups.first(where: { $0.id == context.groupId }) {
+                MediaPreviewView(
+                    assets: group.assets,
+                    startIndex: group.assets.firstIndex { $0.id == context.id } ?? 0,
+                    photoService: photoService,
+                    onDelete: { await viewModel.deleteAsset(id: $0.id, fromGroup: context.groupId) }
+                )
+            }
+        }
+        // If the previewed group collapses away (delete down to a single frame),
+        // dismiss the cover instead of showing a dead pager (LF-04).
+        .onChange(of: viewModel.groups.map(\.id)) { _, newGroupIds in
+            if let preview, !newGroupIds.contains(preview.groupId) {
+                self.preview = nil
+            }
         }
         .task {
             await viewModel.loadIfNeeded()
@@ -213,9 +226,7 @@ struct BurstCleanerView: View {
                                 Button {
                                     preview = BurstPreviewContext(
                                         id: asset.id,
-                                        groupId: group.id,
-                                        assets: group.assets,
-                                        startIndex: group.assets.firstIndex { $0.id == asset.id } ?? 0
+                                        groupId: group.id
                                     )
                                 } label: {
                                     AsyncThumbnailView(assetId: asset.id, photoService: photoService)
