@@ -60,6 +60,15 @@
   to = "/changelog.html"
   status = 200
 
+# Pretty URLs — serve /blog/<slug> from /blog/<slug>.html.
+# NOTE: this rule must come BEFORE the exact /blog rule below; Netlify
+# applies the first matching rule. "/blog/*" requires a segment after
+# "/blog/", so "/blog" alone still matches the exact rule beneath.
+[[redirects]]
+  from = "/blog/*"
+  to = "/blog/:splat.html"
+  status = 200
+
 [[redirects]]
   from = "/blog"
   to = "/blog/index.html"

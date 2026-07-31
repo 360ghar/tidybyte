@@ -6,7 +6,7 @@
   <meta name="description" content="Release notes for TidyByte, the free iPhone photo cleaner. See what's new in each version &mdash; features, fixes, and improvements.">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: light)">
   <meta name="robots" content="index, follow">
   <meta name="author" content="TidyByte">
 
@@ -15,16 +15,16 @@
   <meta property="og:locale" content="en_US">
   <meta property="og:title" content="Changelog &mdash; TidyByte">
   <meta property="og:description" content="Release notes for TidyByte. Every release, newest first.">
-  <meta property="og:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image" content="https://tidybyte.360ghar.com/assets/img/icon-1024.png">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="1024">
   <meta property="og:image:alt" content="TidyByte &mdash; Free iPhone app to clean your photo library">
   <meta property="og:url" content="https://tidybyte.360ghar.com/changelog">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Changelog &mdash; TidyByte">
   <meta name="twitter:description" content="Release notes for TidyByte. Every release, newest first.">
-  <meta name="twitter:image" content="https://tidybyte.360ghar.com/assets/img/og-cover.svg">
+  <meta name="twitter:image" content="https://tidybyte.360ghar.com/assets/img/icon-1024.png">
 
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
@@ -108,12 +108,55 @@
       <div class="mx-auto mt-16 max-w-3xl">
         <article>
           <header class="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 class="h-section text-2xl sm:text-3xl">v1.0 &mdash; Initial release</h2>
-            <time class="muted text-sm" datetime="2026-01">January 2026</time>
+            <h2 class="h-section text-2xl sm:text-3xl">v1.0.2 &mdash; Storage dashboard redesign</h2>
+            <time class="muted text-sm" datetime="2026-07">July 2026</time>
           </header>
           <p class="muted mt-2 inline-flex items-center gap-2 text-sm">
             <span class="badge">Latest</span>
-            <span>The first public release of TidyByte on the App Store.</span>
+            <span>Redesigned storage dashboard, cross-tab deep links, and cleanup-tool fixes.</span>
+          </p>
+
+          <h3 class="mt-6 text-base font-semibold text-zinc-100">Highlights</h3>
+          <ul class="muted mt-3 space-y-2 text-base">
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-accent" aria-hidden="true"></span><span>Redesigned Storage dashboard with a reclaim hero &mdash; the biggest wins are surfaced first, with one-tap actions to free them.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-accent" aria-hidden="true"></span><span>Cross-tab deep linking: jump straight from a Storage bucket into a swipe session or cleanup tool.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-accent" aria-hidden="true"></span><span>Fixes across the cleanup tools (duplicates, screenshots, blurry photos, large files, compression) and a new test suite for the storage dashboard.</span></li>
+          </ul>
+
+          <h3 class="mt-8 text-base font-semibold text-zinc-100">Release notes</h3>
+          <p class="muted mt-3 text-base leading-relaxed">
+            TidyByte 1.0.2 makes the Storage tab the fastest way to see and reclaim space. The redesigned dashboard ranks cleanup wins by size, and deep links take you straight from a storage bucket into the right tool. This release also hardens the cleanup tools and expands the automated test coverage.
+          </p>
+        </article>
+
+        <hr class="my-12 border-white/10">
+
+        <article>
+          <header class="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 class="h-section text-2xl sm:text-3xl">v1.0.1 &mdash; iPad support</h2>
+            <time class="muted text-sm" datetime="2026-06">June 2026</time>
+          </header>
+          <p class="muted mt-2 text-sm">
+            Native iPad support, album picker fix, and settings layout improvements.
+          </p>
+
+          <h3 class="mt-6 text-base font-semibold text-zinc-100">Highlights</h3>
+          <ul class="muted mt-3 space-y-2 text-base">
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-accent" aria-hidden="true"></span><span>TidyByte is now a universal app &mdash; it runs natively on iPhone and iPad, with all orientations supported on iPad.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-accent" aria-hidden="true"></span><span>Fixed the album picker dismissing unexpectedly when starting a swipe session.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-accent" aria-hidden="true"></span><span>Improved Settings layout on larger screens.</span></li>
+          </ul>
+        </article>
+
+        <hr class="my-12 border-white/10">
+
+        <article>
+          <header class="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 class="h-section text-2xl sm:text-3xl">v1.0 &mdash; Initial release</h2>
+            <time class="muted text-sm" datetime="2026-01">January 2026</time>
+          </header>
+          <p class="muted mt-2 text-sm">
+            The first public release of TidyByte on the App Store.
           </p>
 
           <h3 class="mt-6 text-base font-semibold text-zinc-100">Highlights</h3>
@@ -134,7 +177,7 @@
 
           <h3 class="mt-8 text-base font-semibold text-zinc-100">Notes for reviewers</h3>
           <ul class="muted mt-3 space-y-2 text-sm">
-            <li>Requires iOS 17 or later. iPhone only (iPad runs in compatibility mode).</li>
+            <li>Requires iOS 17 or later. Works on iPhone and iPad (universal app).</li>
             <li>Photo Library (read &amp; write) is required for the swipe and cleanup tools to function.</li>
             <li>Notifications are optional and requested only if you enable &ldquo;Cleanup Reminders.&rdquo;</li>
             <li>No account, no in-app purchases, no networking. All processing is on-device.</li>

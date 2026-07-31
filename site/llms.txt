@@ -7,7 +7,7 @@ TidyByte is a free, open-source iPhone photo cleanup app (iOS 17+). It uses a Ti
 ## Key Facts
 
 - Price: Free forever, no in-app purchases, no subscriptions
-- Platform: iPhone (iOS 17+), runs on iPad in compatibility mode
+- Platform: iPhone and iPad (iOS 17+), universal app
 - Privacy: 100% on-device processing, no backend, no analytics, no network calls
 - Architecture: Built with Swift/SwiftUI, Apple frameworks only, no third-party dependencies
 - License: MIT open source

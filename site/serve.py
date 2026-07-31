@@ -21,16 +21,19 @@ REDIRECTS = {
     "/support": "/support.html",
     "/privacy": "/privacy.html",
     "/changelog": "/changelog.html",
+    "/blog": "/blog/index.html",
 }
 
 
 class RedirectHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
+        suffix = ("?" + parsed.query) if parsed.query else ""
         if parsed.path in REDIRECTS:
-            target = REDIRECTS[parsed.path]
-            suffix = ("?" + parsed.query) if parsed.query else ""
-            self.path = target + suffix
+            self.path = REDIRECTS[parsed.path] + suffix
+        elif parsed.path.startswith("/blog/") and not parsed.path.endswith(".html"):
+            # Mirror the netlify.toml "/blog/*" -> "/blog/:splat.html" rewrite.
+            self.path = parsed.path + ".html" + suffix
         return super().do_GET()
 
 
@@ -42,6 +45,8 @@ if __name__ == "__main__":
         print(f"  /support   → support.html")
         print(f"  /privacy   → privacy.html")
         print(f"  /changelog → changelog.html")
+        print(f"  /blog      → blog/index.html")
+        print(f"  /blog/<slug> → blog/<slug>.html")
         print("Press Ctrl+C to stop.")
         try:
             httpd.serve_forever()

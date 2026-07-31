@@ -17,7 +17,7 @@ site/
 └── assets/
     ├── css/styles.css   # Compiled Tailwind (generated)
     ├── img/             # Screenshots, icons
-    └── downloads/       # Press kit, etc.
+    └── js/              # nav.js, blog.js
 ```
 
 ## Local development

@@ -74,8 +74,8 @@ Exact duplicates are matched by SHA-256 hash of the file data. Near-duplicates u
 **Is there a free trial or subscription?**
 TidyByte is free, with no in-app purchases and no paywalls. Every feature is available to every user.
 
-**Why is the app iPhone-only?**
-The swipe card UI is built for one-handed phone use. The app does still run on iPad in compatibility mode.
+**Does TidyByte support iPad?**
+Yes. TidyByte is a universal app that runs natively on iPhone and iPad. Every cleanup tool works on both, the swipe interface adapts to the iPad's larger screen, and iPad supports all orientations.
 
 **How do I report a bug or request a feature?**
 Open an issue on GitHub (https://github.com/360ghar/snap-clean-ios) or use the contact form on the Support page.
@@ -103,6 +103,14 @@ Contact TidyByte support at contact@sakshammittal.com or file an issue on GitHub
 ---
 
 ## Changelog
+
+### v1.0.2 — Storage Dashboard Redesign (July 2026)
+
+Redesigned the Storage dashboard with a reclaim hero, added cross-tab deep-linking from storage insights into swipe sessions and cleanup tools, fixed issues across the cleanup tools, and added a storage-dashboard test suite.
+
+### v1.0.1 — iPad Support (June 2026)
+
+Added native iPad support (TidyByte is now a universal app), fixed the album picker dismiss behavior when starting a swipe session, and improved the Settings layout on larger screens.
 
 ### v1.0 — Initial Release (January 2026)
 
