@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 
 struct SwipeSessionView: View {
     @Bindable var viewModel: SwipeSessionViewModel
@@ -10,9 +11,6 @@ struct SwipeSessionView: View {
     @State private var swipeTask: Task<Void, Never>?
     @State private var showUndoHint = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private let hapticLight = UIImpactFeedbackGenerator(style: .light)
-    private let hapticHeavy = UIImpactFeedbackGenerator(style: .heavy)
 
     var body: some View {
         let isBootstrapping = !viewModel.hasLoadedInitialAssets || viewModel.isLoading
@@ -55,13 +53,15 @@ struct SwipeSessionView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    if viewModel.pendingDeletionIds.isEmpty {
-                        // Nothing marked for deletion — behave like a normal back.
-                        dismiss()
-                    } else {
+                    if viewModel.hasPendingDeletions {
                         // Route through the end-session review so pending deletions
                         // aren't silently dropped (they were never committed).
                         Task { await viewModel.endSession() }
+                    } else {
+                        // Nothing marked for deletion — behave like a normal back,
+                        // but release the prefetch cache first (SWIPE-01).
+                        Task { await viewModel.stopAllCaching() }
+                        dismiss()
                     }
                 } label: {
                     Image(systemName: "chevron.backward")
@@ -119,10 +119,22 @@ struct SwipeSessionView: View {
             await viewModel.loadAssetsIfNeeded()
         }
         .onChange(of: appNavigation.swipeDismissRequestID) { _, _ in
-            dismiss()
+            // External dismissal (deep link / tab switch): never drop pending
+            // deletions silently — route through the completion review first
+            // (APP-07).
+            if viewModel.hasPendingDeletions {
+                Task { await viewModel.endSession() }
+            } else {
+                Task { await viewModel.stopAllCaching() }
+                dismiss()
+            }
         }
         .onDisappear {
             swipeTask?.cancel()
+            // Any path that leaves the session view (back, empty-state exit,
+            // external dismissal, completion push) releases the prefetch cache
+            // so a session never pins images in the image manager (SWIPE-01).
+            Task { await viewModel.stopAllCaching() }
         }
     }
 
@@ -165,7 +177,7 @@ struct SwipeSessionView: View {
                     .offset(y: isTop ? 0 : yOffset)
                     .offset(x: isTop ? dragOffset.width : 0, y: isTop ? dragOffset.height : 0)
                     .rotationEffect(isTop ? .degrees(Double(dragOffset.width / 20)) : .zero)
-                    .gesture(isTop && !viewModel.isPerformingMutation ? dragGesture(cardWidth: geometry.size.width) : nil)
+                    .gesture(isTop && !viewModel.isPerformingMutation && !viewModel.isSwiping ? dragGesture(cardWidth: geometry.size.width) : nil)
                     .animation(.reduceMotionAware(.spring(response: 0.3, dampingFraction: 0.8), reduceMotion: reduceMotion), value: dragOffset)
                     .allowsHitTesting(isTop && !viewModel.isPerformingMutation)
                     .accessibilityElement(children: .ignore)
@@ -191,7 +203,7 @@ struct SwipeSessionView: View {
             .onChanged { value in
                 if !isDragging {
                     isDragging = true
-                    hapticLight.impactOccurred()
+                    HapticHelper.impact(.light)
                 }
                 dragOffset = value.translation
             }
@@ -203,13 +215,13 @@ struct SwipeSessionView: View {
 
                 if value.translation.width > threshold || predictedWidth > velocityThreshold {
                     // Swipe right — keep
-                    hapticHeavy.impactOccurred()
+                    HapticHelper.impact(.heavy)
                     performSwipeAnimation(offset: CGSize(width: 1000, height: value.translation.height)) {
                         viewModel.swipeRight()
                     }
                 } else if value.translation.width < -threshold || predictedWidth < -velocityThreshold {
                     // Swipe left — delete
-                    hapticHeavy.impactOccurred()
+                    HapticHelper.impact(.heavy)
                     performSwipeAnimation(offset: CGSize(width: -1000, height: value.translation.height)) {
                         viewModel.swipeLeft()
                         flashUndoHint()
@@ -239,7 +251,7 @@ struct SwipeSessionView: View {
 
     private func triggerDelete() {
         guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        hapticHeavy.impactOccurred()
+        HapticHelper.impact(.heavy)
         performSwipeAnimation(offset: CGSize(width: -1000, height: 0)) {
             viewModel.swipeLeft()
             flashUndoHint()
@@ -248,7 +260,7 @@ struct SwipeSessionView: View {
 
     private func triggerKeep() {
         guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        hapticHeavy.impactOccurred()
+        HapticHelper.impact(.heavy)
         performSwipeAnimation(offset: CGSize(width: 1000, height: 0)) {
             viewModel.swipeRight()
         }
@@ -317,11 +329,11 @@ struct SwipeSessionView: View {
 
     private var emptyState: some View {
         VStack(spacing: Spacing.xl) {
-            Image(systemName: viewModel.allPhotosAlreadySwiped ? "checkmark.seal" : "checkmark.circle")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-
             if viewModel.allPhotosAlreadySwiped {
+                Image(systemName: "checkmark.seal")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.green)
+
                 Text("All Photos Reviewed!")
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
@@ -345,13 +357,66 @@ struct SwipeSessionView: View {
                         .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
                 }
                 .scaleOnPress()
+            } else if !viewModel.isPhotoLibraryAccessible {
+                // A permission problem reads as an empty library; surface it
+                // instead of "All Caught Up!" (SWIPE-09).
+                Image(systemName: "lock.shield")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.orange)
+
+                Text("Photo Access Required")
+                    .font(.title2.bold())
+                    .multilineTextAlignment(.center)
+                Text("TidyByte needs photo library access to show your photos here. Grant access in Settings, then try again.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.75)
+                    .padding(.horizontal, Spacing.xxl)
+
+                Button {
+                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(settingsURL)
+                    }
+                } label: {
+                    Text("Open Settings")
+                        .font(.headline)
+                        .padding(.horizontal, Spacing.xxxl)
+                        .padding(.vertical, Spacing.md)
+                        .background(.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                }
+                .scaleOnPress()
             } else {
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.green)
+
                 Text("All Caught Up!")
                     .font(.title2.bold())
                 Text("No more photos to review with this filter.")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+
+                // A failed/empty fetch reads the same as a genuinely empty deck —
+                // offer a retry so a transient failure isn't a dead end (SWIPE-09).
+                Button {
+                    Task {
+                        viewModel.retryLoad()
+                        await viewModel.loadAssetsIfNeeded()
+                    }
+                } label: {
+                    Text("Try Again")
+                        .font(.headline)
+                        .padding(.horizontal, Spacing.xxxl)
+                        .padding(.vertical, Spacing.md)
+                        .background(.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                }
+                .scaleOnPress()
             }
         }
         .padding()
@@ -377,7 +442,9 @@ struct SwipeSessionView: View {
         offset: CGSize,
         action: @escaping @MainActor () async -> Void
     ) {
-        guard !viewModel.isPerformingMutation else { return }
+        // Serialize swipes: a second gesture during the animation window is
+        // ignored instead of racing the in-flight task (SWIPE-05).
+        guard !viewModel.isPerformingMutation, viewModel.beginSwipeAnimation() else { return }
         withAnimation(.reduceMotionAware(.spring(response: 0.3, dampingFraction: 0.8), reduceMotion: reduceMotion)) {
             dragOffset = offset
         }
@@ -385,11 +452,19 @@ struct SwipeSessionView: View {
         swipeTask?.cancel()
         swipeTask = Task {
             try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else {
+                viewModel.endSwipeAnimation()
+                return
+            }
             await MainActor.run {
-                dragOffset = .zero
+                // Only reset the offset if the drag actually ended — resetting
+                // mid-gesture yanks the card back from under a new drag (SWIPE-05).
+                if !isDragging {
+                    dragOffset = .zero
+                }
             }
             await action()
+            viewModel.endSwipeAnimation()
         }
     }
 }

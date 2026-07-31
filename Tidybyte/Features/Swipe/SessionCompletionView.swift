@@ -5,11 +5,16 @@ struct SessionCompletionView: View {
     @Environment(AppNavigation.self) private var appNavigation
 
     @State private var showCheckmark = false
+    /// Where the user wanted to go when they hit an exit button while deletions
+    /// were still pending — resolved after the confirmation dialog (SWIPE-02).
+    @State private var pendingExit: ExitDestination?
+
+    private enum ExitDestination {
+        case swipeHome
+        case cleanupTools
+    }
 
     private var stats: SessionStats { viewModel.sessionStats }
-    private var hasPendingDeletions: Bool {
-        !viewModel.pendingDeletionIds.isEmpty && !viewModel.deletionCommitted
-    }
 
     var body: some View {
         VStack(spacing: Spacing.xxxl) {
@@ -61,7 +66,7 @@ struct SessionCompletionView: View {
             .padding(.horizontal, Spacing.lg)
 
             // Batch deletion confirmation
-            if hasPendingDeletions {
+            if viewModel.hasPendingDeletions {
                 VStack(spacing: Spacing.md) {
                     Button {
                         Task { await viewModel.commitDeletions() }
@@ -103,9 +108,9 @@ struct SessionCompletionView: View {
             // Action buttons
             VStack(spacing: Spacing.md) {
                 Button {
-                    appNavigation.returnToSwipeHome()
+                    requestExit(.swipeHome)
                 } label: {
-                    Text("Start Another Session")
+                    Text("Back to Swipe Home")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(Spacing.lg)
@@ -116,7 +121,7 @@ struct SessionCompletionView: View {
                 .scaleOnPress()
 
                 Button {
-                    appNavigation.showCleanupHome()
+                    requestExit(.cleanupTools)
                 } label: {
                     Text("Go to Cleanup Tools")
                         .font(.headline)
@@ -135,12 +140,36 @@ struct SessionCompletionView: View {
             .disabled(viewModel.isDeletingBatch)
             .padding(.horizontal, Spacing.lg)
             .padding(.bottom, Spacing.lg)
-            .fadeSlideIn(delay: hasPendingDeletions ? 0.6 : 0.5)
+            .fadeSlideIn(delay: viewModel.hasPendingDeletions ? 0.6 : 0.5)
         }
         .navigationBarBackButtonHidden()
         .onAppear {
             showCheckmark = true
             HapticHelper.notification(.success)
+        }
+        .confirmationDialog(
+            "You have \(viewModel.pendingDeletionIds.count) uncommitted deletions.",
+            isPresented: Binding(
+                get: { pendingExit != nil },
+                set: { if !$0 { pendingExit = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Commit Deletion", role: .destructive) {
+                if let destination = pendingExit {
+                    commitAndExit(to: destination)
+                }
+            }
+            Button("Discard") {
+                if let destination = pendingExit {
+                    discardAndExit(to: destination)
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingExit = nil
+            }
+        } message: {
+            Text("Delete them, keep them, or discard?")
         }
         .alert("Deletion Error", isPresented: .init(
             get: { viewModel.deletionErrorMessage != nil },
@@ -154,6 +183,46 @@ struct SessionCompletionView: View {
         } message: {
             Text(viewModel.deletionErrorMessage ?? "")
         }
+    }
+
+    // MARK: - Exit Flow (SWIPE-02)
+
+    /// Every exit button routes through here so pending deletions are never
+    /// dropped silently: with uncommitted deletions the user gets a
+    /// commit/discard/cancel dialog first and stays on the review screen on
+    /// cancel.
+    private func requestExit(_ destination: ExitDestination) {
+        guard viewModel.hasPendingDeletions else {
+            performExit(to: destination)
+            return
+        }
+        pendingExit = destination
+    }
+
+    private func performExit(to destination: ExitDestination) {
+        switch destination {
+        case .swipeHome:
+            appNavigation.returnToSwipeHome()
+        case .cleanupTools:
+            appNavigation.showCleanupHome()
+        }
+    }
+
+    private func commitAndExit(to destination: ExitDestination) {
+        pendingExit = nil
+        Task {
+            await viewModel.commitDeletions()
+            // Only leave once the deletion actually committed — on failure the
+            // error alert keeps the user on the review screen with a Retry.
+            guard viewModel.deletionCommitted else { return }
+            performExit(to: destination)
+        }
+    }
+
+    private func discardAndExit(to destination: ExitDestination) {
+        pendingExit = nil
+        viewModel.discardPendingDeletions()
+        performExit(to: destination)
     }
 
     // MARK: - Stat Rows

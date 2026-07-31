@@ -1,4 +1,6 @@
 import SwiftUI
+import AVFoundation
+import AVKit
 
 struct CardView: View {
     let asset: AssetSummary
@@ -6,7 +8,7 @@ struct CardView: View {
     let isTopCard: Bool
 
     @State private var image: UIImage?
-    @State private var isLoadingImage = true
+    @State private var player: AVPlayer?
 
     var dragOffset: CGSize = .zero
 
@@ -33,6 +35,26 @@ struct CardView: View {
                         .transition(.opacity)
                 } else {
                     SkeletonView(cornerRadius: 0)
+                }
+
+                // Video playback (SWIPE-07): a play affordance on the top card
+                // loads the player item and plays inline; playback stops when the
+                // card is dragged or leaves the deck.
+                if asset.mediaType == .video, isTopCard {
+                    if let player {
+                        VideoPlayer(player: player)
+                            .accessibilityLabel("Video preview playing")
+                    } else {
+                        Button {
+                            startPlayback()
+                        } label: {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 56))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .shadow(color: .black.opacity(0.4), radius: 6)
+                        }
+                        .accessibilityLabel("Play video")
+                    }
                 }
 
                 // Gradient overlay at bottom
@@ -147,17 +169,42 @@ struct CardView: View {
         .task {
             await loadImage()
         }
+        .onDisappear {
+            // The card left the deck — tear down playback so the player item
+            // and its buffers aren't retained (SWIPE-07).
+            stopPlayback()
+        }
+        .onChange(of: dragOffset) { _, newValue in
+            // The user started dragging the card — stop playback so the video
+            // doesn't keep playing under the swipe (SWIPE-07).
+            if newValue != .zero {
+                stopPlayback()
+            }
+        }
     }
 
     private func loadImage() async {
-        isLoadingImage = true
         // Full-screen pixel size matches the swipe session's prefetch target so the
         // cached image is reused instead of re-fetched. Avoids deprecated UIScreen.main.
         let loaded = await photoService.loadImage(for: asset.id, targetSize: ScreenMetrics.pixelSize)
         withAnimation(.easeIn(duration: 0.3)) {
             image = loaded
         }
-        isLoadingImage = false
+    }
+
+    private func startPlayback() {
+        guard player == nil else { return }
+        Task {
+            guard let box = await photoService.loadPlayerItem(for: asset.id) else { return }
+            let newPlayer = AVPlayer(playerItem: box.value)
+            player = newPlayer
+            newPlayer.play()
+        }
+    }
+
+    private func stopPlayback() {
+        player?.pause()
+        player = nil
     }
 }
 

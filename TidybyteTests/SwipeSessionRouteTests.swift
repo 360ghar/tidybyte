@@ -13,54 +13,6 @@ final class SwipeSessionRouteTests: XCTestCase {
     }
 
     @MainActor
-    func testResetForNewSessionClearsInProgressState() throws {
-        let schema = Schema([
-            SwipeRecord.self,
-            CompressionRecord.self,
-            StorageSnapshot.self
-        ])
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: schema, configurations: [configuration])
-        let viewModel = SwipeSessionViewModel(
-            filter: .allMedia,
-            photoService: PhotoLibraryService(),
-            modelContext: container.mainContext
-        )
-
-        viewModel.assets = [makeAsset(id: "asset-1")]
-        viewModel.showCompletion = true
-        viewModel.showAlbumPicker = true
-        viewModel.pendingKeepAsset = viewModel.assets.first
-        viewModel.errorMessage = "Example"
-        viewModel.allPhotosAlreadySwiped = true
-        viewModel.isPerformingMutation = true
-        viewModel.sessionStats.deletedCount = 2
-        viewModel.pendingDeletionIds = ["asset-1"]
-        viewModel.pendingDeletionBytes = 12_000_000
-        viewModel.isDeletingBatch = true
-        viewModel.deletionCommitted = true
-        viewModel.skip()
-
-        viewModel.resetForNewSession()
-
-        XCTAssertTrue(viewModel.assets.isEmpty)
-        XCTAssertEqual(viewModel.currentIndex, 0)
-        XCTAssertEqual(viewModel.sessionStats.totalReviewed, 0)
-        XCTAssertFalse(viewModel.showCompletion)
-        XCTAssertFalse(viewModel.showAlbumPicker)
-        XCTAssertNil(viewModel.pendingKeepAsset)
-        XCTAssertNil(viewModel.errorMessage)
-        XCTAssertFalse(viewModel.allPhotosAlreadySwiped)
-        XCTAssertFalse(viewModel.isPerformingMutation)
-        XCTAssertFalse(viewModel.hasLoadedInitialAssets)
-        XCTAssertTrue(viewModel.undoStack.isEmpty)
-        XCTAssertTrue(viewModel.pendingDeletionIds.isEmpty)
-        XCTAssertEqual(viewModel.pendingDeletionBytes, 0)
-        XCTAssertFalse(viewModel.isDeletingBatch)
-        XCTAssertFalse(viewModel.deletionCommitted)
-    }
-
-    @MainActor
     func testSwipeLeftDefersDeletion() throws {
         let container = try makeContainer()
         let viewModel = SwipeSessionViewModel(

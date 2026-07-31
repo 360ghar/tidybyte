@@ -229,50 +229,23 @@ struct AlbumPickerSheet: View {
 
 // MARK: - Async Album Thumbnail
 
+/// Thin wrapper over the shared `AsyncThumbnailView` (same cache, same 200px
+/// target) that tolerates a missing thumbnail asset with an album-specific
+/// placeholder. Replaces the private copy of the loading logic (de-slop).
 struct AsyncAlbumThumbnail: View {
     let assetId: String?
     let photoService: PhotoLibraryService
-    @State private var image: UIImage?
-    @State private var hasLoaded = false
 
     var body: some View {
-        Group {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else if hasLoaded {
-                Rectangle()
-                    .fill(Color(.systemGray5))
-                    .overlay {
-                        Image(systemName: "photo.on.rectangle")
-                            .foregroundStyle(.secondary)
-                    }
-            } else {
-                SkeletonView(cornerRadius: 0)
-            }
-        }
-        .task(id: assetId) {
-            image = nil
-            hasLoaded = false
-            guard let assetId else {
-                hasLoaded = true
-                return
-            }
-
-            if let cached = await ImageCache.shared.image(for: assetId) {
-                image = cached
-                hasLoaded = true
-                return
-            }
-
-            let loaded = await photoService.loadThumbnail(for: assetId, size: CGSize(width: 200, height: 200))
-            guard !Task.isCancelled else { return }
-            if let loaded {
-                await ImageCache.shared.setImage(loaded, for: assetId)
-            }
-            image = loaded
-            hasLoaded = true
+        if let assetId {
+            AsyncThumbnailView(assetId: assetId, photoService: photoService)
+        } else {
+            Rectangle()
+                .fill(Color(.systemGray5))
+                .overlay {
+                    Image(systemName: "photo.on.rectangle")
+                        .foregroundStyle(.secondary)
+                }
         }
     }
 }

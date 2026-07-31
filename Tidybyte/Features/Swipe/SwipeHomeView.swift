@@ -10,7 +10,11 @@ struct SwipeHomeView: View {
 
     @AppStorage(AppPreferences.Key.defaultSwipeFilter) private var defaultFilterRaw: String = DefaultSwipeFilterPreference.notSwipedYet.rawValue
 
-    private let photoService = PhotoLibraryService()
+    // @State (not a plain let) so the actor instance survives body re-evals —
+    // a View struct is recreated on every render and a stored `let` would
+    // construct a fresh PhotoLibraryService (and change observer) each time
+    // (APP-10). A reference type in @State is just a holder.
+    @State private var photoService = PhotoLibraryService()
 
     private var defaultFilterPreference: DefaultSwipeFilterPreference {
         DefaultSwipeFilterPreference(rawValue: defaultFilterRaw) ?? .notSwipedYet
@@ -254,7 +258,11 @@ extension SwipeFilter: Identifiable {
         case .specificAlbum(let id): return "album_\(id)"
         case .notSwipedYet: return "notSwipedYet"
         case .screenshots: return "screenshots"
-        case .customAssetIds(let ids): return "custom_\(ids.hashValue)"
+        case .customAssetIds(let ids):
+            // Set.hashValue is randomized per process, so it can't be an
+            // identity. Derive a stable one from the sorted identifiers
+            // instead (SWIPE-10).
+            return "custom_\(ids.sorted().joined(separator: ","))"
         }
     }
 }

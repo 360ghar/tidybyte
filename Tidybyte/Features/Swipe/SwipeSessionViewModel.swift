@@ -8,10 +8,6 @@ struct SessionStats: Sendable {
     var skippedCount: Int = 0
     var deletedBytes: Int64 = 0
 
-    var totalReviewed: Int {
-        deletedCount + organizedCount + skippedCount
-    }
-
     static let empty = SessionStats()
 }
 
@@ -27,7 +23,9 @@ final class SwipeSessionViewModel {
     var assets: [AssetSummary] = []
     /// Local identifiers of deck assets already in a user album. A right-swipe on
     /// one of these keeps the photo without prompting "Add to Album" — it's
-    /// already organized. Precomputed once at deck load (see `loadAssets`).
+    /// already organized. Computed lazily on the first right-swipe that needs it
+    /// (see `resolveUserAlbumMembership`) instead of eagerly at deck load
+    /// so a session can start without a full-library album scan (SWIPE-04).
     var assetIdsInUserAlbums: Set<String> = []
     var currentIndex: Int = 0
     var isLoading: Bool = false
@@ -48,7 +46,31 @@ final class SwipeSessionViewModel {
     var isDeletingBatch = false
     var deletionCommitted = false
 
+    /// True when deletions are awaiting commit. Gates exits from the session and
+    /// completion flow so pending deletions are never dropped silently (SWIPE-02).
+    var hasPendingDeletions: Bool {
+        !pendingDeletionIds.isEmpty && !deletionCommitted
+    }
+
+    /// True while a swipe-card animation is in flight. The view uses this to
+    /// ignore a second gesture during the animation window (SWIPE-05).
+    private(set) var isSwiping = false
+
+    /// True when the app may read the photo library (authorized or limited) —
+    /// used to distinguish a permissions problem from an empty filter (SWIPE-09).
+    var isPhotoLibraryAccessible: Bool {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        return status == .authorized || status == .limited
+    }
+
     private(set) var undoStack: [SwipeUndoEntry] = []
+
+    /// Every asset ID this session asked the image manager to cache. Tracked so
+    /// the advance path can release images that fell out of the visible +
+    /// prefetch window (SWIPE-01).
+    private var cachedAssetIDs: Set<String> = []
+    /// Whether album membership has been resolved for this deck (SWIPE-04).
+    private var userAlbumMembershipResolved = false
 
     let filter: SwipeFilter
     let photoService: PhotoLibraryService
@@ -81,27 +103,12 @@ final class SwipeSessionViewModel {
         await loadAssets()
     }
 
-    func resetForNewSession() {
-        assets.removeAll()
-        assetIdsInUserAlbums.removeAll()
-        currentIndex = 0
-        isLoading = false
+    /// Clears the loaded state so the next `loadAssetsIfNeeded()` re-runs the
+    /// fetch — the "Try Again" affordance for the empty state (SWIPE-09).
+    func retryLoad() {
         hasLoadedInitialAssets = false
-        sessionStats = .empty
-        showCompletion = false
-        showAlbumPicker = false
-        pendingKeepAsset = nil
-        errorMessage = nil
-        deletionErrorMessage = nil
         allPhotosAlreadySwiped = false
-        isPerformingMutation = false
-        pendingDeletionIds.removeAll()
-        pendingDeletionBytes = 0
-        isDeletingBatch = false
-        deletionCommitted = false
-        undoStack.removeAll()
-        // Release any images prefetched for the previous session.
-        Task { await photoService.stopAllCaching() }
+        isLoading = false
     }
 
     private func loadAssets() async {
@@ -124,20 +131,16 @@ final class SwipeSessionViewModel {
         }
 
         assets = fetched
-        // Precompute album membership so a right-swipe can skip the "Add to
-        // Album" prompt for already-organized photos. `.notInAnyAlbum` excludes
-        // those by definition, so there's nothing to look up.
-        if case .notInAnyAlbum = filter {
-            assetIdsInUserAlbums = []
-        } else {
-            assetIdsInUserAlbums = await photoService.assetIdentifiersInUserAlbums()
-        }
+        // Album membership is resolved lazily on first right-swipe (SWIPE-04):
+        // `.notInAnyAlbum` decks are definitionally album-less, and resolving it
+        // eagerly here cost a full-library scan before the first card appeared.
         currentIndex = 0
         hasLoadedInitialAssets = true
         isLoading = false
 
         // Pre-cache next batch in background (matches advance() pattern)
         let prefetchIds = Array(assets.prefix(10).map(\.id))
+        cachedAssetIDs.formUnion(prefetchIds)
         let screenSize = ScreenMetrics.pixelSize
         Task {
             await photoService.startCaching(assetIds: prefetchIds, targetSize: screenSize)
@@ -170,8 +173,25 @@ final class SwipeSessionViewModel {
             keepAlreadyOrganized()
             return
         }
+        // Lazy album-membership resolution (SWIPE-04): kick off the album scan
+        // on first need so it never blocks deck load. The first right-swipe may
+        // prompt the picker before the scan lands; subsequent ones won't.
+        if !userAlbumMembershipResolved {
+            userAlbumMembershipResolved = true
+            if case .notInAnyAlbum = filter {
+                // Deck assets are definitionally album-less; nothing to look up.
+            } else {
+                Task { await resolveUserAlbumMembership() }
+            }
+        }
         pendingKeepAsset = asset
         showAlbumPicker = true
+    }
+
+    /// Resolves which deck assets are already in a user album, memoized for the
+    /// rest of the session. Runs off the deck-load path (SWIPE-04).
+    private func resolveUserAlbumMembership() async {
+        assetIdsInUserAlbums = await photoService.assetIdentifiersInUserAlbums()
     }
 
     /// Handles a right-swipe on a photo that is already in a user album.
@@ -236,7 +256,10 @@ final class SwipeSessionViewModel {
     }
 
     func undo() async {
-        guard let entry = undoStack.last, !isPerformingMutation else { return }
+        // The album picker is presented on top of the deck — rewinding the deck
+        // underneath the sheet would desync the card the user is choosing an
+        // album for (SWIPE-06).
+        guard let entry = undoStack.last, !isPerformingMutation, !showAlbumPicker else { return }
 
         switch entry.decision {
         case .deleted:
@@ -279,8 +302,16 @@ final class SwipeSessionViewModel {
         guard !pendingDeletionIds.isEmpty, !isDeletingBatch else { return }
         isDeletingBatch = true
         do {
+            // Fetch the summaries of assets that still exist at commit time so
+            // the freed-size stat only counts photos that are actually being
+            // deleted — assets that vanished externally before commit would
+            // otherwise overstate "Storage Freed" (SWIPE-08).
+            let survivors = await photoService.fetchAssets(filter: .customAssetIds(Set(pendingDeletionIds)))
+            let freedBytes = survivors.reduce(Int64(0)) { $0 + $1.fileSize }
             try await photoService.deleteAssets(identifiers: pendingDeletionIds)
             deletionCommitted = true
+            sessionStats.deletedCount = survivors.count
+            sessionStats.deletedBytes = freedBytes
             pendingDeletionIds.removeAll()
             pendingDeletionBytes = 0
             HapticHelper.notification(.success)
@@ -299,9 +330,32 @@ final class SwipeSessionViewModel {
         pendingDeletionBytes = 0
     }
 
-    func endSession() async {
+    /// Releases every image this session asked the image manager to cache.
+    /// Safe to call multiple times; used on the plain-back dismiss path and by
+    /// `endSession` so a session never leaves images pinned in the cache (SWIPE-01).
+    func stopAllCaching() async {
+        cachedAssetIDs.removeAll()
         await photoService.stopAllCaching()
+    }
+
+    func endSession() async {
+        await stopAllCaching()
         showCompletion = true
+    }
+
+    /// Claims the swipe-animation slot. Returns false (and does nothing) when
+    /// an animation is already in flight — the duplicate gesture is dropped
+    /// instead of racing the in-flight task (SWIPE-05).
+    func beginSwipeAnimation() -> Bool {
+        guard !isSwiping else { return false }
+        isSwiping = true
+        return true
+    }
+
+    /// Releases the animation slot after the swipe action completes or the
+    /// animation task is cancelled.
+    func endSwipeAnimation() {
+        isSwiping = false
     }
 
     // MARK: - Private
@@ -316,11 +370,30 @@ final class SwipeSessionViewModel {
             let prefetchEnd = min(currentIndex + 10, assets.count)
             if prefetchStart < prefetchEnd {
                 let ids = Array(assets[prefetchStart..<prefetchEnd].map(\.id))
+                cachedAssetIDs.formUnion(ids)
                 let screenSize = ScreenMetrics.pixelSize
                 Task {
                     await photoService.startCaching(assetIds: ids, targetSize: screenSize)
                 }
             }
+        }
+        // Release images that fell out of the visible + prefetch window so a
+        // long session doesn't pin hundreds of images in the cache (SWIPE-01).
+        releaseCachedAssetsOutsideWindow()
+    }
+
+    /// Stops caching every asset that is no longer in the visible + prefetch
+    /// window `[currentIndex, currentIndex + 10)` (SWIPE-01).
+    private func releaseCachedAssetsOutsideWindow() {
+        let windowEnd = min(currentIndex + 10, assets.count)
+        guard currentIndex < windowEnd else { return }
+        let window = Set(assets[currentIndex..<windowEnd].map(\.id))
+        let stale = cachedAssetIDs.subtracting(window)
+        guard !stale.isEmpty else { return }
+        cachedAssetIDs.subtract(stale)
+        let screenSize = ScreenMetrics.pixelSize
+        Task {
+            await photoService.stopCaching(assetIds: Array(stale), targetSize: screenSize)
         }
     }
 
@@ -358,10 +431,15 @@ final class SwipeSessionViewModel {
         }
     }
 
+    /// Fetches swipe records for one asset. Uses a `#Predicate` so the lookup is
+    /// pushed into the store instead of loading the whole table and filtering in
+    /// Swift — the previous full-table fetch was quadratic with swipe history
+    /// (SWIPE-03 / APP-08).
     private func fetchSwipeRecords(matching assetId: String) -> [SwipeRecord] {
-        let descriptor = FetchDescriptor<SwipeRecord>()
-        return ((try? modelContext.fetch(descriptor)) ?? [])
-            .filter { $0.assetLocalIdentifier == assetId }
+        let descriptor = FetchDescriptor<SwipeRecord>(
+            predicate: #Predicate { $0.assetLocalIdentifier == assetId }
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 
     private func save(context: String) {
@@ -375,6 +453,10 @@ final class SwipeSessionViewModel {
         }
     }
 
+    /// All asset local identifiers with a swipe record. SwiftData on iOS 17 has
+    /// no column projection (Core Data's `propertiesToFetch` has no SwiftData
+    /// equivalent), so the full model is fetched and mapped — but the records
+    /// themselves are tiny and this runs once per session, not per swipe.
     private func fetchSwipedIdentifiers() -> Set<String> {
         let descriptor = FetchDescriptor<SwipeRecord>()
         do {
