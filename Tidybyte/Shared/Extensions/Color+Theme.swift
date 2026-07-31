@@ -19,7 +19,6 @@ enum CornerRadius {
     static let small: CGFloat = 8
     static let medium: CGFloat = 12
     static let large: CGFloat = 16
-    static let extraLarge: CGFloat = 20
     static let full: CGFloat = 100
 }
 
@@ -27,18 +26,9 @@ enum CornerRadius {
 
 extension Color {
     static let appBackground = Color(.systemBackground)
-    static let secondaryBackground = Color(.secondarySystemBackground)
-    static let tertiaryBackground = Color(.tertiarySystemBackground)
-
-    static let appAccent = Color.blue
     static let destructive = Color.red
     static let success = Color.green
     static let warning = Color.orange
-
-    static let photoCategory = Color.blue
-    static let videoCategory = Color.purple
-    static let screenshotCategory = Color.yellow
-    static let livePhotoCategory = Color.teal
     static let otherCategory = Color.gray
 
     // Glass card surface colors — adaptive so the glass look works in both light
@@ -53,40 +43,11 @@ extension Color {
             ? UIColor.white.withAlphaComponent(0.10)
             : UIColor.black.withAlphaComponent(0.10)
     })
-    static let elevatedSurface = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark
-            ? UIColor.white.withAlphaComponent(0.12)
-            : UIColor.black.withAlphaComponent(0.06)
-    })
 }
 
 // MARK: - Gradients
 
 extension LinearGradient {
-    static let accentGradient = LinearGradient(
-        colors: [.blue, .blue.opacity(0.7)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let headerGradient = LinearGradient(
-        colors: [.blue.opacity(0.15), .clear],
-        startPoint: .top,
-        endPoint: .bottom
-    )
-
-    static let destructiveGradient = LinearGradient(
-        colors: [.red, .red.opacity(0.8)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let successGradient = LinearGradient(
-        colors: [.green, .green.opacity(0.8)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
     static let storageBarGradient = LinearGradient(
         colors: [.green, .yellow, .orange, .red],
         startPoint: .leading,
@@ -103,9 +64,5 @@ extension View {
 
     func subtleShadow() -> some View {
         self.shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-    }
-
-    func glowShadow(color: Color = .blue, radius: CGFloat = 12) -> some View {
-        self.shadow(color: color.opacity(0.3), radius: radius)
     }
 }

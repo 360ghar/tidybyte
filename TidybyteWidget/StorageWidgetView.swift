@@ -7,11 +7,17 @@ struct StorageWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
+            // `supportedFamilies` is fixed to small + medium, so both cases are
+            // covered explicitly; the default is required only to satisfy
+            // exhaustiveness over the rest of `WidgetFamily` (unreachable at
+            // runtime given the declared families).
             switch family {
             case .systemSmall:
                 smallView(snapshot)
-            default:
+            case .systemMedium:
                 mediumView(snapshot)
+            default:
+                EmptyView()
             }
         } else {
             placeholderView

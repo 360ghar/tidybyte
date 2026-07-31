@@ -21,7 +21,9 @@ actor ImageCache {
         cache.removeObject(forKey: key as NSString)
     }
 
-    func clearAll() {
+    /// Drops every cached image. Called on library change so thumbnails never
+    /// go stale after Photos edits (SHARED-08).
+    func removeAll() {
         cache.removeAllObjects()
     }
 }

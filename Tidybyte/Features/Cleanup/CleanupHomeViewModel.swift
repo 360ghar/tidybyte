@@ -65,7 +65,8 @@ final class CleanupHomeViewModel {
         // Large files + photo compression — both derived from the single
         // all-media fetch to avoid extra enumerations.
         let allAssets = await photoService.fetchAssets(filter: .allMedia)
-        let threshold = Int64(AppPreferences.largeFileThresholdMB() * 1_000_000)
+        // APP-06: single shared threshold source — no manual mb → bytes math.
+        let threshold = AppPreferences.largeFileThresholdBytes()
         let largeCount = allAssets.filter { $0.fileSize >= threshold }.count
         updateTool(.largeFiles, count: largeCount)
 

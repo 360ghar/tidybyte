@@ -4,5 +4,16 @@
 <dict>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.sakshammittal.tidybyte</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tidybyte</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -34,8 +34,12 @@ final class LibraryChangeMonitor {
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            self?.generation += 1
-            self?.debounceTask = nil
+            guard let self else { return }
+            self.generation += 1
+            self.debounceTask = nil
+            // SHARED-08: the library changed — cached thumbnails may describe
+            // edited/removed assets, so invalidate the cache alongside the bump.
+            await ImageCache.shared.removeAll()
         }
     }
 }

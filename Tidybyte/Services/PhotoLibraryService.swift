@@ -30,25 +30,10 @@ actor PhotoLibraryService {
 
     deinit {
         // Ensure we never leave a dangling change observer registered with the
-        // shared photo library if the service is deallocated without an explicit
-        // stopObservingChanges() call.
+        // shared photo library if the service is deallocated.
         if let helper = changeObserverHelper {
             PHPhotoLibrary.shared().unregisterChangeObserver(helper)
         }
-    }
-
-    // MARK: - Authorization
-
-    func requestAuthorization() async -> PHAuthorizationStatus {
-        await withCheckedContinuation { continuation in
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-                continuation.resume(returning: status)
-            }
-        }
-    }
-
-    func currentAuthorizationStatus() -> PHAuthorizationStatus {
-        PHPhotoLibrary.authorizationStatus(for: .readWrite)
     }
 
     // MARK: - Change Observation
@@ -63,14 +48,6 @@ actor PhotoLibraryService {
         }
         self.changeObserverHelper = helper
         PHPhotoLibrary.shared().register(helper)
-    }
-
-    func stopObservingChanges() {
-        if let helper = changeObserverHelper {
-            PHPhotoLibrary.shared().unregisterChangeObserver(helper)
-            changeObserverHelper = nil
-        }
-        onLibraryChange = nil
     }
 
     private func handleLibraryChange() {
@@ -196,16 +173,24 @@ actor PhotoLibraryService {
         return extractSummaries(from: result)
     }
 
+    /// Groups burst frames by `burstIdentifier` alone and drops single-frame
+    /// "bursts". Apple's docs are ambiguous about whether `representsBurst` is
+    /// set on every frame (vs. only the representative), so requiring it made
+    /// the tool silently empty on some devices (LF-03). Frames are sorted by
+    /// creation date within each group.
     func fetchBurstPhotos() -> [String: [AssetSummary]] {
         let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
 
         var groups: [String: [AssetSummary]] = [:]
         for index in 0..<allAssets.count {
             let asset = allAssets.object(at: index)
-            if asset.representsBurst, let burstId = asset.burstIdentifier {
+            if let burstId = asset.burstIdentifier {
                 let summary = self.makeSummary(from: asset)
                 groups[burstId, default: []].append(summary)
             }
+        }
+        for key in groups.keys {
+            groups[key]?.sort { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) }
         }
         return groups.filter { $0.value.count > 1 }
     }
@@ -508,10 +493,39 @@ actor PhotoLibraryService {
 
     // MARK: - Mutations
 
+    /// Deletes the given assets atomically. If the batch fails (e.g. one
+    /// protected/undeletable asset aborts the whole `performChanges`), retries
+    /// each identifier individually so the deletable ones still go through,
+    /// then throws `partialDeletion` if any remain (SHARED-01).
     func deleteAssets(identifiers: [String]) async throws {
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
-        try await PHPhotoLibrary.shared().performChanges {
-            PHAssetChangeRequest.deleteAssets(assets)
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.deleteAssets(assets)
+            }
+        } catch {
+            var succeeded = 0
+            var failed = 0
+            for id in identifiers {
+                do {
+                    guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
+                        // Unfetchable — treat as not deletable by this call.
+                        failed += 1
+                        continue
+                    }
+                    try await PHPhotoLibrary.shared().performChanges {
+                        PHAssetChangeRequest.deleteAssets([asset] as NSArray)
+                    }
+                    succeeded += 1
+                } catch {
+                    failed += 1
+                }
+            }
+            if failed > 0 {
+                throw PhotoServiceError.partialDeletion(succeeded: succeeded, failed: failed)
+            }
+            // Every individual retry succeeded — the batch failure was
+            // transient; nothing remains.
         }
     }
 
@@ -523,14 +537,16 @@ actor PhotoLibraryService {
             throw PhotoServiceError.albumNotFound
         }
 
-        var success = false
+        var changeRequestCreated = false
         try await PHPhotoLibrary.shared().performChanges {
             guard let albumChangeRequest = PHAssetCollectionChangeRequest(for: album) else { return }
             albumChangeRequest.addAssets(assets)
-            success = true
+            changeRequestCreated = true
         }
-        guard success else {
-            throw PhotoServiceError.albumNotFound
+        // The album fetched fine but PhotoKit refused to build a change request
+        // for it — a distinct failure from the album being missing (SHARED-02).
+        guard changeRequestCreated else {
+            throw PhotoServiceError.albumChangeFailed
         }
     }
 
@@ -542,14 +558,16 @@ actor PhotoLibraryService {
             throw PhotoServiceError.albumNotFound
         }
 
-        var success = false
+        var changeRequestCreated = false
         try await PHPhotoLibrary.shared().performChanges {
             guard let albumChangeRequest = PHAssetCollectionChangeRequest(for: album) else { return }
             albumChangeRequest.removeAssets(assets)
-            success = true
+            changeRequestCreated = true
         }
-        guard success else {
-            throw PhotoServiceError.albumNotFound
+        // Same distinction as addToAlbum: the album exists but PhotoKit refused
+        // to build a change request for it (SHARED-02).
+        guard changeRequestCreated else {
+            throw PhotoServiceError.albumChangeFailed
         }
     }
 
@@ -707,7 +725,23 @@ actor PhotoLibraryService {
 
         return await withCheckedContinuation { continuation in
             let resumer = ContinuationResumer<URL?>(continuation)
-            PHAssetResourceManager.default().writeData(
+
+            // Wire the timeout + cleanup hook BEFORE issuing the request so a
+            // synchronously-delivered callback still cancels the timeout Task
+            // (otherwise it lingers, orphaned, for requestTimeoutSeconds), and
+            // cancel the in-flight write on resume (SHARED-07).
+            let resourceManager = PHAssetResourceManager.default()
+            let timeoutTask = Task {
+                try? await Task.sleep(for: .seconds(Self.requestTimeoutSeconds))
+                resumer.resume(nil)
+            }
+            resumer.onResume = {
+                timeoutTask.cancel()
+            }
+
+            // `writeData` returns Void (no request ID to cancel), so the timeout
+            // task above is the cancellation hook.
+            resourceManager.writeData(
                 for: resource,
                 toFile: fileURL,
                 options: options
@@ -719,11 +753,6 @@ actor PhotoLibraryService {
                     resumer.resume(fileURL)
                 }
             }
-            let timeoutTask = Task {
-                try? await Task.sleep(for: .seconds(Self.requestTimeoutSeconds))
-                resumer.resume(nil)
-            }
-            resumer.onResume = { timeoutTask.cancel() }
         }
     }
 
@@ -879,13 +908,17 @@ actor PhotoLibraryService {
 enum PhotoServiceError: LocalizedError {
     case albumNotFound
     case albumCreationFailed
-    case unauthorized
+    case albumChangeFailed
+    case partialDeletion(succeeded: Int, failed: Int)
 
     var errorDescription: String? {
         switch self {
-        case .albumNotFound: "Album not found."
-        case .albumCreationFailed: "Failed to create album."
-        case .unauthorized: "Photo library access not authorized."
+        case .albumNotFound: return "Album not found."
+        case .albumCreationFailed: return "Failed to create album."
+        case .albumChangeFailed: return "Couldn't modify the album. Please try again."
+        case .partialDeletion(let succeeded, let failed):
+            let total = succeeded + failed
+            return "Deleted \(succeeded) of \(total) items. \(failed) couldn't be deleted. Try again."
         }
     }
 }

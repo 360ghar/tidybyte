@@ -9,11 +9,10 @@ struct StorageCategory: Identifiable, Sendable {
     let color: Color
 }
 
-/// Unified action for Storage row taps — cleanup tools, swipe sessions, or external URLs.
+/// Unified action for Storage row taps — cleanup tools or swipe sessions.
 enum StorageAction: Sendable {
     case cleanup(CleanupTool)
     case swipe(SwipeFilter)
-    case url(URL)
 }
 
 /// A reclaimable bucket: estimated bytes that could be freed, plus where to tap to do it.
@@ -24,7 +23,6 @@ struct ReclaimWin: Identifiable, Sendable {
     let bytes: Int64               // estimated reclaimable — drives sort + segment width
     let count: Int
     let color: Color
-    let icon: String
     let action: StorageAction
 }
 
@@ -64,11 +62,6 @@ final class StorageDashboardViewModel {
     var bySource: [StorageBreakdownBucket] = []
 
     private let photoService = PhotoLibraryService()
-
-    /// Assets above this are candidates for the "Large Videos" reclaim win (and its
-    /// linked compression tool). Decimal bytes (100 MB); kept as a named constant so
-    /// the predicate and the "over N MB" title can't drift apart.
-    private static let largeVideoByteThreshold: Int64 = 100 * 1_000_000
 
     private var hasLoaded = false
     private var syncedGeneration = Int.min
@@ -124,8 +117,15 @@ final class StorageDashboardViewModel {
 
     /// Re-fetches all dashboard data WITHOUT flipping `isLoading`, so existing content
     /// stays visible under the pull-to-refresh spinner instead of swapping to skeletons.
+    /// APP-16: serialized through the same `syncTask` dedup as `sync(to:)` so a
+    /// pull-to-refresh can't enumerate the library concurrently with a
+    /// generation-driven reload.
     func refresh(modelContext: ModelContext) async {
-        await reload(modelContext: modelContext)
+        if let syncTask { await syncTask.value }
+        let task = Task { await reload(modelContext: modelContext) }
+        syncTask = task
+        await task.value
+        syncTask = nil
     }
 
     /// Shared data-loading body for both `load` and `refresh`.
@@ -143,35 +143,22 @@ final class StorageDashboardViewModel {
     }
 
     private func buildCategories(from assets: [AssetSummary]) {
-        var photoBytes: Int64 = 0, photoCount = 0
-        var videoBytes: Int64 = 0, videoCount = 0
-        var screenshotBytes: Int64 = 0, screenshotCount = 0
-        var livePhotoBytes: Int64 = 0, livePhotoCount = 0
-        var otherBytes: Int64 = 0, otherCount = 0
+        let stats = MediaLibraryStats.build(
+            from: assets,
+            largeFileThresholdBytes: AppPreferences.largeFileThresholdBytes()
+        )
+        categories = Self.makeCategories(from: stats)
+    }
 
-        for asset in assets {
-            switch asset.mediaType {
-            case .photo:
-                if asset.isScreenshot {
-                    screenshotBytes += asset.fileSize; screenshotCount += 1
-                } else if asset.isLivePhoto {
-                    livePhotoBytes += asset.fileSize; livePhotoCount += 1
-                } else {
-                    photoBytes += asset.fileSize; photoCount += 1
-                }
-            case .video:
-                videoBytes += asset.fileSize; videoCount += 1
-            default:
-                otherBytes += asset.fileSize; otherCount += 1
-            }
-        }
-
-        categories = [
-            StorageCategory(id: "photos", name: "Photos", bytes: photoBytes, count: photoCount, color: .blue),
-            StorageCategory(id: "videos", name: "Videos", bytes: videoBytes, count: videoCount, color: .purple),
-            StorageCategory(id: "screenshots", name: "Screenshots", bytes: screenshotBytes, count: screenshotCount, color: .yellow),
-            StorageCategory(id: "livePhotos", name: "Live Photos", bytes: livePhotoBytes, count: livePhotoCount, color: .teal),
-            StorageCategory(id: "other", name: "Other", bytes: otherBytes, count: otherCount, color: .gray),
+    /// Pure mapping from shared stats → dashboard categories (testable without
+    /// PhotoKit; the widget/scan use the same `MediaLibraryStats` builder).
+    nonisolated static func makeCategories(from stats: MediaLibraryStats) -> [StorageCategory] {
+        [
+            StorageCategory(id: "photos", name: "Photos", bytes: stats.photoBytes, count: stats.photoCount, color: .blue),
+            StorageCategory(id: "videos", name: "Videos", bytes: stats.videoBytes, count: stats.videoCount, color: .purple),
+            StorageCategory(id: "screenshots", name: "Screenshots", bytes: stats.screenshotBytes, count: stats.screenshotCount, color: .yellow),
+            StorageCategory(id: "livePhotos", name: "Live Photos", bytes: stats.livePhotoBytes, count: stats.livePhotoCount, color: .teal),
+            StorageCategory(id: "other", name: "Other", bytes: stats.otherBytes, count: stats.otherCount, color: .gray),
         ].filter { $0.bytes > 0 }
     }
 
@@ -182,108 +169,65 @@ final class StorageDashboardViewModel {
         localCount = assets.count - iCloudOnly.count
     }
 
-    /// Build reclaimable wins using **disjoint** priority bucketing — each asset
-    /// contributes to at most one bucket, so the segmented bar and hero total are coherent.
-    /// Priority matches user impact: exact‑type tools first, then broad‑review buckets.
+    /// Build reclaimable wins using the SHARED disjoint priority bucketing
+    /// (`ReclaimBucketer`) — the same buckets that drive the widget's
+    /// reclaimable figure, so the two surfaces can never disagree (APP-04).
+    /// Each asset contributes to at most one bucket, so the segmented bar and
+    /// hero total are coherent.
     private func buildWins(from assets: [AssetSummary]) {
-        var winsMap: [String: (count: Int, bytes: Int64, ids: [String])] = [:]
-        var claimed = Set<String>()  // asset IDs already assigned to a higher-priority bucket
+        let buckets = ReclaimBucketer.buckets(
+            from: assets,
+            largeFileThresholdBytes: AppPreferences.largeFileThresholdBytes()
+        )
+        wins = Self.makeWins(buckets: buckets)
+    }
 
-        /// Pick unclaimed assets matching `predicate`, record them under `key`, and mark them
-        /// claimed. Each asset lands in at most one bucket (priority order below), so
-        /// `totalReclaimable` and the segmented-bar widths never double-count. `estimate`
-        /// maps total bytes → reclaimable (e.g. Live Photos / videos halved for compression).
-        func claim(
-            _ key: String,
-            matching predicate: (AssetSummary) -> Bool,
-            estimate: (Int64) -> Int64 = { $0 }
-        ) {
-            var picks: [AssetSummary] = []
-            for asset in assets where predicate(asset) && !claimed.contains(asset.id) {
-                picks.append(asset)
-            }
-            guard !picks.isEmpty else { return }
-            winsMap[key] = (
-                count: picks.count,
-                bytes: estimate(picks.reduce(Int64(0)) { $0 + $1.fileSize }),
-                ids: picks.map(\.id)
-            )
-            claimed.formUnion(picks.map(\.id))
-        }
-
-        // 1. Screenshots (highest priority — full reclaimable)
-        claim("screenshots", matching: { $0.isScreenshot })
-
-        // 2. Live Photos (~50% reclaimable via conversion to still)
-        claim("livePhotos", matching: { $0.isLivePhoto }, estimate: { $0 / 2 })
-
-        // 3. Large Videos — ~50% reclaimable via compression. Threshold is a named
-        // constant so the predicate and the "over N MB" title stay in sync.
-        claim("largeVideos", matching: { $0.mediaType == .video && $0.fileSize > Self.largeVideoByteThreshold }, estimate: { $0 / 2 })
-
-        // 4. Saved from Apps (exact origin — full reclaimable via swipe review)
-        claim("savedFromApps", matching: { $0.assetOrigin == .savedFromApp })
-
-        // 5. Large Files (user‑configurable threshold) — full reclaimable. The
-        // threshold comes from the shared `AppPreferences.largeFileThresholdBytes()`,
-        // the same value `LargeFilesViewModel.thresholdBytes` uses, so this win always
-        // lines up with what the Large Files tool shows.
-        // NOTE: because bucketing is disjoint by priority, this count can be *smaller*
-        // than what `.cleanup(.largeFiles)` lists — a screenshot / large video / saved-
-        // from-app already claimed above is excluded here even though it clears the
-        // threshold. The hero total stays coherent (each asset counted once) at the cost
-        // of this per-tool undercount; that's the intended tradeoff.
-        claim("largeFiles", matching: { $0.fileSize >= AppPreferences.largeFileThresholdBytes() })
-
-        // Convert map to wins, sorted by bytes descending (largest impact first).
-        // compactMap drops any key the switch doesn't recognize rather than crashing.
-        wins = winsMap.compactMap { key, value -> ReclaimWin? in
-            let (title, detail, icon, color, action): (String, String, String, Color, StorageAction)
-            switch key {
+    /// Pure mapping from disjoint reclaim buckets → wins (testable without
+    /// PhotoKit). `compactMap` drops any key the switch doesn't recognize
+    /// rather than crashing.
+    nonisolated static func makeWins(buckets: [ReclaimBucketer.Bucket]) -> [ReclaimWin] {
+        buckets.compactMap { bucket -> ReclaimWin? in
+            let (title, detail, color, action): (String, String, Color, StorageAction)
+            switch bucket.key {
             case "screenshots":
-                title = "\(value.count) screenshots"
-                detail = "Free up \(value.bytes.formattedFileSize)"
-                icon = "camera.viewfinder"
+                title = "\(bucket.count) screenshots"
+                detail = "Free up \(bucket.bytes.formattedFileSize)"
                 color = .yellow
                 action = .cleanup(.screenshots)
             case "livePhotos":
-                title = "\(value.count) Live Photos"
-                detail = "Save ~\(value.bytes.formattedFileSize) by converting"
-                icon = "livephoto"
+                title = "\(bucket.count) Live Photos"
+                detail = "Save ~\(bucket.bytes.formattedFileSize) by converting"
                 color = .green
                 action = .cleanup(.livePhotos)
             case "largeVideos":
-                title = "\(value.count) videos over \(Self.largeVideoByteThreshold / 1_000_000) MB"
-                detail = "Compress to save ~\(value.bytes.formattedFileSize)"
-                icon = "video.badge.waveform"
+                title = "\(bucket.count) videos over \(ReclaimBucketer.largeVideoByteThreshold / 1_000_000) MB"
+                detail = "Compress to save ~\(bucket.bytes.formattedFileSize)"
                 color = .indigo
                 action = .cleanup(.videoCompression)
             case "savedFromApps":
-                title = "\(value.count) saved from apps"
-                detail = "\(value.bytes.formattedFileSize) total"
-                icon = "arrow.down.circle"
+                title = "\(bucket.count) saved from apps"
+                detail = "\(bucket.bytes.formattedFileSize) total"
                 color = .orange
-                action = .swipe(.customAssetIds(Set(value.ids)))
+                action = .swipe(.customAssetIds(Set(bucket.ids)))
             case "largeFiles":
-                title = "\(value.count) large files"
-                detail = "\(value.bytes.formattedFileSize) total"
-                icon = "externaldrive"
+                title = "\(bucket.count) large files"
+                detail = "\(bucket.bytes.formattedFileSize) total"
                 color = .purple
                 action = .cleanup(.largeFiles)
             default:
                 return nil  // unknown key — drop instead of crashing
             }
             return ReclaimWin(
-                id: key,
+                id: bucket.key,
                 title: title,
                 detail: detail,
-                bytes: value.bytes,
-                count: value.count,
+                bytes: bucket.bytes,
+                count: bucket.count,
                 color: color,
-                icon: icon,
                 action: action
             )
-        }.sorted { $0.bytes > $1.bytes }
+        }
+        .sorted { $0.bytes > $1.bytes }
     }
 
     /// Build by‑year and by‑source breakdowns for the "Where Your Storage Goes" card.

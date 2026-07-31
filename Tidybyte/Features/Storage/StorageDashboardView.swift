@@ -798,8 +798,6 @@ struct StorageDashboardView: View {
             appNavigation.showCleanup(tool: tool)
         case .swipe(let filter):
             appNavigation.showSwipeSession(filter: filter)
-        case .url(let url):
-            openURL(url)
         }
     }
 }

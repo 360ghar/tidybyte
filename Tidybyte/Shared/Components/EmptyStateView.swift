@@ -8,8 +8,6 @@ struct EmptyStateView: View {
     var actionTitle: String?
     var action: (() -> Void)?
 
-    @State private var appeared = false
-
     var body: some View {
         VStack(spacing: Spacing.xl) {
             ZStack {

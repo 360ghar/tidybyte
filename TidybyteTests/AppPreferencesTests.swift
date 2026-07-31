@@ -27,7 +27,8 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(AppPreferences.largeFileThresholdMB(in: defaults), 10.0)
         XCTAssertEqual(AppPreferences.defaultCompressionPresetID(in: defaults), "1080p")
         XCTAssertFalse(AppPreferences.remindersEnabled(in: defaults))
-        XCTAssertEqual(AppPreferences.reminderWeekday(in: defaults), 0)
+        // APP-13: unset weekday falls back to 1 (Sunday) to match Settings' default.
+        XCTAssertEqual(AppPreferences.reminderWeekday(in: defaults), 1)
         XCTAssertEqual(AppPreferences.recentAlbumIds(in: defaults), [])
     }
 

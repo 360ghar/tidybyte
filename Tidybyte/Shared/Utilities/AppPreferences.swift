@@ -109,8 +109,13 @@ enum AppPreferences {
         defaults.set(enabled, forKey: Key.cleanupRemindersEnabled)
     }
 
+    /// Weekday (1–7, Sunday=1) for the weekly cleanup reminder. Defaults to 1
+    /// (Sunday) to match the Settings picker's default (APP-13): a stored 0
+    /// (unset) would otherwise fall outside the 1...7 range and make the daily
+    /// refresh skip the reminder copy entirely.
     static func reminderWeekday(in defaults: UserDefaults = .standard) -> Int {
-        defaults.integer(forKey: Key.reminderWeekday)
+        let stored = defaults.integer(forKey: Key.reminderWeekday)
+        return stored == 0 ? 1 : stored
     }
 
     static func saveReminderWeekday(_ weekday: Int, in defaults: UserDefaults = .standard) {

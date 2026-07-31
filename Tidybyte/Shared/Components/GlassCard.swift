@@ -10,17 +10,10 @@ struct GlassCard<Content: View>: View {
     }
 
     var body: some View {
-        content
-            .padding(padding)
-            .background {
-                RoundedRectangle(cornerRadius: CornerRadius.large)
-                    .fill(Color.cardSurface)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: CornerRadius.large)
-                            .strokeBorder(Color.cardBorder, lineWidth: 1)
-                    }
-            }
-            .subtleShadow()
+        // Single rendering path: the struct delegates to the `glassCard`
+        // modifier so the card look can never drift between the two entry
+        // points (de-slop: this used to duplicate the styling inline).
+        content.glassCard(padding: padding)
     }
 }
 

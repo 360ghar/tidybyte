@@ -175,8 +175,16 @@ struct SettingsView: View {
                             Text(day.1).tag(day.0)
                         }
                     }
-                    .onChange(of: reminderWeekday) { _, newDay in
+                    .onChange(of: reminderWeekday) { oldDay, newDay in
                         Task {
+                            // APP-14: if notification permission was revoked, the
+                            // reschedule would silently no-op — revert the picker
+                            // and surface the same alert as the toggle's deny path.
+                            guard await NotificationService.isPermissionGranted() else {
+                                reminderWeekday = oldDay
+                                showNotificationDeniedAlert = true
+                                return
+                            }
                             await NotificationService.scheduleWeeklyReminder(weekday: newDay)
                         }
                     }

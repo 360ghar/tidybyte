@@ -47,7 +47,6 @@ extension WidgetSnapshot {
             capturedAt: Date(),
             usedBytes: 92_000_000_000,
             totalBytes: 128_000_000_000,
-            libraryBytes: 48_000_000_000,
             screenshotCount: 214,
             screenshotBytes: 1_400_000_000,
             largeFileCount: 18,

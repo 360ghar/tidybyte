@@ -8,7 +8,6 @@ struct WidgetSnapshot: Codable, Sendable {
     var capturedAt: Date
     var usedBytes: Int64
     var totalBytes: Int64
-    var libraryBytes: Int64
     var screenshotCount: Int
     var screenshotBytes: Int64
     var largeFileCount: Int

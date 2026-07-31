@@ -51,24 +51,3 @@ extension View {
         modifier(ReadableWidthModifier(maxWidth: maxWidth))
     }
 }
-
-// MARK: - Size-Class Aware Padding
-
-/// Horizontal padding that opens up on regular-width devices. This is the only place we
-/// read `horizontalSizeClass`, and it's opt-in: a full-bleed element (e.g. the swipe card)
-/// uses it so a single item doesn't span the full width of an iPad.
-struct RegularWidthPaddingModifier: ViewModifier {
-    let compact: CGFloat
-    let regular: CGFloat
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
-    func body(content: Content) -> some View {
-        content.padding(.horizontal, horizontalSizeClass == .regular ? regular : compact)
-    }
-}
-
-extension View {
-    func regularWidthPadding(compact: CGFloat = Spacing.lg, regular: CGFloat) -> some View {
-        modifier(RegularWidthPaddingModifier(compact: compact, regular: regular))
-    }
-}

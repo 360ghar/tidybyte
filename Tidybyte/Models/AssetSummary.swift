@@ -51,4 +51,11 @@ struct AssetSummary: Identifiable, Sendable, Hashable {
     var formattedFileSize: String {
         ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file)
     }
+
+    /// Human-readable size for labels/confirmations, tolerant of unavailable
+    /// metadata: a 0 fileSize (iCloud-only or KVC-unreadable) renders as
+    /// "Size unavailable" instead of a misleading "Zero KB" (SHARED-03).
+    var displaySize: String {
+        fileSize == 0 ? "Size unavailable" : fileSize.formattedFileSize
+    }
 }

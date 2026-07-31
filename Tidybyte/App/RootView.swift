@@ -1,10 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct RootView: View {
     @State private var appNavigation = AppNavigation()
     @State private var permissionHandler = PhotoPermissionHandler()
     @State private var libraryMonitor = LibraryChangeMonitor()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
+    @Environment(WidgetSnapshotCoordinator.self) private var widgetCoordinator
 
     init() {
         let appearance = UITabBarAppearance()
@@ -15,7 +18,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        TabView(selection: $appNavigation.selectedTab) {
+        TabView(selection: tabSelectionBinding) {
             NavigationStack {
                 permissionGatedView { SwipeHomeView() }
             }
@@ -54,13 +57,24 @@ struct RootView: View {
         .environment(appNavigation)
         .environment(libraryMonitor)
         .tint(.blue)
-        .onChange(of: appNavigation.selectedTab) { _, _ in
-            HapticHelper.selection()
-        }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 permissionHandler.updateState()
             }
+        }
+        .onChange(of: permissionHandler.permissionState) { _, newState in
+            // APP-02: a first-launch permission grant happens in-foreground, so
+            // scenePhase never re-fires — run the daily scan on the grant. The
+            // coordinator's isScanning guard dedupes against any activation
+            // scan still in flight.
+            if newState == .authorized || newState == .limited {
+                Task { await widgetCoordinator.runDailyScanIfNeeded(modelContext: modelContext) }
+            }
+        }
+        .onChange(of: libraryMonitor.generation) { _, newGeneration in
+            // APP-03: in-app cleanups bump the generation — refresh the widget
+            // snapshot (debounced + deduped inside the coordinator).
+            Task { await widgetCoordinator.refreshAfterLibraryChange(generation: newGeneration) }
         }
         .onChange(of: PendingRoute.shared.link) { _, newLink in
             // An App Intent set a route while the app is alive (warm launch /
@@ -82,6 +96,19 @@ struct RootView: View {
             }
             await libraryMonitor.start()
         }
+    }
+
+    /// Custom binding whose setter is only invoked by user taps on a tab, so
+    /// programmatic switches (deep links / App Intents) don't fire the
+    /// selection haptic (APP-05).
+    private var tabSelectionBinding: Binding<AppTab> {
+        Binding(
+            get: { appNavigation.selectedTab },
+            set: { newTab in
+                appNavigation.selectedTab = newTab
+                HapticHelper.selection()
+            }
+        )
     }
 
     private var cleanupPathBinding: Binding<[CleanupTool]> {

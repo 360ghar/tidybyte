@@ -22,6 +22,11 @@ struct PhotoPermissionView: View {
                     .padding(.horizontal, 32)
             }
 
+            // The permission gate (RootView.permissionGatedView) never presents
+            // this view for .authorized / .limited — they render the content
+            // directly — so only .notDetermined and .denied/.restricted reach
+            // the switch (de-slop: the old .limited/.authorized branches were
+            // unreachable).
             switch permissionHandler.permissionState {
             case .notDetermined:
                 Button {
@@ -39,7 +44,7 @@ struct PhotoPermissionView: View {
                 }
                 .padding(.horizontal, 40)
 
-            case .denied, .restricted:
+            default:
                 VStack(spacing: 12) {
                     Text("Access was denied. Please enable it in Settings to use TidyByte.")
                         .font(.callout)
@@ -60,31 +65,6 @@ struct PhotoPermissionView: View {
                     }
                     .padding(.horizontal, 40)
                 }
-
-            case .limited:
-                VStack(spacing: 12) {
-                    Text("Limited access granted. For the best experience, allow access to all photos in Settings.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-
-                    Button {
-                        permissionHandler.openSettings()
-                    } label: {
-                        Text("Open Settings")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(.blue)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
-                    .padding(.horizontal, 40)
-                }
-
-            case .authorized:
-                EmptyView()
             }
 
             Spacer()

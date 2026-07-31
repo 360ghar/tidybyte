@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - Shimmer Overlay
 
 struct ShimmerOverlayModifier: ViewModifier {
-    let cornerRadius: CGFloat
     @State private var phase: CGFloat = -1
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -34,8 +33,8 @@ struct ShimmerOverlayModifier: ViewModifier {
 }
 
 extension View {
-    func shimmerOverlay(cornerRadius: CGFloat) -> some View {
-        modifier(ShimmerOverlayModifier(cornerRadius: cornerRadius))
+    func shimmerOverlay() -> some View {
+        modifier(ShimmerOverlayModifier())
     }
 }
 
@@ -51,7 +50,7 @@ struct SkeletonView: View {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .strokeBorder(Color.cardBorder, lineWidth: 0.5)
             }
-            .shimmerOverlay(cornerRadius: cornerRadius)
+            .shimmerOverlay()
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
 }
@@ -66,7 +65,7 @@ struct SkeletonCircle: View {
                 Circle()
                     .strokeBorder(Color.cardBorder, lineWidth: 0.5)
             }
-            .shimmerOverlay(cornerRadius: size / 2)
+            .shimmerOverlay()
             .clipShape(Circle())
     }
 }
@@ -153,22 +152,5 @@ struct SkeletonGrid: View {
                     }
             }
         }
-    }
-}
-
-struct SkeletonCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            SkeletonView(cornerRadius: CornerRadius.medium)
-                .frame(width: 44, height: 44)
-
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                SkeletonView()
-                    .frame(width: 100, height: 14)
-                SkeletonView()
-                    .frame(width: 140, height: 12)
-            }
-        }
-        .glassCard()
     }
 }
