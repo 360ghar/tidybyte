@@ -26,13 +26,20 @@ struct BlurryPhotosView: View {
             case .completed:
                 resultsView
                     .transition(.stateTransition)
-            case .error(let message):
-                errorView(message: message)
-                    .transition(.stateTransition)
+            default:
+                // `.error` is unreachable for this tool (de-slop) and stays in
+                // the shared `ScanState` for the Duplicates/Similar tools — keep
+                // the switch exhaustive with a no-op.
+                EmptyView()
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.scanState)
         .navigationTitle("Photo Quality")
+        .onDisappear {
+            // D-01: a scan left running after the user leaves the screen would
+            // keep consuming CPU (and PhotoKit calls) in the background.
+            viewModel.cancelScan()
+        }
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.filteredPhotos.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
@@ -159,7 +166,7 @@ struct BlurryPhotosView: View {
 
             Button {
                 HapticHelper.impact(.light)
-                Task { await viewModel.scan() }
+                viewModel.startScan()
             } label: {
                 Text("Start Analysis")
                     .font(.headline)
@@ -190,6 +197,22 @@ struct BlurryPhotosView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .padding(.horizontal, Spacing.xxxl + Spacing.sm)
+
+            // D-01: explicit cancel so users aren't trapped in a long scan.
+            Button {
+                HapticHelper.impact(.light)
+                viewModel.cancelScan()
+            } label: {
+                Text("Cancel")
+                    .font(.headline)
+                    .padding(.horizontal, Spacing.xxxl)
+                    .padding(.vertical, Spacing.md)
+                    .background(Color.secondary.opacity(0.85))
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+            }
+            .scaleOnPress()
             .padding(.horizontal, Spacing.xxxl + Spacing.sm)
             Spacer()
         }
@@ -228,35 +251,36 @@ struct BlurryPhotosView: View {
                         }
                     }
                 }
-                .pullToRefresh { await viewModel.scan() }
+                .pullToRefresh { viewModel.startScan() }
 
                 if !viewModel.selectedIds.isEmpty {
                     ActionBarView {
                         Text("\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
                             .font(.caption)
+                        if viewModel.isDeleting {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
                         Spacer()
                         Button(role: .destructive) { showDeleteConfirm = true } label: {
                             Label("Delete", systemImage: "trash")
                                 .font(.headline)
                         }
+                        .disabled(viewModel.isDeleting)
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-        }
-    }
 
-    // MARK: - Error View
-
-    private func errorView(message: String) -> some View {
-        EmptyStateView(
-            icon: "exclamationmark.triangle",
-            title: "Analysis Failed",
-            message: message,
-            iconColor: .red,
-            actionTitle: "Retry"
-        ) {
-            withAnimation { viewModel.scanState = .idle }
+            // D-04: tell the user why their library may look smaller than the
+            // full photo count.
+            if viewModel.skippedScreenshotCount > 0 {
+                Text("\(viewModel.skippedScreenshotCount) screenshots skipped \u{00B7} covered by the Screenshots tool")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, Spacing.xs)
+            }
         }
     }
 
@@ -316,6 +340,20 @@ struct BlurryPhotosView: View {
             if viewModel.selectedIds.contains(photo.id) {
                 RoundedRectangle(cornerRadius: Spacing.xs)
                     .strokeBorder(Color.blue, lineWidth: 2)
+            }
+        }
+        // D-03: analysis ran on the degraded iCloud thumbnail — a low-res copy
+        // can read as softer (blurrier) than the original, so say so.
+        .overlay(alignment: .bottomTrailing) {
+            if photo.isFallbackAnalysis {
+                Text("analyzed from low-res copy")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Spacing.xs + 2)
+                    .padding(.vertical, 2)
+                    .background(.black.opacity(0.55))
+                    .clipShape(Capsule())
+                    .padding(Spacing.xs)
             }
         }
         .contentShape(Rectangle())

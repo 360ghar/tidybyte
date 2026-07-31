@@ -21,12 +21,33 @@ struct ScreenshotCleanerView: View {
                     SkeletonGrid(columns: 3, rows: 5)
                         .padding(Spacing.xs)
                 }
+                // D-01: explicit cancel while the initial fetch is in flight.
+                .overlay(alignment: .bottom) {
+                    Button {
+                        HapticHelper.impact(.light)
+                        viewModel.cancelScan()
+                    } label: {
+                        Text("Cancel")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, Spacing.lg)
+                            .padding(.vertical, Spacing.sm)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
+                    }
+                    .padding(.bottom, Spacing.lg)
+                }
             } else if viewModel.screenshots.isEmpty {
                 EmptyStateView(
                     icon: "camera.viewfinder",
                     title: "No Screenshots",
-                    message: "You don't have any screenshots in your library."
-                )
+                    message: "You don't have any screenshots in your library.",
+                    // D-07: the empty state needs a refresh affordance — new
+                    // screenshots (or imports) may have landed since the last
+                    // fetch.
+                    actionTitle: "Refresh"
+                ) {
+                    Task { await viewModel.refresh() }
+                }
             } else {
                 VStack(spacing: 0) {
                     // Header
@@ -65,6 +86,10 @@ struct ScreenshotCleanerView: View {
                         ActionBarView {
                             Text("\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
                                 .font(.caption)
+                            if viewModel.isDeleting {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
 
                             Spacer()
 
@@ -74,6 +99,7 @@ struct ScreenshotCleanerView: View {
                                 Label("Delete", systemImage: "trash")
                                     .font(.headline)
                             }
+                            .disabled(viewModel.isDeleting)
                         }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -82,6 +108,10 @@ struct ScreenshotCleanerView: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.isLoading)
         .navigationTitle("Screenshots")
+        .onDisappear {
+            // D-01: stop an in-flight fetch when the user leaves the screen.
+            viewModel.cancelScan()
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if !viewModel.screenshots.isEmpty {

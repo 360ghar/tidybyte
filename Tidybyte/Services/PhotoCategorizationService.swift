@@ -104,7 +104,10 @@ actor PhotoCategorizationService {
         var maxConfidence: Float = 0
 
         for (label, confidence) in result.labels {
-            if let bucket = Self.taxonomyToBucket[label.lowercased()] {
+            // D-05: identifiers are normalized on both sides (lowercased,
+            // trimmed, spaces→underscores) so Vision taxonomy variants such as
+            // "Baked Goods" / "baked-goods" / "baked_goods" all resolve.
+            if let bucket = Self.bucket(forIdentifier: label) {
                 set.insert(bucket)
                 maxConfidence = max(maxConfidence, confidence)
             }
@@ -113,7 +116,7 @@ actor PhotoCategorizationService {
         // Text-heavy photos: a screenshot is most likely a meme/social capture,
         // anything else is a document/receipt/whiteboard.
         if result.textCoverage >= sensitivity.textCoverageThreshold {
-            set.insert(asset.isScreenshot ? .memes : .documents)
+            set.insert(Self.textHeavyBucket(isScreenshot: asset.isScreenshot))
             maxConfidence = max(maxConfidence, result.textCoverage)
         }
 
@@ -128,7 +131,7 @@ actor PhotoCategorizationService {
 
     /// Maps Vision's scene/object taxonomy identifiers onto coarse user-facing
     /// buckets. Kept data-driven so it can be tuned without touching the scan
-    /// loop. Identifiers are matched lowercased.
+    /// loop. Keys are stored normalized (lowercased, underscores).
     private static let taxonomyToBucket: [String: PhotoCategory] = [
         // Food & drink
         "food": .food, "fruit": .food, "vegetable": .food, "meal": .food,
@@ -149,4 +152,31 @@ actor PhotoCategorizationService {
         "letter": .documents, "menu": .documents, "whiteboard": .documents,
         "book": .documents, "newspaper": .documents
     ]
+
+    // MARK: - Normalization (D-05)
+
+    /// Normalizes a taxonomy identifier for bucket lookup: lowercased, trimmed,
+    /// and whitespace collapsed to underscores. Vision emits identifier
+    /// variants ("Baked Goods", "baked goods", "baked_goods") that must all
+    /// resolve to the same bucket.
+    static func normalizeTaxonomyLabel(_ label: String) -> String {
+        label.lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: " ", with: "_")
+    }
+
+    /// Pure, unit-testable lookup of a single taxonomy identifier. Applies
+    /// `normalizeTaxonomyLabel` to the identifier so matching is robust to case
+    /// and space-vs-underscore differences; returns `nil` for unknown labels.
+    static func bucket(forIdentifier identifier: String) -> PhotoCategory? {
+        taxonomyToBucket[normalizeTaxonomyLabel(identifier)]
+    }
+
+    /// Where a text-heavy photo lands: screenshots are meme/social captures,
+    /// everything else is a document/receipt/whiteboard. Kept pure and
+    /// testable so the intended precedence (documents before memes for
+    /// non-screenshots) is pinned down.
+    static func textHeavyBucket(isScreenshot: Bool) -> PhotoCategory {
+        isScreenshot ? .memes : .documents
+    }
 }

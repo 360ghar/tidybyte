@@ -12,6 +12,10 @@ struct AnalyzedPhoto: Identifiable, Sendable {
     let blurScore: Float
     let luminance: Float
     let categories: Set<BlurryTab>
+    /// True when the analysis image came from the degraded fast-format
+    /// thumbnail fallback (asset's full resolution lives only in iCloud) —
+    /// such photos can read as blurrier than they really are (D-03).
+    let isFallbackAnalysis: Bool
 }
 
 @Observable
@@ -23,6 +27,14 @@ final class BlurryPhotosViewModel {
     var activeTab: BlurryTab = .blurry
     var errorMessage: String?
     var isDeleting = false
+    /// Number of screenshots excluded from analysis on the most recent scan
+    /// (they're covered by the dedicated Screenshots tool) — surfaced in the
+    /// results footer (D-04).
+    private(set) var skippedScreenshotCount = 0
+
+    /// The in-flight scan, if any. Kept so scans can be cancelled when the
+    /// user leaves the screen and so re-entry can't start a second scan (D-01).
+    private var scanTask: Task<Void, Never>?
 
     var sensitivity: BlurSensitivity {
         AppPreferences.blurSensitivity()
@@ -30,6 +42,35 @@ final class BlurryPhotosViewModel {
 
     private let photoService = PhotoLibraryService()
     private let visionService = VisionAnalysisService()
+
+    /// Eligibility for quality analysis: screenshots are excluded — they're
+    /// covered by the dedicated Screenshots tool. Live Photos ARE analyzed:
+    /// their still frame can still be blurry/overexposed and no other tool
+    /// covers them (D-04).
+    nonisolated static func shouldAnalyze(_ asset: AssetSummary) -> Bool {
+        !asset.isScreenshot
+    }
+
+    /// Starts the scan unless one is already in flight. The scan runs in a
+    /// tracked task so `cancelScan()` can stop it (D-01).
+    func startScan() {
+        guard scanTask == nil else { return }
+        scanTask = Task {
+            await scan()
+            scanTask = nil
+        }
+    }
+
+    /// Cancels an in-flight scan and returns the tool to `.idle`. No-op when
+    /// nothing is scanning.
+    func cancelScan() {
+        guard scanTask != nil else { return }
+        scanTask?.cancel()
+        scanTask = nil
+        if case .scanning = scanState {
+            scanState = .idle
+        }
+    }
 
     var filteredPhotos: [AnalyzedPhoto] {
         analyzedPhotos.filter { $0.categories.contains(activeTab) }
@@ -47,6 +88,10 @@ final class BlurryPhotosViewModel {
     func scan() async {
         scanState = .scanning(0)
         analyzedPhotos = []
+        // D-02: stale selections from a previous scan must not persist across
+        // rescans (mirrors SmartCategoriesViewModel.scan()).
+        selectedIds.removeAll()
+        skippedScreenshotCount = 0
 
         let allPhotos = await photoService.fetchAllPhotos()
         let total = allPhotos.count
@@ -61,10 +106,20 @@ final class BlurryPhotosViewModel {
                 await Task.yield()
             }
 
+            // D-04: screenshots are handled by the dedicated Screenshots tool;
+            // Live Photos stay eligible (see `shouldAnalyze`).
+            guard Self.shouldAnalyze(photo) else {
+                skippedScreenshotCount += 1
+                continue
+            }
+
             // Prefer a sharp, on-device, exactly-sized image so sharpness is
-            // measured accurately; fall back to a fast thumbnail for assets whose
-            // full resolution lives only in iCloud (so they're still analyzed).
+            // measured accurately; fall back to a fast thumbnail for assets
+            // whose full resolution lives only in iCloud (so they're still
+            // analyzed). Fallback analysis is flagged so the UI can warn that
+            // a low-res copy may read as softer than the original (D-03).
             var uiImage = await photoService.loadAnalysisImage(for: photo.id, targetSize: CGSize(width: 512, height: 512))
+            let usedFallback = uiImage == nil
             if uiImage == nil {
                 uiImage = await photoService.loadThumbnail(for: photo.id, size: CGSize(width: 300, height: 300))
             }
@@ -74,6 +129,11 @@ final class BlurryPhotosViewModel {
 
             let blurResult = await visionService.analyzeBlurriness(image: cgImage, assetId: photo.id, sensitivity: sensitivity)
             let exposureResult = await visionService.analyzeExposure(image: cgImage, assetId: photo.id)
+
+            if Task.isCancelled {
+                scanState = .idle
+                return
+            }
 
             var categories = Set<BlurryTab>()
             if blurResult.isBlurry {
@@ -92,7 +152,8 @@ final class BlurryPhotosViewModel {
                     asset: photo,
                     blurScore: blurResult.blurScore,
                     luminance: exposureResult.meanLuminance,
-                    categories: categories
+                    categories: categories,
+                    isFallbackAnalysis: usedFallback
                 ))
             }
 

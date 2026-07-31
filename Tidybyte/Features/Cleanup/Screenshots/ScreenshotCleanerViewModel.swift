@@ -19,6 +19,10 @@ final class ScreenshotCleanerViewModel {
 
     private let photoService = PhotoLibraryService()
 
+    /// The in-flight fetch, if any. Kept so re-entry can't double-scan and so
+    /// the fetch can be cancelled when the user leaves the screen (D-01).
+    private var scanTask: Task<Void, Never>?
+
     var totalSize: Int64 {
         screenshots.reduce(0) { $0 + $1.fileSize }
     }
@@ -41,22 +45,49 @@ final class ScreenshotCleanerViewModel {
 
     func loadIfNeeded() async {
         guard !hasLoadedScreenshots else { return }
-        await load()
+        load()
     }
 
-    func load() async {
+    /// Kicks off the screenshot fetch, flipping `isLoading` so the skeleton
+    /// shows. No-op when a fetch is already in flight (D-01 re-entry guard).
+    func load() {
+        startScan()
+    }
+
+    /// Re-fetch without flipping `isLoading`, so existing content stays under
+    /// the pull-to-refresh spinner. No-op while a scan is already running.
+    func refresh() async {
+        guard scanTask == nil else { return }
+        errorMessage = nil
+        scanTask = Task {
+            screenshots = await photoService.fetchScreenshots()
+            hasLoadedScreenshots = true
+            scanTask = nil
+        }
+    }
+
+    /// Starts (or no-ops if already running) the screenshot scan. The scan is
+    /// tracked so `cancelScan()` can stop it when the user leaves the screen
+    /// instead of it running detached (D-01).
+    func startScan() {
+        guard scanTask == nil else { return }
         isLoading = true
         errorMessage = nil
-        screenshots = await photoService.fetchScreenshots()
-        hasLoadedScreenshots = true
-        isLoading = false
+        scanTask = Task {
+            screenshots = await photoService.fetchScreenshots()
+            hasLoadedScreenshots = true
+            isLoading = false
+            scanTask = nil
+        }
     }
 
-    /// Re-fetch without flipping `isLoading`, so existing content stays under the pull-to-refresh spinner.
-    func refresh() async {
-        errorMessage = nil
-        screenshots = await photoService.fetchScreenshots()
-        hasLoadedScreenshots = true
+    /// Cancels an in-flight fetch and clears the loading state. No-op when
+    /// nothing is loading.
+    func cancelScan() {
+        guard scanTask != nil else { return }
+        scanTask?.cancel()
+        scanTask = nil
+        if isLoading { isLoading = false }
     }
 
     func toggleSelection(_ id: String) {

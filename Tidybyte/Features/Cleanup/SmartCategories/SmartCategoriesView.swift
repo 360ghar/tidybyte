@@ -69,13 +69,20 @@ struct SmartCategoriesView: View {
             case .completed:
                 resultsView
                     .transition(.stateTransition)
-            case .error(let message):
-                errorView(message: message)
-                    .transition(.stateTransition)
+            default:
+                // `.error` is unreachable for this tool (de-slop) and stays in
+                // the shared `ScanState` for the Duplicates/Similar tools — keep
+                // the switch exhaustive with a no-op.
+                EmptyView()
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.scanState)
         .navigationTitle("Smart Categories")
+        .onDisappear {
+            // D-01: a scan left running after the user leaves the screen would
+            // keep consuming CPU (and PhotoKit calls) in the background.
+            viewModel.cancelScan()
+        }
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.filteredPhotos.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
@@ -200,7 +207,7 @@ struct SmartCategoriesView: View {
 
             Button {
                 HapticHelper.impact(.light)
-                Task { await viewModel.scan() }
+                viewModel.startScan()
             } label: {
                 Text("Start Analysis")
                     .font(.headline)
@@ -231,6 +238,22 @@ struct SmartCategoriesView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .padding(.horizontal, Spacing.xxxl + Spacing.sm)
+
+            // D-01: explicit cancel so users aren't trapped in a long scan.
+            Button {
+                HapticHelper.impact(.light)
+                viewModel.cancelScan()
+            } label: {
+                Text("Cancel")
+                    .font(.headline)
+                    .padding(.horizontal, Spacing.xxxl)
+                    .padding(.vertical, Spacing.md)
+                    .background(Color.secondary.opacity(0.85))
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+            }
+            .scaleOnPress()
             .padding(.horizontal, Spacing.xxxl + Spacing.sm)
             Spacer()
         }
@@ -272,6 +295,16 @@ struct SmartCategoriesView: View {
                     .padding(.horizontal, Spacing.lg)
                     .padding(.bottom, Spacing.sm)
 
+                    // D-06: the saved-from-apps bucket is filename-heuristic;
+                    // when it dominates the library, say so.
+                    if let explanation = viewModel.categoryExplanation {
+                        Text(explanation)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, Spacing.lg)
+                            .padding(.bottom, Spacing.sm)
+                    }
+
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: Spacing.xs) {
                             ForEach(viewModel.filteredPhotos) { photo in
@@ -279,17 +312,22 @@ struct SmartCategoriesView: View {
                             }
                         }
                     }
-                    .pullToRefresh { await viewModel.scan() }
+                    .pullToRefresh { viewModel.startScan() }
 
                     if !viewModel.selectedIds.isEmpty {
                         ActionBarView {
                             Text("\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
                                 .font(.caption)
+                            if viewModel.isDeleting {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
                             Spacer()
                             Button(role: .destructive) { showDeleteConfirm = true } label: {
                                 Label("Delete", systemImage: "trash")
                                     .font(.headline)
                             }
+                            .disabled(viewModel.isDeleting)
                         }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -325,20 +363,6 @@ struct SmartCategoriesView: View {
             }
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
-        }
-    }
-
-    // MARK: - Error View
-
-    private func errorView(message: String) -> some View {
-        EmptyStateView(
-            icon: "exclamationmark.triangle",
-            title: "Analysis Failed",
-            message: message,
-            iconColor: .red,
-            actionTitle: "Retry"
-        ) {
-            withAnimation { viewModel.scanState = .idle }
         }
     }
 
