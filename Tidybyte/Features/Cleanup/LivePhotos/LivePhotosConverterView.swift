@@ -27,13 +27,14 @@ struct LivePhotosConverterView: View {
             Button("Convert All", role: .destructive) {
                 Task {
                     await viewModel.convertAll()
-                    if viewModel.errorMessage == nil {
+                    // COMP-09: success haptic only when everything converted.
+                    if let batch = viewModel.lastBatch, batch.failed == 0, batch.converted > 0 {
                         HapticHelper.notification(.success)
                     }
                 }
             }
         } message: {
-            Text("This will convert all Live Photos to still images. The video component will be removed. This action cannot be undone.")
+            Text("This converts all Live Photos to still images; the motion component is removed. Some metadata may not be preserved. This cannot be undone.")
         }
         .alert("Conversion Error", isPresented: .init(
             get: { viewModel.errorMessage != nil },

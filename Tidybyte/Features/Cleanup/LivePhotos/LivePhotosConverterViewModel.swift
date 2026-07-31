@@ -27,8 +27,38 @@ final class LivePhotosConverterViewModel {
     var errorMessage: String?
     var totalSavedBytes: Int64 = 0
     var convertedCount: Int = 0
+    /// Outcome of the most recent Convert All, so the view can decide the
+    /// haptic/summary (COMP-09): success only when `failed == 0`.
+    var lastBatch: (converted: Int, failed: Int)?
 
     private let photoService = PhotoLibraryService()
+
+    /// Album names keyed by asset id, populated in a single pass over the
+    /// user's albums (O(albums)) instead of one `albumsContaining` fetch per
+    /// item (O(items × albums)) — COMP-13.
+    private(set) var albumNamesByAsset: [String: [String]] = [:]
+
+    /// One pass over all user albums collecting the name of every album that
+    /// contains one of the given assets. Called once per list shape change.
+    func refreshAlbumNames(for itemIds: Set<String>) async {
+        guard !itemIds.isEmpty else {
+            albumNamesByAsset = [:]
+            return
+        }
+        var result: [String: [String]] = [:]
+        let userAlbums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
+        userAlbums.enumerateObjects { collection, _, _ in
+            let options = PHFetchOptions()
+            options.predicate = NSPredicate(format: "localIdentifier IN %@", itemIds)
+            let assets = PHAsset.fetchAssets(in: collection, options: options)
+            guard assets.count > 0 else { return }
+            let name = collection.localizedTitle ?? "Untitled"
+            assets.enumerateObjects { asset, _, _ in
+                result[asset.localIdentifier, default: []].append(name)
+            }
+        }
+        albumNamesByAsset = result
+    }
 
     var totalSize: Int64 {
         items.reduce(0) { $0 + $1.asset.fileSize }
@@ -85,6 +115,9 @@ final class LivePhotosConverterViewModel {
     }
 
     func convertSingle(itemId: String) async {
+        // COMP-18: never start a single conversion while Convert All is
+        // running (double spinners, double counts).
+        guard !convertingAll else { return }
         guard let index = items.firstIndex(where: { $0.id == itemId }) else { return }
         errorMessage = nil
         items[index].conversionState = .converting
@@ -109,28 +142,41 @@ final class LivePhotosConverterViewModel {
     func convertAll() async {
         errorMessage = nil
         convertingAll = true
-        let pendingIds = items.map(\.id)
+        // COMP-09: snapshot the eligible (idle) ids up front so the summary's
+        // denominator matches what was actually attempted.
+        let pendingIds = items.compactMap { item -> String? in
+            guard case .idle = item.conversionState else { return nil }
+            return item.id
+        }
+        var converted = 0
+        var failed = 0
         for itemId in pendingIds {
             guard let index = items.firstIndex(where: { $0.id == itemId }) else { continue }
-            guard case .idle = items[index].conversionState else { continue }
             items[index].conversionState = .converting
             do {
                 let savedBytes = try await performConversion(assetId: itemId)
                 totalSavedBytes += savedBytes
                 convertedCount += 1
+                converted += 1
                 // Re-lookup: the array may have shifted during the await.
                 if let idx = items.firstIndex(where: { $0.id == itemId }) {
                     items[idx].savedBytes = savedBytes
                     items[idx].conversionState = .completed
                 }
             } catch {
+                failed += 1
                 if let idx = items.firstIndex(where: { $0.id == itemId }) {
                     items[idx].conversionState = .failed(error.localizedDescription)
                 }
-                errorMessage = error.localizedDescription
             }
         }
         convertingAll = false
+        lastBatch = (converted: converted, failed: failed)
+        // COMP-09: one aggregated message instead of reporting only the last
+        // error.
+        if failed > 0 {
+            errorMessage = "Converted \(converted) of \(pendingIds.count). \(failed) failed."
+        }
     }
 
     private func performConversion(assetId: String) async throws -> Int64 {
@@ -196,7 +242,10 @@ final class LivePhotosConverterViewModel {
         // Capture album membership before deleting the original.
         let albumIdentifiers = await photoService.userAlbumIdentifiers(containing: assetId)
 
-        // Save as a new still photo, preserving the original's metadata.
+        // Save as a new still photo, preserving the original's metadata
+        // (including hidden state — COMP-17). Burst membership cannot be
+        // carried over: PHAssetCreationRequest has no burst-linkage API, so a
+        // converted still loses its burst grouping.
         var placeholder: PHObjectPlaceholder?
         try await PHPhotoLibrary.shared().performChanges {
             let request = PHAssetCreationRequest.forAsset()
@@ -206,6 +255,7 @@ final class LivePhotosConverterViewModel {
             request.creationDate = phAsset.creationDate
             request.location = phAsset.location
             request.isFavorite = phAsset.isFavorite
+            request.isHidden = phAsset.isHidden
             placeholder = request.placeholderForCreatedAsset
         }
 
@@ -222,8 +272,21 @@ final class LivePhotosConverterViewModel {
             }
         }
 
-        // Delete the original Live Photo only after confirming the new still exists.
-        try await photoService.deleteAssets(identifiers: [assetId])
+        // Delete the original Live Photo only after confirming the new still
+        // exists. If deletion fails, roll the replacement back so we don't
+        // leave a duplicate behind (COMP-02).
+        do {
+            try await photoService.deleteAssets(identifiers: [assetId])
+        } catch {
+            var rollbackSucceeded = false
+            do {
+                try await photoService.deleteAssets(identifiers: [replacementId])
+                rollbackSucceeded = true
+            } catch {
+                rollbackSucceeded = false
+            }
+            throw LivePhotoError.originalDeletionFailed(rollbackSucceeded: rollbackSucceeded)
+        }
 
         return max(0, originalSize - Int64(imageData.count))
     }
@@ -234,6 +297,7 @@ enum LivePhotoError: LocalizedError {
     case noPhotoResource
     case invalidImageData
     case conversionTimedOut
+    case originalDeletionFailed(rollbackSucceeded: Bool)
 
     var errorDescription: String? {
         switch self {
@@ -241,6 +305,12 @@ enum LivePhotoError: LocalizedError {
         case .noPhotoResource: "Could not find still image in Live Photo."
         case .invalidImageData: "Invalid image data."
         case .conversionTimedOut: "Timed out loading the photo (it may still be in iCloud). Please try again."
+        case .originalDeletionFailed(let rollbackSucceeded):
+            if rollbackSucceeded {
+                "Converted copy saved, but the original couldn't be deleted. We removed the new copy to avoid a duplicate."
+            } else {
+                "Converted copy saved, but the original couldn't be deleted, and the new copy couldn't be removed either. Check your library for a duplicate."
+            }
         }
     }
 }

@@ -33,4 +33,15 @@ final class CompressionRecord {
         self.outcome = outcome
         self.mediaType = mediaType
     }
+
+    /// True when the record represents a successful compression (the
+    /// replacement was saved and the original deleted). Failed records carry
+    /// `compressedSizeBytes == 0`; they must be excluded from savings totals
+    /// and shown as failures, not as huge green savings (COMP-01).
+    var succeeded: Bool { outcome == "completed" }
+
+    /// Space reclaimed by this record. Failed records contribute zero.
+    var savedBytes: Int64 {
+        succeeded ? max(0, originalSizeBytes - compressedSizeBytes) : 0
+    }
 }

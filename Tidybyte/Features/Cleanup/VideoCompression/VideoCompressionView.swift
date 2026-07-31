@@ -49,15 +49,10 @@ struct VideoCompressionView: View {
         .alert("Compress Videos", isPresented: $showCompressConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Compress \(viewModel.selectedIds.count) Videos", role: .destructive) {
-                Task {
-                    await viewModel.compressSelected(modelContext: modelContext)
-                    if viewModel.errorMessage == nil && !viewModel.insufficientDiskSpace {
-                        HapticHelper.notification(.success)
-                    }
-                }
+                viewModel.startBatchCompression(modelContext: modelContext)
             }
         } message: {
-            Text("This will replace the original videos with compressed versions. This action cannot be undone.")
+            Text("This replaces the original videos with compressed copies. Some video metadata may not be preserved. This cannot be undone.")
         }
         .alert("Compression Error", isPresented: .init(
             get: { viewModel.errorMessage != nil },
@@ -88,12 +83,28 @@ struct VideoCompressionView: View {
             Text("This will delete \(video.asset.formattedFileSize). This action cannot be undone.")
         }
         .fullScreenCover(item: $previewStart) { start in
+            // COMP-05: resolve the pager's assets live from the VM (via the
+            // provider closure) instead of a snapshot taken at presentation, so
+            // a delete inside the preview re-renders the pager against the
+            // fresh list and `.onChange(of: assets)` fires.
             MediaPreviewView(
-                assets: viewModel.sortedVideos.map(\.asset),
+                assetsProvider: { viewModel.sortedVideos.map(\.asset) },
                 startIndex: viewModel.sortedVideos.firstIndex { $0.id == start.id } ?? 0,
                 photoService: photoService,
                 onDelete: { await viewModel.deleteVideo(id: $0.id) }
             )
+        }
+        .onChange(of: viewModel.batchSummary) { _, summary in
+            // Success haptic only when every attempted item succeeded and at
+            // least one was compressed (COMP-09 pattern).
+            guard let summary else { return }
+            if summary.failed == 0, summary.completed > 0, !summary.cancelled {
+                HapticHelper.notification(.success)
+            }
+        }
+        .onDisappear {
+            // Don't orphan the mutation loop when the user leaves the screen.
+            viewModel.cancelCompression()
         }
         .task {
             await viewModel.loadIfNeeded()
@@ -228,14 +239,15 @@ struct VideoCompressionView: View {
             ProgressView(value: progress)
                 .tint(.blue)
                 .frame(width: 80)
-        case .saving:
-            Text("Saving...")
-                .font(.caption)
-                .foregroundStyle(.blue)
         case .completed(let saved):
-            Text("Saved \(saved.formattedFileSize)")
+            Text(saved > 0 ? "Saved \(saved.formattedFileSize)" : "No savings")
                 .font(.caption)
-                .foregroundStyle(.green)
+                .foregroundStyle(saved > 0 ? .green : .secondary)
+        case .keptOriginal(let reason):
+            Text(reason)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
         case .failed(let msg):
             Text(msg)
                 .font(.caption2)
@@ -259,11 +271,22 @@ struct VideoCompressionView: View {
             Spacer()
 
             if viewModel.isCompressing {
-                ProgressView()
-                    .padding(.trailing, Spacing.sm)
-                Text("Compressing...")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: Spacing.md) {
+                    ProgressView()
+                    Text("Compressing...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Button {
+                        HapticHelper.impact(.light)
+                        viewModel.cancelCompression()
+                    } label: {
+                        Text("Cancel")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Cancel compression")
+                }
             } else {
                 Button {
                     HapticHelper.impact(.light)

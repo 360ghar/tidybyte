@@ -21,7 +21,6 @@ struct LivePhotoPreviewView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int
     @State private var showDeleteConfirm = false
-    @State private var albumNames: [String: [String]] = [:]
 
     private let photoService = PhotoLibraryService()
 
@@ -45,12 +44,9 @@ struct LivePhotoPreviewView: View {
         .statusBarHidden()
         .preferredColorScheme(.dark)
         .task(id: viewModel.items.map(\.id).joined(separator: "|")) {
-            // Look up album membership once per list shape change.
-            albumNames = [:]
-            for item in viewModel.items {
-                let names = await photoService.albumsContaining(assetId: item.id)
-                albumNames[item.id] = names
-            }
+            // COMP-13: one batched pass over the user's albums (memoized on the
+            // VM) instead of one albumsContaining fetch per item.
+            await viewModel.refreshAlbumNames(for: Set(viewModel.items.map(\.id)))
         }
     }
 
@@ -211,7 +207,7 @@ struct LivePhotoPreviewView: View {
                 Label(item.asset.formattedFileSize, systemImage: "internaldrive")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
-                if let names = albumNames[item.id], !names.isEmpty {
+                if let names = viewModel.albumNamesByAsset[item.id], !names.isEmpty {
                     Label(names.joined(separator: ", "), systemImage: "rectangle.stack")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.7))
@@ -276,7 +272,8 @@ struct LivePhotoPreviewView: View {
                 .foregroundStyle(.white)
             }
             .scaleOnPress()
-            .disabled(currentItem == nil || isCurrentConverting || isCurrentConverted)
+            // COMP-18: no single-item Convert while Convert All is running.
+            .disabled(currentItem == nil || isCurrentConverting || isCurrentConverted || viewModel.convertingAll)
             .accessibilityLabel("Convert Live Photo to Still")
         }
     }

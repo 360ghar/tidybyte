@@ -15,25 +15,36 @@ struct AccessoryAction {
 /// screens. Shows photos (pinch- and double-tap-to-zoom), plays videos, and
 /// plays Live Photos, with a top "i of N" bar and a bottom metadata card +
 /// Delete action. Intentionally **ViewModel-agnostic**: it takes a plain
-/// `[AssetSummary]`, a start index, the `PhotoLibraryService`, and an optional
-/// `onDelete` callback — so any screen can adopt it.
+/// `[AssetSummary]` (or a closure that re-reads the caller's view model), a
+/// start index, the `PhotoLibraryService`, and an optional `onDelete`
+/// callback — so any screen can adopt it.
 ///
 /// Mirrors `LivePhotoPreviewView`'s layout and post-delete index clamping, but
-/// works for arbitrary media types. It reads the caller-supplied `assets` list
-/// **live** (it is a plain `let`, not a `@State` snapshot), so when the caller's
-/// `onDelete` mutates the underlying source the preview re-renders against the
-/// fresh list instead of a stale copy. Only the page cursor (`currentIndex`) is
-/// local state, re-clamped via `.onChange(of: assets)` and after each delete.
+/// works for arbitrary media types. It reads the paged list **live**: either
+/// the caller's `assets` array (recomputed by the caller each render) or an
+/// `assetsProvider` closure that re-reads the presenting screen's view model.
+/// When the caller's `onDelete` mutates the underlying source the preview
+/// re-renders against the fresh list instead of a stale snapshot, and
+/// `.onChange(of: assets)` fires because the list is re-evaluated per render
+/// (COMP-05). Only the page cursor (`currentIndex`) is local state, re-clamped
+/// via `.onChange(of: assets)` and after each delete.
 struct MediaPreviewView: View {
     let photoService: PhotoLibraryService
     var onDelete: (@MainActor (AssetSummary) async -> Void)?
     var accessory: AccessoryAction?
 
     @Environment(\.dismiss) private var dismiss
-    let assets: [AssetSummary]
+    private let staticAssets: [AssetSummary]?
+    private let assetsProvider: (() -> [AssetSummary])?
     @State private var currentIndex: Int
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
+
+    /// The live paged list: the provider closure when given (re-read every
+    /// render so deletes elsewhere re-render the pager), else the static array.
+    private var assets: [AssetSummary] {
+        assetsProvider?() ?? staticAssets ?? []
+    }
 
     init(
         assets: [AssetSummary],
@@ -45,8 +56,26 @@ struct MediaPreviewView: View {
         self.photoService = photoService
         self.onDelete = onDelete
         self.accessory = accessory
-        self.assets = assets
+        self.staticAssets = assets
+        self.assetsProvider = nil
         let clamped = max(0, min(startIndex, max(0, assets.count - 1)))
+        _currentIndex = State(initialValue: clamped)
+    }
+
+    init(
+        assetsProvider: @escaping () -> [AssetSummary],
+        startIndex: Int,
+        photoService: PhotoLibraryService,
+        onDelete: (@MainActor (AssetSummary) async -> Void)? = nil,
+        accessory: AccessoryAction? = nil
+    ) {
+        self.photoService = photoService
+        self.onDelete = onDelete
+        self.accessory = accessory
+        self.staticAssets = nil
+        self.assetsProvider = assetsProvider
+        let initial = assetsProvider()
+        let clamped = max(0, min(startIndex, max(0, initial.count - 1)))
         _currentIndex = State(initialValue: clamped)
     }
 
@@ -140,10 +169,14 @@ struct MediaPreviewView: View {
                 isActive: index == currentIndex
             )
         } else if asset.isLivePhoto {
+            // COMP-14: pass page activity so the player tears down (nils its
+            // live photo) as soon as the page stops being the visible one —
+            // `dismantleUIView` alone never fires for off-screen pager pages.
             LivePhotoPlayerView(
                 assetId: asset.id,
                 photoService: photoService,
-                targetSize: CGSize(width: 1200, height: 1200)
+                targetSize: CGSize(width: 1200, height: 1200),
+                isActive: index == currentIndex
             )
         } else {
             ZoomableImageView(assetId: asset.id, photoService: photoService)
@@ -317,6 +350,11 @@ struct ZoomableImageView: UIViewRepresentable {
             let image = await service.loadImage(for: id, targetSize: size, contentMode: .aspectFit)
             guard !Task.isCancelled, coordinator.loadedAssetId == id else { return }
             scrollView.setImage(image)
+            if image == nil {
+                // SHARED-06: a failed load clears the "loaded" marker so the
+                // next render retries instead of showing a blank page forever.
+                coordinator.loadedAssetId = nil
+            }
         }
     }
 

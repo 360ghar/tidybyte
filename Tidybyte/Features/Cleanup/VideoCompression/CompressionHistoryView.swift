@@ -4,8 +4,10 @@ import SwiftData
 struct CompressionHistoryView: View {
     @Query(sort: \CompressionRecord.compressedAt, order: .reverse) private var records: [CompressionRecord]
 
+    /// COMP-01: failed records carry `compressedSizeBytes == 0`; summing them
+    /// would inflate the total with fake savings. Only completed rows count.
     var totalSaved: Int64 {
-        records.reduce(0) { $0 + ($1.originalSizeBytes - $1.compressedSizeBytes) }
+        records.reduce(0) { $0 + $1.savedBytes }
     }
 
     var body: some View {
@@ -81,10 +83,25 @@ struct CompressionHistoryView: View {
                                 }
                                 .font(.caption.monospacedDigit())
 
-                                let saved = record.originalSizeBytes - record.compressedSizeBytes
-                                Text("-\(saved.formattedFileSize)")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.green)
+                                // COMP-01: failed rows show a "Failed" badge with
+                                // zero savings instead of a misleading green
+                                // "-X" (compressedSizeBytes == 0 would compute
+                                // savings equal to the whole original).
+                                if record.succeeded {
+                                    if record.savedBytes > 0 {
+                                        Text("-\(record.savedBytes.formattedFileSize)")
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.green)
+                                    } else {
+                                        Text("No savings")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } else {
+                                    Text("Failed")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.red)
+                                }
                             }
                         }
                     }

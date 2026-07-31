@@ -26,7 +26,7 @@ struct PhotoCompressionPreset: Identifiable, Sendable {
 /// replaces the original in the library. Mirrors `VideoCompressionService`:
 /// reuses its media-agnostic `CompressionResult`/`CompressionState`, writes to a
 /// temp file with guaranteed cleanup, skips when no space is saved, preserves
-/// date/location/favorite + album membership, and deletes the original last.
+/// date/location/favorite/hidden + album membership, and deletes the original last.
 actor PhotoCompressionService {
     private let photoService: PhotoLibraryService
 
@@ -49,6 +49,13 @@ actor PhotoCompressionService {
         await onProgress(0.05)
         let resources = PHAssetResource.assetResources(for: phAsset)
         let originalSize = fileSize(of: resources)
+        guard originalSize > 0 else {
+            // iCloud-only (or KVC-unreadable) assets report 0 bytes. Compressing
+            // them would make the "does this save space?" check meaningless and
+            // could delete a large original in exchange for a 0-byte history
+            // record — skip instead (COMP-07).
+            throw PhotoCompressionError.sizeUnknown
+        }
 
         guard let imageData = await photoService.loadFullImageData(for: assetId) else {
             throw PhotoCompressionError.imageDataLoadFailed
@@ -68,6 +75,12 @@ actor PhotoCompressionService {
             quality: preset.quality
         )
         await onProgress(0.8)
+
+        // Respect batch cancellation: stop before replacing anything so no
+        // half-finished swap happens (COMP-08).
+        guard !Task.isCancelled else {
+            throw PhotoCompressionError.cancelled
+        }
 
         let compressedSize: Int64
         do {
@@ -104,6 +117,7 @@ actor PhotoCompressionService {
             request.creationDate = phAsset.creationDate
             request.location = phAsset.location
             request.isFavorite = phAsset.isFavorite
+            request.isHidden = phAsset.isHidden
             placeholder = request.placeholderForCreatedAsset
         }
 
@@ -113,10 +127,28 @@ actor PhotoCompressionService {
         await onProgress(1.0)
 
         for albumId in albumIdentifiers {
-            try? await photoService.addToAlbum(assetIdentifiers: [replacementId], albumIdentifier: albumId)
+            do {
+                try await photoService.addToAlbum(assetIdentifiers: [replacementId], albumIdentifier: albumId)
+            } catch {
+                AppLog.photo.error("Failed to restore album \(albumId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
         }
 
-        try await photoService.deleteAssets(identifiers: [assetId])
+        // Delete the original only after confirming the replacement exists. If
+        // deletion fails, roll the replacement back so we don't leave a
+        // duplicate behind (COMP-02).
+        do {
+            try await photoService.deleteAssets(identifiers: [assetId])
+        } catch {
+            var rollbackSucceeded = false
+            do {
+                try await photoService.deleteAssets(identifiers: [replacementId])
+                rollbackSucceeded = true
+            } catch {
+                rollbackSucceeded = false
+            }
+            throw PhotoCompressionError.originalDeletionFailed(rollbackSucceeded: rollbackSucceeded)
+        }
 
         return CompressionResult(
             originalSize: originalSize,
@@ -128,6 +160,15 @@ actor PhotoCompressionService {
 
     // MARK: - Encoding
 
+    /// Longest-edge cap for the "High Quality" (full-resolution) path. Without
+    /// a cap, a 48MP capture (8064×6048) decodes into a ~195 MB RGBA bitmap
+    /// before re-encoding — a jetsam risk. Capping at 6144 halves that peak
+    /// (6144×4608×4 ≈ 113 MB) while keeping more resolution than the downscale
+    /// presets; typical captures (12MP, longest edge 4032) are untouched. The
+    /// tradeoff: genuinely huge sources are no longer re-encoded at their true
+    /// pixel-for-pixel size (COMP-06).
+    private let fullResolutionMaxPixelSize: CGFloat = 6144
+
     /// Decodes `data`, optionally downscales to `maxDimension` (longest edge),
     /// and writes a HEIC file at `quality`. The thumbnail transform bakes
     /// orientation into the pixels, so the output is always upright. We
@@ -135,8 +176,9 @@ actor PhotoCompressionService {
     /// embedded Orientation tag would conflict with the already-upright pixels
     /// (causing a double-rotation in viewers that honor it), and their pixel
     /// dimensions would be stale after a downscale. The user-visible metadata
-    /// (creation date, location, favorite) is restored on the new asset by the
-    /// caller via `PHAssetCreationRequest`, so nothing important is lost.
+    /// (creation date, location, favorite, hidden) is restored on the new
+    /// asset by the caller via `PHAssetCreationRequest`, so nothing important
+    /// is lost.
     private func encodeHEIC(
         from data: Data,
         to url: URL,
@@ -151,14 +193,17 @@ actor PhotoCompressionService {
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true
         ]
-        // Only cap the longest edge for the downscaling presets. The full-resolution
-        // preset (maxDimension == nil) deliberately omits kCGImageSourceThumbnailMaxPixelSize
-        // so the image is re-encoded at its true decoded size. Deriving a cap from
-        // PHAsset.pixelWidth/Height would silently downscale assets (e.g. RAW/DNG)
-        // whose reported dimensions are smaller than the actual decoded image — and the
-        // original is deleted afterward, so that loss would be unrecoverable.
         if let maxDimension {
             thumbOptions[kCGImageSourceThumbnailMaxPixelSize] = Int(maxDimension)
+        } else {
+            // Full-resolution preset: still bound the decode (see
+            // `fullResolutionMaxPixelSize`). A cap derived from
+            // PHAsset.pixelWidth/Height would silently downscale assets (e.g.
+            // RAW/DNG) whose reported dimensions are smaller than the actual
+            // decoded image — and the original is deleted afterward, so that
+            // loss would be unrecoverable. The fixed cap only affects sources
+            // whose true decoded size exceeds it.
+            thumbOptions[kCGImageSourceThumbnailMaxPixelSize] = Int(fullResolutionMaxPixelSize)
         }
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions as CFDictionary) else {
             throw PhotoCompressionError.encodeFailed
@@ -204,18 +249,29 @@ enum PhotoCompressionError: LocalizedError {
     case assetNotFound
     case notAnImage
     case imageDataLoadFailed
+    case sizeUnknown
+    case cancelled
     case encodeFailed
     case fileSizeReadFailed
     case saveFailed(String)
+    case originalDeletionFailed(rollbackSucceeded: Bool)
 
     var errorDescription: String? {
         switch self {
         case .assetNotFound: "Photo not found."
         case .notAnImage: "This item can't be compressed as a photo."
         case .imageDataLoadFailed: "Failed to load the photo."
+        case .sizeUnknown: "Photo size unknown (iCloud-only) — skipped."
+        case .cancelled: "Cancelled."
         case .encodeFailed: "Failed to re-encode the photo."
         case .fileSizeReadFailed: "Failed to read file size."
         case .saveFailed(let msg): "Save failed: \(msg)"
+        case .originalDeletionFailed(let rollbackSucceeded):
+            if rollbackSucceeded {
+                "Compressed copy saved, but the original couldn't be deleted. We removed the new copy to avoid a duplicate."
+            } else {
+                "Compressed copy saved, but the original couldn't be deleted, and the new copy couldn't be removed either. Check your library for a duplicate."
+            }
         }
     }
 }
