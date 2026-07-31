@@ -42,13 +42,25 @@ final class SimilarPhotosViewModel {
     var selectedForDeletion: Set<String> = []
     var errorMessage: String?
     var isDeleting = false
+    /// DUP-04/DUP-09: how many items the last delete actually removed, so the
+    /// view can gate the success haptic on a non-zero result.
+    var deletedCount = 0
 
     /// Vision feature-print distance threshold used to confirm that photos in the
     /// same time cluster actually look alike. Lower = stricter.
     private static let visualSimilarityThreshold: Float = 0.7
 
+    /// DUP-11: a single time cluster is split into index chunks of at most this
+    /// many photos before the O(n²) Vision subgrouping. nil-creationDate photos
+    /// all sort to `.distantPast` and would otherwise collapse into one giant
+    /// cluster; chunking keeps chronological order and bounds the pairing work.
+    private static let maxClusterSize = 60
+
     private let photoService = PhotoLibraryService()
     private let visionService = VisionAnalysisService()
+    /// DUP-02: the scan is held in a cancellable task so leaving the screen or
+    /// tapping Cancel actually stops it, and re-entry can be guarded.
+    private var scanTask: Task<Void, Never>?
 
     var totalDuplicateCount: Int {
         groups.reduce(0) { $0 + $1.assets.count - 1 }
@@ -77,6 +89,7 @@ final class SimilarPhotosViewModel {
         scanState = .scanning(0)
         selectedForDeletion.removeAll()
         errorMessage = nil
+        deletedCount = 0
 
         let capturedTimeWindow = timeWindow
         let threshold = Self.visualSimilarityThreshold
@@ -85,6 +98,8 @@ final class SimilarPhotosViewModel {
             .sorted { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) }
 
         // Phase 1: cluster photos taken close together in time (cheap, in-memory).
+        // DUP-11: oversized clusters (e.g. many nil-creationDate photos sorting
+        // to .distantPast) are index-chunked so the visual phase stays bounded.
         var clusters: [[AssetSummary]] = []
         var currentCluster: [AssetSummary] = []
         for photo in photos {
@@ -95,14 +110,14 @@ final class SimilarPhotosViewModel {
                 if interval <= capturedTimeWindow {
                     currentCluster.append(photo)
                 } else {
-                    if currentCluster.count >= 2 { clusters.append(currentCluster) }
+                    if currentCluster.count >= 2 { clusters.append(contentsOf: cappedClusters(currentCluster)) }
                     currentCluster = [photo]
                 }
             } else {
                 currentCluster = [photo]
             }
         }
-        if currentCluster.count >= 2 { clusters.append(currentCluster) }
+        if currentCluster.count >= 2 { clusters.append(contentsOf: cappedClusters(currentCluster)) }
 
         // Phase 2: within each time cluster, keep only subgroups that are actually
         // visually similar (via Vision feature prints), so shots of different
@@ -133,10 +148,43 @@ final class SimilarPhotosViewModel {
             scanState = .scanning(progress)
         }
 
+        if Task.isCancelled {
+            scanState = .idle
+            return
+        }
+
         groups = foundGroups
         scanState = .completed
 
         selectNonBestAssets()
+    }
+
+    // MARK: - Scan lifecycle (DUP-02)
+
+    func startScan(timeWindow: Double) {
+        guard scanTask == nil else { return }
+        scanTask = Task { [weak self] in
+            await self?.scan(timeWindow: timeWindow)
+            self?.scanTask = nil
+        }
+    }
+
+    func cancelScan() {
+        scanTask?.cancel()
+        scanTask = nil
+        if case .scanning = scanState {
+            scanState = .idle
+        }
+    }
+
+    /// DUP-11: split an oversized time cluster into index chunks of at most
+    /// `maxClusterSize` photos. Chronological order is preserved; the heuristic
+    /// is purely a work bound for the Vision pairing, not a similarity signal.
+    private func cappedClusters(_ cluster: [AssetSummary]) -> [[AssetSummary]] {
+        guard cluster.count > Self.maxClusterSize else { return [cluster] }
+        return stride(from: 0, to: cluster.count, by: Self.maxClusterSize).map {
+            Array(cluster[$0..<min($0 + Self.maxClusterSize, cluster.count)])
+        }
     }
 
     /// Splits a time-based cluster into subgroups whose members are visually
@@ -195,8 +243,17 @@ final class SimilarPhotosViewModel {
         return (subgroups, quality)
     }
 
+    /// DUP-08: score quality on a sharp, exactly-sized, network-off analysis
+    /// image (nil for iCloud-only assets) and fall back to the fast 300px
+    /// thumbnail only when the original isn't on this device — matches
+    /// BlurryPhotosViewModel, so the keeper recommendation isn't computed from
+    /// degraded thumbnails.
     private func loadCGImage(for assetId: String) async -> CGImage? {
-        await photoService.loadThumbnail(for: assetId, size: CGSize(width: 300, height: 300))?.cgImage
+        if let analysisImage = await photoService.loadAnalysisImage(for: assetId, targetSize: CGSize(width: 512, height: 512)) {
+            return analysisImage.cgImage
+        }
+        let thumbnail = await photoService.loadThumbnail(for: assetId, size: CGSize(width: 300, height: 300))
+        return thumbnail?.cgImage
     }
 
     func deleteSelected() async {
@@ -206,6 +263,7 @@ final class SimilarPhotosViewModel {
         defer { isDeleting = false }
         do {
             try await photoService.deleteAssets(identifiers: Array(selectedForDeletion))
+            deletedCount = selectedForDeletion.count
             let deleted = selectedForDeletion
             groups = groups.compactMap { group in
                 let remaining = group.assets.filter { !deleted.contains($0.id) }
@@ -238,7 +296,9 @@ final class SimilarPhotosViewModel {
     }
 
     func toggleSelection(_ assetId: String) {
-        selectedForDeletion.toggle(assetId)
+        var state = SelectionState(ids: selectedForDeletion)
+        state.toggle(assetId)
+        selectedForDeletion = state.ids
     }
 
     func setBest(assetId: String, in groupId: String) {
@@ -246,20 +306,17 @@ final class SimilarPhotosViewModel {
         let oldBest = groups[index].bestAssetId
         groups[index].bestAssetId = assetId
         groups[index].bestReason = .userChosen
-        selectedForDeletion.remove(assetId)
-        if oldBest != assetId {
-            selectedForDeletion.insert(oldBest)
-        }
+        var state = SelectionState(ids: selectedForDeletion)
+        state.setBest(newBest: assetId, oldBest: oldBest)
+        selectedForDeletion = state.ids
     }
 
     private func selectNonBestAssets() {
-        selectedForDeletion = Set(
-            groups.flatMap { group in
-                group.assets.compactMap { asset in
-                    asset.id == group.bestAssetId ? nil : asset.id
-                }
-            }
-        )
+        var state = SelectionState()
+        for group in groups {
+            state.selectNonBest(assets: group.assets, bestAssetId: group.bestAssetId)
+        }
+        selectedForDeletion = state.ids
     }
 
     /// Quality-first keeper selection. Combines sharpness, exposure, resolution,

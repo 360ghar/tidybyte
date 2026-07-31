@@ -95,10 +95,9 @@ struct SimilarGroupDetailView: View {
         .navigationTitle("Review Group")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            for asset in group.assets {
-                let names = await photoService.albumsContaining(assetId: asset.id)
-                albumNames[asset.id] = names
-            }
+            // DUP-06: one batched pass over user albums instead of a per-asset
+            // album fetch (which was O(assets × albums) blocking PhotoKit calls).
+            albumNames = AlbumMembershipLoader.membership(for: Set(group.assets.map(\.id)))
         }
     }
 

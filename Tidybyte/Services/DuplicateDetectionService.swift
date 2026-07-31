@@ -9,9 +9,145 @@ struct DuplicateGroup: Identifiable, Sendable {
     let type: DuplicateType
 }
 
+extension DuplicateGroup: Hashable {
+    static func == (lhs: DuplicateGroup, rhs: DuplicateGroup) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
 enum DuplicateType: String, Sendable {
     case exact
     case visual
+}
+
+/// Result of an exact duplicate scan: the groups plus how many assets were
+/// skipped because they are not on this device (iCloud-only; DUP-03).
+struct ExactDuplicateResult: Sendable {
+    let groups: [DuplicateGroup]
+    let skippedCount: Int
+}
+
+/// Order-independent pair key used by the visual pre-filter's candidate set.
+struct PairKey: Hashable, Sendable {
+    let a: String
+    let b: String
+
+    init(_ x: String, _ y: String) {
+        if x < y {
+            a = x
+            b = y
+        } else {
+            a = y
+            b = x
+        }
+    }
+}
+
+/// DUP-01/DUP-12: cheap perceptual pre-filter for the visual duplicate scan.
+/// Every asset is hashed to a 64-bit "average hash" (8x8 grayscale luminance
+/// grid, one bit per cell against the grid mean) alongside its feature print.
+/// Pairs whose Hamming distance exceeds `maxHammingDistance` can never be
+/// grouped, so the expensive Vision distance call is skipped for them. The
+/// bound is deliberately loose (8 of 64 bits) so the pre-filter stays
+/// conservative: identical and near-identical photos always survive to the real
+/// comparison, preserving the groups the pairwise scan would produce.
+enum VisualPreFilter {
+    static let maxHammingDistance = 8
+
+    /// Pairs within the Hamming bound still go through the real Vision
+    /// comparison; only pairs beyond the bound are pruned.
+    static func shouldCompare(_ lhs: UInt64, _ rhs: UInt64) -> Bool {
+        hammingDistance(lhs, rhs) <= maxHammingDistance
+    }
+
+    static func hammingDistance(_ lhs: UInt64, _ rhs: UInt64) -> Int {
+        (lhs ^ rhs).nonzeroBitCount
+    }
+
+    /// Downsample to an 8x8 device-gray grid; the returned 64 values are the
+    /// per-cell mean luminance (0...255).
+    static func luminanceGrid(from image: CGImage) -> [UInt8]? {
+        let width = 8
+        let height = 8
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width,
+            space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard let data = context.data else { return nil }
+        let bytes = data.bindMemory(to: UInt8.self, capacity: width * height)
+        return Array(UnsafeBufferPointer(start: bytes, count: width * height))
+    }
+
+    /// One bit per cell: 1 when the cell luminance is at/above the grid mean.
+    /// A uniform grid hashes to all-ones, so 0 is never produced naturally and
+    /// serves as the "no hash available" sentinel in the scan.
+    static func hash64(from grid: [UInt8]) -> UInt64 {
+        guard !grid.isEmpty else { return 0 }
+        let mean = UInt64(grid.reduce(0) { $0 + UInt64($1) }) / UInt64(grid.count)
+        var hash: UInt64 = 0
+        for (index, cell) in grid.prefix(64).enumerated() {
+            if UInt64(cell) >= mean {
+                hash |= 1 << UInt64(index)
+            }
+        }
+        return hash
+    }
+
+    /// All candidate pairs whose Hamming distance is within the bound, without
+    /// comparing every pair: each hash is split into four 16-bit chunks. If two
+    /// hashes differ in at most 8 bits total, at least one chunk differs in at
+    /// most 2 bits, so bucketing each chunk's 2-bit neighborhood surfaces every
+    /// in-bound pair (and only those).
+    static func candidatePairs(_ hashes: [String: UInt64]) -> Set<PairKey> {
+        guard hashes.count > 1 else { return [] }
+        let chunkCount = 4
+        let chunkWidth = 16
+        let chunkRadius = 2
+        var buckets: [Int: [String]] = [:]
+        var pairs = Set<PairKey>()
+
+        for (id, hash) in hashes {
+            for chunk in 0..<chunkCount {
+                let value = Int((hash >> UInt64(chunkWidth * chunk)) & 0xFFFF)
+                let baseKey = chunk * (1 << chunkWidth)
+                for near in nearValues(to: value, radius: chunkRadius) {
+                    let key = baseKey + near
+                    if let earlier = buckets[key] {
+                        for other in earlier where other != id {
+                            guard let otherHash = hashes[other] else { continue }
+                            if hammingDistance(hash, otherHash) <= maxHammingDistance {
+                                pairs.insert(PairKey(id, other))
+                            }
+                        }
+                    }
+                }
+                buckets[baseKey + value, default: []].append(id)
+            }
+        }
+        return pairs
+    }
+
+    /// Every 16-bit value within Hamming distance `radius` (inclusive).
+    static func nearValues(to value: Int, radius: Int) -> [Int] {
+        var result: [Int] = [value]
+        for bit in 0..<16 {
+            result.append(value ^ (1 << bit))
+        }
+        if radius >= 2 {
+            for first in 0..<16 {
+                for second in (first + 1)..<16 {
+                    result.append(value ^ (1 << first) ^ (1 << second))
+                }
+            }
+        }
+        return result
+    }
 }
 
 actor DuplicateDetectionService {
@@ -25,15 +161,46 @@ actor DuplicateDetectionService {
 
     // MARK: - Exact Duplicate Detection
 
+    /// DUP-03: splits assets into locally-available candidates for exact
+    /// hashing and iCloud-only assets that would have to be downloaded. Pure so
+    /// the counting logic is unit-testable without PhotoKit.
+    static func splitByLocalAvailability(
+        _ assets: [AssetSummary]
+    ) -> (candidates: [AssetSummary], skipped: Int) {
+        var candidates: [AssetSummary] = []
+        var skipped = 0
+        for asset in assets {
+            if asset.isLocallyAvailable {
+                candidates.append(asset)
+            } else {
+                skipped += 1
+            }
+        }
+        return (candidates, skipped)
+    }
+
     func findExactDuplicates(
         assets: [AssetSummary],
         progress: @Sendable (Float) -> Void
-    ) async -> [DuplicateGroup] {
-        // Pre-filter: group by (width, height, mediaType) to reduce comparisons
+    ) async -> ExactDuplicateResult {
+        // Pre-filter pass (reports 0 → 0.1 so the bar moves during this phase;
+        // DUP-12): bucket by (width, height, mediaType) to reduce comparisons.
+        // Assets that aren't on this device are skipped — hashing them would
+        // download the full resource from iCloud (DUP-03) — and counted so the
+        // UI can surface "N iCloud-only photos skipped".
+        let (localAssets, skippedCount) = Self.splitByLocalAvailability(assets)
         var candidates: [String: [AssetSummary]] = [:]
-        for asset in assets {
+        let total = assets.count
+        for (index, asset) in localAssets.enumerated() {
+            if Task.isCancelled {
+                return ExactDuplicateResult(groups: [], skippedCount: skippedCount)
+            }
+            if index % 20 == 0 {
+                await Task.yield()
+            }
             let key = "\(asset.pixelWidth)x\(asset.pixelHeight)_\(asset.mediaType)"
             candidates[key, default: []].append(asset)
+            progress(Float(index + 1) / Float(max(total, 1)) * 0.1)
         }
 
         // Only keep groups with potential duplicates
@@ -45,7 +212,9 @@ actor DuplicateDetectionService {
 
         for group in potentialGroups {
             for asset in group {
-                if Task.isCancelled { return [] }
+                if Task.isCancelled {
+                    return ExactDuplicateResult(groups: [], skippedCount: skippedCount)
+                }
                 if processed % 20 == 0 {
                     await Task.yield()
                 }
@@ -54,11 +223,11 @@ actor DuplicateDetectionService {
                     hashGroups[hashString, default: []].append(asset)
                 }
                 processed += 1
-                progress(Float(processed) / Float(max(totalAssets, 1)))
+                progress(0.1 + Float(processed) / Float(max(totalAssets, 1)) * 0.9)
             }
         }
 
-        return hashGroups
+        let groups = hashGroups
             .filter { $0.value.count > 1 }
             .map { (hash, assets) in
                 let best = selectBestAsset(from: assets)
@@ -70,6 +239,8 @@ actor DuplicateDetectionService {
                 )
             }
             .sorted { $0.assets.count > $1.assets.count }
+
+        return ExactDuplicateResult(groups: groups, skippedCount: skippedCount)
     }
 
     // MARK: - Visual Duplicate Detection
@@ -80,49 +251,74 @@ actor DuplicateDetectionService {
         progress: @Sendable (Float) -> Void
     ) async -> [DuplicateGroup] {
         let photoAssets = assets.filter { $0.mediaType == .photo }
-
-        // Generate feature prints
-        var featurePrints: [(AssetSummary, FeaturePrint)] = []
         let total = photoAssets.count
+        let estimatedPairs = total * (total - 1) / 2
+        // Weight the generation and comparison phases by their actual work
+        // (generation: per asset; comparison: per attempted pair) so neither
+        // phase stalls the progress bar (DUP-01/DUP-12).
+        let generationWeight: Float = total + estimatedPairs > 0
+            ? Float(total) / Float(total + estimatedPairs)
+            : 1
+        let comparisonWeight = 1 - generationWeight
 
+        // Phase 1 (0 → generationWeight): feature prints plus the cheap
+        // perceptual pre-filter hash, both from the same 300px CGImage.
+        var featurePrints: [(asset: AssetSummary, print: FeaturePrint, hash: UInt64)] = []
         for (index, asset) in photoAssets.enumerated() {
             if Task.isCancelled { return [] }
             if index % 20 == 0 {
                 await Task.yield()
             }
+            var hash: UInt64 = 0
             if let image = await loadCGImage(for: asset.id) {
+                if let grid = VisualPreFilter.luminanceGrid(from: image) {
+                    hash = VisualPreFilter.hash64(from: grid)
+                }
                 if let fp = await visionService.generateFeaturePrint(image: image) {
-                    featurePrints.append((asset, fp))
+                    featurePrints.append((asset, fp, hash))
                 }
             }
-            progress(Float(index + 1) / Float(max(total, 1)) * 0.7) // 70% for generation
+            progress(generationWeight * Float(index + 1) / Float(max(total, 1)))
         }
 
-        // Compare and group
+        // DUP-01: pre-filter the comparison set — only pairs whose perceptual
+        // hash is within the loose Hamming bound can be duplicates, so the
+        // expensive Vision distance call is skipped for every other pair.
+        let candidateSet = VisualPreFilter.candidatePairs(
+            Dictionary(uniqueKeysWithValues: featurePrints.map { ($0.asset.id, $0.hash) })
+        )
+
+        // Phase 2 (generationWeight → 1): greedy grouping, unchanged semantics
+        // (same anchor order, same threshold, same visited handling).
         var visited = Set<String>()
         var groups: [DuplicateGroup] = []
-        let comparisons = featurePrints.count
+        var attemptedPairs = 0
 
         for i in 0..<featurePrints.count {
             // Preserve groups already found rather than discarding completed work on cancel.
             if Task.isCancelled { return groups.sorted { $0.assets.count > $1.assets.count } }
-            guard !visited.contains(featurePrints[i].0.id) else { continue }
+            guard !visited.contains(featurePrints[i].asset.id) else { continue }
 
-            var group: [AssetSummary] = [featurePrints[i].0]
-            visited.insert(featurePrints[i].0.id)
+            var group: [AssetSummary] = [featurePrints[i].asset]
+            visited.insert(featurePrints[i].asset.id)
 
             for j in (i + 1)..<featurePrints.count {
                 if Task.isCancelled { return groups.sorted { $0.assets.count > $1.assets.count } }
-                guard !visited.contains(featurePrints[j].0.id) else { continue }
+                guard !visited.contains(featurePrints[j].asset.id) else { continue }
+                attemptedPairs += 1
+
+                guard candidateSet.contains(PairKey(featurePrints[i].asset.id, featurePrints[j].asset.id)) else {
+                    continue
+                }
 
                 let distance = await visionService.computeDistance(
-                    between: featurePrints[i].1,
-                    and: featurePrints[j].1
+                    between: featurePrints[i].print,
+                    and: featurePrints[j].print
                 )
 
                 if distance < threshold {
-                    group.append(featurePrints[j].0)
-                    visited.insert(featurePrints[j].0.id)
+                    group.append(featurePrints[j].asset)
+                    visited.insert(featurePrints[j].asset.id)
                 }
             }
 
@@ -136,7 +332,7 @@ actor DuplicateDetectionService {
                 ))
             }
 
-            progress(0.7 + Float(i + 1) / Float(max(comparisons, 1)) * 0.3)
+            progress(generationWeight + comparisonWeight * Float(attemptedPairs) / Float(max(estimatedPairs, 1)))
         }
 
         return groups.sorted { $0.assets.count > $1.assets.count }

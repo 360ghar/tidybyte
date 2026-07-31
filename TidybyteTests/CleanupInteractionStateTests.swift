@@ -47,7 +47,9 @@ final class CleanupInteractionStateTests: XCTestCase {
         viewModel.setBest(assetId: second.id, in: "group")
 
         XCTAssertEqual(viewModel.groups.first?.bestAssetId, second.id)
-        XCTAssertTrue(viewModel.selectedForDeletion.contains(first.id))
+        // LF-12: the old best is NOT force-inserted — an explicitly deselected
+        // old best stays kept (only an explicitly armed one stays armed).
+        XCTAssertFalse(viewModel.selectedForDeletion.contains(first.id))
         XCTAssertFalse(viewModel.selectedForDeletion.contains(second.id))
     }
 

@@ -47,6 +47,7 @@ struct SimilarPhotosView: View {
                         showDeleteConfirm = true
                     }
                     .foregroundStyle(.red)
+                    .disabled(viewModel.isDeleting)
                 }
             }
         }
@@ -64,7 +65,8 @@ struct SimilarPhotosView: View {
             Button("Delete \(viewModel.selectedForDeletion.count) Items", role: .destructive) {
                 Task {
                     await viewModel.deleteSelected()
-                    if viewModel.errorMessage == nil {
+                    // DUP-04d: only celebrate an actual deletion.
+                    if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
                         HapticHelper.notification(.success)
                     }
                 }
@@ -81,6 +83,10 @@ struct SimilarPhotosView: View {
             }
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+        // DUP-02: leaving the screen must stop the scan.
+        .onDisappear {
+            viewModel.cancelScan()
         }
     }
 
@@ -141,7 +147,9 @@ struct SimilarPhotosView: View {
 
                 Button {
                     HapticHelper.impact(.light)
-                    Task { await viewModel.scan(timeWindow: timeWindow) }
+                    // DUP-02: route through the VM-held task so the scan is
+                    // cancellable and re-entry is guarded.
+                    viewModel.startScan(timeWindow: timeWindow)
                 } label: {
                     Text("Start Scan")
                         .font(.headline)
@@ -199,6 +207,21 @@ struct SimilarPhotosView: View {
             }
             .glassCard()
             .padding(.horizontal, Spacing.lg)
+
+            // DUP-02: an explicit way out of a long scan.
+            Button(role: .destructive) {
+                HapticHelper.impact(.light)
+                viewModel.cancelScan()
+            } label: {
+                Text("Cancel")
+                    .font(.headline)
+                    .padding(.horizontal, Spacing.xxxl)
+                    .padding(.vertical, Spacing.sm)
+                    .background(Color.destructive.opacity(0.12))
+                    .foregroundStyle(Color.destructive)
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+            }
+            .scaleOnPress()
 
             Spacer()
         }
@@ -267,7 +290,7 @@ struct SimilarPhotosView: View {
                         }
                     }
                     .listStyle(.plain)
-                    .pullToRefresh { await viewModel.scan(timeWindow: timeWindow) }
+                    .pullToRefresh { viewModel.startScan(timeWindow: timeWindow) }
 
                     // Bottom action bar
                     if !viewModel.selectedForDeletion.isEmpty {
@@ -282,19 +305,26 @@ struct SimilarPhotosView: View {
 
                             Spacer()
 
-                            Button {
-                                HapticHelper.impact(.light)
-                                showDeleteConfirm = true
-                            } label: {
-                                Text("Delete Selected")
-                                    .font(.headline)
+                            if viewModel.isDeleting {
+                                // DUP-09: in-flight feedback instead of a dead button.
+                                ProgressView()
                                     .padding(.horizontal, Spacing.xxl)
                                     .padding(.vertical, Spacing.sm)
-                                    .background(Color.destructive)
-                                    .foregroundStyle(.white)
-                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                            } else {
+                                Button {
+                                    HapticHelper.impact(.light)
+                                    showDeleteConfirm = true
+                                } label: {
+                                    Text("Delete Selected")
+                                        .font(.headline)
+                                        .padding(.horizontal, Spacing.xxl)
+                                        .padding(.vertical, Spacing.sm)
+                                        .background(Color.destructive)
+                                        .foregroundStyle(.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                                }
+                                .scaleOnPress()
                             }
-                            .scaleOnPress()
                         }
                     }
                 }

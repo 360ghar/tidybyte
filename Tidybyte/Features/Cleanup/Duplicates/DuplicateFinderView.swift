@@ -27,12 +27,31 @@ struct DuplicateFinderView: View {
         .navigationTitle("Duplicates")
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.allGroups.isEmpty {
+                // DUP-05: a scan type / library change needs a fresh scan — return
+                // to the idle screen instead of being stuck on stale results.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        HapticHelper.impact(.light)
+                        viewModel.scanState = .idle
+                    } label: {
+                        Label("New Scan", systemImage: "arrow.counterclockwise")
+                    }
+                }
+                // DUP-04c: select/deselect every asset across all groups.
+                ToolbarItem(placement: .topBarLeading) {
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.allSelectedForDeletion,
+                        selectAll: { viewModel.selectAllForDeletion() },
+                        deselectAll: { viewModel.deselectAllForDeletion() }
+                    )
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Delete All") {
                         HapticHelper.impact(.light)
                         showDeleteConfirm = true
                     }
                     .foregroundStyle(.red)
+                    .disabled(viewModel.isDeleting)
                 }
             }
         }
@@ -45,12 +64,14 @@ struct DuplicateFinderView: View {
                 }
             )
         }
-        .alert("Delete Duplicates", isPresented: $showDeleteConfirm) {
+        .alert("Delete \(viewModel.selectedForDeletion.count) Items", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Delete \(viewModel.selectedForDeletion.count) Items", role: .destructive) {
                 Task {
                     await viewModel.deleteSelected()
-                    if viewModel.errorMessage == nil {
+                    // DUP-04d: only celebrate an actual deletion (the guard can
+                    // still return early on an empty selection).
+                    if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
                         HapticHelper.notification(.success)
                     }
                 }
@@ -67,6 +88,11 @@ struct DuplicateFinderView: View {
             }
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+        // DUP-02: leaving the screen must stop the scan (it would otherwise run
+        // to completion in the background and re-enter on return).
+        .onDisappear {
+            viewModel.cancelScan()
         }
     }
 
@@ -108,7 +134,9 @@ struct DuplicateFinderView: View {
 
                 Button {
                     HapticHelper.impact(.light)
-                    Task { await viewModel.scan() }
+                    // DUP-02: route through the VM-held task so the scan is
+                    // cancellable and re-entry is guarded.
+                    viewModel.startScan()
                 } label: {
                     Text("Start Scan")
                         .font(.headline)
@@ -156,6 +184,22 @@ struct DuplicateFinderView: View {
             }
             .glassCard()
             .padding(.horizontal, Spacing.lg)
+
+            // DUP-02: an explicit way out of a long scan.
+            Button(role: .destructive) {
+                HapticHelper.impact(.light)
+                viewModel.cancelScan()
+            } label: {
+                Text("Cancel")
+                    .font(.headline)
+                    .padding(.horizontal, Spacing.xxxl)
+                    .padding(.vertical, Spacing.sm)
+                    .background(Color.destructive.opacity(0.12))
+                    .foregroundStyle(Color.destructive)
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+            }
+            .scaleOnPress()
+
             Spacer()
         }
         .fadeSlideIn()
@@ -178,6 +222,13 @@ struct DuplicateFinderView: View {
                             Text("\(viewModel.totalDuplicateCount) duplicates · \(viewModel.selectedSavingsBytes.formattedFileSize) selected")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            // DUP-03: explain why iCloud-only photos are absent
+                            // from an exact scan.
+                            if viewModel.skippedICloudCount > 0 {
+                                Text("\(viewModel.skippedICloudCount) iCloud-only photo\(viewModel.skippedICloudCount == 1 ? "" : "s") skipped (not on this device)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
                         Image(systemName: "doc.on.doc")
@@ -195,11 +246,56 @@ struct DuplicateFinderView: View {
                                 duplicateGroupRow(group)
                             }
                             .buttonStyle(.plain)
+                            // DUP-04a: delete just this group's non-best assets.
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    HapticHelper.impact(.light)
+                                    Task { await viewModel.delete(group: group) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                             .fadeSlideIn(delay: Double(index) * 0.03)
                         }
                     }
                     .listStyle(.plain)
-                    .pullToRefresh { await viewModel.scan() }
+                    .pullToRefresh { viewModel.startScan() }
+
+                    // DUP-04b: delete-selected bar, mirroring Similar Photos.
+                    if !viewModel.selectedForDeletion.isEmpty {
+                        ActionBarView {
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("\(viewModel.selectedForDeletion.count) selected")
+                                    .font(.caption.bold())
+                                Text(viewModel.selectedSavingsBytes.formattedFileSize)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            if viewModel.isDeleting {
+                                // DUP-09: in-flight feedback instead of a dead button.
+                                ProgressView()
+                                    .padding(.horizontal, Spacing.xxl)
+                                    .padding(.vertical, Spacing.sm)
+                            } else {
+                                Button {
+                                    HapticHelper.impact(.light)
+                                    showDeleteConfirm = true
+                                } label: {
+                                    Text("Delete Selected (\(viewModel.selectedForDeletion.count))")
+                                        .font(.headline)
+                                        .padding(.horizontal, Spacing.xxl)
+                                        .padding(.vertical, Spacing.sm)
+                                        .background(Color.destructive)
+                                        .foregroundStyle(.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                                }
+                                .scaleOnPress()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -257,9 +353,4 @@ struct DuplicateFinderView: View {
             viewModel.scanState = .idle
         }
     }
-}
-
-extension DuplicateGroup: Hashable {
-    static func == (lhs: DuplicateGroup, rhs: DuplicateGroup) -> Bool { lhs.id == rhs.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
