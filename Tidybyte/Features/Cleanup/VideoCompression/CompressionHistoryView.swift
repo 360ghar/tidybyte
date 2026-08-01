@@ -60,7 +60,10 @@ struct CompressionHistoryView: View {
 
                                 Text(record.outcome.capitalized)
                                     .font(.caption2.bold())
-                                    .foregroundStyle(record.outcome == "completed" ? .green : .orange)
+                                    // Three-state, matching the savings badge:
+                                    // completed → green, failed → red, skipped
+                                    // (intentional) → neutral.
+                                    .foregroundStyle(record.isFailed ? .red : record.succeeded ? .green : .secondary)
 
                                 if record.replacementAssetLocalIdentifier != nil {
                                     Text("Replacement saved to library")
@@ -86,21 +89,22 @@ struct CompressionHistoryView: View {
                                 // COMP-01: failed rows show a "Failed" badge with
                                 // zero savings instead of a misleading green
                                 // "-X" (compressedSizeBytes == 0 would compute
-                                // savings equal to the whole original).
-                                if record.succeeded {
-                                    if record.savedBytes > 0 {
-                                        Text("-\(record.savedBytes.formattedFileSize)")
-                                            .font(.caption.bold())
-                                            .foregroundStyle(.green)
-                                    } else {
-                                        Text("No savings")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                } else {
+                                // savings equal to the whole original). Skipped
+                                // records (no savings / kept original) are NOT
+                                // failures — they render the neutral "No
+                                // savings" label instead of a red badge.
+                                if record.isFailed {
                                     Text("Failed")
                                         .font(.caption.bold())
                                         .foregroundStyle(.red)
+                                } else if record.savedBytes > 0 {
+                                    Text("-\(record.savedBytes.formattedFileSize)")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.green)
+                                } else {
+                                    Text("No savings")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }

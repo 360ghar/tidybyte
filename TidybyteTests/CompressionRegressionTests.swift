@@ -119,7 +119,10 @@ final class CompressionRegressionTests: XCTestCase {
             exportPreset: "1080p",
             outcome: "skipped"
         )
+        // A skipped record is a deliberate outcome (kept original, no savings),
+        // not a failure — it must not render a red badge.
         XCTAssertFalse(skipped.succeeded)
+        XCTAssertFalse(skipped.isFailed)
         XCTAssertEqual(skipped.savedBytes, 0)
 
         let failed = CompressionRecord(
@@ -130,6 +133,7 @@ final class CompressionRegressionTests: XCTestCase {
             outcome: "failed"
         )
         XCTAssertFalse(failed.succeeded)
+        XCTAssertTrue(failed.isFailed)
         // COMP-01: a failed record (compressedSizeBytes == 0) must not
         // contribute its whole original size as "savings".
         XCTAssertEqual(failed.savedBytes, 0)

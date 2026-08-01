@@ -121,14 +121,27 @@ final class DuplicatesRegressionTests: XCTestCase {
     func testShouldCompareAdmitsWithinBoundPairs() {
         let a: UInt64 = 0xAAAAAAAAAAAAAAAA
         let identical = a
-        let nearThreshold = a ^ 0b11111 // 5 bits differ: within the bound of 8
+        let nearThreshold = a ^ 0b11111 // 5 bits differ
+        let atBound = a ^ 0xFFF // 12 bits differ — exactly at the bound
         XCTAssertTrue(VisualPreFilter.shouldCompare(a, identical))
         XCTAssertTrue(VisualPreFilter.shouldCompare(a, nearThreshold))
+        XCTAssertTrue(VisualPreFilter.shouldCompare(a, atBound))
     }
 
     func testShouldCompareRejectsFarPairs() {
         let a: UInt64 = 0xAAAAAAAAAAAAAAAA
         XCTAssertFalse(VisualPreFilter.shouldCompare(a, ~a))
+        let pastBound = a ^ 0x1FFF // 13 bits differ — one past the bound
+        XCTAssertFalse(VisualPreFilter.shouldCompare(a, pastBound))
+    }
+
+    func testShouldCompareNeverPrunesSentinel() {
+        // The 0 sentinel carries no hash information — it must never be pruned
+        // by the cheap gate, matching `candidatePairs`'s sentinel pairing.
+        XCTAssertTrue(VisualPreFilter.shouldCompare(0, 0xAAAAAAAAAAAAAAAA))
+        XCTAssertTrue(VisualPreFilter.shouldCompare(0xAAAAAAAAAAAAAAAA, 0))
+        XCTAssertTrue(VisualPreFilter.shouldCompare(0, ~UInt64(0)))
+        XCTAssertTrue(VisualPreFilter.shouldCompare(0, 0))
     }
 
     func testPairKeyIsOrderIndependent() {
@@ -155,18 +168,62 @@ final class DuplicatesRegressionTests: XCTestCase {
 
     func testCandidatePairsRejectsFarPair() {
         let a: UInt64 = 0xAAAAAAAAAAAAAAAA
-        // 30 differing bits spread so every 16-bit chunk differs by at least 7
-        // bits (7,7,8,8) — no chunk differs by 2 or fewer bits, so the pair can
-        // never surface as a candidate despite the total staying well below the
-        // 64-bit space.
-        let mask: UInt64 = (0b1111111 << 0)
-            | (0b1111111 << 16)
-            | (0b11111111 << 32)
-            | (0b11111111 << 48)
+        // 16 differing bits spread 2 per 8-bit chunk — every chunk differs by
+        // at least 2 bits, so no radius-1 bucket collision can ever surface
+        // the pair, and the total (16) also exceeds the 12-bit bound.
+        let mask: UInt64 = 0xC0C0C0C0C0C0C0C0
         let far = a ^ mask
-        XCTAssertEqual(VisualPreFilter.hammingDistance(a, far), 30)
+        XCTAssertEqual(VisualPreFilter.hammingDistance(a, far), 16)
         let hashes = ["a": a, "far": far]
         XCTAssertFalse(VisualPreFilter.candidatePairs(hashes).contains(PairKey("a", "far")))
+    }
+
+    func testCandidatePairsAdmitsPairAtBound() {
+        let a: UInt64 = 0xAAAAAAAAAAAAAAAA
+        // Exactly 12 differing bits — the boundary of the bound. The pair must
+        // survive the bucketing (some 8-bit chunk differs by <= 1 bit) AND the
+        // Hamming re-check (<= 12).
+        let atBound = a ^ 0x0FFF
+        XCTAssertEqual(VisualPreFilter.hammingDistance(a, atBound), 12)
+        let hashes = ["a": a, "b": atBound]
+        XCTAssertTrue(VisualPreFilter.candidatePairs(hashes).contains(PairKey("a", "b")))
+    }
+
+    func testCandidatePairsRejectsPairJustPastBound() {
+        let a: UInt64 = 0xAAAAAAAAAAAAAAAA
+        let pastBound = a ^ 0x1FFF // 13 bits — one past the bound
+        XCTAssertEqual(VisualPreFilter.hammingDistance(a, pastBound), 13)
+        let hashes = ["a": a, "b": pastBound]
+        XCTAssertFalse(VisualPreFilter.candidatePairs(hashes).contains(PairKey("a", "b")))
+    }
+
+    // MARK: Sentinel (no-hash) handling
+
+    func testCandidatePairsWithSentinelHashPairsWithEverything() {
+        let a: UInt64 = 0xAAAAAAAAAAAAAAAA
+        let far = ~a
+        let hashes = ["normal": a, "no-hash": 0, "far": far]
+        let candidates = VisualPreFilter.candidatePairs(hashes)
+
+        // An asset whose luminance grid failed (hash 0) carries no information
+        // and must never be pruned — not even against a hash that is maximally
+        // far from everything else.
+        XCTAssertTrue(candidates.contains(PairKey("no-hash", "normal")))
+        XCTAssertTrue(candidates.contains(PairKey("no-hash", "far")), "a no-hash asset must never be pruned")
+        // Two hashed assets far apart stay pruned as before.
+        XCTAssertFalse(candidates.contains(PairKey("normal", "far")))
+    }
+
+    func testHash64IsNeverZeroForNonEmptyGrid() {
+        // The 0 sentinel must never be produced naturally: uniform grids hash
+        // to all-ones (every cell >= the grid mean), and a varied grid has a
+        // mix of bits.
+        XCTAssertEqual(VisualPreFilter.hash64(from: Array(repeating: 0, count: 64)), UInt64.max)
+        XCTAssertEqual(VisualPreFilter.hash64(from: Array(repeating: 255, count: 64)), UInt64.max)
+        let varied: [UInt8] = (0..<64).map { UInt8(($0 * 4) % 256) }
+        let variedHash = VisualPreFilter.hash64(from: varied)
+        XCTAssertNotEqual(variedHash, 0)
+        XCTAssertNotEqual(variedHash, UInt64.max)
     }
 
     // MARK: Group equivalence with the old pairwise scan

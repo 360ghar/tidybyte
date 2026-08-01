@@ -181,13 +181,20 @@ final class VideoCompressionViewModel {
         // matching the on-screen list instead of nondeterministic Set iteration.
         let orderedIds = sortedBatchIds(
             selected: selectedIds,
-            fileSizes: Dictionary(uniqueKeysWithValues: videos.map { ($0.id, $0.asset.fileSize) })
+            // Idempotent overwrite: PhotoKit identifiers are unique, so a
+            // repeated id (shouldn't happen) just re-records the same size
+            // instead of trapping the scan.
+            fileSizes: videos.reduce(into: [String: Int64]()) { $0[$1.id] = $1.asset.fileSize }
         )
 
         for id in orderedIds {
             // COMP-08: cancellation is checked at the top of every iteration.
             if isCancelled { break }
             guard let index = videos.firstIndex(where: { $0.id == id }) else { continue }
+            // Captured before the await so the failure audit trail below stays
+            // accurate even if the row vanishes from `videos` mid-export.
+            let originalSize = videos[index].asset.fileSize
+            let selectedPresetId = videos[index].selectedPreset.preset
 
             if previouslyCompletedIds.contains(id) {
                 videos[index].compressionState = .keptOriginal(reason: "Already compressed")
@@ -285,13 +292,15 @@ final class VideoCompressionViewModel {
                     videos[idx].compressionState = .failed(error.localizedDescription)
                 }
 
-                // Keep an audit trail of failed compressions too.
+                // Keep an audit trail of failed compressions too. Uses the
+                // values captured before the export so a vanished row can't
+                // degrade the record into a neutral "No savings" row.
                 let failed = CompressionRecord(
                     assetLocalIdentifier: id,
                     replacementAssetLocalIdentifier: nil,
-                    originalSizeBytes: videos.first(where: { $0.id == id })?.asset.fileSize ?? 0,
+                    originalSizeBytes: originalSize,
                     compressedSizeBytes: 0,
-                    exportPreset: videos.first(where: { $0.id == id })?.selectedPreset.preset ?? "",
+                    exportPreset: selectedPresetId,
                     outcome: "failed"
                 )
                 modelContext.insert(failed)

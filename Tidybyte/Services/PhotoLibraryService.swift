@@ -509,8 +509,13 @@ actor PhotoLibraryService {
             for id in identifiers {
                 do {
                     guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
-                        // Unfetchable — treat as not deletable by this call.
-                        failed += 1
+                        // The asset no longer exists in the library (deleted
+                        // externally — e.g. iCloud sync or the Photos app —
+                        // between fetch and delete). The delete's goal state,
+                        // "not in the library", is already satisfied, so count
+                        // it as succeeded instead of scaring the user with a
+                        // bogus "couldn't be deleted" failure.
+                        succeeded += 1
                         continue
                     }
                     try await PHPhotoLibrary.shared().performChanges {

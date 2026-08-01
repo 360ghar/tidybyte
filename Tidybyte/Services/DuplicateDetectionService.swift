@@ -45,18 +45,25 @@ struct PairKey: Hashable, Sendable {
 /// DUP-01/DUP-12: cheap perceptual pre-filter for the visual duplicate scan.
 /// Every asset is hashed to a 64-bit "average hash" (8x8 grayscale luminance
 /// grid, one bit per cell against the grid mean) alongside its feature print.
-/// Pairs whose Hamming distance exceeds `maxHammingDistance` can never be
-/// grouped, so the expensive Vision distance call is skipped for them. The
-/// bound is deliberately loose (8 of 64 bits) so the pre-filter stays
-/// conservative: identical and near-identical photos always survive to the real
-/// comparison, preserving the groups the pairwise scan would produce.
+/// Pairs whose Hamming distance exceeds `maxHammingDistance` are pruned before
+/// the expensive Vision distance call. The bound is a recall/cost tradeoff,
+/// not an exact-equality gate: 12 of 64 bits tolerates small crops, status-bar
+/// / UI drift, and brightness-contrast edits, while only ~1 in 4 million
+/// random pairs pass (at the 12-bit bound), so the pairwise Vision work is
+/// still reduced by orders of magnitude. Assets whose luminance grid failed
+/// (sentinel hash 0) carry NO information and are never pruned — they pair
+/// with everything and the real Vision comparison decides (see
+/// `candidatePairs`).
 enum VisualPreFilter {
-    static let maxHammingDistance = 8
+    static let maxHammingDistance = 12
 
     /// Pairs within the Hamming bound still go through the real Vision
-    /// comparison; only pairs beyond the bound are pruned.
+    /// comparison; only pairs beyond the bound are pruned. The sentinel (0)
+    /// carries no hash information, so it is never pruned — matching
+    /// `candidatePairs`'s rule (see the enum doc).
     static func shouldCompare(_ lhs: UInt64, _ rhs: UInt64) -> Bool {
-        hammingDistance(lhs, rhs) <= maxHammingDistance
+        if lhs == 0 || rhs == 0 { return true }
+        return hammingDistance(lhs, rhs) <= maxHammingDistance
     }
 
     static func hammingDistance(_ lhs: UInt64, _ rhs: UInt64) -> Int {
@@ -100,24 +107,40 @@ enum VisualPreFilter {
     }
 
     /// All candidate pairs whose Hamming distance is within the bound, without
-    /// comparing every pair: each hash is split into four 16-bit chunks. If two
-    /// hashes differ in at most 8 bits total, at least one chunk differs in at
-    /// most 2 bits, so bucketing each chunk's 2-bit neighborhood surfaces every
-    /// in-bound pair (and only those).
+    /// comparing every pair: each hash is split into eight 8-bit chunks. If two
+    /// hashes differ in at most `maxHammingDistance` (12) bits total, at least
+    /// one chunk differs in at most 1 bit, so bucketing each chunk's 1-bit
+    /// neighborhood surfaces every in-bound pair; the Hamming re-check below
+    /// keeps the returned set exact. Assets with the 0 sentinel hash
+    /// (luminance grid failed) are paired with every other asset: no
+    /// information means no pruning.
     static func candidatePairs(_ hashes: [String: UInt64]) -> Set<PairKey> {
         guard hashes.count > 1 else { return [] }
-        let chunkCount = 4
-        let chunkWidth = 16
-        let chunkRadius = 2
+        // Eight 8-bit chunks with a 1-bit radius are complete for the 12-bit
+        // bound (a pair within the bound has some chunk differing in <= 1 bit)
+        // at a fraction of the cost of wider chunks: 72 bucket lookups per
+        // asset instead of ~2,800.
+        let chunkCount = 8
+        let chunkWidth = 8
+        let chunkRadius = 1
         var buckets: [Int: [String]] = [:]
         var pairs = Set<PairKey>()
+        // The radius-1 neighborhood is 9 values per 8-bit chunk value (at most
+        // 256 distinct per chunk), so the memoization stays tiny and the
+        // enumeration runs once per distinct value, not once per asset.
+        var nearCache: [Int: [Int]] = [:]
 
         for (id, hash) in hashes {
             for chunk in 0..<chunkCount {
-                let value = Int((hash >> UInt64(chunkWidth * chunk)) & 0xFFFF)
+                let value = Int((hash >> UInt64(chunkWidth * chunk)) & 0xFF)
                 let baseKey = chunk * (1 << chunkWidth)
-                for near in nearValues(to: value, radius: chunkRadius) {
-                    let key = baseKey + near
+                let near = nearCache[value] ?? {
+                    let values = nearValues(to: value, radius: chunkRadius, width: chunkWidth)
+                    nearCache[value] = values
+                    return values
+                }()
+                for candidate in near {
+                    let key = baseKey + candidate
                     if let earlier = buckets[key] {
                         for other in earlier where other != id {
                             guard let otherHash = hashes[other] else { continue }
@@ -130,19 +153,42 @@ enum VisualPreFilter {
                 buckets[baseKey + value, default: []].append(id)
             }
         }
+
+        // Sentinel: an asset with hash 0 has NO hash — it must never be pruned,
+        // so pair it with every other asset and let the Vision comparison
+        // decide. (Grid failures are rare; the cost is a handful of extra
+        // pairwise comparisons, and the alternative — silently dropping
+        // potentially-duplicate assets — is worse.)
+        let sentinelIds = hashes.compactMap { $0.value == 0 ? $0.key : nil }
+        for sentinel in sentinelIds {
+            for (id, _) in hashes where id != sentinel {
+                pairs.insert(PairKey(sentinel, id))
+            }
+        }
         return pairs
     }
 
-    /// Every 16-bit value within Hamming distance `radius` (inclusive).
-    static func nearValues(to value: Int, radius: Int) -> [Int] {
+    /// Every `width`-bit value within Hamming distance `radius` (inclusive).
+    static func nearValues(to value: Int, radius: Int, width: Int = 16) -> [Int] {
         var result: [Int] = [value]
-        for bit in 0..<16 {
-            result.append(value ^ (1 << bit))
+        if radius >= 1 {
+            for bit in 0..<width {
+                result.append(value ^ (1 << bit))
+            }
         }
         if radius >= 2 {
-            for first in 0..<16 {
-                for second in (first + 1)..<16 {
+            for first in 0..<width {
+                for second in (first + 1)..<width {
                     result.append(value ^ (1 << first) ^ (1 << second))
+                }
+            }
+        }
+        if radius >= 3 {
+            for first in 0..<width {
+                for second in (first + 1)..<width {
+                    for third in (second + 1)..<width {
+                        result.append(value ^ (1 << first) ^ (1 << second) ^ (1 << third))
+                    }
                 }
             }
         }
@@ -284,9 +330,15 @@ actor DuplicateDetectionService {
         // DUP-01: pre-filter the comparison set — only pairs whose perceptual
         // hash is within the loose Hamming bound can be duplicates, so the
         // expensive Vision distance call is skipped for every other pair.
-        let candidateSet = VisualPreFilter.candidatePairs(
-            Dictionary(uniqueKeysWithValues: featurePrints.map { ($0.asset.id, $0.hash) })
-        )
+        // The map is built defensively: PhotoKit identifiers are unique, but a
+        // trap on a duplicate key would kill the whole scan — keep the FIRST
+        // hash for a repeated id instead of crashing.
+        let hashesByAsset = featurePrints.reduce(into: [String: UInt64]()) { result, entry in
+            if result[entry.asset.id] == nil {
+                result[entry.asset.id] = entry.hash
+            }
+        }
+        let candidateSet = VisualPreFilter.candidatePairs(hashesByAsset)
 
         // Phase 2 (generationWeight → 1): greedy grouping, unchanged semantics
         // (same anchor order, same threshold, same visited handling).

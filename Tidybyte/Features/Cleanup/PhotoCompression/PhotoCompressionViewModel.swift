@@ -183,13 +183,16 @@ final class PhotoCompressionViewModel {
         // matching the on-screen list instead of nondeterministic Set iteration.
         let orderedIds = sortedBatchIds(
             selected: selectedIds,
-            fileSizes: Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0.asset.fileSize) })
+            fileSizes: photos.reduce(into: [String: Int64]()) { $0[$1.id] = $1.asset.fileSize }
         )
 
         for id in orderedIds {
             // COMP-08: cancellation is checked at the top of every iteration.
             if isCancelled { break }
             guard let index = photos.firstIndex(where: { $0.id == id }) else { continue }
+            // Captured before the await so the failure audit trail below stays
+            // accurate even if the row vanishes from `photos` mid-export.
+            let originalSize = photos[index].asset.fileSize
 
             if previouslyCompletedIds.contains(id) {
                 photos[index].compressionState = .keptOriginal(reason: "Already compressed")
@@ -283,10 +286,12 @@ final class PhotoCompressionViewModel {
                     photos[idx].compressionState = .failed(error.localizedDescription)
                 }
 
+                // Uses the size captured before the export so a vanished row
+                // can't degrade the record into a neutral "No savings" row.
                 let failed = CompressionRecord(
                     assetLocalIdentifier: id,
                     replacementAssetLocalIdentifier: nil,
-                    originalSizeBytes: photos.first(where: { $0.id == id })?.asset.fileSize ?? 0,
+                    originalSizeBytes: originalSize,
                     compressedSizeBytes: 0,
                     exportPreset: preset.id,
                     outcome: "failed",

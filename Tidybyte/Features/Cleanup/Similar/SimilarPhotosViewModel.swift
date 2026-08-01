@@ -129,11 +129,12 @@ final class SimilarPhotosViewModel {
             if Task.isCancelled { scanState = .idle; return }
             let (subgroups, quality) = await visuallyCoherentSubgroups(from: cluster, threshold: threshold)
             for subgroup in subgroups {
-                let subgroupQuality = Dictionary(
-                    uniqueKeysWithValues: subgroup.compactMap { asset in
-                        quality[asset.id].map { (asset.id, $0) }
+                // First-wins so a duplicated id can't trap the scan.
+                let subgroupQuality = subgroup.reduce(into: [String: AssetQuality]()) { result, asset in
+                    if let score = quality[asset.id], result[asset.id] == nil {
+                        result[asset.id] = score
                     }
-                )
+                }
                 let pick = selectBest(from: subgroup, quality: subgroupQuality)
                 foundGroups.append(SimilarGroup(
                     id: UUID().uuidString,
@@ -341,7 +342,13 @@ final class SimilarPhotosViewModel {
                 let r = $1.creationDate ?? .distantPast
                 return l == r ? $0.id < $1.id : l < r
             }
-            return Dictionary(uniqueKeysWithValues: ordered.enumerated().map { ($1.id, $0) })
+            // First-wins so a duplicated id can't trap the scan; earliest
+            // rank is the one the sort produced.
+            return ordered.enumerated().reduce(into: [String: Int]()) { result, entry in
+                if result[entry.element.id] == nil {
+                    result[entry.element.id] = entry.offset
+                }
+            }
         }()
 
         func sharpness(_ asset: AssetSummary) -> Float { quality[asset.id]?.sharpness ?? 0.5 }

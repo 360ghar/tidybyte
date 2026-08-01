@@ -9,6 +9,10 @@ struct CardView: View {
 
     @State private var image: UIImage?
     @State private var player: AVPlayer?
+    /// The in-flight player-item load, tracked so `stopPlayback` can cancel it:
+    /// without cancellation, a load started on the top card would still create
+    /// a playing player after the card was swiped away (SWIPE-07).
+    @State private var loadTask: Task<Void, Never>?
 
     var dragOffset: CGSize = .zero
 
@@ -174,6 +178,15 @@ struct CardView: View {
             // and its buffers aren't retained (SWIPE-07).
             stopPlayback()
         }
+        .onChange(of: isTopCard) { _, newValue in
+            // The card stopped leading the deck (swiped or advanced) — tear
+            // down playback AND cancel any in-flight load so a load started on
+            // the top card can't finish into a playing player on an off-top
+            // card (SWIPE-07).
+            if !newValue {
+                stopPlayback()
+            }
+        }
         .onChange(of: dragOffset) { _, newValue in
             // The user started dragging the card — stop playback so the video
             // doesn't keep playing under the swipe (SWIPE-07).
@@ -193,9 +206,14 @@ struct CardView: View {
     }
 
     private func startPlayback() {
-        guard player == nil else { return }
-        Task {
+        guard player == nil, isTopCard else { return }
+        loadTask?.cancel()
+        loadTask = Task {
             guard let box = await photoService.loadPlayerItem(for: asset.id) else { return }
+            // The card may have been swiped away while the item was loading;
+            // the isTopCard/drag/disappear teardowns above cancel this task —
+            // respect that instead of creating a playing player off-screen.
+            guard !Task.isCancelled else { return }
             let newPlayer = AVPlayer(playerItem: box.value)
             player = newPlayer
             newPlayer.play()
@@ -203,6 +221,8 @@ struct CardView: View {
     }
 
     private func stopPlayback() {
+        loadTask?.cancel()
+        loadTask = nil
         player?.pause()
         player = nil
     }

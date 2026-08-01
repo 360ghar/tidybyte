@@ -40,6 +40,11 @@ final class CompressionRecord {
     /// and shown as failures, not as huge green savings (COMP-01).
     var succeeded: Bool { outcome == "completed" }
 
+    /// True when the record represents a failed compression. Distinct from
+    /// `succeeded` (which is false for both failures AND intentional skips):
+    /// skipped records are not failures and must not render a red badge.
+    var isFailed: Bool { outcome == "failed" }
+
     /// Space reclaimed by this record. Failed records contribute zero.
     var savedBytes: Int64 {
         succeeded ? max(0, originalSizeBytes - compressedSizeBytes) : 0
