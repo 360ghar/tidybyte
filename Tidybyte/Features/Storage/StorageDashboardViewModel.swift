@@ -13,6 +13,7 @@ struct StorageCategory: Identifiable, Sendable {
 enum StorageAction: Sendable {
     case cleanup(CleanupTool)
     case swipe(SwipeFilter)
+    case activity
 }
 
 /// A reclaimable bucket: estimated bytes that could be freed, plus where to tap to do it.
@@ -57,15 +58,35 @@ final class StorageDashboardViewModel {
     /// Reclaimable wins — disjoint buckets sorted largest-first.
     var wins: [ReclaimWin] = []
 
+    /// Lifetime cleanup savings, mirrored from the ledger for the "Your
+    /// Savings" entry card (reconciled on every load).
+    var lifetimeFreedBytes: Int64 = 0
+    var lifetimeItemCount: Int = 0
+
     /// Breakdowns for the "Where Your Storage Goes" card.
     var byYear: [StorageBreakdownBucket] = []
     var bySource: [StorageBreakdownBucket] = []
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
 
     private var hasLoaded = false
     private var syncedGeneration = Int.min
+    /// Tail of a task chain. Every enumeration enqueues behind the previous
+    /// one, so concurrent callers (pull-to-refresh + generation sync) can never
+    /// enumerate the library simultaneously (A4). Finished handles are left in
+    /// place deliberately — awaiting a completed task returns immediately.
     private var syncTask: Task<Void, Never>?
+
+    /// Runs `work` after every previously-enqueued work item completes.
+    private func enqueue(_ work: @escaping @MainActor () async -> Void) async {
+        let previous = syncTask
+        let task = Task {
+            await previous?.value
+            await work()
+        }
+        syncTask = task
+        await task.value
+    }
 
     var totalLibrarySize: Int64 {
         categories.reduce(0) { $0 + $1.bytes }
@@ -89,24 +110,19 @@ final class StorageDashboardViewModel {
 
     /// Generation-aware entry point driven by `.task(id: monitor.generation)`:
     /// loads on first call, refreshes when the library generation advances, and
-    /// no-ops otherwise. The work runs in an unstructured Task so it survives
-    /// `.task` cancellation when the user switches tabs mid-fetch; the stored
-    /// handle serializes re-entrant callers.
+    /// no-ops otherwise. Work runs in an unstructured Task so it survives
+    /// `.task` cancellation when the user switches tabs mid-fetch.
     func sync(to generation: Int, modelContext: ModelContext) async {
-        if let syncTask { await syncTask.value }
         guard !(hasLoaded && generation == syncedGeneration) else { return }
         syncedGeneration = generation
-        let task = Task {
-            if hasLoaded {
-                await refresh(modelContext: modelContext)
-            } else {
-                await load(modelContext: modelContext)
-                hasLoaded = true
+        if hasLoaded {
+            await enqueue { await self.reload(modelContext: modelContext) }
+        } else {
+            await enqueue {
+                await self.load(modelContext: modelContext)
+                self.hasLoaded = true
             }
         }
-        syncTask = task
-        await task.value
-        syncTask = nil
     }
 
     func load(modelContext: ModelContext) async {
@@ -117,15 +133,11 @@ final class StorageDashboardViewModel {
 
     /// Re-fetches all dashboard data WITHOUT flipping `isLoading`, so existing content
     /// stays visible under the pull-to-refresh spinner instead of swapping to skeletons.
-    /// APP-16: serialized through the same `syncTask` dedup as `sync(to:)` so a
-    /// pull-to-refresh can't enumerate the library concurrently with a
+    /// APP-16/A4: serialized through the same task chain as `sync(to:)` so a
+    /// pull-to-refresh can never enumerate the library concurrently with a
     /// generation-driven reload.
     func refresh(modelContext: ModelContext) async {
-        if let syncTask { await syncTask.value }
-        let task = Task { await reload(modelContext: modelContext) }
-        syncTask = task
-        await task.value
-        syncTask = nil
+        await enqueue { await self.reload(modelContext: modelContext) }
     }
 
     /// Shared data-loading body for both `load` and `refresh`.
@@ -140,6 +152,16 @@ final class StorageDashboardViewModel {
 
         fetchDeviceStorage()
         fetchSnapshots(modelContext: modelContext)
+        fetchLifetimeSavings(modelContext: modelContext)
+    }
+
+    /// Reads the lifetime cleanup totals for the "Your Savings" card, and
+    /// reconciles the cached copy on the way through (this screen is the entry
+    /// point to Activity, so the two must agree the moment it loads).
+    private func fetchLifetimeSavings(modelContext: ModelContext) {
+        let summary = CleanupLedger.shared.refreshCache(modelContext: modelContext)
+        lifetimeFreedBytes = summary.lifetimeFreedBytes
+        lifetimeItemCount = summary.lifetimeItemCount
     }
 
     private func buildCategories(from assets: [AssetSummary]) {

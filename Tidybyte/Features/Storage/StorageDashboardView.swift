@@ -22,9 +22,12 @@ struct StorageDashboardView: View {
                 dashboardSkeleton
             } else {
                 VStack(spacing: Spacing.xl) {
+                    savingsSection
+                        .fadeSlideIn(delay: 0.0)
+
                     if !viewModel.wins.isEmpty {
                         reclaimHeroSection
-                            .fadeSlideIn(delay: 0.0)
+                            .fadeSlideIn(delay: 0.05)
                     }
 
                     recentlyDeletedSection
@@ -65,8 +68,11 @@ struct StorageDashboardView: View {
 
     private var dashboardSkeleton: some View {
         VStack(spacing: Spacing.xl) {
-            reclaimHeroSkeleton
+            savingsSkeleton
                 .fadeSlideIn(delay: 0.0)
+
+            reclaimHeroSkeleton
+                .fadeSlideIn(delay: 0.05)
 
             storageBreakdownSkeleton
                 .fadeSlideIn(delay: 0.05)
@@ -88,6 +94,16 @@ struct StorageDashboardView: View {
         }
         .padding(Spacing.lg)
         .readableWidth()
+    }
+
+    private var savingsSkeleton: some View {
+        GlassCard {
+            VStack(spacing: Spacing.md) {
+                SkeletonBar(width: 140, height: 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                SkeletonBar(height: 16)
+            }
+        }
     }
 
     private var reclaimHeroSkeleton: some View {
@@ -341,6 +357,60 @@ struct StorageDashboardView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Your Savings
+
+    /// Entry point into Activity & Savings. Always rendered (unlike the reclaim
+    /// hero, which needs data-backed wins) so the feature is discoverable before
+    /// the user has cleaned anything.
+    private var savingsSection: some View {
+        GlassCard {
+            Button {
+                HapticHelper.impact(.light)
+                handle(.activity)
+            } label: {
+                HStack(spacing: Spacing.md) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.title3)
+                        .foregroundStyle(.green)
+                        .frame(width: 32)
+
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Your Savings")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.primary)
+                        if viewModel.lifetimeItemCount > 0 {
+                            // "Zero KB freed" would be misleading — the items
+                            // really were cleaned, their sizes just weren't
+                            // readable (iCloud-only assets report 0 bytes).
+                            Text("\(savingsHeadline) · \(viewModel.lifetimeItemCount) items cleaned")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Track everything you clean up over time")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, Spacing.xs)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// "X freed" when a size is known, otherwise an honest size-free label.
+    private var savingsHeadline: String {
+        viewModel.lifetimeFreedBytes > 0
+            ? "\(viewModel.lifetimeFreedBytes.formattedFileSize) freed"
+            : "Sizes unavailable"
     }
 
     // MARK: - Recently Deleted
@@ -798,6 +868,8 @@ struct StorageDashboardView: View {
             appNavigation.showCleanup(tool: tool)
         case .swipe(let filter):
             appNavigation.showSwipeSession(filter: filter)
+        case .activity:
+            appNavigation.showActivity()
         }
     }
 }

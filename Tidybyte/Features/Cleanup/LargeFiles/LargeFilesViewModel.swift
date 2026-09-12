@@ -21,7 +21,9 @@ final class LargeFilesViewModel {
     }
     var isLoading = true
     private(set) var hasLoadedAssets = false
-    var selectedIds: Set<String> = []
+    var selectedIds: Set<String> = [] {
+        didSet { refreshTotals() }
+    }
     var mediaFilter: LargeFileFilter = .all {
         didSet { invalidateFilterCache() }
     }
@@ -48,7 +50,7 @@ final class LargeFilesViewModel {
         set { AppPreferences.saveLargeFileThresholdMB(newValue) }
     }
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
 
     var thresholdBytes: Int64 {
         // Delegate to the shared helper so this stays in lockstep with any other
@@ -80,9 +82,13 @@ final class LargeFilesViewModel {
 
     var filteredAssets: [AssetSummary] {
         let threshold = thresholdBytes
-        if !cacheDirty, let cached = cachedFiltered, cachedThreshold == threshold {
-            return cached
+        if cacheDirty || cachedFiltered == nil || cachedThreshold != threshold {
+            rebuildFiltered(threshold: threshold)
         }
+        return cachedFiltered ?? []
+    }
+
+    private func rebuildFiltered(threshold: Int64) {
         let result = Self.computeFilteredAssets(
             from: assets,
             threshold: threshold,
@@ -92,11 +98,33 @@ final class LargeFilesViewModel {
         cachedFiltered = result
         cachedThreshold = threshold
         cacheDirty = false
-        return result
+        refreshTotals(from: result)
+    }
+
+    /// Memoized totals (C13): `totalSize`/`selectedSize`/`selectedVisibleCount`
+    /// each reduced the filtered array on every render. Refreshed eagerly —
+    /// from `rebuildFiltered()` and from the `selectedIds` didSet — so the
+    /// cached values can never go stale between filter invalidations.
+    private(set) var cachedTotalSize: Int64 = 0
+    private(set) var cachedSelectedSize: Int64 = 0
+    private(set) var cachedSelectedVisibleCount = 0
+
+    private func refreshTotals() {
+        refreshTotals(from: filteredAssets)
+    }
+
+    private func refreshTotals(from visible: [AssetSummary]) {
+        cachedTotalSize = visible.reduce(0) { $0 + $1.fileSize }
+        cachedSelectedSize = visible.totalFileSize(selectedIds: selectedIds)
+        cachedSelectedVisibleCount = visible.reduce(0) { $0 + (selectedIds.contains($1.id) ? 1 : 0) }
     }
 
     private func invalidateFilterCache() {
         cacheDirty = true
+        // Eager rebuild: assets/filter/sort mutations are infrequent (load,
+        // delete, control changes), and this keeps the cached totals exact on
+        // the very next render instead of one pass behind.
+        refreshTotals()
     }
 
     /// Pure filter+sort pipeline so the cached getter stays a thin wrapper and
@@ -128,16 +156,15 @@ final class LargeFilesViewModel {
     }
 
     var totalSize: Int64 {
-        filteredAssets.reduce(0) { $0 + $1.fileSize }
+        cachedTotalSize
     }
 
     var selectedSize: Int64 {
-        filteredAssets.filter { selectedIds.contains($0.id) }
-            .reduce(0) { $0 + $1.fileSize }
+        cachedSelectedSize
     }
 
     var selectedVisibleCount: Int {
-        filteredAssets.filter { selectedIds.contains($0.id) }.count
+        cachedSelectedVisibleCount
     }
 
     var areAllVisibleSelected: Bool {
@@ -194,34 +221,48 @@ final class LargeFilesViewModel {
     }
 
     func deleteSelected() async {
-        guard !selectedIds.isEmpty, !isDeleting else { return }
+        let visibleSelectedIds = Set(filteredAssets.map(\.id)).intersection(selectedIds)
+        guard !visibleSelectedIds.isEmpty, !isDeleting else { return }
         errorMessage = nil
         isDeleting = true
-        do {
-            let visibleSelectedIds = Set(filteredAssets.map(\.id)).intersection(selectedIds)
-            try await photoService.deleteAssets(identifiers: Array(visibleSelectedIds))
-            assets.removeAll { visibleSelectedIds.contains($0.id) }
-            selectedIds.removeAll()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isDeleting = false
+        defer { isDeleting = false }
+        // Freed bytes must be attributed from the pre-delete metadata — these
+        // are the largest files in the library, so under-reporting here would
+        // visibly understate the savings screen.
+        let sizeById = assets.reduce(into: [String: Int64]()) { $0[$1.id] = $1.fileSize }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: visibleSelectedIds,
+            kind: .largeFiles,
+            sizeById: sizeById,
+            apply: { deletedIds in
+                assets.removeAll { deletedIds.contains($0.id) }
+                selectedIds.subtract(deletedIds)
+            }
+        )
+        errorMessage = outcome.errorMessage
     }
 
     /// Deletes a single asset (used by the per-row trash button and the
     /// in-preview Delete action). Leaves selection mode untouched.
-    func deleteAsset(id: String) async {
-        guard !isDeleting else { return }
+    func deleteAsset(id: String) async -> Bool {
+        guard !isDeleting else { return !assets.contains(where: { $0.id == id }) }
         errorMessage = nil
         isDeleting = true
-        do {
-            try await photoService.deleteAssets(identifiers: [id])
-            assets.removeAll { $0.id == id }
-            selectedIds.remove(id)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isDeleting = false
+        defer { isDeleting = false }
+        let sizeById = assets.reduce(into: [String: Int64]()) { $0[$1.id] = $1.fileSize }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: [id],
+            kind: .largeFiles,
+            sizeById: sizeById,
+            apply: {
+                // Reconcile exactly what was deleted before surfacing the error.
+                guard $0.contains(id) else { return }
+                assets.removeAll { $0.id == id }
+                selectedIds.remove(id)
+            }
+        )
+        errorMessage = outcome.errorMessage
+        return !assets.contains(where: { $0.id == id })
     }
 
     // MARK: - Share / Export
@@ -233,6 +274,11 @@ final class LargeFilesViewModel {
         guard !ids.isEmpty, !isPreparingShare else { return }
         isPreparingShare = true
         shareProgress = (0, ids.count)
+        // D10 (LF-09 residual): sweep leftovers from previous sessions FIRST —
+        // e.g. an export that finished after the user navigated back, whose
+        // payload was set on a VM whose sheet never appeared. Serialized with
+        // the new export by `isPreparingShare`, so nothing live is removed.
+        Self.removeOrphanedShareExportFolders()
         // Strong capture (LF-09): the VM stays alive for the whole export so the
         // cleanup below always runs, even if the owning view is torn down while
         // the export is in flight.

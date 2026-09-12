@@ -2,782 +2,873 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Blog &mdash; iPhone Photo Cleanup Tips &amp; Guides | TidyByte</title>
-  <meta name="description" content="54 expert guides on iPhone photo management. Learn how to free up storage, delete duplicates, compress videos, and clean up your photo library.">
+  <title>Blog &mdash; iPhone Photo Cleanup Tips & Guides | TidyByte</title>
+  <meta name="description" content="45 expert guides on iPhone photo management. Learn how to free up storage, delete duplicates, compress videos, and clean up your photo library.">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#fffaf0">
   <meta name="robots" content="index, follow">
   <meta name="author" content="TidyByte">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="TidyByte">
   <meta property="og:locale" content="en_US">
-  <meta property="og:title" content="Blog &mdash; iPhone Photo Cleanup Tips &amp; Guides | TidyByte">
-  <meta property="og:description" content="54 expert guides on iPhone photo management. Free up storage, delete duplicates, compress videos, and clean up your photo library.">
+  <meta property="og:title" content="Blog &mdash; iPhone Photo Cleanup Tips & Guides | TidyByte">
+  <meta property="og:description" content="45 expert guides on iPhone photo management. Learn how to free up storage, delete duplicates, compress videos, and clean up your photo library.">
   <meta property="og:image" content="https://tidybyte.360ghar.com/assets/img/icon-1024.png">
   <meta property="og:image:width" content="1024">
-  <meta property="og:image:height" content="1024">
-  <meta property="og:image:alt" content="TidyByte &mdash; Free iPhone app to clean your photo library">
+  <meta property="og:image:height" content="630">
   <meta property="og:url" content="https://tidybyte.360ghar.com/blog">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Blog &mdash; iPhone Photo Cleanup Tips &amp; Guides | TidyByte">
-  <meta name="twitter:description" content="54 expert guides on iPhone photo management. Free up storage, delete duplicates, compress videos, and clean up your photo library.">
+  <meta name="twitter:title" content="Blog &mdash; iPhone Photo Cleanup Tips & Guides | TidyByte">
+  <meta name="twitter:description" content="45 expert guides on iPhone photo management. Learn how to free up storage, delete duplicates, compress videos, and clean up your photo library.">
   <meta name="twitter:image" content="https://tidybyte.360ghar.com/assets/img/icon-1024.png">
 
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
   <link rel="canonical" href="https://tidybyte.360ghar.com/blog">
   <link rel="stylesheet" href="/assets/css/styles.css">
+  <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/nav.js" defer></script>
+  <script src="/assets/js/site.js" defer></script>
   <script src="/assets/js/blog.js" defer></script>
 
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Blog",
-    "name": "TidyByte Blog",
-    "description": "54 expert guides on iPhone photo management, storage cleanup, and photo organization.",
-    "url": "https://tidybyte.360ghar.com/blog",
-    "publisher": {
-      "@type": "Organization",
-      "name": "TidyByte",
-      "url": "https://tidybyte.360ghar.com",
-      "logo": "https://tidybyte.360ghar.com/assets/img/icon-1024.png"
-    }
-  }
-  </script>
-
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Home",
-        "item": "https://tidybyte.360ghar.com/"
-      },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "Blog",
-        "item": "https://tidybyte.360ghar.com/blog"
-      }
-    ]
-  }
-  </script>
-
-  <style>
-    .filter-btn { transition: all 0.15s ease; }
-    .filter-btn.active { background-color: rgba(10, 132, 255, 0.15); color: #0A84FF; border-color: rgba(10, 132, 255, 0.4); }
-    .blog-post.hidden { display: none; }
-    .pagination-btn { transition: all 0.15s ease; }
-    .pagination-btn.active { background-color: #0A84FF; color: white; border-color: #0A84FF; }
-    .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-  </style>
 </head>
-<body>
-  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-semibold focus:text-white">Skip to content</a>
 
-  <header class="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/70 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
-    <div class="container-prose flex h-14 items-center justify-between">
-      <a href="/" class="text-base font-semibold tracking-tight text-zinc-50">TidyByte</a>
-      <nav aria-label="Primary" class="hidden items-center gap-6 text-sm md:flex">
-        <a href="/#features" class="text-zinc-300 transition hover:text-white">Features</a>
-        <a href="/blog" class="text-zinc-300 transition hover:text-white" aria-current="page">Blog</a>
-        <a href="/#faq" class="text-zinc-300 transition hover:text-white">FAQ</a>
-        <a href="/changelog" class="text-zinc-300 transition hover:text-white">Changelog</a>
-        <a href="/support" class="text-zinc-300 transition hover:text-white">Support</a>
-        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="text-zinc-300 transition hover:text-white" aria-label="TidyByte on GitHub">
-          <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
-        </a>
-      </nav>
-      <button type="button" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Toggle menu" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-100 transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-accent/50 md:hidden">
-        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+<body>
+<a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-primary focus:px-3 focus:py-1.5 focus:text-sm focus:font-semibold focus:text-on-primary">Skip to content</a>
+<!-- BEGIN:header -->
+<!-- Sticky header: logo left, nav centre (md+), CTA + theme toggle + menu right.
+     Theme toggle + popover markup is byte-identical to the previous index.html
+     (data-theme-toggle / data-theme-menu / data-theme-option / data-theme-dot),
+     with focus classes normalised to focus-visible + clay-pink ring (a11y fix). -->
+<header class="sticky top-0 z-40 border-b border-hairline bg-canvas/85 backdrop-blur">
+  <div class="container-prose flex h-16 items-center justify-between gap-2 sm:gap-4">
+    <a href="/" class="font-display text-lg font-semibold tracking-tight text-ink">TidyByte<span aria-hidden="true" class="text-clay-pink">.</span></a>
+
+    <nav aria-label="Primary" class="hidden items-center gap-1 md:flex">
+      <a href="/#features" class="nav-link">Features</a>
+      <a href="/#how-it-works" class="nav-link">How it works</a>
+      <a href="/blog" class="nav-link">Blog</a>
+      <a href="/#faq" class="nav-link">FAQ</a>
+      <a href="/changelog" class="nav-link">Changelog</a>
+      <a href="/support" class="nav-link">Support</a>
+      <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="nav-link" aria-label="TidyByte on GitHub">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
+      </a>
+    </nav>
+
+    <div class="flex items-center gap-1 sm:gap-1.5">
+      <!-- Theme toggle: Light / Dark / System -->
+      <div class="relative">
+        <button type="button" data-theme-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Change color theme" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-body transition hover:bg-surface-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
+          <svg data-theme-icon="sun" aria-hidden="true" focusable="false" class="block dark:hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg data-theme-icon="moon" aria-hidden="true" focusable="false" class="hidden dark:block" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+        </button>
+        <div data-theme-menu role="menu" aria-label="Color theme" class="hidden absolute right-0 top-11 z-50 w-36 rounded-xl border border-hairline bg-surface-card p-1 shadow-pop">
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="light" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
+            <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            Light
+            <span data-theme-dot aria-hidden="true" class="ml-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
+          </button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="dark" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
+            <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+            Dark
+            <span data-theme-dot aria-hidden="true" class="ml-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
+          </button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="system" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
+            <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            System
+            <span data-theme-dot aria-hidden="true" class="ml-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- CTA: visible on every viewport; compact sizing on small screens.
+           Plain utilities override the btn-primary component layer. -->
+      <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" target="_blank" rel="noopener" class="btn-primary gap-1.5 px-3 py-2 text-xs sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm">
+        <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+        Get the app
+      </a>
+
+      <button type="button" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Toggle menu" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition hover:bg-surface-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50 md:hidden">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
       </button>
     </div>
-    <div id="mobile-menu" data-mobile-menu class="hidden border-t border-white/5 md:hidden">
-      <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
-        <a href="/#features" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Features</a>
-        <a href="/blog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5" aria-current="page">Blog</a>
-        <a href="/#faq" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">FAQ</a>
-        <a href="/changelog" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Changelog</a>
-        <a href="/support" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">Support</a>
-        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="rounded-lg px-3 py-2 text-zinc-200 transition hover:bg-white/5">GitHub &rarr;</a>
-      </nav>
+  </div>
+
+  <div id="mobile-menu" data-mobile-menu class="hidden border-t border-hairline md:hidden">
+    <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
+      <a href="/#features" class="nav-link">Features</a>
+      <a href="/#how-it-works" class="nav-link">How it works</a>
+      <a href="/blog" class="nav-link">Blog</a>
+      <a href="/#faq" class="nav-link">FAQ</a>
+      <a href="/changelog" class="nav-link">Changelog</a>
+      <a href="/support" class="nav-link">Support</a>
+      <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="nav-link">GitHub &rarr;</a>
+    </nav>
+  </div>
+</header>
+<!-- END:header -->
+
+  <main id="main">
+    <div class="container-prose pt-10 text-center sm:pt-14">
+      <p class="eyebrow">Blog</p>
+      <h1 class="h-display mt-3">iPhone photo cleanup guides.</h1>
+      <p class="lede mx-auto mt-5 max-w-prose">45 expert tips on freeing up storage, finding duplicates, compressing videos, and organizing your photo library &mdash; all using free, on-device tools.</p>
     </div>
-  </header>
 
-  <nav aria-label="Breadcrumb" class="container-prose pt-6 text-sm">
-    <ol class="flex items-center gap-2 text-zinc-400">
-      <li><a href="/" class="hover:text-zinc-100">Home</a></li>
-      <li aria-hidden="true">/</li>
-      <li class="text-zinc-100" aria-current="page">Blog</li>
-    </ol>
-  </nav>
-
-  <main id="main" class="section">
-    <div class="container-prose">
-      <header class="mx-auto max-w-2xl text-center">
-        <p class="badge mx-auto mb-5">Blog</p>
-        <h1 class="h-display">iPhone photo cleanup guides.</h1>
-        <p class="lede mt-5">54 expert tips on freeing up storage, finding duplicates, compressing videos, and organizing your photo library &mdash; all using free, on-device tools.</p>
-      </header>
-
-      <!-- Category Filters -->
       <div class="mx-auto mt-10 max-w-3xl">
         <div class="flex flex-wrap items-center justify-center gap-2" role="group" aria-label="Filter by category">
-          <button class="filter-btn active rounded-full border border-white/10 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:text-white" data-filter="all">All (54)</button>
-          <button class="filter-btn rounded-full border border-white/10 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:text-white" data-filter="tutorials">Tutorials</button>
-          <button class="filter-btn rounded-full border border-white/10 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:text-white" data-filter="comparisons">Comparisons</button>
-          <button class="filter-btn rounded-full border border-white/10 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:text-white" data-filter="features">Features</button>
-          <button class="filter-btn rounded-full border border-white/10 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:text-white" data-filter="storage">Storage</button>
-          <button class="filter-btn rounded-full border border-white/10 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:text-white" data-filter="privacy">Privacy</button>
-          <button class="filter-btn rounded-full border border-white/10 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:text-white" data-filter="reviews">Reviews</button>
+          <button class="inline-flex cursor-pointer items-center rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-on-primary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" data-filter="all" aria-pressed="true">All (45)</button>
+          <button class="badge cursor-pointer px-4 py-1.5 text-sm font-medium transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" data-filter="tutorials" aria-pressed="false">Tutorials (29)</button>
+          <button class="badge cursor-pointer px-4 py-1.5 text-sm font-medium transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" data-filter="comparisons" aria-pressed="false">Comparisons (9)</button>
+          <button class="badge cursor-pointer px-4 py-1.5 text-sm font-medium transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" data-filter="features" aria-pressed="false">Features (6)</button>
+          <button class="badge cursor-pointer px-4 py-1.5 text-sm font-medium transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" data-filter="storage" aria-pressed="false">Storage (8)</button>
+          <button class="badge cursor-pointer px-4 py-1.5 text-sm font-medium transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" data-filter="privacy" aria-pressed="false">Privacy (5)</button>
+          <button class="badge cursor-pointer px-4 py-1.5 text-sm font-medium transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" data-filter="reviews" aria-pressed="false">Reviews (7)</button>
         </div>
-        <p class="muted mt-3 text-center text-sm" id="result-count">Showing all 54 guides</p>
+        <p class="muted mt-3 text-center text-sm" id="result-count">45 posts</p>
       </div>
 
-      <!-- Blog Posts Grid -->
-      <div class="mx-auto mt-10 max-w-3xl space-y-6" id="blog-list">
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="privacy">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/are-photo-cleaner-apps-safe" class="hover:text-accent transition">Are Photo Cleaner Apps Safe? Privacy Guide</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Are photo cleaner apps safe? Learn what permissions they request, risks of cloud processing, and how to verify on-device privacy.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Privacy</span>
-          </div>
+      <h2 id="grid-heading" tabindex="-1" class="h-section mx-auto mt-14 max-w-3xl">All posts</h2>
+      <div id="blog-list" class="mx-auto mt-6 grid max-w-3xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <article data-cats="privacy" data-date="2026-06-13">
+          <a href="/blog/are-photo-cleaner-apps-safe" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/are-photo-cleaner-apps-safe-card.webp" alt="Clay illustration: a sturdy mint clay shield with a small padlock standing guard in front of a neat stack of clay photo prints" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Privacy</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Are Photo Cleaner Apps Safe? What to Look For</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Are photo cleaner apps safe? Learn what permissions they request, risks of cloud processing, and how to verify on-device privacy.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="reviews comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/best-alternative-to-cleanmyphone" class="hover:text-accent transition">Best Free Alternative to CleanMyPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Looking for a free alternative to CleanMyPhone? TidyByte offers duplicate detection, blur removal, and storage cleanup — completely free, on your iPhone.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Reviews</span><span class="badge">Comparisons</span>
-          </div>
+        <article data-cats="reviews comparisons" data-date="2026-06-13">
+          <a href="/blog/best-alternative-to-cleanmyphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/best-alternative-to-cleanmyphone-card.webp" alt="Clay illustration: two rounded clay smartphones side by side on a small podium" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Reviews</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Best Free Alternative to CleanMyPhone for iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Looking for a free alternative to CleanMyPhone? TidyByte offers duplicate detection, blur removal, and storage cleanup &mdash; completely free, on your iPhone.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="reviews tutorials comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/best-app-to-delete-similar-photos-iphone-free" class="hover:text-accent transition">Best Free App to Delete Similar Photos</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Find and delete similar photos on iPhone for free. Compare TidyByte, Slidebox, and built-in iOS tools. Vision-based detection, no subscription.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Reviews</span><span class="badge">Tutorials</span><span class="badge">Comparisons</span>
-          </div>
+        <article data-cats="reviews tutorials comparisons" data-date="2026-06-13">
+          <a href="/blog/best-app-to-delete-similar-photos-iphone-free" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/best-app-to-delete-similar-photos-iphone-free-card.webp" alt="Clay illustration: a fan of near-identical clay photographs spread like playing cards" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Reviews</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Best Free App to Delete Similar Photos on iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Find and delete similar photos on iPhone for free. Compare TidyByte, Slidebox, and built-in iOS tools. Vision-based detection, no subscription.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 12 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="features reviews comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/best-duplicate-photo-finder-free-iphone-2026" class="hover:text-accent transition">Best Free Duplicate Photo Finder 2026</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Find the best duplicate photo finder for iPhone in 2026. TidyByte, iOS built-in Duplicates, Remo, Slidebox compared. Free tools, honest reviews.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Features</span><span class="badge">Reviews</span><span class="badge">Comparisons</span>
-          </div>
+        <article data-cats="features reviews comparisons" data-date="2026-06-13">
+          <a href="/blog/best-duplicate-photo-finder-free-iphone-2026" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/best-duplicate-photo-finder-free-iphone-2026-card.webp" alt="Clay illustration: an oversized clay magnifying glass hovering over two identical clay photographs" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Features</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Best Duplicate Photo Finder for iPhone &mdash; Free, 2026</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Find the best duplicate photo finder for iPhone in 2026. TidyByte, iOS built-in Duplicates, Remo, Slidebox compared. Free tools, honest reviews.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="reviews comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/best-free-photo-cleaner-apps-iphone-2026" class="hover:text-accent transition">7 Best Free Photo Cleaner Apps for iPhone in 2026</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Comparing the best free photo cleaner apps for iPhone. TidyByte, Gemini Photos, Slidebox, and more — features, privacy, and pricing compared.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Reviews</span><span class="badge">Comparisons</span>
-          </div>
+        <article data-cats="reviews comparisons" data-date="2026-06-13">
+          <a href="/blog/best-free-photo-cleaner-apps-iphone-2026" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/best-free-photo-cleaner-apps-iphone-2026-card.webp" alt="Clay illustration: three small clay smartphones on a winners podium with a few chunky clay coins scattered at the base" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Reviews</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">7 Best Free Photo Cleaner Apps for iPhone in 2026</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Comparing the best free photo cleaner apps for iPhone. TidyByte, Gemini Photos, Slidebox, and more &mdash; features, privacy, and pricing compared.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 7 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="privacy reviews comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/best-iphone-cleaner-app-no-subscription" class="hover:text-accent transition">Best iPhone Cleaner App — No Subscription</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Looking for the best iPhone cleaner app with no subscription? Compare TidyByte, built-in iOS tools, and one-time-purchase alternatives in this 2026 guide.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Privacy</span><span class="badge">Reviews</span><span class="badge">Comparisons</span>
-          </div>
+        <article data-cats="privacy reviews comparisons" data-date="2026-06-13">
+          <a href="/blog/best-iphone-cleaner-app-no-subscription" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/best-iphone-cleaner-app-no-subscription-card.webp" alt="Clay illustration: a clay smartphone leaning against a chubby pink piggy bank with a coin slot" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Privacy</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Best iPhone Cleaner App With No Subscription (2026)</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Looking for the best iPhone cleaner app with no subscription? Compare TidyByte, built-in iOS tools, and one-time-purchase alternatives in this 2026 guide.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="reviews comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/best-photo-cleaner-app-iphone-2026" class="hover:text-accent transition">Best Photo Cleaner App for iPhone 2026</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">We tested every major iPhone photo cleaner in 2026. Compare privacy, features, pricing, and UX to find the best photo cleaner app for your needs.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Reviews</span><span class="badge">Comparisons</span>
-          </div>
+        <article data-cats="reviews comparisons" data-date="2026-06-13">
+          <a href="/blog/best-photo-cleaner-app-iphone-2026" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/best-photo-cleaner-app-iphone-2026-card.webp" alt="Clay illustration: a clay smartphone wearing a tiny gold trophy hat" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Reviews</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Best Photo Cleaner App for iPhone in 2026</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">We tested every major iPhone photo cleaner in 2026. Compare privacy, features, pricing, and UX to find the best photo cleaner app for your needs.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="privacy">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/can-i-undo-deleting-photos-cleaner-app" class="hover:text-accent transition">Can I Undo Deleting Photos from a Cleaner?</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Can I undo deleting photos from a cleaner app? Learn about the 30-day recovery window, Recently Deleted, and how TidyByte protects your photos.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Privacy</span>
-          </div>
+        <article data-cats="privacy" data-date="2026-06-13">
+          <a href="/blog/can-i-undo-deleting-photos-cleaner-app" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/can-i-undo-deleting-photos-cleaner-app-card.webp" alt="Clay illustration: a clay photograph hopping back out of a small clay trash bin along a dotted motion arc" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Privacy</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Can I Undo Deleting Photos from a Photo Cleaner App?</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Can I undo deleting photos from a cleaner app? Learn about the 30-day recovery window, Recently Deleted, and how TidyByte protects your photos.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/compress-videos-iphone" class="hover:text-accent transition">How to Compress Videos on iPhone to Save Space</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">iPhone videos too large? Learn how to compress videos directly on your iPhone. Compare quality presets, see real file size reductions, and save gigabytes.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/compress-videos-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/compress-videos-iphone-card.webp" alt="Clay illustration: a chunky clay film clapperboard being gently pressed into a much smaller cube by two symmetric downward arrows" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Compress Videos on iPhone to Save Space</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">iPhone videos too large? Learn how to compress videos directly on your iPhone. Compare quality presets, see real file size reductions, and save gigabytes.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 7 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/convert-live-photos-to-stills-iphone" class="hover:text-accent transition">Convert Live Photos to Still Images</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to convert Live Photos to still images on iPhone. Use the built-in method or batch convert with TidyByte to save storage space fast.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/convert-live-photos-to-stills-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/convert-live-photos-to-stills-iphone-card.webp" alt="Clay illustration: a clay photograph with wavy motion ripple lines on its left half and a crisp flat surface on its right half" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Convert Live Photos to Still Images on iPhone (Save Space)</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to convert Live Photos to still images on iPhone. Use the built-in method or batch convert with TidyByte to save storage space fast.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage privacy tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/do-photo-cleaner-apps-delete-icloud-photos" class="hover:text-accent transition">Do Photo Cleaner Apps Delete iCloud Photos?</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Do photo cleaner apps delete iCloud photos? Learn how iCloud sync works, what happens when you delete via a third-party app, and how TidyByte keeps your photos safe.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Privacy</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="storage privacy tutorials" data-date="2026-06-13">
+          <a href="/blog/do-photo-cleaner-apps-delete-icloud-photos" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/do-photo-cleaner-apps-delete-icloud-photos-card.webp" alt="Clay illustration: a chubby clay cloud floating safely above a clay smartphone" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Storage</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Do Photo Cleaner Apps Delete iCloud Photos Too?</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Do photo cleaner apps delete iCloud photos? Learn how iCloud sync works, what happens when you delete via a third-party app, and how TidyByte keeps your…</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="features">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/duplicate-photo-finder-iphone-free" class="hover:text-accent transition">Free Duplicate Photo Finder for iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Find and remove duplicate photos on your iPhone for free. SHA-256 exact matching and Vision near-duplicate detection. 100% on-device.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Features</span>
-          </div>
+        <article data-cats="features" data-date="2026-06-13">
+          <a href="/blog/duplicate-photo-finder-iphone-free" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/duplicate-photo-finder-iphone-free-card.webp" alt="Clay illustration: two identical clay flowers in pots side by side" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Features</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Free Duplicate Photo Finder for iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Find and remove duplicate photos on your iPhone for free. SHA-256 exact matching and Vision near-duplicate detection. 100% on-device.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/find-blurry-photos-iphone" class="hover:text-accent transition">Find & Delete Blurry Photos on iPhone | Step-by-Step Guide</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Thousands of blurry, dark, or shaky photos in your camera roll? Learn how TidyByte automatically detects blurry and poorly-exposed photos so you can delete them.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/find-blurry-photos-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/find-blurry-photos-iphone-card.webp" alt="Clay illustration: two clay photographs leaning against each other" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Find &amp; Delete Blurry Photos on Your iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Thousands of blurry, dark, or shaky photos in your camera roll? Learn how TidyByte automatically detects blurry and poorly-exposed photos so you can delete…</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 6 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/find-delete-duplicate-photos-iphone" class="hover:text-accent transition">How to Delete Duplicate Photos on iPhone (Free Method)</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Find and delete exact and similar duplicate photos on your iPhone. Free, step-by-step guide using TidyByte's SHA-256 and Vision-based duplicate finder.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/find-delete-duplicate-photos-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/find-delete-duplicate-photos-iphone-card.webp" alt="Clay illustration: a small clay trash bin with a twin pair of identical photographs leaning over its edge" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Find and Delete Duplicate Photos on Your iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Find and delete exact and similar duplicate photos on your iPhone. Free, step-by-step guide using TidyByte&#x27;s SHA-256 and Vision-based duplicate finder.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 4 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/find-similar-photos-on-iphone" class="hover:text-accent transition">Find Similar Photos on Your iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to find and remove similar photos on iPhone using TidyByte. Detect near-duplicates with Apple Vision and reclaim storage in minutes.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/find-similar-photos-on-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/find-similar-photos-on-iphone-card.webp" alt="Clay illustration: a neat row of near-identical clay photographs pinned to a string with tiny clothespins" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Find and Remove Similar Photos on iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to find and remove similar photos on iPhone using TidyByte. Detect near-duplicates with Apple Vision and reclaim storage in minutes.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 10 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/free-up-icloud-storage-without-deleting-photos" class="hover:text-accent transition">Free Up iCloud Storage Without Deleting Photos</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to free up iCloud storage without deleting photos. Compress videos, remove duplicates, convert Live Photos, and reclaim space with TidyByte.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="storage tutorials" data-date="2026-06-13">
+          <a href="/blog/free-up-icloud-storage-without-deleting-photos" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/free-up-icloud-storage-without-deleting-photos-card.webp" alt="Clay illustration: a plump clay cloud sitting on a tidy stack of photographs with a round gauge beside it pointing to full" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Storage</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Free Up iCloud Storage Without Deleting Your Photos</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to free up iCloud storage without deleting photos. Compress videos, remove duplicates, convert Live Photos, and reclaim space with TidyByte.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-much-space-do-live-photos-take" class="hover:text-accent transition">How Much Space Do Live Photos Take?</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Find out how much space Live Photos take on your iPhone. Real file-size numbers, comparison tables, and tips to reclaim storage.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span>
-          </div>
+        <article data-cats="storage" data-date="2026-06-13">
+          <a href="/blog/how-much-space-do-live-photos-take" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-much-space-do-live-photos-take-card.webp" alt="Clay illustration: a yellow clay measuring tape wrapped around a thick stack of photographs" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Storage</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How Much Space Do Live Photos Take Up on iPhone?</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Find out how much space Live Photos take on your iPhone. Real file-size numbers, comparison tables, and tips to reclaim storage.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 10 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-check-iphone-storage-breakdown" class="hover:text-accent transition">How to Check iPhone Storage Breakdown</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to check your iPhone storage breakdown in Settings. Understand each category, what Other storage means, and how TidyByte gives deeper insight.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="storage tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-check-iphone-storage-breakdown" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-check-iphone-storage-breakdown-card.webp" alt="Clay illustration: a clay smartphone whose screen is a colorful round donut chart with chunky segments" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Storage</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Check Your iPhone Storage Breakdown</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to check your iPhone storage breakdown in Settings. Understand each category, what Other storage means, and how TidyByte gives deeper insight.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-clean-iphone-before-selling" class="hover:text-accent transition">Clean Your iPhone Before Selling It</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Step-by-step guide to clean your iPhone before selling. Back up photos, remove personal data, and factory reset safely with TidyByte.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-clean-iphone-before-selling" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-clean-iphone-before-selling-card.webp" alt="Clay illustration: a clay smartphone tucked into a gift box with a big bow on top" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Clean Up Your iPhone Before Selling or Trading In</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Step-by-step guide to clean your iPhone before selling. Back up photos, remove personal data, and factory reset safely with TidyByte.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-clean-iphone-storage-without-deleting-photos" class="hover:text-accent transition">Clean iPhone Storage Without Deleting Photos</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Free up storage on iPhone without deleting photos. Compress videos, shrink photos, and convert Live Photos with TidyByte — free and on-device.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="storage tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-clean-iphone-storage-without-deleting-photos" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-clean-iphone-storage-without-deleting-photos-card.webp" alt="Clay illustration: a balanced clay scale: a smartphone on one side and a glass jar full of tiny photographs on the other" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Storage</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Clean iPhone Storage Without Deleting a Single Photo</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Free up storage on iPhone without deleting photos. Compress videos, shrink photos, and convert Live Photos with TidyByte &mdash; free and on-device.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-clean-up-blurry-shaky-photos" class="hover:text-accent transition">Clean Up Blurry and Shaky Photos</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to find and remove blurry photos from your iPhone using blur detection technology. TidyByte identifies motion, focus, and low-light blur automatically.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-clean-up-iphone-for-free" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-clean-up-iphone-for-free-card.webp" alt="Clay illustration: a clay smartphone being swept by a small broom with a few dust puffs" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Clean Up Your iPhone Storage for Free</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Free guide to clean up iPhone storage: photos, apps, cache, messages, and Safari data. Step-by-step checklist to reclaim gigabytes without paying anything.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-clean-up-iphone-for-free" class="hover:text-accent transition">How to Clean Up Your iPhone for Free</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Free guide to clean up iPhone storage: photos, apps, cache, messages, and Safari data. Step-by-step checklist to reclaim gigabytes without paying anything.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-clean-up-iphone-photo-library-fast" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-clean-up-iphone-photo-library-fast-card.webp" alt="Clay illustration: a chunky clay stopwatch next to a tall stack of photographs with the top few photos sliding off into a tray" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Clean Up Your iPhone Photo Library in 15 Minutes</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to clear iPhone photos fast with TidyByte&#x27;s swipe workflow. Review 500+ photos in 15 minutes with this speed-focused cleanup protocol.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 10 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-clean-up-iphone-photo-library-fast" class="hover:text-accent transition">Clean Up Your iPhone Photo Library Fast</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to clear iPhone photos fast with TidyByte's swipe workflow. Review 500+ photos in 15 minutes with this speed-focused cleanup protocol.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-clean-up-screenshots-on-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-clean-up-screenshots-on-iphone-card.webp" alt="Clay illustration: a clay smartphone tipping forward and dropping screenshot cards into a neat clay tray below" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Clean Up Screenshots on Your iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to clean up screenshots on your iPhone. Find, batch delete, and organize screenshots fast with TidyByte&#x27;s free screenshot cleaner.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-clean-up-screenshots-on-iphone" class="hover:text-accent transition">How to Clean Up Screenshots on Your iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to clean up screenshots on your iPhone. Find, batch delete, and organize screenshots fast with TidyByte's free screenshot cleaner.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-compress-photos-on-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-compress-photos-on-iphone-card.webp" alt="Clay illustration: a thick stack of clay photographs being pressed by a flat clay press into a much thinner stack" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Compress Photos on Your iPhone to Save Space</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to compress photos on your iPhone to save storage. Compare HEIF vs JPEG, quality presets, batch compression, and when to compress vs delete.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-compress-photos-on-iphone" class="hover:text-accent transition">How to Compress Photos on Your iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to compress photos on your iPhone to save storage. Compare HEIF vs JPEG, quality presets, batch compression, and when to compress vs delete.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-delete-photos-fast-on-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-delete-photos-fast-on-iphone-card.webp" alt="Clay illustration: a small conveyor belt carrying clay photographs toward a rounded trash bin" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Delete Photos from iPhone Fast</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Compare every method to delete photos from iPhone fast: manual, batch select, and TidyByte swipe. See real time estimates for 1,000 photos.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-delete-photos-fast-on-iphone" class="hover:text-accent transition">How to Delete Photos Fast on Your iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Compare every method to delete photos from iPhone fast: manual, batch select, and TidyByte swipe. See real time estimates for 1,000 photos.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-delete-screenshots-from-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-delete-screenshots-from-iphone-card.webp" alt="Clay illustration: a marching line of clay screenshot cards walking up a tiny ramp into an open trash bin" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Delete Screenshots from Your iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to delete screenshots from your iPhone step by step. Use the manual method or TidyByte&#x27;s batch cleaner to reclaim storage fast.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-delete-screenshots-from-iphone" class="hover:text-accent transition">How to Delete Screenshots from Your iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to delete screenshots from your iPhone step by step. Use the manual method or TidyByte's batch cleaner to reclaim storage fast.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-find-burst-photos-on-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-find-burst-photos-on-iphone-card.webp" alt="Clay illustration: a wide fan of clay photographs spread like a deck of cards" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Find and Clean Up Burst Photos on Your iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to find and delete burst photos iPhone users accumulate. Free step-by-step guide using TidyByte&#x27;s burst picker workflow.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-find-blurry-photos-in-camera-roll" class="hover:text-accent transition">Find Blurry Photos in Your Camera Roll</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Find blurry photos in my camera roll fast. Learn how TidyByte's on-device blur detection works and batch-delete every bad shot in minutes.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-find-duplicate-photos-on-iphone-without-app" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-find-duplicate-photos-on-iphone-without-app-card.webp" alt="Clay illustration: a clay magnifying glass held over a smartphone showing two identical photo thumbnails" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Find Duplicate Photos on iPhone Without an App</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to delete duplicate photos on iPhone without app using the built-in Duplicates album, and discover what it misses.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-find-burst-photos-on-iphone" class="hover:text-accent transition">How to Find and Clean Up Burst Photos on iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to find and delete burst photos iPhone users accumulate. Free step-by-step guide using TidyByte's burst picker workflow.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="storage tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-find-large-files-in-iphone-photo-library" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-find-large-files-in-iphone-photo-library-card.webp" alt="Clay illustration: a giant clay photograph on a seesaw outweighing a pile of tiny photographs on the other end" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Storage</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Find Large Files in Your iPhone Photo Library</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to find large files in your iPhone photo library. Identify videos, ProRes clips, panoramas, and slow-mo files eating your storage with TidyByte.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-find-duplicate-photos-on-iphone-without-app" class="hover:text-accent transition">Find Duplicate Photos Without an App</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to delete duplicate photos on iPhone without app using the built-in Duplicates album, and discover what it misses.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-finish-photo-cleanup-in-one-session" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-finish-photo-cleanup-in-one-session-card.webp" alt="Clay illustration: a checkered finish flag planted beside a tidy shelf of labeled clay photo albums" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Actually Finish Cleaning Your Photo Library (In One Session)</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Stop abandoning photo cleanup halfway through. Learn how binary swipe decisions and a 30-minute protocol help you finish photo cleanup in a single session.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-find-large-files-in-iphone-photo-library" class="hover:text-accent transition">Find Large Files in Your iPhone Photo Library</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to find large files in your iPhone photo library. Identify videos, ProRes clips, panoramas, and slow-mo files eating your storage with TidyByte.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-manage-live-photos-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-manage-live-photos-iphone-card.webp" alt="Clay illustration: a clay photograph with gentle ripple lines around it and a chunky pause button floating at its corner" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Manage Live Photos and Save Space on iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to manage Live Photos on iPhone &mdash; what they are, how much space they use, how to convert or turn them off, and batch cleanup with TidyByte.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 10 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-finish-photo-cleanup-in-one-session" class="hover:text-accent transition">Finish Photo Cleanup in One Session</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Stop abandoning photo cleanup halfway through. Learn how binary swipe decisions and a 30-minute protocol help you finish photo cleanup in a single session.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-organize-iphone-photos" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-organize-iphone-photos-card.webp" alt="Clay illustration: a set of small labeled clay drawer trays" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Organize Thousands of iPhone Photos</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">A practical system to organize iPhone photos at scale. Use TidyByte&#x27;s swipe workflow and smart categories to cut decision fatigue and sort your library fast.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 10 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-free-up-icloud-storage-photos" class="hover:text-accent transition">How to Free Up iCloud Storage from Photos</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to free up iCloud storage from photos by compressing videos, removing duplicates, converting Live Photos, and optimizing iCloud settings.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-organize-thousands-of-photos-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-organize-thousands-of-photos-iphone-card.webp" alt="Clay illustration: a tiny clay forklift stacking pallets of miniature photographs into a tall neat tower" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Organize 10,000+ Photos on Your iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to organize thousands of photos on iPhone with a proven swipe system, smart categories, and album habits that actually stick.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-free-up-iphone-storage-without-deleting" class="hover:text-accent transition">Free Up iPhone Storage Without Deleting</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to free up storage on iPhone without deleting photos. Compress videos, optimize photos, convert Live Photos, and reclaim gigabytes safely.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-stop-duplicate-photos-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-stop-duplicate-photos-iphone-card.webp" alt="Clay illustration: a rounded stop sign on a short post with two identical clay photographs bouncing off it in mid-air" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Stop Getting Duplicate Photos on Your iPhone</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Stop duplicate photos on your iPhone for good. Learn how HDR settings, iCloud sync, and messaging apps create copies and how to prevent them.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-manage-live-photos-iphone" class="hover:text-accent transition">How to Manage Live Photos on Your iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to manage Live Photos on iPhone — what they are, how much space they use, how to convert or turn them off, and batch cleanup with TidyByte.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="features tutorials" data-date="2026-06-13">
+          <a href="/blog/how-to-use-tidybyte" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/how-to-use-tidybyte-card.webp" alt="Clay illustration: a chunky clay hand flicking a photograph card off a smartphone screen" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Features</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">How to Use TidyByte: Complete Beginner&#x27;s Guide</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to use TidyByte with this step-by-step guide. Download, set up permissions, swipe through photos, and master every cleanup tool.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-organize-iphone-photos" class="hover:text-accent transition">How to Organize Thousands of iPhone Photos</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">A practical system to organize iPhone photos at scale. Use TidyByte's swipe workflow and smart categories to cut decision fatigue and sort your library fast.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="storage" data-date="2026-06-13">
+          <a href="/blog/iphone-storage-full-but-no-photos" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/iphone-storage-full-but-no-photos-card.webp" alt="Clay illustration: an overstuffed clay smartphone bulging like a stuffed suitcase" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Storage</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">iPhone Storage Full But I Have No Photos? Here&#x27;s Why</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Your iPhone says storage is full but you have no photos? Learn what&#x27;s eating your space &mdash; from Other storage to app caches &mdash; and how TidyByte&#x27;s dashboard…</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-organize-thousands-of-photos-iphone" class="hover:text-accent transition">Organize 10,000+ Photos on Your iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to organize thousands of photos on iPhone with a proven swipe system, smart categories, and album habits that actually stick.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="storage tutorials" data-date="2026-06-13">
+          <a href="/blog/iphone-storage-full-free-up-space" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/iphone-storage-full-free-up-space-card.webp" alt="Clay illustration: a suitcase-shaped clay phone with its lid open and a few items gently floating up and out" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Storage</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">iPhone Storage Full? Here&#x27;s Exactly How to Free Up Space in 2026</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Your iPhone says storage is full but you don&#x27;t know what to delete. This guide walks you through every method &mdash; from built-in tools to TidyByte&#x27;s…</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-reduce-photo-library-size-iphone" class="hover:text-accent transition">Reduce Your iPhone Photo Library Size</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to reduce photo library size iPhone users face daily. Compress, deduplicate, and remove blurry photos with this free on-device cleanup guide.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="privacy" data-date="2026-06-13">
+          <a href="/blog/open-source-iphone-photo-cleaner" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/open-source-iphone-photo-cleaner-card.webp" alt="Clay illustration: a clay smartphone with a small hinged lid flipped open" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Privacy</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Why Open Source Photo Apps Are Safer (And TidyByte Is One)</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn why an open source photo cleaner for iOS is safer. Audit TidyByte&#x27;s code on GitHub, verify zero network calls, and take control of your privacy.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 10 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-remove-blurry-photos-iphone" class="hover:text-accent transition">Remove Blurry Photos from iPhone</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to delete blurry photos from your iPhone in minutes with TidyByte's free on-device blur detector. Find, review, and batch-remove low-quality shots fast.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="features tutorials" data-date="2026-06-13">
+          <a href="/blog/swipe-left-right-organize-photos" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/swipe-left-right-organize-photos-card.webp" alt="Clay illustration: a large arrow pointing left and a large arrow pointing right with a single photograph card caught mid-swipe between them" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Features</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Swipe Left to Delete, Right to Keep: Organize Photos Fast</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn how to swipe left right to organize photos fast. Delete or keep images with a single gesture and clean up your iPhone library in minutes.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-stop-duplicate-photos-iphone" class="hover:text-accent transition">How to Stop Getting Duplicate Photos</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Stop duplicate photos on your iPhone for good. Learn how HDR settings, iCloud sync, and messaging apps create copies and how to prevent them.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="features reviews" data-date="2026-06-13">
+          <a href="/blog/tidybyte-review" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/tidybyte-review-card.webp" alt="Clay illustration: a clay magnifying glass resting over a smartphone that shows a small checklist with check marks" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Features</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">TidyByte Review: Is It the Best Free Photo Cleaner?</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">An honest TidyByte review covering features, privacy, speed, and limitations. Find out if this free, on-device photo cleaner is right for you.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="features tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/how-to-use-tidybyte" class="hover:text-accent transition">How to Use TidyByte: Complete Guide</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to use TidyByte with this step-by-step guide. Download, set up permissions, swipe through photos, and master every cleanup tool.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Features</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="comparisons" data-date="2026-06-13">
+          <a href="/blog/tidybyte-vs-gemini-photos" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/tidybyte-vs-gemini-photos-card.webp" alt="Clay illustration: two clay smartphones facing off on a background split into a pink half and a teal half" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Comparisons</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">TidyByte vs Gemini Photos: Free vs Subscription Compared</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">TidyByte vs Gemini Photos: compare features, pricing, and privacy. Gemini Photos is discontinued &mdash; here is the free on-device alternative.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/iphone-storage-full-but-no-photos" class="hover:text-accent transition">iPhone Storage Full But No Photos? Here's Why</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Your iPhone says storage is full but you have no photos? Learn what's eating your space — from Other storage to app caches — and how TidyByte's dashboard reveals it.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span>
-          </div>
+        <article data-cats="comparisons" data-date="2026-06-13">
+          <a href="/blog/tidybyte-vs-slidebox" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/tidybyte-vs-slidebox-card.webp" alt="Clay illustration: two clay smartphones side by side" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Comparisons</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">TidyByte vs Slidebox: Swipe Photo Cleaners Compared</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Compare TidyByte and Slidebox, two swipe-based iPhone photo cleaners. See which app offers better features, privacy, and value &mdash; completely free.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 8 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="storage tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/iphone-storage-full-free-up-space" class="hover:text-accent transition">iPhone Storage Full? Here's Exactly How to Free Up Space in 2026</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Your iPhone says storage is full but you don't know what to delete. This guide walks you through every method — from built-in tools to TidyByte's swipe-to-clean workflow.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Storage</span><span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="comparisons" data-date="2026-06-13">
+          <a href="/blog/tidybyte-vs-smart-cleaner" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/tidybyte-vs-smart-cleaner-card.webp" alt="Clay illustration: three clay smartphones of slightly different heights standing on a podium" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Comparisons</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">TidyByte vs Smart Cleaner: Free Photo Cleanup Compared</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">TidyByte vs Smart Cleaner: free on-device photo cleanup vs $30/yr subscription. Compare pricing, privacy, features, and value.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 11 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="privacy">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/open-source-iphone-photo-cleaner" class="hover:text-accent transition">Open Source iPhone Photo Cleaner — Why It Matters</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn why an open source photo cleaner for iOS is safer. Audit TidyByte's code on GitHub, verify zero network calls, and take control of your privacy.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Privacy</span>
-          </div>
+        <article data-cats="features" data-date="2026-06-13">
+          <a href="/blog/tinder-for-photos-app" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/tinder-for-photos-app-card.webp" alt="Clay illustration: a chunky clay hand flicking a heart-topped photograph card to the right while a plain card exits to the left" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Features</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">The &#x27;Tinder for Photos&#x27; Method: Why Swiping Works for Photo Cleanup</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Discover why the swipe interface works for photo cleanup. Learn the psychology behind binary decisions and how a Tinder for photos app helps you clean faster.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 9 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="privacy">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/photo-cleaner-app-no-ads-no-in-app-purchase" class="hover:text-accent transition">Photo Cleaner App — No Ads, No In-App Purchases</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Tired of photo cleaner apps filled with ads and paywalls? TidyByte is a free photo cleaner app with no ads, no in-app purchases, and no subscriptions.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Privacy</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="privacy">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/photo-cleaner-app-no-subscription" class="hover:text-accent transition">Free Photo Cleaner App — No Subscription Needed</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Looking for a free photo cleaner with no subscription? TidyByte offers every feature free — no ads, no paywalls, no hidden costs. Clean your iPhone photos today.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Privacy</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="features tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/swipe-left-right-organize-photos" class="hover:text-accent transition">Swipe Left Right to Organize Photos</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how to swipe left right to organize photos fast. Delete or keep images with a single gesture and clean up your iPhone library in minutes.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Features</span><span class="badge">Tutorials</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="features tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/swipe-to-clean-photos-iphone" class="hover:text-accent transition">Swipe to Clean Your Photos — The Fastest Way</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn how swipe to delete photos is the fastest way to declutter your iPhone library. Speed benchmarks, psychology, and TidyByte's swipe UX explained.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Features</span><span class="badge">Tutorials</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="features reviews">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/tidybyte-review" class="hover:text-accent transition">TidyByte Review: The Free Photo Cleaner</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">An honest TidyByte review covering features, privacy, speed, and limitations. Find out if this free, on-device photo cleaner is right for you.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Features</span><span class="badge">Reviews</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/tidybyte-vs-gemini-photos" class="hover:text-accent transition">TidyByte vs Gemini Photos: Free vs Paid Compared</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">TidyByte vs Gemini Photos: compare features, pricing, and privacy. Gemini Photos is discontinued — here is the free on-device alternative.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Comparisons</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/tidybyte-vs-slidebox" class="hover:text-accent transition">TidyByte vs Slidebox: Swipe Photo Cleaners Compared</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Compare TidyByte and Slidebox, two swipe-based iPhone photo cleaners. See which app offers better features, privacy, and value — completely free.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Comparisons</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="comparisons">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/tidybyte-vs-smart-cleaner" class="hover:text-accent transition">TidyByte vs Smart Cleaner: Free vs Paid</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">TidyByte vs Smart Cleaner: free on-device photo cleanup vs $30/yr subscription. Compare pricing, privacy, features, and value.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Comparisons</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="features">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/tinder-for-photos-app" class="hover:text-accent transition">The 'Tinder for Photos' Method</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Discover why the swipe interface works for photo cleanup. Learn the psychology behind binary decisions and how a Tinder for photos app helps you clean faster.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Features</span>
-          </div>
-        </article>
-        <article class="glass-card p-6 sm:p-8 transition hover:border-white/20" data-cats="tutorials">
-          <h2 class="text-xl font-semibold text-zinc-100 sm:text-2xl">
-            <a href="/blog/why-are-there-duplicate-photos-in-my-iphone" class="hover:text-accent transition">Why Are There Duplicate Photos on My iPhone?</a>
-          </h2>
-          <p class="muted mt-3 text-base leading-relaxed">Learn why duplicate photos appear in your iPhone library from iCloud sync, HDR mode, burst shots, messaging apps, editing, and backup restores. Fix it free.</p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="text-sm text-zinc-500">5 min read</span>
-            <span class="text-zinc-600">&middot;</span>
-            <span class="badge">Tutorials</span>
-          </div>
+        <article data-cats="tutorials" data-date="2026-06-13">
+          <a href="/blog/why-are-there-duplicate-photos-in-my-iphone" class="card-link block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <div class="clay-card h-full overflow-hidden transition hover:border-hairline-strong">
+              <div class="overflow-hidden">
+                <img src="/assets/img/blog/why-are-there-duplicate-photos-in-my-iphone-card.webp" alt="Clay illustration: a clay smartphone with a tiny conveyor belt printing pairs of identical photographs out of its screen" width="640" height="427" loading="lazy" decoding="async" class="aspect-[3/2] w-full object-cover">
+              </div>
+              <div class="p-5">
+                <p><span class="badge">Tutorials</span></p>
+                <h3 class="mt-3 font-display text-lg font-medium leading-snug text-ink">Why Are There Duplicate Photos in My iPhone Library?</h3>
+                <p class="muted mt-2 line-clamp-2 text-sm leading-relaxed">Learn why duplicate photos appear in your iPhone library from iCloud sync, HDR mode, burst shots, messaging apps, editing, and backup restores. Fix it free.</p>
+                <p class="mt-4 text-xs text-muted"><time datetime="2026-06-13">June 13, 2026</time> <span aria-hidden="true">&middot;</span> 10 min read</p>
+              </div>
+            </div>
+          </a>
         </article>
       </div>
 
-      <!-- Pagination -->
+      <div id="blog-empty" class="mx-auto mt-10 hidden max-w-3xl text-center">
+        <p class="muted">No posts in this category yet.</p>
+        <p class="mt-3"><a href="/blog" id="blog-empty-all" class="link">View all posts</a></p>
+      </div>
+
       <nav aria-label="Blog pagination" class="mx-auto mt-12 max-w-3xl" id="pagination">
         <div class="flex items-center justify-center gap-2">
-          <button class="pagination-btn rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:border-white/20 hover:text-white" id="prev-btn" disabled aria-label="Previous page">&larr; Previous</button>
+          <button class="badge cursor-pointer px-3.5 py-1.5 text-sm font-medium transition hover:text-ink" id="prev-btn" disabled aria-label="Previous page">&larr; Previous</button>
           <div id="page-buttons" class="flex gap-1"></div>
-          <button class="pagination-btn rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:border-white/20 hover:text-white" id="next-btn" aria-label="Next page">Next &rarr;</button>
+          <button class="badge cursor-pointer px-3.5 py-1.5 text-sm font-medium transition hover:text-ink" id="next-btn" aria-label="Next page">Next &rarr;</button>
         </div>
       </nav>
-
-    </div>
   </main>
 
-  <footer class="border-t border-white/5">
-    <div class="container-prose grid gap-10 py-12 sm:grid-cols-2 md:grid-cols-3 md:py-16">
-      <div>
-        <p class="text-base font-semibold tracking-tight">TidyByte</p>
-        <p class="muted mt-2 text-sm">Swipe to clean your photos. Free, on-device, no account.</p>
-        <p class="muted mt-4 text-xs">&copy; 2026 TidyByte &middot; <a href="/LICENSE" class="hover:underline">MIT License</a></p>
-      </div>
-      <div>
-        <p class="text-sm font-semibold">Product</p>
-        <ul class="muted mt-3 space-y-2 text-sm">
-          <li><a href="/#features" class="hover:text-zinc-100">Features</a></li>
-          <li><a href="/blog" class="hover:text-zinc-100">Blog</a></li>
-          <li><a href="/changelog" class="hover:text-zinc-100">Changelog</a></li>
-          <li><a href="/support" class="hover:text-zinc-100">Support</a></li>
-        </ul>
-      </div>
-      <div>
-        <p class="text-sm font-semibold">Legal</p>
-        <ul class="muted mt-3 space-y-2 text-sm">
-          <li><a href="/privacy" class="hover:text-zinc-100">Privacy</a></li>
-          <li><a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="hover:text-zinc-100">GitHub repository</a></li>
-        </ul>
-      </div>
+<!-- BEGIN:footer -->
+<!-- Footer -->
+<footer class="border-t border-hairline bg-surface-soft">
+  <div class="container-prose grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1.2fr] md:py-16">
+    <div>
+      <p class="font-display text-lg font-semibold tracking-tight text-ink">TidyByte<span aria-hidden="true" class="text-clay-pink">.</span></p>
+      <p class="muted mt-2 text-sm">Swipe to clean your photos. Free, on-device, no account.</p>
     </div>
-    <div class="border-t border-white/5">
-      <p class="container-prose muted py-6 text-center text-xs">Made with care. Runs entirely on your device.</p>
+    <div>
+      <p class="text-sm font-semibold text-ink">Product</p>
+      <ul class="mt-3 space-y-1 text-sm">
+        <li class="-ml-3"><a href="/#features" class="nav-link">Features</a></li>
+        <li class="-ml-3"><a href="/#how-it-works" class="nav-link">How it works</a></li>
+        <li class="-ml-3"><a href="/#faq" class="nav-link">FAQ</a></li>
+      </ul>
     </div>
-  </footer>
+    <div>
+      <p class="text-sm font-semibold text-ink">Resources</p>
+      <ul class="mt-3 space-y-1 text-sm">
+        <li class="-ml-3"><a href="/blog" class="nav-link">Blog</a></li>
+        <li class="-ml-3"><a href="/changelog" class="nav-link">Changelog</a></li>
+        <li class="-ml-3"><a href="/support" class="nav-link">Support</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="text-sm font-semibold text-ink">Project</p>
+      <ul class="mt-3 space-y-1 text-sm">
+        <li class="-ml-3"><a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="nav-link inline-flex items-center gap-1.5"><svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>GitHub</a></li>
+        <li class="-ml-3"><a href="/#open-source" class="nav-link">Open source</a></li>
+        <li class="-ml-3"><a href="/privacy" class="nav-link">Privacy</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="text-sm font-semibold text-ink">App</p>
+      <ul class="mt-3 space-y-1 text-sm">
+        <li class="-ml-3"><a href="https://apps.apple.com/in/app/tidybyte/id6775769763" target="_blank" rel="noopener" class="nav-link inline-flex items-center gap-1.5"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>Download on the App Store</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="border-t border-hairline">
+    <p class="container-prose py-6 text-center text-xs text-muted-soft">&copy; 2026 TidyByte &middot; <a href="/LICENSE" class="hover:text-ink hover:underline">MIT licensed</a> &middot; No account. No analytics. Nothing to cancel.</p>
+  </div>
+</footer>
+<!-- END:footer -->
+
+
 </body>
 </html>

@@ -1,30 +1,47 @@
 import SwiftUI
+import StoreKit
 
 struct DuplicateFinderView: View {
     @State private var viewModel = DuplicateFinderViewModel()
     @State private var showDeleteConfirm = false
     @State private var selectedGroup: DuplicateGroup?
-    private let photoService = PhotoLibraryService()
+    @Environment(\.requestReview) private var requestReview
+    @State private var isCelebrating = false
+    private let photoService = PhotoLibraryService.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Group {
-            switch viewModel.scanState {
-            case .idle:
-                idleView
-                    .transition(.stateTransition)
-            case .scanning(let progress):
-                scanningView(progress: progress)
-                    .transition(.stateTransition)
-            case .completed:
-                resultsView
-                    .transition(.stateTransition)
-            case .error(let message):
-                errorView(message: message)
-                    .transition(.stateTransition)
+        VStack(spacing: 0) {
+            // Non-modal error surface. Replaces the OK-only alert: an alert
+            // interrupts the task and costs a tap to dismiss, and it left the
+            // screen exactly as it already was.
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Duplicates",
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.sm)
+            }
+
+            Group {
+                switch viewModel.scanState {
+                case .idle:
+                    idleView
+                        .transition(.stateTransition)
+                case .scanning(let progress):
+                    scanningView(progress: progress)
+                        .transition(.stateTransition)
+                case .completed:
+                    resultsView
+                        .transition(.stateTransition)
+                }
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.scanState)
+        .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
         .navigationTitle("Duplicates")
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: "removed \(viewModel.deletedCount) duplicates")
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.allGroups.isEmpty {
                 // DUP-05: a scan type / library change needs a fresh scan — return
@@ -46,23 +63,28 @@ struct DuplicateFinderView: View {
                     )
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Delete All") {
+                    // C8: this deletes the current SELECTION (keepers excluded),
+                    // so the label says what it does instead of "Delete All".
+                    Button("Delete Selected") {
                         HapticHelper.impact(.light)
                         showDeleteConfirm = true
                     }
                     .foregroundStyle(.red)
-                    .disabled(viewModel.isDeleting)
+                    .disabled(viewModel.isDeleting || viewModel.selectedForDeletion.isEmpty)
                 }
             }
         }
         .navigationDestination(item: $selectedGroup) { group in
-            DuplicateComparisonView(
-                group: group,
+            GroupComparisonView(
+                group: DuplicateComparison(group),
                 selectedForDeletion: $viewModel.selectedForDeletion,
                 onSetBest: { assetId, groupId in
                     viewModel.setBest(assetId: assetId, in: groupId)
-                }
+                },
+                descriptor: .duplicates
             )
+            .navigationTitle("Compare")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .alert("Delete \(viewModel.selectedForDeletion.count) Items", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
@@ -72,22 +94,12 @@ struct DuplicateFinderView: View {
                     // DUP-04d: only celebrate an actual deletion (the guard can
                     // still return early on an empty selection).
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HapticHelper.notification(.success)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
                     }
                 }
             }
         } message: {
             Text("This will permanently delete \(viewModel.selectedForDeletion.count) duplicate items.")
-        }
-        .alert("Duplicates Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("OK") {
-                viewModel.errorMessage = nil
-            }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
         }
         // DUP-02: leaving the screen must stop the scan (it would otherwise run
         // to completion in the background and re-enter on return).
@@ -99,109 +111,41 @@ struct DuplicateFinderView: View {
     // MARK: - Idle
 
     private var idleView: some View {
-        ScrollView {
-            VStack(spacing: Spacing.xxl) {
-                Spacer(minLength: Spacing.xxxl)
-
-                ZStack {
-                    Circle()
-                        .fill(RadialGradient(colors: [.red.opacity(0.15), .clear], center: .center, startRadius: 0, endRadius: 80))
-                        .frame(width: 160, height: 160)
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 72, weight: .light))
-                        .foregroundStyle(.red.opacity(0.8))
-                        .subtleShadow()
-                }
-                .fadeSlideIn()
-
-                VStack(spacing: Spacing.sm) {
-                    Text("Find Duplicate Photos")
-                        .font(.title2.bold())
-                    Text("Scan your library for exact and visually similar duplicates.")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, Spacing.xxxl)
-                }
-                .fadeSlideIn(delay: 0.05)
-
-                Picker("Scan Type", selection: $viewModel.scanType) {
-                    ForEach(DuplicateScanType.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, Spacing.xxxl + Spacing.sm)
-                .fadeSlideIn(delay: 0.1)
-
-                Button {
-                    HapticHelper.impact(.light)
-                    // DUP-02: route through the VM-held task so the scan is
-                    // cancellable and re-entry is guarded.
-                    viewModel.startScan()
-                } label: {
-                    Text("Start Scan")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Spacing.md)
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
-                }
-                .scaleOnPress()
-                .padding(.horizontal, Spacing.xxxl + Spacing.sm)
-                .fadeSlideIn(delay: 0.15)
-
-                Spacer(minLength: Spacing.xxxl)
+        ToolIdleView(
+            icon: "doc.on.doc",
+            tint: .red,
+            title: "Find Duplicate Photos",
+            message: "Scan your library for exact and visually similar duplicates.",
+            primaryTitle: "Start Scan",
+            primaryHint: "Scans your whole library for duplicates",
+            primaryAction: {
+                HapticHelper.impact(.light)
+                // DUP-02: route through the VM-held task so the scan is
+                // cancellable and re-entry is guarded.
+                viewModel.startScan()
             }
-            .readableWidth()
+        ) {
+            Picker("Scan Type", selection: $viewModel.scanType) {
+                ForEach(DuplicateScanType.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
         }
+        .fadeSlideIn()
     }
 
     // MARK: - Scanning
 
     private func scanningView(progress: Float) -> some View {
-        VStack(spacing: Spacing.xxl) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(RadialGradient(colors: [.blue.opacity(0.15), .clear], center: .center, startRadius: 0, endRadius: 80))
-                    .frame(width: 160, height: 160)
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 48, weight: .light))
-                    .foregroundStyle(.blue.opacity(0.8))
-                    .symbolEffect(.pulse)
-            }
-
-            VStack(spacing: Spacing.md) {
-                Text("Scanning for duplicates...")
-                    .font(.headline)
-                ProgressView(value: progress)
-                    .tint(.blue)
-                    .padding(.horizontal, Spacing.xxxl)
-                Text("\(Int(progress * 100))%")
-                    .font(.title3.bold().monospacedDigit())
-                    .foregroundStyle(.blue)
-                    .animatedNumber()
-            }
-            .glassCard()
-            .padding(.horizontal, Spacing.lg)
-
-            // DUP-02: an explicit way out of a long scan.
-            Button(role: .destructive) {
+        ToolScanningView(
+            icon: "magnifyingglass",
+            tint: .blue,
+            title: "Scanning for duplicates...",
+            progress: progress,
+            onCancel: {
                 HapticHelper.impact(.light)
                 viewModel.cancelScan()
-            } label: {
-                Text("Cancel")
-                    .font(.headline)
-                    .padding(.horizontal, Spacing.xxxl)
-                    .padding(.vertical, Spacing.sm)
-                    .background(Color.destructive.opacity(0.12))
-                    .foregroundStyle(Color.destructive)
-                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             }
-            .scaleOnPress()
-
-            Spacer()
-        }
+        )
         .fadeSlideIn()
     }
 
@@ -341,16 +285,10 @@ struct DuplicateFinderView: View {
                 }
             }
 
-            Text(group.assets.map(\.formattedFileSize).joined(separator: " · "))
+            Text(group.assets.map(\.displaySize).joined(separator: " · "))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, Spacing.xs)
-    }
-
-    private func errorView(message: String) -> some View {
-        EmptyStateView(icon: "exclamationmark.triangle", title: "Scan Failed", message: message, iconColor: .red, actionTitle: "Try Again") {
-            viewModel.scanState = .idle
-        }
     }
 }

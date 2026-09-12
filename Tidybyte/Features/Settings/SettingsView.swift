@@ -35,6 +35,11 @@ struct SettingsView: View {
     @State private var isRequestingNotificationPermission = false
     @State private var showNotificationDeniedAlert = false
     @State private var showMailUnavailableAlert = false
+    /// The last weekday we actually committed to the scheduler. The Reminder Day
+    /// picker reverts to this when permission was revoked, and the revert must
+    /// not be mistaken for a fresh user pick (that would loop forever: each
+    /// revert re-triggers `onChange`, whose revert re-triggers `onChange`…).
+    @State private var committedReminderWeekday = AppPreferences.reminderWeekday()
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
@@ -158,6 +163,9 @@ struct SettingsView: View {
                                 let granted = await NotificationService.requestPermission()
                                 isRequestingNotificationPermission = false
                                 if granted {
+                                    // Keep the committed mirror in sync so a later
+                                    // revert lands on the day the user actually has.
+                                    committedReminderWeekday = reminderWeekday
                                     await NotificationService.scheduleWeeklyReminder(weekday: reminderWeekday)
                                 } else {
                                     remindersEnabled = false
@@ -175,16 +183,20 @@ struct SettingsView: View {
                             Text(day.1).tag(day.0)
                         }
                     }
-                    .onChange(of: reminderWeekday) { oldDay, newDay in
+                    .onChange(of: reminderWeekday) { _, newDay in
+                        // Ignore our own revert below — treating it as a user
+                        // pick would flip the value back and forth forever.
+                        guard newDay != committedReminderWeekday else { return }
                         Task {
                             // APP-14: if notification permission was revoked, the
                             // reschedule would silently no-op — revert the picker
                             // and surface the same alert as the toggle's deny path.
                             guard await NotificationService.isPermissionGranted() else {
-                                reminderWeekday = oldDay
+                                reminderWeekday = committedReminderWeekday
                                 showNotificationDeniedAlert = true
                                 return
                             }
+                            committedReminderWeekday = newDay
                             await NotificationService.scheduleWeeklyReminder(weekday: newDay)
                         }
                     }
@@ -212,6 +224,20 @@ struct SettingsView: View {
                     sendFeedback(subject: "TidyByte Feature Request", isBug: false)
                 } label: {
                     Label("Request a Feature", systemImage: "lightbulb")
+                }
+
+                // Same guarantee as the happy-path card's Rate button: the
+                // write-review deep link can't be silently swallowed by the
+                // OS prompt quota the way `requestReview` can.
+                Button {
+                    HapticHelper.impact(.light)
+                    openURL(AppStoreLinks.writeReviewURL)
+                } label: {
+                    Label("Rate TidyByte on the App Store", systemImage: "star.fill")
+                }
+
+                ShareLink(item: AppStoreLinks.shareMessage(statLine: nil)) {
+                    Label("Share with Friends", systemImage: "square.and.arrow.up")
                 }
             }
 
@@ -256,6 +282,13 @@ struct SettingsView: View {
                         Label("Open Settings", systemImage: "arrow.up.right.square")
                     }
                 }
+                if photoPermissionStatus == .limited {
+                    Button {
+                        PhotoPermissionHandler.presentLimitedLibraryPicker()
+                    } label: {
+                        Label("Add More Photos", systemImage: "photo.badge.plus")
+                    }
+                }
             }
 
             Section {
@@ -274,14 +307,9 @@ struct SettingsView: View {
                 refreshPhotoPermissionStatus()
             }
         }
-        // Settings shows only `@AppStorage`-backed controls and inline `Bundle.main`
-        // version/build reads — all synchronous and always current — so there's no
-        // async/derived state to re-fetch. The gesture is wired purely for app-wide
-        // consistency (every screen pulls-to-refresh); the helper still fires its
-        // completion haptic to acknowledge the gesture.
-        .pullToRefresh {
-            refreshPhotoPermissionStatus()
-        }
+        // No pull-to-refresh (E8): Settings shows only `@AppStorage`-backed
+        // controls and inline `Bundle.main` reads — synchronous and always
+        // current — so the gesture could only fake work.
         .alert("Reset Swipe History", isPresented: $showResetConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Reset", role: .destructive) {

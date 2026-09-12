@@ -1,10 +1,16 @@
 import SwiftUI
+import SwiftData
+import StoreKit
 
 struct LivePhotosConverterView: View {
+    @Environment(\.modelContext) private var modelContext
     @State private var viewModel = LivePhotosConverterViewModel()
     @State private var showConvertAllConfirm = false
     @State private var previewItem: LivePhotoItem?
-    private let photoService = PhotoLibraryService()
+    @Environment(\.requestReview) private var requestReview
+    @State private var isCelebrating = false
+    @State private var celebrationStatLine: String?
+    private let photoService = PhotoLibraryService.shared
 
     var body: some View {
         Group {
@@ -15,55 +21,75 @@ struct LivePhotosConverterView: View {
                     icon: "livephoto",
                     title: "No Live Photos",
                     message: "You don't have any Live Photos in your library.",
-                    iconColor: .yellow
-                )
+                    iconColor: .yellow,
+                    // D12: refresh affordance — new Live Photos may have landed
+                    // since the last fetch (parity with Large Files/Bursts).
+                    actionTitle: "Refresh"
+                ) {
+                    Task { await viewModel.refresh() }
+                }
             } else {
                 contentView
             }
         }
         .navigationTitle("Live Photos")
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
+        .onDisappear {
+            // D2: leaving the screen must stop Convert All — the loop deletes
+            // originals and previously had no stop at all.
+            viewModel.cancelConvertAll()
+        }
         .alert("Convert All Live Photos", isPresented: $showConvertAllConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Convert All", role: .destructive) {
-                Task {
-                    await viewModel.convertAll()
-                    // COMP-09: success haptic only when everything converted.
-                    if let batch = viewModel.lastBatch, batch.failed == 0, batch.converted > 0 {
-                        HapticHelper.notification(.success)
-                    }
-                }
+                // D2: VM-owned task so cancellation works; haptic on full success.
+                viewModel.startConvertAll(modelContext: modelContext)
             }
         } message: {
             Text("This converts all Live Photos to still images; the motion component is removed. Some metadata may not be preserved. This cannot be undone.")
         }
-        .alert("Conversion Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("OK") {
-                viewModel.errorMessage = nil
+        .onChange(of: viewModel.convertingAll) { was, isNow in
+            // Happy path: celebrate only a fully-successful Convert All (the
+            // COMP-09 pattern) — a user-cancelled batch is not a milestone.
+            guard was, !isNow, !viewModel.isCancelled,
+                  viewModel.errorMessage == nil,
+                  let batch = viewModel.lastBatch,
+                  batch.failed == 0, batch.converted > 0 else { return }
+            HappyPathReporter.fire(
+                isCelebrating: $isCelebrating,
+                statLine: $celebrationStatLine,
+                line: "converted \(batch.converted) Live Photos",
+                requestReview: requestReview
+            )
+        }
+        // Non-modal error surface. Also covers the batch summary
+        // ("Converted 8 of 10. 2 failed."), which is a report rather than a
+        // failure, so no retry is offered.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Live Photos",
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
             }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
         }
         .fullScreenCover(item: $previewItem) { item in
             LivePhotoPreviewView(viewModel: viewModel, startItemId: item.id)
         }
         .task {
             await viewModel.loadIfNeeded()
+            // D1 (review pass): resolve any conversions a crash interrupted.
+            await CompressionJournal.reconcile(modelContext: modelContext)
         }
     }
 
     // MARK: - Loading View
 
     private var loadingView: some View {
-        List {
-            ForEach(0..<6, id: \.self) { _ in
-                SkeletonRow()
-            }
-            .listRowSeparator(.hidden)
-        }
-        .listStyle(.plain)
+        ToolLoadingView { ToolSkeletonList() }
     }
 
     // MARK: - Content View
@@ -98,6 +124,12 @@ struct LivePhotosConverterView: View {
                 if viewModel.convertingAll {
                     ProgressView()
                         .padding(.trailing, Spacing.sm)
+                    // D2: a real stop control — the loop deletes originals.
+                    Button("Stop", role: .destructive) {
+                        HapticHelper.impact(.light)
+                        viewModel.cancelConvertAll()
+                    }
+                    .font(.subheadline.bold())
                     Text("Converting...")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -130,19 +162,10 @@ struct LivePhotosConverterView: View {
                 Text("Total: \(viewModel.totalSize.formattedFileSize) · Estimated savings: ~\(viewModel.estimatedSavings.formattedFileSize)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if viewModel.convertedCount > 0 || viewModel.deletedCount > 0 {
-                    HStack(spacing: Spacing.sm) {
-                        if viewModel.convertedCount > 0 {
-                            Text("Converted \(viewModel.convertedCount) · Saved \(viewModel.totalSavedBytes.formattedFileSize)")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        }
-                        if viewModel.deletedCount > 0 {
-                            Text("Deleted \(viewModel.deletedCount)")
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
-                    }
+                if viewModel.deletedCount > 0 {
+                    Text("Deleted \(viewModel.deletedCount)")
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
             }
 
@@ -213,7 +236,7 @@ struct LivePhotosConverterView: View {
         case .idle:
             Button {
                 HapticHelper.impact(.light)
-                Task { await viewModel.convertSingle(itemId: item.id) }
+                Task { await viewModel.convertSingle(itemId: item.id, modelContext: modelContext) }
             } label: {
                 Text("Convert")
                     .font(.caption.bold())

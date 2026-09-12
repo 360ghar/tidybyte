@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 /// App-level monitor that turns PhotoKit change notifications into an
 /// observable `generation` counter. Views re-run their load/refresh task via
@@ -13,9 +14,12 @@ final class LibraryChangeMonitor {
     /// library change. `Int.min` is reserved by consumers as "never synced".
     private(set) var generation = 0
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
     private var isObserving = false
     private var debounceTask: Task<Void, Never>?
+    /// App-lifetime observer (the monitor lives as long as the app), so no
+    /// removal needed.
+    private var memoryWarningObserver: NSObjectProtocol?
 
     func start() async {
         guard !isObserving else { return }
@@ -24,6 +28,16 @@ final class LibraryChangeMonitor {
             Task { @MainActor [weak self] in
                 self?.scheduleGenerationBump()
             }
+        }
+        // Cache eviction on library change is owned by PhotoLibraryService
+        // (selective id eviction, SHARED-08) — but a memory warning still
+        // wants the whole image cache dropped, and nothing else did that.
+        memoryWarningObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { await ImageCache.shared.removeAll() }
         }
     }
 
@@ -37,9 +51,9 @@ final class LibraryChangeMonitor {
             guard let self else { return }
             self.generation += 1
             self.debounceTask = nil
-            // SHARED-08: the library changed — cached thumbnails may describe
-            // edited/removed assets, so invalidate the cache alongside the bump.
-            await ImageCache.shared.removeAll()
+            // Thumbnail coherence is owned by PhotoLibraryService (selective
+            // id eviction alongside the change, SHARED-08) — the bump here
+            // only refreshes the lists.
         }
     }
 }

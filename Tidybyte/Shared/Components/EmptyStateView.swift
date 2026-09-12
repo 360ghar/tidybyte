@@ -10,23 +10,10 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: Spacing.xl) {
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [iconColor.opacity(0.15), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 80
-                        )
-                    )
-                    .frame(width: 160, height: 160)
-
-                Image(systemName: icon)
-                    .font(.system(size: 72, weight: .light))
-                    .foregroundStyle(iconColor.opacity(0.8))
-                    .subtleShadow()
-            }
+            // The halo/glyph pair is shared with the cleanup tool states so the
+            // motif stays identical, and so its Dynamic Type scaling is defined
+            // in exactly one place.
+            ToolStateGlyph(icon: icon, tint: iconColor)
 
             VStack(spacing: Spacing.sm) {
                 Text(title)
@@ -38,6 +25,7 @@ struct EmptyStateView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Spacing.xxxl)
             }
+            .accessibilityElement(children: .combine)
 
             if let actionTitle, let action {
                 Button(action: action) {
@@ -45,7 +33,7 @@ struct EmptyStateView: View {
                         .font(.headline)
                         .padding(.horizontal, Spacing.xxxl)
                         .padding(.vertical, Spacing.md)
-                        .background(.blue)
+                        .background(.tint)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
                 }
@@ -53,5 +41,41 @@ struct EmptyStateView: View {
             }
         }
         .fadeSlideIn()
+    }
+}
+
+/// Shared label/value metadata row used by the duplicate and similar
+/// comparison screens (previously a private `metadataRow` duplicated in both).
+struct MetadataRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.caption.bold())
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+/// Shared "no more items" empty state for full-screen media previews.
+/// `title` differs per tool ("No more items" vs "No more Live Photos").
+struct PreviewEmptyState: View {
+    let title: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: Spacing.md) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.white)
+            Button("Done") { dismiss() }
+                .buttonStyle(.borderedProminent)
+        }
     }
 }

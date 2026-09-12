@@ -24,14 +24,10 @@ struct MediaLibraryStats: Sendable {
     var largeFileCount: Int = 0
     var largeFileBytes: Int64 = 0
 
-    /// Bytes of videos strictly over 100 MB (compression candidates).
-    var largeVideoBytes: Int64 = 0
-
-    /// ~50% reclaimable by converting Live Photos to stills.
-    var livePhotoSavings: Int64 = 0
-
-    /// Bytes attributable to assets likely saved from other apps.
-    var savedFromAppsBytes: Int64 = 0
+    /// Videos strictly over 100 MB — the honest "video compression"
+    /// candidate set, matching what VideoCompression actually offers
+    /// (E9; replaces three write-only rollup fields).
+    var largeVideoCount: Int = 0
 
     /// Widget "N to clean" figure: every screenshot plus every large file that
     /// isn't already a screenshot (APP-12).
@@ -65,18 +61,13 @@ struct MediaLibraryStats: Sendable {
                 stats.videoBytes += size
                 stats.videoCount += 1
                 if size > ReclaimBucketer.largeVideoByteThreshold {
-                    stats.largeVideoBytes += size
+                    stats.largeVideoCount += 1
                 }
             default:
                 stats.otherBytes += size
                 stats.otherCount += 1
             }
-            if asset.assetOrigin == .savedFromApp {
-                stats.savedFromAppsBytes += size
-            }
         }
-
-        stats.livePhotoSavings = stats.livePhotoBytes / 2
 
         // Large files exclude screenshots (counted separately above).
         for asset in assets where asset.fileSize >= largeFileThresholdBytes && !asset.isScreenshot {

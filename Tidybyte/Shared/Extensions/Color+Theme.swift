@@ -43,6 +43,17 @@ extension Color {
             ? UIColor.white.withAlphaComponent(0.10)
             : UIColor.black.withAlphaComponent(0.10)
     })
+
+    // Opaque counterparts to the translucent card tokens above. `GlassCard`
+    // swaps to these when Reduce Transparency is enabled: a translucent wash
+    // over an unknown backdrop is exactly what those users turned off, so the
+    // card needs a real surface color instead of alpha.
+    static let opaqueCardSurface = Color(.secondarySystemBackground)
+    static let opaqueCardBorder = Color(.separator)
+
+    /// Opaque fill for controls that normally sit on a material (action bars,
+    /// capsule buttons) so they stay legible without a blur backdrop.
+    static let controlSurface = Color(.tertiarySystemFill)
 }
 
 // MARK: - Gradients

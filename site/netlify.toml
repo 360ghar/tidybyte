@@ -38,6 +38,17 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# Short cache for crawler files (regenerated every deploy).
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
 # Custom 404.
 [[redirects]]
   from = "/404"
@@ -60,10 +71,64 @@
   to = "/changelog.html"
   status = 200
 
+# Consolidated posts (F8): overlapping keyword clusters merged into their
+# strongest keeper; old URLs 301 to it so inbound links and SEO carry over.
+[[redirects]]
+  from = "/blog/how-to-clean-up-blurry-shaky-photos"
+  to = "/blog/find-blurry-photos-iphone"
+  status = 301
+
+[[redirects]]
+  from = "/blog/how-to-find-blurry-photos-in-camera-roll"
+  to = "/blog/find-blurry-photos-iphone"
+  status = 301
+
+[[redirects]]
+  from = "/blog/how-to-remove-blurry-photos-iphone"
+  to = "/blog/find-blurry-photos-iphone"
+  status = 301
+
+[[redirects]]
+  from = "/blog/how-to-free-up-iphone-storage-without-deleting"
+  to = "/blog/how-to-clean-iphone-storage-without-deleting-photos"
+  status = 301
+
+[[redirects]]
+  from = "/blog/how-to-reduce-photo-library-size-iphone"
+  to = "/blog/how-to-clean-iphone-storage-without-deleting-photos"
+  status = 301
+
+[[redirects]]
+  from = "/blog/photo-cleaner-app-no-subscription"
+  to = "/blog/best-iphone-cleaner-app-no-subscription"
+  status = 301
+
+[[redirects]]
+  from = "/blog/photo-cleaner-app-no-ads-no-in-app-purchase"
+  to = "/blog/best-iphone-cleaner-app-no-subscription"
+  status = 301
+
+[[redirects]]
+  from = "/blog/how-to-free-up-icloud-storage-photos"
+  to = "/blog/free-up-icloud-storage-without-deleting-photos"
+  status = 301
+
+[[redirects]]
+  from = "/blog/swipe-to-clean-photos-iphone"
+  to = "/blog/how-to-organize-thousands-of-photos-iphone"
+  status = 301
+
 # Pretty URLs — serve /blog/<slug> from /blog/<slug>.html.
 # NOTE: this rule must come BEFORE the exact /blog rule below; Netlify
 # applies the first matching rule. "/blog/*" requires a segment after
 # "/blog/", so "/blog" alone still matches the exact rule beneath.
+# The trailing-slash 301 must come FIRST of all: without it, /blog/<slug>/
+# rewrites to /blog/<slug>/.html and 404s.
+[[redirects]]
+  from = "/blog/:splat/"
+  to = "/blog/:splat"
+  status = 301
+
 [[redirects]]
   from = "/blog/*"
   to = "/blog/:splat.html"

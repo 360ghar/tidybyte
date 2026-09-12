@@ -62,7 +62,7 @@ final class SwipeFlowRegressionTests: XCTestCase {
         vm.swipeLeft() // deletion pending → undo stack non-empty
         XCTAssertEqual(vm.undoStack.count, 1)
 
-        vm.swipeRight() // opens the album picker for the next card
+        vm.keepWithAlbum() // opens the album picker for the next card
         XCTAssertTrue(vm.showAlbumPicker)
 
         await vm.undo() // must be a no-op: the deck must not rewind under the sheet

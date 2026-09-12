@@ -2,7 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   Theme tokens. Space-separated RGB triplets so Tailwind's <alpha-value>
+   keeps opacity modifiers working (e.g. bg-canvas/80).
+   Light is the authored-first theme; `.dark` (set by theme.js) flips the
+   variables — utilities like `bg-canvas` or `text-ink` never change.
+--------------------------------------------------------------------------- */
 @layer base {
+  :root {
+    --c-canvas: 255 250 240;         /* #fffaf0 cream floor   */
+    --c-surface-soft: 250 245 232;   /* #faf5e8 CTA/footer    */
+    --c-surface-card: 245 240 224;   /* #f5f0e0 cards         */
+    --c-surface-dark: 10 26 26;      /* #0a1a1a dark band     */
+    --c-hairline: 229 229 229;       /* #e5e5e5 1px borders   */
+    --c-hairline-strong: 212 212 205;/* #d4d4cd               */
+    --c-ink: 10 10 10;               /* #0a0a0a headlines/CTA */
+    --c-body: 58 58 58;              /* #3a3a3a running text  */
+    --c-muted: 106 106 106;          /* #6a6a6a secondary     */
+    --c-muted-soft: 107 107 102;     /* #6b6b66 fine print    */
+    --c-primary: 20 20 20;           /* #141414 primary CTA   */
+    --c-on-primary: 255 255 255;     /* white on primary      */
+    --c-success: 31 122 77;          /* #1f7a4d on cream      */
+    --c-destructive: 194 54 75;      /* #c2364b on cream      */
+    color-scheme: light;
+  }
+
+  /* Near-black neutral grey — no teal tint. */
+  .dark {
+    --c-canvas: 18 18 18;            /* #121212               */
+    --c-surface-soft: 13 13 13;      /* #0d0d0d               */
+    --c-surface-card: 30 30 30;      /* #1e1e1e               */
+    --c-surface-dark: 10 10 10;      /* #0a0a0a               */
+    --c-hairline: 42 42 42;          /* #2a2a2a               */
+    --c-hairline-strong: 58 58 58;   /* #3a3a3a               */
+    --c-ink: 250 250 250;            /* #fafafa               */
+    --c-body: 212 212 212;           /* #d4d4d4               */
+    --c-muted: 163 163 163;          /* #a3a3a3               */
+    --c-muted-soft: 143 143 143;     /* #8f8f8f               */
+    --c-primary: 255 250 240;        /* #fffaf0 cream CTA     */
+    --c-on-primary: 20 20 20;        /* #141414 on cream      */
+    --c-success: 74 222 128;         /* #4ade80 on #121212    */
+    --c-destructive: 248 113 113;    /* #f87171 on #121212    */
+    color-scheme: dark;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -11,12 +54,57 @@
   }
 
   body {
-    @apply bg-zinc-950 text-zinc-100 font-sans;
+    @apply bg-canvas font-sans text-body;
     font-feature-settings: 'cv11', 'ss01', 'ss03';
   }
 
+  /* Display face: Fredoka (SIL OFL), self-hosted in /assets/fonts. */
+  @font-face {
+    font-family: 'Fredoka';
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url('/assets/fonts/fredoka-var-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+      U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191,
+      U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Fredoka';
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url('/assets/fonts/fredoka-var-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+      U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+      U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+
   ::selection {
-    @apply bg-accent/30 text-white;
+    @apply bg-clay-pink/30 text-ink;
+  }
+
+  /* Scroll-reveal (see assets/js/site.js). Reduced motion is honored in JS.
+     Gated behind html.js (set by theme.js) so a script failure never leaves
+     content invisible. */
+  html.js [data-reveal] {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+  html.js [data-reveal].is-revealed {
+    opacity: 1;
+    transform: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html.js [data-reveal] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
 
@@ -25,20 +113,44 @@
     @apply mx-auto w-full max-w-content px-5 sm:px-8;
   }
 
-  .glass-card {
-    @apply rounded-2xl border border-white/10 bg-card-glass shadow-glass;
+  /* Cream card: hairline border + soft shadow. */
+  .clay-card {
+    @apply rounded-2xl border border-hairline bg-surface-card shadow-card;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-card transition hover:bg-accent-light focus:outline-none focus:ring-2 focus:ring-accent/50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/40;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-zinc-100 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-hairline-strong bg-surface-card px-5 py-2.5 text-sm font-semibold text-ink transition hover:bg-surface-soft focus:outline-none focus:ring-2 focus:ring-ink/25;
+  }
+
+  /* White button used on saturated color cards. */
+  .btn-on-color {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#1a1a1a] transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-white/70;
   }
 
   .badge {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-zinc-300;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-hairline-strong bg-surface-card px-2.5 py-1 text-xs font-medium text-body;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-muted;
+  }
+
+  /* Eyebrow/heading variants for the dark teal + OSS bands (no !important). */
+  .eyebrow-on-dark {
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-clay-mint;
+  }
+
+  .h-section-on-dark {
+    @apply font-display text-2xl font-medium leading-tight tracking-[-0.01em] text-clay-cream sm:text-3xl md:text-4xl;
+  }
+
+  /* Header/footer nav pill with visible keyboard focus. */
+  .nav-link {
+    @apply rounded-full px-3 py-1.5 text-sm font-medium text-body transition hover:bg-surface-soft hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50;
   }
 
   .section {
@@ -50,20 +162,39 @@
   }
 
   .h-display {
-    @apply text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl;
-    letter-spacing: -0.025em;
+    @apply font-display text-4xl font-medium leading-[1.05] tracking-[-0.02em] text-ink sm:text-5xl md:text-6xl;
   }
 
   .h-section {
-    @apply text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl;
-    letter-spacing: -0.02em;
+    @apply font-display text-2xl font-medium leading-tight tracking-[-0.01em] text-ink sm:text-3xl md:text-4xl;
   }
 
   .lede {
-    @apply text-base text-zinc-400 sm:text-lg;
+    @apply text-base text-muted sm:text-lg;
   }
 
   .muted {
-    @apply text-zinc-400;
+    @apply text-muted;
+  }
+
+  .link {
+    @apply font-medium text-ink underline decoration-clay-pink/60 decoration-2 underline-offset-2 transition hover:decoration-clay-pink;
+  }
+
+  /* FAQ rows: <details class="group"><summary class="faq-summary">… */
+  .faq-summary {
+    @apply flex cursor-pointer list-none items-center justify-between gap-4 text-left font-display text-base font-medium text-ink sm:text-lg;
+  }
+
+  .faq-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq-chev {
+    @apply shrink-0 text-muted transition-transform duration-200;
+  }
+
+  details[open] > .faq-summary .faq-chev {
+    transform: rotate(180deg);
   }
 }

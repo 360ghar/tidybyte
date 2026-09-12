@@ -13,4 +13,11 @@ struct WidgetSnapshot: Codable, Sendable {
     var largeFileCount: Int
     var largeFileBytes: Int64
     var reclaimableBytes: Int64
+    /// Lifetime cleanup savings, mirrored from `AppPreferences` by
+    /// `WidgetSnapshotCoordinator`. OPTIONAL on purpose: snapshots already
+    /// written to the App Group by v1.0.x have no such keys, and a non-optional
+    /// field would make decoding those payloads throw — which would blank the
+    /// widget for every existing user until the app ran again.
+    var lifetimeFreedBytes: Int64?
+    var lifetimeItemCount: Int?
 }

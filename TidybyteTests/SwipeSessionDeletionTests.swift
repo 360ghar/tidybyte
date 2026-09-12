@@ -71,34 +71,46 @@ final class SwipeSessionDeletionTests: XCTestCase {
         XCTAssertEqual(records.first?.decision, .skipped)
     }
 
-    func testSwipeRightIsNoOpWhileAKeepIsPending() throws {
+    func testSwipeRightKeepsSilentlyWithoutPicker() throws {
         let vm = try makeViewModel()
 
         vm.swipeRight()
-        XCTAssertEqual(vm.pendingKeepAsset?.id, "asset-0")
-        XCTAssertTrue(vm.showAlbumPicker)
 
-        // Advance the deck underneath and try again; the pending keep must not be clobbered.
-        vm.currentIndex = 1
-        vm.swipeRight()
-        XCTAssertEqual(vm.pendingKeepAsset?.id, "asset-0", "A second right-swipe must not overwrite the pending keep")
-    }
-
-    func testRightSwipeOnAssetAlreadyInAlbumSkipsPickerAndKeeps() throws {
-        let vm = try makeViewModel()
-        vm.assetIdsInUserAlbums = ["asset-0"]
-
-        vm.swipeRight()
-
-        XCTAssertFalse(vm.showAlbumPicker, "Already-organized photo should not prompt the picker")
+        XCTAssertFalse(vm.showAlbumPicker, "Right-swipe must never prompt the album picker")
         XCTAssertNil(vm.pendingKeepAsset)
-        XCTAssertEqual(vm.sessionStats.organizedCount, 1)
-        XCTAssertEqual(vm.sessionStats.skippedCount, 0)
+        XCTAssertEqual(vm.sessionStats.keptCount, 1)
+        XCTAssertEqual(vm.sessionStats.organizedCount, 0)
         XCTAssertEqual(vm.currentIndex, 1, "Should advance to the next card")
         let records = try container.mainContext.fetch(FetchDescriptor<SwipeRecord>())
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records.first?.assetLocalIdentifier, "asset-0")
         XCTAssertEqual(records.first?.decision, .kept)
+    }
+
+    func testKeepWithAlbumOpensPickerAndSecondRequestIsNoOp() throws {
+        let vm = try makeViewModel()
+
+        vm.keepWithAlbum()
+        XCTAssertEqual(vm.pendingKeepAsset?.id, "asset-0")
+        XCTAssertTrue(vm.showAlbumPicker)
+
+        // The deck hasn't advanced, so a second request targets the same card;
+        // it must not overwrite the pending keep.
+        vm.keepWithAlbum()
+        XCTAssertEqual(vm.pendingKeepAsset?.id, "asset-0", "A second filing request must not overwrite the pending keep")
+    }
+
+    func testUndoOfKeepRestoresStateAndRemovesRecord() async throws {
+        let vm = try makeViewModel()
+
+        vm.swipeRight()
+        XCTAssertEqual(vm.sessionStats.keptCount, 1)
+
+        await vm.undo()
+
+        XCTAssertEqual(vm.sessionStats.keptCount, 0)
+        XCTAssertEqual(vm.currentIndex, 0)
+        XCTAssertEqual(try swipeRecordCount(), 0, "Undo must remove the keep's SwipeRecord")
     }
 
     func testUndoOfDeleteRestoresStateAndKeepsNoRecord() async throws {

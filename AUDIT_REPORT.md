@@ -1,5 +1,13 @@
 # TidyByte — Full-Platform Audit Report
 
+> **SUPERSEDED (2026-08-21):** this report's resolution claims were partially
+> inaccurate — 5 of 20 de-slop items had not actually been removed, the
+> claimed widget↔dashboard "parity test" did not exist, and several fixes
+> (Live Photos cancellation, pager teardown) were applied to some call sites
+> but not others. A full re-review fixed all residuals; see the 2026-08-21
+> pass (task plan `tidybyte-full-codebase-review.md`). Keep this document for
+> its original findings registry, but do not trust §6's claims.
+
 Date: 2026-08-01 · Scope: iOS app core (4 tabs + 10 cleanup tools), widget, App Intents, marketing site
 Method: 9 parallel deep audits (file-by-file, flow-by-flow) + direct verification of findings + baseline build/test run.
 Every finding below cites file:line. Severity: CRASH > DATA-LOSS > LOGIC > UX > PERF.

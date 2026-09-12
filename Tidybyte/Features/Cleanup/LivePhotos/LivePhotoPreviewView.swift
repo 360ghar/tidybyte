@@ -1,5 +1,6 @@
 import SwiftUI
 import Photos
+import SwiftData
 
 /// Full-screen, paged preview of a Live Photo list. Lets the user open a
 /// single Live Photo to play its motion, then choose one of three actions:
@@ -19,10 +20,11 @@ struct LivePhotoPreviewView: View {
     let startItemId: String
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @State private var currentIndex: Int
     @State private var showDeleteConfirm = false
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
 
     init(viewModel: LivePhotosConverterViewModel, startItemId: String) {
         self.viewModel = viewModel
@@ -45,7 +47,7 @@ struct LivePhotoPreviewView: View {
         .preferredColorScheme(.dark)
         .task(id: viewModel.items.map(\.id).joined(separator: "|")) {
             // COMP-13: one batched pass over the user's albums (memoized on the
-            // VM) instead of one albumsContaining fetch per item.
+            // VM) instead of one fetch per item.
             await viewModel.refreshAlbumNames(for: Set(viewModel.items.map(\.id)))
         }
     }
@@ -110,7 +112,11 @@ struct LivePhotoPreviewView: View {
                         LivePhotoPlayerView(
                             assetId: item.id,
                             photoService: photoService,
-                            targetSize: CGSize(width: 1200, height: 1200)
+                            targetSize: CGSize(width: 1200, height: 1200),
+                            // D6 (COMP-14 port): only the visible page keeps its
+                            // PHLivePhoto loaded — adjacent TabView pages used to
+                            // pin full live-photo buffers.
+                            isActive: index == currentIndex
                         )
                     }
                     conversionStateOverlay(for: item)
@@ -183,13 +189,7 @@ struct LivePhotoPreviewView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: Spacing.md) {
-            Text("No more Live Photos")
-                .font(.headline)
-                .foregroundStyle(.white)
-            Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
-        }
+        PreviewEmptyState(title: "No more Live Photos")
     }
 
     @ViewBuilder
@@ -204,7 +204,7 @@ struct LivePhotoPreviewView: View {
                 Label(item.asset.resolution, systemImage: "rectangle.grid.1x2")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
-                Label(item.asset.formattedFileSize, systemImage: "internaldrive")
+                Label(item.asset.displaySize, systemImage: "internaldrive")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
                 if let names = viewModel.albumNamesByAsset[item.id], !names.isEmpty {
@@ -249,7 +249,9 @@ struct LivePhotoPreviewView: View {
             }
             .scaleOnPress()
             .accessibilityLabel("Delete Live Photo")
-            .disabled(currentItem == nil)
+            // COMP-18 parity with Convert: no outright delete while Convert All
+            // is running (the batch may own this item).
+            .disabled(currentItem == nil || viewModel.convertingAll)
 
             Button {
                 HapticHelper.impact(.medium)
@@ -301,7 +303,7 @@ struct LivePhotoPreviewView: View {
 
     private func performConvert() async {
         guard let item = currentItem else { return }
-        await viewModel.convertSingle(itemId: item.id)
+        await viewModel.convertSingle(itemId: item.id, modelContext: modelContext)
         // The local `item` is a captured struct copy; read the current state
         // from the view model's array to know if conversion succeeded.
         if case .completed = viewModel.items.first(where: { $0.id == item.id })?.conversionState {

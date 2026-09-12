@@ -1,25 +1,24 @@
 import SwiftUI
+import StoreKit
 
 struct LargeFilesView: View {
     @State private var viewModel = LargeFilesViewModel()
     @State private var showDeleteConfirm = false
     @State private var previewStart: AssetSummary?
     @State private var rowToDelete: AssetSummary?
+    @Environment(\.requestReview) private var requestReview
+    @State private var isCelebrating = false
+    @State private var celebrationStatLine: String?
     /// Mirrors SettingsView's control so the threshold never diverges between
     /// screens while the tool is open (LF-06).
     @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var thresholdMB: Double = 10.0
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             if viewModel.isLoading {
-                List {
-                    ForEach(0..<8, id: \.self) { _ in
-                        SkeletonRow()
-                            .listRowSeparator(.hidden)
-                    }
-                }
-                .listStyle(.plain)
+                ToolLoadingView { ToolSkeletonList(rows: 8) }
             } else {
                 VStack(spacing: 0) {
                     // Controls
@@ -100,8 +99,9 @@ struct LargeFilesView: View {
                 }
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.isLoading)
+        .animation(.reduceMotionAware(.spring(response: 0.35, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.isLoading)
         .navigationTitle("Large Files")
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
         .toolbar {
             if !viewModel.filteredAssets.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
@@ -116,20 +116,39 @@ struct LargeFilesView: View {
         .alert("Delete Files", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Delete \(viewModel.selectedVisibleCount) Files", role: .destructive) {
-                Task { await viewModel.deleteSelected() }
+                // Captured before the await — the selection clears on success.
+                let count = viewModel.selectedVisibleCount
+                Task {
+                    await viewModel.deleteSelected()
+                    // This tool fired no success feedback before; parity with
+                    // the other cleanup tools now that the happy path offers
+                    // Rate/Share (native review prompt only on milestones).
+                    // Guard the count: the VM no-ops an empty selection
+                    // without setting an error, and a no-op is not a success.
+                    guard count > 0, viewModel.errorMessage == nil else { return }
+                    HappyPathReporter.fire(
+                        isCelebrating: $isCelebrating,
+                        statLine: $celebrationStatLine,
+                        line: "cleared \(count) large files",
+                        requestReview: requestReview
+                    )
+                }
             }
         } message: {
             Text("This will delete \(viewModel.selectedSize.formattedFileSize) of media. This action cannot be undone.")
         }
-        .alert("Large Files Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("OK") {
-                viewModel.errorMessage = nil
+        // Non-modal error surface. `safeAreaInset` pushes the list down rather
+        // than floating the banner over its first row.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Large Files",
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
             }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
         }
         .alert("Delete File", isPresented: .init(
             get: { rowToDelete != nil },
@@ -142,7 +161,7 @@ struct LargeFilesView: View {
                 Task { await viewModel.deleteAsset(id: id) }
             }
         } message: { asset in
-            Text("This will delete \(asset.formattedFileSize). This action cannot be undone.")
+            Text("This will delete \(asset.displaySize). This action cannot be undone.")
         }
         .fullScreenCover(item: $previewStart) { start in
             MediaPreviewView(
@@ -281,7 +300,7 @@ struct LargeFilesView: View {
 
             Spacer()
 
-            Text(asset.formattedFileSize)
+            Text(asset.displaySize)
                 .font(.headline.monospacedDigit())
                 .foregroundStyle(.primary)
 

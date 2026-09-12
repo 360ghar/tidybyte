@@ -16,9 +16,47 @@ site/
 ├── robots.txt        # Crawler rules
 └── assets/
     ├── css/styles.css   # Compiled Tailwind (generated)
-    ├── img/             # Screenshots, icons
-    └── js/              # nav.js, blog.js
+    ├── fonts/           # Fredoka variable font (SIL OFL, see OFL.txt)
+    ├── img/             # Screenshots, icons, illustrations/
+    └── js/              # nav.js, site.js, theme.js, blog.js
 ```
+
+## Theming (light / dark / system)
+
+**Light is the default for every visitor.** The header toggle offers Light,
+Dark, and System; Dark is remembered in `localStorage` under
+`tidybyte-theme`, and System is an explicit opt-in that follows the OS.
+
+- `assets/js/theme.js` — loaded **synchronously in `<head>`** (CSP forbids
+  inline scripts). Applies the `dark` class to `<html>` before first paint
+  so there is no flash, and keeps `<meta name="theme-color">` in sync
+  (`#fffaf0` light / `#121212` dark).
+- `assets/js/site.js` — deferred. Wires the toggle popover and the
+  `data-reveal` scroll animations (honors `prefers-reduced-motion`).
+- Tokens live in `src/input.css` as CSS variables (`:root` = light,
+  `.dark` = dark). `tailwind.config.js` binds Tailwind colors to them
+  (`bg-canvas`, `text-ink`, `text-body`, `text-muted`, `border-hairline`,
+  `bg-surface-card`, ...), so utilities flip automatically — no per-element
+  `dark:` variants.
+- The dark theme is a near-black neutral grey (`canvas #121212`,
+  cards `#1e1e1e`); only the saturated `clay-*` brand cards keep their
+  fixed hues in both themes.
+- `primary` / `on-primary` flip too: near-black button with white text in
+  light, cream button with dark text in dark. Use them (not `text-white`)
+  on primary surfaces — skip links and the changelog dots already do.
+- `success` / `destructive` flip as well (green/red verdict text in
+  comparison tables) — never hardcode those hexes.
+- Text on saturated `clay-*` cards uses the on-colour tokens
+  (`text-clay-pink-ink`, `text-clay-peach-soft`, ...) instead of white or
+  `text-ink`.
+- `data-reveal` scroll animations only hide content under `html.js`
+  (class set by `theme.js`), so a script failure can never blank a page.
+- Display face: Fredoka variable font, self-hosted in `assets/fonts/`
+  (licensed under the SIL Open Font License, `assets/fonts/OFL.txt`).
+
+When adding a page: include `theme.js` before the stylesheet, `site.js`
+after `nav.js`, keep exactly one `theme-color` meta, and use the semantic
+tokens above instead of raw `zinc`/`white` utilities.
 
 ## Local development
 

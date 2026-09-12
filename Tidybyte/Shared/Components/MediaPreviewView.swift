@@ -30,7 +30,9 @@ struct AccessoryAction {
 /// via `.onChange(of: assets)` and after each delete.
 struct MediaPreviewView: View {
     let photoService: PhotoLibraryService
-    var onDelete: (@MainActor (AssetSummary) async -> Void)?
+    /// D5: returns whether the item actually left the caller's list, so the
+    /// preview only celebrates real deletions.
+    var onDelete: (@MainActor (AssetSummary) async -> Bool)?
     var accessory: AccessoryAction?
 
     @Environment(\.dismiss) private var dismiss
@@ -50,7 +52,7 @@ struct MediaPreviewView: View {
         assets: [AssetSummary],
         startIndex: Int,
         photoService: PhotoLibraryService,
-        onDelete: (@MainActor (AssetSummary) async -> Void)? = nil,
+        onDelete: (@MainActor (AssetSummary) async -> Bool)? = nil,
         accessory: AccessoryAction? = nil
     ) {
         self.photoService = photoService
@@ -66,7 +68,7 @@ struct MediaPreviewView: View {
         assetsProvider: @escaping () -> [AssetSummary],
         startIndex: Int,
         photoService: PhotoLibraryService,
-        onDelete: (@MainActor (AssetSummary) async -> Void)? = nil,
+        onDelete: (@MainActor (AssetSummary) async -> Bool)? = nil,
         accessory: AccessoryAction? = nil
     ) {
         self.photoService = photoService
@@ -211,7 +213,7 @@ struct MediaPreviewView: View {
                 Label(asset.resolution, systemImage: "rectangle.grid.1x2")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
-                Label(asset.formattedFileSize, systemImage: "internaldrive")
+                Label(asset.displaySize, systemImage: "internaldrive")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
                 if asset.mediaType == .video, !asset.formattedDuration.isEmpty {
@@ -278,13 +280,7 @@ struct MediaPreviewView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: Spacing.md) {
-            Text("No more items")
-                .font(.headline)
-                .foregroundStyle(.white)
-            Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
-        }
+        PreviewEmptyState(title: "No more items")
     }
 
     // MARK: - State
@@ -300,9 +296,16 @@ struct MediaPreviewView: View {
         guard let item = currentItem, let onDelete, !isDeleting else { return }
         isDeleting = true
         let deletedIndex = currentIndex
-        await onDelete(item)
-        HapticHelper.notification(.success)
+        // D5: `onDelete` reports whether the item actually left the caller's
+        // list — VMs catch their own errors, so without this the success
+        // haptic fired even on a failed delete (and the pager advanced past
+        // an item that still exists).
+        let deleted = await onDelete(item)
+        if deleted {
+            HapticHelper.notification(.success)
+        }
         isDeleting = false
+        guard deleted else { return }
         // `assets` is the caller's recomputed list (item now removed). Clamp the
         // cursor; the `.onChange(of: assets)` re-clamps/dismisses once the fresh
         // array arrives, covering the main-actor render timing either way.
@@ -500,6 +503,10 @@ struct VideoPlayerPageView: View {
 
     @State private var player: AVPlayer?
     @State private var loadFailed = false
+    /// Bumped when a torn-down page becomes active again. `assetId` alone is a
+    /// stable task id, so D6's teardown (`player = nil`) would otherwise never
+    /// be followed by a reload: the page would render its spinner forever.
+    @State private var reloadToken = 0
 
     var body: some View {
         ZStack {
@@ -513,7 +520,8 @@ struct VideoPlayerPageView: View {
                     .tint(.white)
             }
         }
-        .task(id: assetId) {
+        .task(id: "\(assetId)#\(reloadToken)") {
+            loadFailed = false
             let box = await photoService.loadPlayerItem(for: assetId)
             guard !Task.isCancelled else { return }
             if let box {
@@ -525,7 +533,24 @@ struct VideoPlayerPageView: View {
             }
         }
         .onChange(of: isActive) { _, active in
-            if active { player?.play() } else { player?.pause() }
+            if active {
+                if let player {
+                    player.play()
+                } else {
+                    // D6 tore the player down while this page was off-screen —
+                    // reload it (see reloadToken).
+                    loadFailed = false
+                    reloadToken += 1
+                }
+            } else {
+                player?.pause()
+                // D6: an inactive page in a TabView pager never gets
+                // `onDisappear` — unload here so swiping through a video list
+                // doesn't accumulate paused AVPlayerItems holding decoded
+                // resources. Reloading on reactivation is cheap.
+                player?.replaceCurrentItem(with: nil)
+                player = nil
+            }
         }
         .onDisappear {
             player?.pause()

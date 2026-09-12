@@ -84,13 +84,13 @@
     form.hidden = true;
 
     var thanks = document.createElement('div');
-    thanks.className = 'glass-card p-6 sm:p-8';
+    thanks.className = 'clay-card p-6 sm:p-8';
     thanks.setAttribute('role', 'status');
     thanks.setAttribute('aria-live', 'polite');
     thanks.innerHTML =
       '<h2 class="h-section">Thanks! We&rsquo;ll be in touch.</h2>' +
       '<p class="lede mt-3">Your message is on its way. We typically respond within 2 business days.</p>' +
-      '<p class="muted mt-6 text-sm"><a href="/support" class="text-accent hover:underline">Send another message &rarr;</a></p>';
+      '<p class="muted mt-6 text-sm"><a href="/support" class="link">Send another message &rarr;</a></p>';
 
     form.parentNode.insertBefore(thanks, form);
 

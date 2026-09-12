@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 /// Identifies which burst group (and which frame) a full-screen preview was
 /// opened from. The preview resolves its assets *live* from the view model on
@@ -14,7 +15,13 @@ struct BurstCleanerView: View {
     @State private var showAutoCleanConfirm = false
     @State private var showDeleteConfirm = false
     @State private var preview: BurstPreviewContext?
-    private let photoService = PhotoLibraryService()
+    @Environment(\.requestReview) private var requestReview
+    // statLine is captured at success time: deletableCount/selectedCount are
+    // pre-delete values that reset once the action lands.
+    @State private var isCelebrating = false
+    @State private var celebrationStatLine: String?
+    @State private var toast: ToastMessage?
+    private let photoService = PhotoLibraryService.shared
 
     var body: some View {
         Group {
@@ -33,14 +40,24 @@ struct BurstCleanerView: View {
             }
         }
         .navigationTitle("Burst Photos")
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
+        .toast($toast)
         .alert("Auto-Clean All Bursts", isPresented: $showAutoCleanConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Delete \(viewModel.deletableCount) Photos", role: .destructive) {
+                let count = viewModel.deletableCount
                 Task {
                     await viewModel.autoCleanAll()
-                    if viewModel.errorMessage == nil {
-                        HapticHelper.notification(.success)
-                    }
+                    // The Auto-Clean trigger has no disabled-at-zero guard, so
+                    // a 0-removable confirm lands here as an error-free no-op
+                    // — never celebrate or count that as a happy path.
+                    guard count > 0, viewModel.errorMessage == nil else { return }
+                    HappyPathReporter.fire(
+                        isCelebrating: $isCelebrating,
+                        statLine: $celebrationStatLine,
+                        line: "cleaned \(count) burst photos",
+                        requestReview: requestReview
+                    )
                 }
             }
         } message: {
@@ -49,37 +66,49 @@ struct BurstCleanerView: View {
         .alert("Delete Selected Burst Photos", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Delete \(viewModel.selectedCount) Photos", role: .destructive) {
+                let count = viewModel.selectedCount
                 Task {
                     await viewModel.deleteSelected()
-                    if viewModel.errorMessage == nil {
-                        HapticHelper.notification(.success)
-                    }
+                    // Same no-op rule: a selection emptied before the confirm
+                    // is not a success (defense in depth — the trigger is
+                    // disabled at zero).
+                    guard count > 0, viewModel.errorMessage == nil else { return }
+                    HappyPathReporter.fire(
+                        isCelebrating: $isCelebrating,
+                        statLine: $celebrationStatLine,
+                        line: "cleared \(count) burst frames",
+                        requestReview: requestReview
+                    )
                 }
             }
         } message: {
             Text("This will delete the currently selected burst frames and keep your chosen best photos.")
         }
-        .alert("Burst Cleaner Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("Retry") {
-                viewModel.errorMessage = nil
-                Task { await viewModel.deleteSelected() }
+        // Non-modal error surface. The retry is preserved from the alert it
+        // replaces: a failed burst delete leaves the selection intact, so
+        // re-running the same delete is the correct recovery.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Bursts",
+                    onRetry: {
+                        viewModel.errorMessage = nil
+                        Task { await viewModel.deleteSelected() }
+                    },
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
             }
-            Button("OK", role: .cancel) {
-                viewModel.errorMessage = nil
-            }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
         }
-        .alert("Bursts Cleaned", isPresented: .init(
-            get: { viewModel.statusMessage != nil },
-            set: { if !$0 { viewModel.statusMessage = nil } }
-        )) {
-            Button("OK") { viewModel.statusMessage = nil }
-        } message: {
-            Text(viewModel.statusMessage ?? "")
+        // Transient success note, not a modal: the celebration already covers
+        // the win, and this only explains why collapsed groups left the list.
+        // Clearing the view-model message keeps it one-shot across redraws.
+        .onChange(of: viewModel.statusMessage) { _, newValue in
+            guard let newValue else { return }
+            toast = ToastMessage(text: newValue, systemImage: "checkmark.circle")
+            viewModel.statusMessage = nil
         }
         .fullScreenCover(item: $preview) { context in
             // Resolve the group's assets live so an in-preview delete re-renders
@@ -108,13 +137,7 @@ struct BurstCleanerView: View {
     // MARK: - Loading View
 
     private var loadingView: some View {
-        List {
-            ForEach(0..<6, id: \.self) { _ in
-                SkeletonRow()
-            }
-            .listRowSeparator(.hidden)
-        }
-        .listStyle(.plain)
+        ToolLoadingView { ToolSkeletonList() }
     }
 
     // MARK: - Content View

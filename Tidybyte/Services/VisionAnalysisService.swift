@@ -3,13 +3,11 @@ import UIKit
 import CoreImage
 
 struct BlurAnalysisResult: Sendable {
-    let assetId: String
     let blurScore: Float      // Higher = more blurry. 0-1 scale
     let isBlurry: Bool
 }
 
 struct ExposureAnalysisResult: Sendable {
-    let assetId: String
     let meanLuminance: Float  // 0-1 scale
     let isTooDark: Bool
     let isOverexposed: Bool
@@ -72,7 +70,6 @@ enum CategorySensitivity: String, CaseIterable, Sendable {
 /// categories lives in `PhotoCategorizationService` so this stays a thin Vision
 /// wrapper (mirrors how `BlurAnalysisResult` carries scores, not UI tabs).
 struct ContentClassificationResult: Sendable {
-    let assetId: String
     /// Scene/object identifiers (above the sensitivity floor) → confidence.
     let labels: [String: Float]
     /// Fraction of the frame covered by recognized text (0–1).
@@ -109,7 +106,6 @@ actor VisionAnalysisService {
         AppLog.vision.debug("Blur \(assetId, privacy: .public): variance=\(variance, privacy: .public), blurry=\(isBlurry ? "yes" : "no", privacy: .public)")
 
         return BlurAnalysisResult(
-            assetId: assetId,
             blurScore: blurScore,
             isBlurry: isBlurry
         )
@@ -200,12 +196,11 @@ actor VisionAnalysisService {
 
     // MARK: - Exposure Analysis
 
-    func analyzeExposure(image: CGImage, assetId: String) -> ExposureAnalysisResult {
+    func analyzeExposure(image: CGImage) -> ExposureAnalysisResult {
         let ciImage = CIImage(cgImage: image)
         let luminance = computeMeanLuminance(ciImage: ciImage)
 
         return ExposureAnalysisResult(
-            assetId: assetId,
             meanLuminance: luminance,
             isTooDark: luminance < 0.12,
             isOverexposed: luminance > 0.88
@@ -271,7 +266,6 @@ actor VisionAnalysisService {
     /// `ContentClassificationResult` crosses the actor boundary.
     func classifyImageContent(
         image: CGImage,
-        assetId: String,
         sensitivity: CategorySensitivity = .balanced
     ) -> ContentClassificationResult {
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
@@ -286,7 +280,7 @@ actor VisionAnalysisService {
             try handler.perform([classify, text, faces])
         } catch {
             AppLog.vision.error("Content classification failed: \(error.localizedDescription, privacy: .public)")
-            return ContentClassificationResult(assetId: assetId, labels: [:], textCoverage: 0, faceCoverage: 0)
+            return ContentClassificationResult(labels: [:], textCoverage: 0, faceCoverage: 0)
         }
 
         var labels: [String: Float] = [:]
@@ -311,7 +305,6 @@ actor VisionAnalysisService {
         }
 
         return ContentClassificationResult(
-            assetId: assetId,
             labels: labels,
             textCoverage: min(textArea, 1.0),
             faceCoverage: faceCoverage

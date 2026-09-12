@@ -2,14 +2,15 @@
 
 > Free iOS app that lets you swipe to delete junk photos, find duplicates, compress videos, and clean up your photo library — all 100% on-device, no account required.
 
-TidyByte is a free, open-source iPhone photo cleanup app (iOS 17+). It uses a Tinder-style swipe interface to let users quickly review and delete unwanted photos. It also includes smart cleanup tools for duplicates, similar photos, blurry shots, screenshots, large files, burst photos, Live Photos, and video/photo compression. All processing uses Apple's Photos and Vision frameworks — no data ever leaves the device. There are no ads, no subscriptions, no in-app purchases, and no third-party dependencies.
+TidyByte is a free, open-source iPhone photo cleanup app (iOS 17+). It uses a Tinder-style swipe interface to let users quickly review and delete unwanted photos. It also includes smart cleanup tools for duplicates, similar photos, blurry shots, screenshots, large files, burst photos, Live Photos, and video/photo compression, plus an Activity &amp; Savings history that tracks lifetime space freed. A Home Screen widget and Siri shortcuts jump straight into a cleanup. All processing uses Apple's Photos and Vision frameworks — no data ever leaves the device. There are no ads, no subscriptions, no in-app purchases, and no third-party dependencies.
 
 ## Key Facts
 
 - Price: Free forever, no in-app purchases, no subscriptions
 - Platform: iPhone and iPad (iOS 17+), universal app
-- Privacy: 100% on-device processing, no backend, no analytics, no network calls
+- Privacy: 100% on-device processing, no analytics SDK, no backend, no tracking
 - Architecture: Built with Swift/SwiftUI, Apple frameworks only, no third-party dependencies
+- Extras: Home Screen widget (small + medium, with interactive buttons), Siri &amp; Shortcuts intents, weekly cleanup reminders
 - License: MIT open source
 - Repository: https://github.com/360ghar/snap-clean-ios
 - Download: https://apps.apple.com/in/app/tidybyte/id6775769763
@@ -21,6 +22,55 @@ TidyByte is a free, open-source iPhone photo cleanup app (iOS 17+). It uses a Ti
 - [Support](https://tidybyte.360ghar.com/support): Contact form, bug reports, feature requests
 - [Changelog](https://tidybyte.360ghar.com/changelog): Release notes and version history
 
+## Blog
+
+45 in-depth guides on iPhone photo cleanup:
+
+- [Are Photo Cleaner Apps Safe? Privacy Guide | TidyByte](https://tidybyte.360ghar.com/blog/are-photo-cleaner-apps-safe)
+- [Best Free Alternative to CleanMyPhone | TidyByte](https://tidybyte.360ghar.com/blog/best-alternative-to-cleanmyphone)
+- [Best Free App to Delete Similar Photos | TidyByte](https://tidybyte.360ghar.com/blog/best-app-to-delete-similar-photos-iphone-free)
+- [Best Free Duplicate Photo Finder 2026 | TidyByte](https://tidybyte.360ghar.com/blog/best-duplicate-photo-finder-free-iphone-2026)
+- [7 Best Free Photo Cleaner Apps for iPhone in 2026 | TidyByte](https://tidybyte.360ghar.com/blog/best-free-photo-cleaner-apps-iphone-2026)
+- [Best iPhone Cleaner App — No Subscription | TidyByte](https://tidybyte.360ghar.com/blog/best-iphone-cleaner-app-no-subscription)
+- [Best Photo Cleaner App for iPhone 2026 | TidyByte](https://tidybyte.360ghar.com/blog/best-photo-cleaner-app-iphone-2026)
+- [Can I Undo Deleting Photos from a Cleaner? | TidyByte](https://tidybyte.360ghar.com/blog/can-i-undo-deleting-photos-cleaner-app)
+- [How to Compress Videos on iPhone to Save Space | TidyByte](https://tidybyte.360ghar.com/blog/compress-videos-iphone)
+- [Convert Live Photos to Still Images | TidyByte](https://tidybyte.360ghar.com/blog/convert-live-photos-to-stills-iphone)
+- [Do Photo Cleaner Apps Delete iCloud Photos? | TidyByte](https://tidybyte.360ghar.com/blog/do-photo-cleaner-apps-delete-icloud-photos)
+- [Free Duplicate Photo Finder for iPhone | TidyByte](https://tidybyte.360ghar.com/blog/duplicate-photo-finder-iphone-free)
+- [Find &amp; Delete Blurry Photos on iPhone | Step-by-Step Guide](https://tidybyte.360ghar.com/blog/find-blurry-photos-iphone)
+- [How to Delete Duplicate Photos on iPhone (Free Method) | TidyByte](https://tidybyte.360ghar.com/blog/find-delete-duplicate-photos-iphone)
+- [Find Similar Photos on Your iPhone | TidyByte](https://tidybyte.360ghar.com/blog/find-similar-photos-on-iphone)
+- [Free Up iCloud Storage Without Deleting Photos | TidyByte](https://tidybyte.360ghar.com/blog/free-up-icloud-storage-without-deleting-photos)
+- [How Much Space Do Live Photos Take? | TidyByte](https://tidybyte.360ghar.com/blog/how-much-space-do-live-photos-take)
+- [How to Check iPhone Storage Breakdown | TidyByte](https://tidybyte.360ghar.com/blog/how-to-check-iphone-storage-breakdown)
+- [Clean Your iPhone Before Selling It | TidyByte](https://tidybyte.360ghar.com/blog/how-to-clean-iphone-before-selling)
+- [Clean iPhone Storage Without Deleting Photos | TidyByte](https://tidybyte.360ghar.com/blog/how-to-clean-iphone-storage-without-deleting-photos)
+- [How to Clean Up Your iPhone for Free | TidyByte](https://tidybyte.360ghar.com/blog/how-to-clean-up-iphone-for-free)
+- [Clean Up Your iPhone Photo Library Fast | TidyByte](https://tidybyte.360ghar.com/blog/how-to-clean-up-iphone-photo-library-fast)
+- [How to Clean Up Screenshots on Your iPhone | TidyByte](https://tidybyte.360ghar.com/blog/how-to-clean-up-screenshots-on-iphone)
+- [How to Compress Photos on Your iPhone | TidyByte](https://tidybyte.360ghar.com/blog/how-to-compress-photos-on-iphone)
+- [How to Delete Photos Fast on Your iPhone | TidyByte](https://tidybyte.360ghar.com/blog/how-to-delete-photos-fast-on-iphone)
+- [How to Delete Screenshots from Your iPhone | TidyByte](https://tidybyte.360ghar.com/blog/how-to-delete-screenshots-from-iphone)
+- [How to Find and Clean Up Burst Photos on iPhone | TidyByte](https://tidybyte.360ghar.com/blog/how-to-find-burst-photos-on-iphone)
+- [Find Duplicate Photos Without an App | TidyByte](https://tidybyte.360ghar.com/blog/how-to-find-duplicate-photos-on-iphone-without-app)
+- [Find Large Files in Your iPhone Photo Library | TidyByte](https://tidybyte.360ghar.com/blog/how-to-find-large-files-in-iphone-photo-library)
+- [Finish Photo Cleanup in One Session | TidyByte](https://tidybyte.360ghar.com/blog/how-to-finish-photo-cleanup-in-one-session)
+- [How to Manage Live Photos on Your iPhone | TidyByte](https://tidybyte.360ghar.com/blog/how-to-manage-live-photos-iphone)
+- [How to Organize Thousands of iPhone Photos | TidyByte](https://tidybyte.360ghar.com/blog/how-to-organize-iphone-photos)
+- [Organize 10,000+ Photos on Your iPhone | TidyByte](https://tidybyte.360ghar.com/blog/how-to-organize-thousands-of-photos-iphone)
+- [How to Stop Getting Duplicate Photos | TidyByte](https://tidybyte.360ghar.com/blog/how-to-stop-duplicate-photos-iphone)
+- [How to Use TidyByte: Complete Guide | TidyByte](https://tidybyte.360ghar.com/blog/how-to-use-tidybyte)
+- [iPhone Storage Full But No Photos? Here's Why | TidyByte](https://tidybyte.360ghar.com/blog/iphone-storage-full-but-no-photos)
+- [iPhone Storage Full? Here's Exactly How to Free Up Space in 2026 | TidyByte](https://tidybyte.360ghar.com/blog/iphone-storage-full-free-up-space)
+- [Open Source iPhone Photo Cleaner — Why It Matters | TidyByte](https://tidybyte.360ghar.com/blog/open-source-iphone-photo-cleaner)
+- [Swipe Left Right to Organize Photos | TidyByte](https://tidybyte.360ghar.com/blog/swipe-left-right-organize-photos)
+- [TidyByte Review: The Free Photo Cleaner | TidyByte](https://tidybyte.360ghar.com/blog/tidybyte-review)
+- [TidyByte vs Gemini Photos: Free vs Paid Compared](https://tidybyte.360ghar.com/blog/tidybyte-vs-gemini-photos)
+- [TidyByte vs Slidebox: Swipe Photo Cleaners Compared](https://tidybyte.360ghar.com/blog/tidybyte-vs-slidebox)
+- [TidyByte vs Smart Cleaner: Free vs Paid | TidyByte](https://tidybyte.360ghar.com/blog/tidybyte-vs-smart-cleaner)
+- [The 'Tinder for Photos' Method | TidyByte](https://tidybyte.360ghar.com/blog/tinder-for-photos-app)
+- [Why Are There Duplicate Photos on My iPhone? | TidyByte](https://tidybyte.360ghar.com/blog/why-are-there-duplicate-photos-in-my-iphone)
 ## Optional
 
 - [GitHub Repository](https://github.com/360ghar/snap-clean-ios): Source code, issues, and contributions

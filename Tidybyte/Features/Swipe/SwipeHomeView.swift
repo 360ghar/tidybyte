@@ -7,14 +7,14 @@ struct SwipeHomeView: View {
     @State private var selectedRoute: SwipeSessionRoute?
     @State private var showAlbumSelection = false
     @State private var pendingAlbumFilter: SwipeFilter?
+    @State private var showDateSelection = false
+    @State private var pendingDateFilter: SwipeFilter?
 
     @AppStorage(AppPreferences.Key.defaultSwipeFilter) private var defaultFilterRaw: String = DefaultSwipeFilterPreference.notSwipedYet.rawValue
 
-    // @State (not a plain let) so the actor instance survives body re-evals —
-    // a View struct is recreated on every render and a stored `let` would
-    // construct a fresh PhotoLibraryService (and change observer) each time
-    // (APP-10). A reference type in @State is just a holder.
-    @State private var photoService = PhotoLibraryService()
+    // The service is the app-wide singleton — every surface shares one image
+    // cache, so identity survives body re-evals without @State (APP-10/A11).
+    private let photoService = PhotoLibraryService.shared
 
     private var defaultFilterPreference: DefaultSwipeFilterPreference {
         DefaultSwipeFilterPreference(rawValue: defaultFilterRaw) ?? .notSwipedYet
@@ -31,6 +31,14 @@ struct SwipeHomeView: View {
             )
         }
         .onChange(of: appNavigation.swipeDismissRequestID) { _, _ in
+            // APP-07: a live session with uncommitted deletions must run its
+            // review instead of being torn down here. Nil-ing the route removes
+            // the navigationDestination that hosts the session (and anything it
+            // pushed), so the review could not survive.
+            if let session = appNavigation.activeSwipeSession, session.hasPendingDeletions {
+                session.requestDeletionReview()
+                return
+            }
             selectedRoute = nil
         }
         .onChange(of: appNavigation.pendingSwipeFilter) { _, _ in
@@ -52,11 +60,28 @@ struct SwipeHomeView: View {
                 pendingAlbumFilter = .specificAlbum(id: albumId)
             }
         }
+        .sheet(isPresented: $showDateSelection, onDismiss: {
+            // Same dismiss-then-push pattern as the album sheet: starting the
+            // session during sheet dismissal drops the navigation push.
+            if let filter = pendingDateFilter {
+                pendingDateFilter = nil
+                startSwipeSession(with: filter)
+            }
+        }) {
+            SwipeDateCutoffSheet { cutoff in
+                pendingDateFilter = .allMediaBefore(date: cutoff)
+            }
+        }
     }
 
     private var mainContent: some View {
         ScrollView {
             VStack(spacing: Spacing.xxl) {
+                // Limited access is the state that makes the whole app look
+                // broken, so it is surfaced before anything else on the screen.
+                LimitedLibraryBanner()
+                    .padding(.horizontal, Spacing.lg)
+
                 // Hero header
                 heroHeader
                     .fadeSlideIn()
@@ -82,6 +107,16 @@ struct SwipeHomeView: View {
                         isDefault: defaultFilterPreference == .allMedia
                     )
                     .fadeSlideIn(delay: 0.1)
+
+                    filterCard(
+                        title: "All Media from a Date",
+                        description: "Review everything up to a date you pick",
+                        icon: "calendar",
+                        color: .indigo,
+                        filter: nil,
+                        onCustomAction: { showDateSelection = true }
+                    )
+                    .fadeSlideIn(delay: 0.12)
 
                     filterCard(
                         title: "Not in Any User Album",
@@ -180,11 +215,14 @@ struct SwipeHomeView: View {
         icon: String,
         color: Color,
         filter: SwipeFilter?,
-        isDefault: Bool = false
+        isDefault: Bool = false,
+        onCustomAction: (() -> Void)? = nil
     ) -> some View {
         Button {
             HapticHelper.impact(.light)
-            if let filter {
+            if let onCustomAction {
+                onCustomAction()
+            } else if let filter {
                 startSwipeSession(with: filter)
             } else {
                 // The picker sheet loads its own album list on appear.
@@ -195,7 +233,7 @@ struct SwipeHomeView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
                         .fill(color.gradient)
-                        .frame(width: 48, height: 48)
+                        .scaledSquare(ScaledSize.toolIconTile)
 
                     Image(systemName: icon)
                         .font(.title3)
@@ -231,6 +269,9 @@ struct SwipeHomeView: View {
             .glassCard()
         }
         .scaleOnPress()
+        // Reads as one control: the icon, the "Default" pill, the title, and the
+        // description would otherwise become four separate VoiceOver stops.
+        .accessibilityElement(children: .combine)
     }
 
     private func startSwipeSession(with filter: SwipeFilter) {
@@ -238,10 +279,21 @@ struct SwipeHomeView: View {
     }
 
     /// Consumes a pending filter set by another tab (e.g., Storage → Swipe deep-link).
+    ///
+    /// A1 (review-pass fix): the gate must live HERE, not only in
+    /// AppNavigation.showSwipeSession. Setting `pendingSwipeFilter` alone made
+    /// this observer drain the queue instantly — tearing down a mounted session
+    /// with uncommitted deletions even though showSwipeSession had "gated" it.
+    /// Now a gated session keeps the filter parked until its review resolves;
+    /// SwipeHomeView.onAppear picks it up once the route is gone.
     private func consumePendingFilter() {
+        if let session = appNavigation.activeSwipeSession, session.hasPendingDeletions {
+            session.requestDeletionReview()
+            return
+        }
         guard let filter = appNavigation.consumePendingSwipeFilter() else { return }
-        // If a previous swipe session is still mounted, clear it first so the
-        // next route builds a fresh view model for the new filter.
+        // If a previous swipe session is still mounted (no pending deletions),
+        // clear it first so the next route builds a fresh view model.
         selectedRoute = nil
         Task { @MainActor in
             await Task.yield()
@@ -250,19 +302,50 @@ struct SwipeHomeView: View {
     }
 }
 
-extension SwipeFilter: Identifiable {
-    var id: String {
-        switch self {
-        case .allMedia: return "allMedia"
-        case .notInAnyAlbum: return "notInAnyAlbum"
-        case .specificAlbum(let id): return "album_\(id)"
-        case .notSwipedYet: return "notSwipedYet"
-        case .screenshots: return "screenshots"
-        case .customAssetIds(let ids):
-            // Set.hashValue is randomized per process, so it can't be an
-            // identity. Derive a stable one from the sorted identifiers
-            // instead (SWIPE-10).
-            return "custom_\(ids.sorted().joined(separator: ","))"
+/// Date-cutoff picker for the "All Media from a Date" swipe filter. The session
+/// starts on sheet dismissal (same pattern as the album picker) so the
+/// navigation push isn't dropped while the sheet is still up.
+///
+/// Co-located with SwipeHomeView instead of its own file so the XcodeGen
+/// project doesn't need regenerating to pick up a new source file.
+struct SwipeDateCutoffSheet: View {
+    /// Called with the chosen cutoff date. The session starts on dismissal.
+    let onStart: (Date) -> Void
+
+    @State private var cutoff: Date = Calendar.current.date(byAdding: .year, value: -1, to: .now) ?? .now
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: Spacing.xl) {
+                DatePicker(
+                    "Cutoff date",
+                    selection: $cutoff,
+                    displayedComponents: [.date]
+                )
+                .datePickerStyle(.graphical)
+
+                Text("Your session will include every photo and video taken on or before this date.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            .navigationTitle("Start From a Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Start") {
+                        onStart(cutoff)
+                        dismiss()
+                    }
+                    .font(.headline)
+                }
+            }
         }
+        .presentationDetents([.medium, .large])
     }
 }

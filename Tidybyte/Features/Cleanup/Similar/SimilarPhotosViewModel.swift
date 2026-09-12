@@ -1,3 +1,4 @@
+import Photos
 import SwiftUI
 import Vision
 
@@ -12,6 +13,10 @@ struct AssetQuality: Sendable, Hashable {
     let isTooDark: Bool
     let isOverexposed: Bool
     let isBlurry: Bool
+    /// True when the quality was scored from the degraded fast-format fallback
+    /// (full resolution lives only in iCloud) — such scores are unreliable and
+    /// the UI surfaces a warning pill (C10).
+    let usedFallback: Bool
 }
 
 /// The single dominant reason a photo was recommended as the keeper, surfaced to
@@ -56,21 +61,13 @@ final class SimilarPhotosViewModel {
     /// cluster; chunking keeps chronological order and bounds the pairing work.
     private static let maxClusterSize = 60
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
     private let visionService = VisionAnalysisService()
-    /// DUP-02: the scan is held in a cancellable task so leaving the screen or
-    /// tapping Cancel actually stops it, and re-entry can be guarded.
-    private var scanTask: Task<Void, Never>?
+    /// C1/C2: owns the cancellable scan task + generation token.
+    private let scanRunner = ScanRunner()
 
     var totalDuplicateCount: Int {
         groups.reduce(0) { $0 + $1.assets.count - 1 }
-    }
-
-    var totalSavingsBytes: Int64 {
-        groups.reduce(Int64(0)) { total, group in
-            let nonBest = group.assets.filter { $0.id != group.bestAssetId }
-            return total + nonBest.reduce(Int64(0)) { $0 + $1.fileSize }
-        }
     }
 
     var selectedSavingsBytes: Int64 {
@@ -85,7 +82,11 @@ final class SimilarPhotosViewModel {
     /// and the Settings mirror are a single source of truth. It's passed in (by
     /// value) at scan start so changing the slider mid-scan can't produce
     /// inconsistent grouping.
-    func scan(timeWindow: Double) async {
+    func scan(timeWindow: Double, token: Int) async {
+        // A run whose token is already stale (cancelled before this body got a
+        // turn on the main actor) must not touch shared state: `cancelScan()`
+        // already moved the UI to `.idle`.
+        guard scanRunner.isCurrent(token) else { return }
         scanState = .scanning(0)
         selectedForDeletion.removeAll()
         errorMessage = nil
@@ -103,7 +104,10 @@ final class SimilarPhotosViewModel {
         var clusters: [[AssetSummary]] = []
         var currentCluster: [AssetSummary] = []
         for photo in photos {
-            if Task.isCancelled { scanState = .idle; return }
+            // A cancelled scan leaves the state alone: `cancelScan()` already
+            // moved the UI to `.idle`, and writing it here would stomp a scan
+            // the user restarted while this one was unwinding (C1/C2).
+            if Task.isCancelled { return }
             if let last = currentCluster.last {
                 let interval = (photo.creationDate ?? .distantPast)
                     .timeIntervalSince(last.creationDate ?? .distantPast)
@@ -126,7 +130,8 @@ final class SimilarPhotosViewModel {
         let totalPhotosInClusters = clusters.reduce(0) { $0 + $1.count }
         var processedPhotos = 0
         for cluster in clusters {
-            if Task.isCancelled { scanState = .idle; return }
+            // Same as above: a cancelled scan must not touch the shared state.
+            if Task.isCancelled { return }
             let (subgroups, quality) = await visuallyCoherentSubgroups(from: cluster, threshold: threshold)
             for subgroup in subgroups {
                 // First-wins so a duplicated id can't trap the scan.
@@ -146,13 +151,13 @@ final class SimilarPhotosViewModel {
             }
             processedPhotos += cluster.count
             let progress = totalPhotosInClusters > 0 ? Float(processedPhotos) / Float(totalPhotosInClusters) : 1.0
-            scanState = .scanning(progress)
+            // C2: dropped when the scan is no longer current.
+            scanRunner.update(token) { self.scanState = .scanning(progress) }
         }
 
-        if Task.isCancelled {
-            scanState = .idle
-            return
-        }
+        // A cancelled or superseded run must never publish results (its token is
+        // stale, so `groups` would be paired with a newer scan's state).
+        guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
         groups = foundGroups
         scanState = .completed
@@ -160,19 +165,16 @@ final class SimilarPhotosViewModel {
         selectNonBestAssets()
     }
 
-    // MARK: - Scan lifecycle (DUP-02)
+    // MARK: - Scan lifecycle (DUP-02/C1)
 
     func startScan(timeWindow: Double) {
-        guard scanTask == nil else { return }
-        scanTask = Task { [weak self] in
-            await self?.scan(timeWindow: timeWindow)
-            self?.scanTask = nil
+        scanRunner.start { [weak self] token in
+            await self?.scan(timeWindow: timeWindow, token: token)
         }
     }
 
     func cancelScan() {
-        scanTask?.cancel()
-        scanTask = nil
+        scanRunner.cancel()
         if case .scanning = scanState {
             scanState = .idle
         }
@@ -188,6 +190,52 @@ final class SimilarPhotosViewModel {
         }
     }
 
+    /// One asset's Vision work, computed in the bounded analysis group and
+    /// reassembled in cluster order (all members are Sendable).
+    private struct ClusterAnalysis: Sendable {
+        let asset: AssetSummary
+        let print: FeaturePrint
+        let quality: AssetQuality
+    }
+
+    /// Parallelism bound for per-asset Vision analysis: feature-print
+    /// generation is CPU-heavy, so it scales with cores, but each in-flight
+    /// asset also pins a decoded 512px image — hence the ceiling.
+    private static let maxConcurrentAnalyses = min(max(ProcessInfo.processInfo.activeProcessorCount, 2), 6)
+
+    /// One asset's analysis for the bounded group: sharp analysis image with
+    /// thumbnail fallback, then the feature print reused for blur/exposure
+    /// scoring (same loads + scoring as the old serial loop). Nil when the
+    /// asset can't be analyzed (deleted mid-scan, iCloud-only, cancelled).
+    private func analyzeClusterAsset(
+        _ asset: AssetSummary,
+        phAsset: PHAsset?,
+        index: Int
+    ) async -> (Int, ClusterAnalysis?) {
+        guard !Task.isCancelled, let phAsset else { return (index, nil) }
+        guard let loaded = await loadCGImage(for: phAsset),
+              !Task.isCancelled,
+              let featurePrint = await visionService.generateFeaturePrint(image: loaded.cgImage) else {
+            return (index, nil)
+        }
+        if Task.isCancelled { return (index, nil) }
+        // Reuse the SAME CGImage already decoded for the feature print — no
+        // second image load — to also score blur and exposure for the keeper
+        // recommendation and the UI quality chips.
+        let blur = await visionService.analyzeBlurriness(image: loaded.cgImage, assetId: asset.id)
+        let exposure = await visionService.analyzeExposure(image: loaded.cgImage)
+        let record = AssetQuality(
+            assetId: asset.id,
+            sharpness: 1 - blur.blurScore,
+            luminance: exposure.meanLuminance,
+            isTooDark: exposure.isTooDark,
+            isOverexposed: exposure.isOverexposed,
+            isBlurry: blur.isBlurry,
+            usedFallback: loaded.usedFallback
+        )
+        return (index, ClusterAnalysis(asset: asset, print: featurePrint, quality: record))
+    }
+
     /// Splits a time-based cluster into subgroups whose members are visually
     /// similar according to Vision feature-print distance. Returns only subgroups
     /// with two or more members.
@@ -201,28 +249,51 @@ final class SimilarPhotosViewModel {
 
         var prints: [(asset: AssetSummary, print: FeaturePrint)] = []
         var quality: [String: AssetQuality] = [:]
-        for asset in cluster {
-            if Task.isCancelled { return ([], quality) }
-            guard let cgImage = await loadCGImage(for: asset.id),
-                  let featurePrint = await visionService.generateFeaturePrint(image: cgImage) else {
-                continue
+        // One batched PhotoKit resolve for the cluster — the per-image loader
+        // below would otherwise do one identifier lookup per frame.
+        let phById = photoService.phAssetsById(cluster.map(\.id))
+        // Bounded parallel analysis: serial per-asset awaits made a 60-photo
+        // cluster take tens of seconds of Vision work. Each task analyzes one
+        // asset; results carry their cluster index and are reassembled in
+        // order, so greedy grouping below sees the exact sequence the serial
+        // loop produced. Cancellation stops new submissions and abandons the
+        // groups (partial quality signals are still returned, as before).
+        var ordered = Array<ClusterAnalysis?>(repeating: nil, count: cluster.count)
+        await withTaskGroup(of: (Int, ClusterAnalysis?).self) { group in
+            var next = 0
+            while next < min(Self.maxConcurrentAnalyses, cluster.count), !Task.isCancelled {
+                let index = next
+                group.addTask {
+                    await self.analyzeClusterAsset(
+                        cluster[index],
+                        phAsset: phById[cluster[index].id],
+                        index: index
+                    )
+                }
+                next += 1
             }
-            // Reuse the SAME CGImage already decoded for the feature print — no
-            // second image load — to also score blur and exposure for the keeper
-            // recommendation and the UI quality chips.
-            let blur = await visionService.analyzeBlurriness(image: cgImage, assetId: asset.id)
-            let exposure = await visionService.analyzeExposure(image: cgImage, assetId: asset.id)
-            quality[asset.id] = AssetQuality(
-                assetId: asset.id,
-                sharpness: 1 - blur.blurScore,
-                luminance: exposure.meanLuminance,
-                isTooDark: exposure.isTooDark,
-                isOverexposed: exposure.isOverexposed,
-                isBlurry: blur.isBlurry
-            )
-            prints.append((asset, featurePrint))
-            await Task.yield()
+            while let (index, analysis) = await group.next() {
+                ordered[index] = analysis
+                if Task.isCancelled {
+                    group.cancelAll()
+                } else if next < cluster.count {
+                    let fresh = next
+                    group.addTask {
+                        await self.analyzeClusterAsset(
+                            cluster[fresh],
+                            phAsset: phById[cluster[fresh].id],
+                            index: fresh
+                        )
+                    }
+                    next += 1
+                }
+            }
         }
+        for analysis in ordered.compactMap({ $0 }) {
+            quality[analysis.asset.id] = analysis.quality
+            prints.append((analysis.asset, analysis.print))
+        }
+        if Task.isCancelled { return ([], quality) }
 
         var visited = Set<String>()
         var subgroups: [[AssetSummary]] = []
@@ -244,17 +315,22 @@ final class SimilarPhotosViewModel {
         return (subgroups, quality)
     }
 
-    /// DUP-08: score quality on a sharp, exactly-sized, network-off analysis
+    /// DUP-08/C10: score quality on a sharp, exactly-sized, network-off analysis
     /// image (nil for iCloud-only assets) and fall back to the fast 300px
     /// thumbnail only when the original isn't on this device — matches
     /// BlurryPhotosViewModel, so the keeper recommendation isn't computed from
-    /// degraded thumbnails.
-    private func loadCGImage(for assetId: String) async -> CGImage? {
-        if let analysisImage = await photoService.loadAnalysisImage(for: assetId, targetSize: CGSize(width: 512, height: 512)) {
-            return analysisImage.cgImage
+    /// degraded thumbnails. The fallback is flagged on the quality record so
+    /// the UI can warn that the score came from a low-res copy.
+    private func loadCGImage(for asset: PHAsset) async -> (cgImage: CGImage, usedFallback: Bool)? {
+        if let analysisImage = await photoService.loadAnalysisImage(for: asset, targetSize: CGSize(width: 512, height: 512)),
+           let cgImage = analysisImage.cgImage {
+            return (cgImage, false)
         }
-        let thumbnail = await photoService.loadThumbnail(for: assetId, size: CGSize(width: 300, height: 300))
-        return thumbnail?.cgImage
+        guard let thumbnail = await photoService.loadThumbnail(for: asset, size: CGSize(width: 300, height: 300)),
+              let cgImage = thumbnail.cgImage else {
+            return nil
+        }
+        return (cgImage, true)
     }
 
     func deleteSelected() async {
@@ -262,38 +338,50 @@ final class SimilarPhotosViewModel {
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: Array(selectedForDeletion))
-            deletedCount = selectedForDeletion.count
-            let deleted = selectedForDeletion
-            groups = groups.compactMap { group in
-                let remaining = group.assets.filter { !deleted.contains($0.id) }
-                guard remaining.count > 1 else { return nil }
-                let slimQuality = group.qualityScores.filter { key, _ in
-                    remaining.contains { $0.id == key }
-                }
-                let bestAssetId: String
-                let bestReason: BestReason
-                if remaining.contains(where: { $0.id == group.bestAssetId }) {
-                    bestAssetId = group.bestAssetId
-                    bestReason = group.bestReason
-                } else {
-                    let pick = selectBest(from: remaining, quality: slimQuality)
-                    bestAssetId = pick.asset.id
-                    bestReason = pick.reason
-                }
-                return SimilarGroup(
-                    id: group.id,
-                    assets: remaining,
-                    bestAssetId: bestAssetId,
-                    qualityScores: slimQuality,
-                    bestReason: bestReason
-                )
-            }
-            selectNonBestAssets()
-        } catch {
-            errorMessage = error.localizedDescription
+        // Sizes captured before the await: the deleted assets are gone from the
+        // library once the delete returns.
+        let sizeById = groups.reduce(into: [String: Int64]()) { result, group in
+            for asset in group.assets { result[asset.id] = asset.fileSize }
         }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: selectedForDeletion,
+            kind: .similar,
+            sizeById: sizeById,
+            apply: { applyDeletion(of: $0) },
+            recordDeleted: { self.deletedCount = $0 }
+        )
+        errorMessage = outcome.errorMessage
+    }
+
+    /// Removes deleted ids from the groups (collapsing groups below two
+    /// members), then intersects the selection with survivors so explicit
+    /// keep-deselections survive the round-trip (C6).
+    private func applyDeletion(of deletedIds: Set<String>) {
+        groups = groups.compactMap { group in
+            let remaining = group.assets.filter { !deletedIds.contains($0.id) }
+            guard remaining.count > 1 else { return nil }
+            let slimQuality = group.qualityScores.filter { key, _ in
+                remaining.contains { $0.id == key }
+            }
+            let bestAssetId: String
+            let bestReason: BestReason
+            if remaining.contains(where: { $0.id == group.bestAssetId }) {
+                bestAssetId = group.bestAssetId
+                bestReason = group.bestReason
+            } else {
+                let pick = selectBest(from: remaining, quality: slimQuality)
+                bestAssetId = pick.asset.id
+                bestReason = pick.reason
+            }
+            return SimilarGroup(
+                id: group.id,
+                assets: remaining,
+                bestAssetId: bestAssetId,
+                qualityScores: slimQuality,
+                bestReason: bestReason
+            )
+        }
+        selectedForDeletion.formIntersection(Set(groups.flatMap { $0.assets.map(\.id) }))
     }
 
     func toggleSelection(_ assetId: String) {

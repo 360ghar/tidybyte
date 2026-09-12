@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct PhotoCompressionView: View {
     @State private var viewModel = PhotoCompressionViewModel()
@@ -7,7 +8,10 @@ struct PhotoCompressionView: View {
     @State private var previewStart: PhotoItem?
     @State private var rowToDelete: PhotoItem?
     @Environment(\.modelContext) private var modelContext
-    private let photoService = PhotoLibraryService()
+    @Environment(\.requestReview) private var requestReview
+    @State private var isCelebrating = false
+    @State private var celebrationStatLine: String?
+    private let photoService = PhotoLibraryService.shared
 
     var body: some View {
         Group {
@@ -25,6 +29,7 @@ struct PhotoCompressionView: View {
             }
         }
         .navigationTitle("Photo Compression")
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
         .toolbar {
             if !viewModel.isLoading && !viewModel.photos.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
@@ -54,18 +59,31 @@ struct PhotoCompressionView: View {
         } message: {
             Text("This replaces the originals with re-encoded copies. Some photo metadata may not be preserved. This cannot be undone.")
         }
-        .alert("Compression Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("OK") { viewModel.errorMessage = nil }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
-        }
-        .alert("Not Enough Space", isPresented: $viewModel.insufficientDiskSpace) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("There isn't enough free space to compress the selected photos. Free up some space and try again.")
+        // Non-modal error surface. Also covers the batch summary
+        // ("Compressed 8 of 10. 2 failed."), which is a report rather than a
+        // failure, so no retry is offered.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Photo Compression",
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
+            }
+            // Pre-compression headroom gate. A modal before; a banner now, so
+            // the user keeps the selection and can deselect the largest items
+            // instead of starting over after dismissing an alert.
+            if viewModel.insufficientDiskSpace {
+                ToolErrorBanner(
+                    message: "There isn't enough free space to compress the selected photos. Free up some space and try again.",
+                    title: "Not Enough Space",
+                    onDismiss: { viewModel.insufficientDiskSpace = false }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
+            }
         }
         .alert("Delete Photo", isPresented: .init(
             get: { rowToDelete != nil },
@@ -78,7 +96,7 @@ struct PhotoCompressionView: View {
                 Task { await viewModel.deletePhoto(id: id) }
             }
         } message: { photo in
-            Text("This will delete \(photo.asset.formattedFileSize). This action cannot be undone.")
+            Text("This will delete \(photo.asset.displaySize). This action cannot be undone.")
         }
         .fullScreenCover(item: $previewStart) { start in
             // COMP-05: resolve the pager's assets live from the VM (via the
@@ -97,7 +115,12 @@ struct PhotoCompressionView: View {
             // least one was compressed (COMP-09 pattern).
             guard let summary else { return }
             if summary.failed == 0, summary.completed > 0, !summary.cancelled {
-                HapticHelper.notification(.success)
+                HappyPathReporter.fire(
+                    isCelebrating: $isCelebrating,
+                    statLine: $celebrationStatLine,
+                    line: "compressed \(summary.completed) photos",
+                    requestReview: requestReview
+                )
             }
         }
         .onDisappear {
@@ -106,19 +129,16 @@ struct PhotoCompressionView: View {
         }
         .task {
             await viewModel.loadIfNeeded()
+            // D1: resolve any swaps a crash interrupted — the journal contract is
+            // that this runs on tool load, not only when a batch starts.
+            await CompressionJournal.reconcile(modelContext: modelContext)
         }
     }
 
     // MARK: - Loading View
 
     private var loadingView: some View {
-        List {
-            ForEach(0..<6, id: \.self) { _ in
-                SkeletonRow()
-            }
-            .listRowSeparator(.hidden)
-        }
-        .listStyle(.plain)
+        ToolLoadingView { ToolSkeletonList() }
     }
 
     // MARK: - Content View
@@ -188,7 +208,7 @@ struct PhotoCompressionView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: Spacing.xs) {
-                Text(photo.asset.formattedFileSize)
+                Text(photo.asset.displaySize)
                     .font(.headline.monospacedDigit())
 
                 let estimated = viewModel.estimateSize(for: photo)

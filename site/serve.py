@@ -24,17 +24,70 @@ REDIRECTS = {
     "/blog": "/blog/index.html",
 }
 
+# Consolidated posts (F8): 301 to their keeper, mirroring netlify.toml.
+MOVED_PERMANENTLY = {
+    "/blog/how-to-clean-up-blurry-shaky-photos": "/blog/find-blurry-photos-iphone",
+    "/blog/how-to-find-blurry-photos-in-camera-roll": "/blog/find-blurry-photos-iphone",
+    "/blog/how-to-remove-blurry-photos-iphone": "/blog/find-blurry-photos-iphone",
+    "/blog/how-to-free-up-iphone-storage-without-deleting": "/blog/how-to-clean-iphone-storage-without-deleting-photos",
+    "/blog/how-to-reduce-photo-library-size-iphone": "/blog/how-to-clean-iphone-storage-without-deleting-photos",
+    "/blog/photo-cleaner-app-no-subscription": "/blog/best-iphone-cleaner-app-no-subscription",
+    "/blog/photo-cleaner-app-no-ads-no-in-app-purchase": "/blog/best-iphone-cleaner-app-no-subscription",
+    "/blog/how-to-free-up-icloud-storage-photos": "/blog/free-up-icloud-storage-without-deleting-photos",
+    "/blog/swipe-to-clean-photos-iphone": "/blog/how-to-organize-thousands-of-photos-iphone",
+}
+
 
 class RedirectHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
-        parsed = urlparse(self.path)
-        suffix = ("?" + parsed.query) if parsed.query else ""
-        if parsed.path in REDIRECTS:
-            self.path = REDIRECTS[parsed.path] + suffix
-        elif parsed.path.startswith("/blog/") and not parsed.path.endswith(".html"):
-            # Mirror the netlify.toml "/blog/*" -> "/blog/:splat.html" rewrite.
-            self.path = parsed.path + ".html" + suffix
+        new_path = self._rewrite(self.path)
+        if new_path is None:
+            return
+        self.path = new_path
         return super().do_GET()
+
+    # Parity with Netlify: HEAD requests must resolve through the same
+    # rewrites (link checkers and CDNs use HEAD).
+    def do_HEAD(self):
+        new_path = self._rewrite(self.path)
+        if new_path is None:
+            return
+        self.path = new_path
+        return super().do_HEAD()
+
+    def handle(self):
+        # A client that hangs up mid-response is not a server error; swallow
+        # the transport noise instead of printing tracebacks.
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+
+    def _rewrite(self, path):
+        """Return the path to serve, or None if a response was already sent."""
+        parsed = urlparse(path)
+        suffix = ("?" + parsed.query) if parsed.query else ""
+        route = parsed.path.rstrip("/") if parsed.path != "/" else parsed.path
+        if route in REDIRECTS:
+            return REDIRECTS[route] + suffix
+        # Consolidated posts: permanent redirect to the keeper.
+        if route in MOVED_PERMANENTLY:
+            self.send_response(301)
+            self.send_header("Location", MOVED_PERMANENTLY[route] + suffix)
+            self.end_headers()
+            return None
+        if route.startswith("/blog/") and route != "/blog":
+            # Mirror netlify.toml: a trailing slash is 301'd away BEFORE the
+            # extensionless rewrite (otherwise /blog/<slug>/ would resolve to
+            # /blog/<slug>/.html and 404).
+            if parsed.path.endswith("/") and route != parsed.path:
+                self.send_response(301)
+                self.send_header("Location", route + suffix)
+                self.end_headers()
+                return None
+            if not route.endswith(".html"):
+                return route + ".html" + suffix
+        return path
 
 
 if __name__ == "__main__":

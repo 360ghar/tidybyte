@@ -107,6 +107,8 @@ actor VideoCompressionService {
     func compressVideo(
         assetId: String,
         preset: CompressionPreset,
+        onSaveWillCommit: (@MainActor @Sendable () -> Void)? = nil,
+        onReplacementSaved: (@MainActor @Sendable (String, Int64) -> Void)? = nil,
         onProgress: @escaping @MainActor @Sendable (Float) -> Void
     ) async throws -> CompressionResult {
         guard let phAsset = photoService.getPHAsset(for: assetId) else {
@@ -146,16 +148,40 @@ actor VideoCompressionService {
         // capture across the isolation boundary is explicit rather than an unchecked leak.
         let sessionBox = UncheckedSendableBox(exportSession)
         let progressTask = Task(priority: .utility) {
+            var lastSent: Float = -1
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(200))
-                await onProgress(sessionBox.value.progress)
+                let p = sessionBox.value.progress
+                // Guard: only hop to the main actor when progress moved
+                // meaningfully (or finished) — every tick used to do a
+                // firstIndex + @Observable publish, churning the main thread
+                // for minutes during long encodes.
+                if abs(p - lastSent) >= 0.02 || p >= 1.0 {
+                    lastSent = p
+                    await onProgress(p)
+                }
             }
         }
         defer { progressTask.cancel() }
 
-        await exportSession.export()
+        // D4: task cancellation now actually stops the in-flight encode —
+        // previously `cancelExport()` was never called, so "Cancel" let the
+        // export run to completion (minutes for long videos) before the batch
+        // loop noticed. `cancelExport` is documented thread-safe and is the
+        // intended cross-thread stop.
+        try await withTaskCancellationHandler {
+            await exportSession.export()
+        } onCancel: {
+            exportSession.cancelExport()
+        }
 
         guard exportSession.status == .completed else {
+            // A cancelled export surfaces as a failed status with no error —
+            // map it to the typed cancelled case so the batch summary counts
+            // it correctly instead of reporting an export failure (D4).
+            if Task.isCancelled || exportSession.status == .cancelled {
+                throw CompressionError.cancelled
+            }
             throw CompressionError.exportFailed(exportSession.error?.localizedDescription ?? "Unknown error")
         }
 
@@ -194,6 +220,12 @@ actor VideoCompressionService {
         // Save the compressed video, preserving the original's
         // date/location/favorite/hidden state. Burst membership cannot be
         // carried over — there is no creation-request API for it (COMP-17).
+        //
+        // D1: tell the journal a library write is about to begin. This is the
+        // last moment the row can be written before a copy could exist without
+        // its id being recorded — reconcile needs it to tell a crash here apart
+        // from a crash during the export (which strands nothing).
+        await onSaveWillCommit?()
         var placeholder: PHObjectPlaceholder?
         try await PHPhotoLibrary.shared().performChanges {
             let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL)
@@ -207,6 +239,9 @@ actor VideoCompressionService {
         guard let replacementId = placeholder?.localIdentifier else {
             throw CompressionError.exportFailed("Failed to save compressed video to library.")
         }
+        // D1: report the durable new copy to the journal immediately, with the
+        // real exported size so the journal never has to guess at 0.
+        await onReplacementSaved?(replacementId, compressedSize)
 
         // Restore album membership on the replacement (best effort).
         for albumId in albumIdentifiers {
@@ -220,15 +255,32 @@ actor VideoCompressionService {
         // Delete the original only after confirming the replacement exists. If
         // deletion fails, roll the replacement back so we don't leave a
         // duplicate behind (COMP-02).
+        var originalDeleteUnconfirmed = false
         do {
-            try await photoService.deleteAssets(identifiers: [assetId])
+            let deleted = try await photoService.deleteAssets(identifiers: [assetId])
+            // SHARED-01: deleteAssets reports success as a SUBSET of its input —
+            // the per-identifier fallback returns a partial (or empty) set
+            // without throwing when it is cancelled mid-retry. An unconfirmed
+            // delete means the original is still in the library, so the swap
+            // must not be reported as done (that would credit savings for a
+            // duplicate and hide the leftover from the journal).
+            originalDeleteUnconfirmed = !deleted.contains(assetId)
         } catch {
+            originalDeleteUnconfirmed = true
+        }
+        if originalDeleteUnconfirmed {
             var rollbackSucceeded = false
             do {
-                try await photoService.deleteAssets(identifiers: [replacementId])
-                rollbackSucceeded = true
+                let rolledBack = try await photoService.deleteAssets(identifiers: [replacementId])
+                rollbackSucceeded = rolledBack.contains(replacementId)
             } catch {
                 rollbackSucceeded = false
+            }
+            // A cancelled delete left the library as we found it — report a
+            // cancellation so the batch loop can reset the row instead of
+            // claiming a failure the user did not cause.
+            if Task.isCancelled {
+                throw CompressionError.cancelled
             }
             throw CompressionError.originalDeletionFailed(rollbackSucceeded: rollbackSucceeded)
         }

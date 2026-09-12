@@ -1,15 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="TidyByte">
+  <rect width="512" height="512" fill="url(#tb-logo-bg)"/>
   <defs>
     <linearGradient id="tb-logo-bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#16181D"/>
       <stop offset="100%" stop-color="#09090B"/>
     </linearGradient>
+    <linearGradient id="tb-logo-mark-back" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#853EA9"/>
+      <stop offset="100%" stop-color="#BC6EE3"/>
+    </linearGradient>
+    <linearGradient id="tb-logo-mark-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0762BD"/>
+      <stop offset="50%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#3B9DFF"/>
+    </linearGradient>
+    <linearGradient id="tb-logo-mark-highlight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.26"/>
+    </linearGradient>
+    <radialGradient id="tb-logo-mark-glow">
+      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#0A84FF" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="tb-logo-mark-front-clip">
+      <rect x="0.12" y="0.16451" width="0.645" height="0.55599" rx="0.1112"/>
+    </clipPath>
   </defs>
-  <rect width="512" height="512" fill="url(#tb-logo-bg)"/>
-  <g transform="translate(256,190)">
-    <rect x="-58" y="-44" width="116" height="100" rx="24" fill="#0A84FF"/>
-    <rect x="-32" y="-21" width="64" height="50" rx="13" fill="#0B0D10"/>
-    <path d="M-16 9l11 11 24-26" fill="none" stroke="#30B0C7" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(256,190) scale(200,-200) translate(-0.5,-0.5)">
+    <circle cx="0.46" cy="0.58" r="0.62" fill="url(#tb-logo-mark-glow)"/>
+    <rect x="0.235" y="0.27951" width="0.645" height="0.55599" rx="0.1112" fill="url(#tb-logo-mark-back)"/>
+    <rect x="0.12" y="0.16451" width="0.645" height="0.55599" rx="0.1112" fill="url(#tb-logo-mark-front)"/>
+    <g clip-path="url(#tb-logo-mark-front-clip)">
+      <rect x="0.12" y="0.53146" width="0.645" height="0.18904" fill="url(#tb-logo-mark-highlight)"/>
+    </g>
+    <rect x="0.13129" y="0.17579" width="0.62243" height="0.53341" rx="0.09991" fill="none" stroke="#0F1014" stroke-width="0.02258"/>
+    <path d="M0.33285 0.43138 L0.4038 0.37578 L0.55215 0.53146" fill="none" stroke="#49B9CE" stroke-opacity="0.3" stroke-width="0.20963" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M0.33285 0.43138 L0.4038 0.37578 L0.55215 0.53146" fill="none" stroke="#05303B" stroke-width="0.13416" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M0.33285 0.43138 L0.4038 0.37578 L0.55215 0.53146" fill="none" stroke="#30B0C7" stroke-width="0.08385" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
   <text x="256" y="382" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="600" fill="#F4F4F5">TidyByte</text>
 </svg>

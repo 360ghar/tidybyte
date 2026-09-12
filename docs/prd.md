@@ -112,11 +112,12 @@ enum SwipeDecision: String, Codable { case deleted, addedToAlbum, skipped }
 
 #### 5.1.1 Filter / Feed Modes
 
-On the Swipe home screen, show four filter options as large tappable cards:
+On the Swipe home screen, show five filter options as large tappable cards:
 
 | Filter | Description |
 |---|---|
 | **All Media** | Every `PHAsset` in the library, newest first |
+| **All Media from a Date** | Every asset created on or before a user-chosen date — pick a starting position and review everything older |
 | **Not in Any Album** | Assets not in any user-created `PHAssetCollection` of type `.album`. Exclude smart albums. |
 | **Specific Album** | User picks an album from a list; only that album's assets are shown |
 | **Not Swiped Yet** | *(Default)* Assets with no `SwipeRecord` in SwiftData. First-time users see everything here. |
@@ -133,11 +134,12 @@ Tapping a filter starts the Swipe Session with that filtered asset list.
   - Date taken (bottom, subtle overlay)
   - File size (bottom-right, subtle)
 - **Drag gesture:** User drags the card. As they drag:
-  - Left drag → card rotates slightly CCW, red "DELETE" label fades in (top-left of card)
-  - Right drag → card rotates slightly CW, green "KEEP" label fades in (top-right of card)
-  - Threshold: if drag exceeds 40% of screen width and is released, the swipe commits. Otherwise the card snaps back.
+  - Left drag → card rotates slightly CCW, red "DELETE" label fades in (top-right of card)
+  - Right drag → card rotates slightly CW, green "KEEP" label fades in (top-left of card)
+  - Up drag → blue "ALBUM" label fades in (top-center of card); releasing opens the album picker
+  - Threshold: if drag exceeds 40% of screen width (or height, for the up drag) and is released, the swipe commits. Otherwise the card snaps back.
 - **Haptic feedback:** Light impact on drag start. Heavy impact on committed swipe.
-- **Button bar below the card:** Three buttons — ✕ (delete), ✦ (info/details), ✓ (add to album). These trigger the same actions as swiping.
+- **Button bar below the card:** Four buttons — ✕ (delete), ➤ (skip), folder+ (add to album), ✓ (keep). These trigger the same actions as swiping. Keeping never opens a sheet.
 
 #### 5.1.3 Swipe Left → Delete
 
@@ -147,24 +149,25 @@ Tapping a filter starts the Swipe Session with that filtered asset list.
 4. Show next card.
 5. If the deletion requires user confirmation (iOS shows a system alert for photo deletion), handle that dialog gracefully.
 
-#### 5.1.4 Swipe Right → Add to Album Flow
+#### 5.1.4 Swipe Up → Add to Album Flow
 
-1. Animate card flying off to the right.
+Filing a photo is explicit — an up-swipe or the album button — never a side effect of keeping. A plain right-swipe silently keeps the photo (`SwipeRecord(decision: .kept)`), advances the deck, and presents nothing.
+
+1. Animate the card flying up. The card stays on top of the deck; the deck does not advance until the choice resolves.
 2. Present a **bottom sheet** (not a full-screen modal) with:
    - Title: "Add to Album"
    - Horizontal scrollable row of the user's **5 most recently used albums** (show album cover thumbnail + name)
    - Below that: a grid of **all user albums** (sorted alphabetically)
    - A **"+ New Album"** button at the top
-   - A **"Skip"** button (text button, bottom) — skips adding to album, saves `SwipeRecord(decision: .skipped)`
-3. Tapping an album: adds the asset to that album via `PHAssetCollectionChangeRequest.addAssets`. Saves `SwipeRecord(decision: .addedToAlbum, albumLocalIdentifier: album.localIdentifier)`.
+3. Tapping an album: adds the asset to that album via `PHAssetCollectionChangeRequest.addAssets`. Saves `SwipeRecord(decision: .addedToAlbum, albumLocalIdentifier: album.localIdentifier)`. Dismiss the sheet and advance to the next card.
 4. Tapping "+ New Album": shows a text field inline to enter album name. On confirm, creates album, adds asset, dismisses sheet.
-5. After any album action: dismiss sheet and advance to next card.
+5. Dismissing the sheet any other way (Skip / swipe-down): the photo stays unfiled. Skip records `.skipped` and advances; a bare swipe-down keeps the card on top for a fresh decision.
 
 #### 5.1.5 Session End
 
 When all assets in the current filter are exhausted, show a **completion screen** with:
 - A checkmark animation
-- Count of deleted, organised, and skipped assets in this session
+- Count of deleted, kept, organised (added to an album), and skipped assets in this session
 - Estimated storage freed (sum of deleted asset sizes, fetched via `PHAsset.resource(for:)`)
 - Buttons: "Start Another Session" (returns to filter picker) and "Go to Cleanup Tools"
 
@@ -558,7 +561,7 @@ Explicitly out of scope — do not build:
 - Sharing functionality (beyond what iOS share sheet provides natively if the user long-presses).
 - In-app purchases or subscription logic.
 - App Clips.
-- iPad-specific layout (phone only for now; just ensure it doesn't crash on iPad).
+- iPad-specific layout (HISTORICAL, 2026-08: the app is universal since v1.0.1 — iPad layout shipped; this line predates that and is kept only for PRD history).
 - Direct access to other apps' sandboxed data.
 - Private API usage (`LSApplicationWorkspace` or similar) — App Store compliance required.
 

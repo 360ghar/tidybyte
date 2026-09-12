@@ -2,9 +2,8 @@
 User-agent: *
 Allow: /
 
-# Block access to internal assets that should not be indexed
-Disallow: /assets/js/
-Disallow: /assets/css/
+# CSS/JS are NOT blocked: crawlers need them to render the page, and blocking
+# render resources degrades Google's rendering-based evaluation.
 
 # AI search crawlers (allow — content appears in real-time answers)
 User-agent: OAI-SearchBot

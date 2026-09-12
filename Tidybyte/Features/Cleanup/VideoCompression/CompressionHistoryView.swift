@@ -10,6 +10,12 @@ struct CompressionHistoryView: View {
         records.reduce(0) { $0 + $1.savedBytes }
     }
 
+    /// D15: "N compressions" means completed swaps — skipped (no savings) and
+    /// failed attempts are not compressions.
+    var completedCount: Int {
+        records.filter(\.succeeded).count
+    }
+
     var body: some View {
         Group {
             if records.isEmpty {
@@ -25,7 +31,7 @@ struct CompressionHistoryView: View {
                     Section {
                         HStack {
                             VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("\(records.count) compressions")
+                                Text("\(completedCount) compressions")
                                     .font(.headline)
                                 Text("Total saved: \(totalSaved.formattedFileSize)")
                                     .font(.caption)
@@ -111,12 +117,8 @@ struct CompressionHistoryView: View {
                     }
                 }
                 .listStyle(.plain)
-                .pullToRefresh {
-                    // `@Query` is live and auto-updates from SwiftData, so there is no
-                    // manual fetch to re-run. Yield to keep the gesture/haptic affordance
-                    // consistent app-wide without faking work.
-                    await Task.yield()
-                }
+                // No pull-to-refresh: `@Query` is live and auto-updates from
+                // SwiftData, so a manual refresh gesture could only fake work.
             }
         }
         .navigationTitle("History")

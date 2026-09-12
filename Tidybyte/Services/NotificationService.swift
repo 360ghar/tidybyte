@@ -71,6 +71,12 @@ enum NotificationService {
 
     static func isPermissionGranted() async -> Bool {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        return settings.authorizationStatus == .authorized
+        // Provisional and ephemeral users DO receive the scheduled reminder —
+        // treating them as un-granted silently stopped the daily copy refresh
+        // for those users (A3).
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral: return true
+        default: return false
+        }
     }
 }

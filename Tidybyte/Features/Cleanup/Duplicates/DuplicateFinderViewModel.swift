@@ -1,12 +1,5 @@
 import SwiftUI
 
-enum ScanState: Equatable {
-    case idle
-    case scanning(Float)
-    case completed
-    case error(String)
-}
-
 @Observable
 @MainActor
 final class DuplicateFinderViewModel {
@@ -24,12 +17,11 @@ final class DuplicateFinderViewModel {
     /// gate the success haptic on a non-zero result (no more "Delete 0 Items").
     var deletedCount = 0
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
     private let visionService = VisionAnalysisService()
     private let duplicateService: DuplicateDetectionService
-    /// DUP-02: the scan is held in a cancellable task so leaving the screen or
-    /// tapping Cancel actually stops it, and re-entry can be guarded.
-    private var scanTask: Task<Void, Never>?
+    /// C1/C2: owns the cancellable scan task + generation token.
+    private let scanRunner = ScanRunner()
 
     init() {
         duplicateService = DuplicateDetectionService(
@@ -50,13 +42,6 @@ final class DuplicateFinderViewModel {
         allGroups.reduce(0) { $0 + $1.assets.count - 1 }
     }
 
-    var totalSavingsBytes: Int64 {
-        allGroups.reduce(Int64(0)) { total, group in
-            let nonBest = group.assets.filter { $0.id != group.bestAssetId }
-            return total + nonBest.reduce(Int64(0)) { $0 + $1.fileSize }
-        }
-    }
-
     var selectedSavingsBytes: Int64 {
         allGroups.reduce(Int64(0)) { total, group in
             total + group.assets.filter { selectedForDeletion.contains($0.id) }
@@ -64,31 +49,33 @@ final class DuplicateFinderViewModel {
         }
     }
 
-    /// Every asset across every group is currently selected for deletion.
+    /// Every non-best asset across every group is selected (keepers excluded —
+    /// one confirmation must never be able to delete every copy of a photo, C7).
     var allSelectedForDeletion: Bool {
-        let allIds = Set(allGroups.flatMap { $0.assets.map(\.id) })
-        return !allIds.isEmpty && selectedForDeletion == allIds
+        let allDeletableIds = Set(allGroups.flatMap { Self.nonBestAssetIds(in: $0) })
+        return !allDeletableIds.isEmpty && selectedForDeletion == allDeletableIds
     }
 
-    // MARK: - Scan lifecycle (DUP-02)
+    // MARK: - Scan lifecycle (DUP-02/C1)
 
     func startScan() {
-        guard scanTask == nil else { return }
-        scanTask = Task { [weak self] in
-            await self?.scan()
-            self?.scanTask = nil
+        scanRunner.start { [weak self] token in
+            await self?.scan(token: token)
         }
     }
 
     func cancelScan() {
-        scanTask?.cancel()
-        scanTask = nil
+        scanRunner.cancel()
         if case .scanning = scanState {
             scanState = .idle
         }
     }
 
-    func scan() async {
+    private func scan(token: Int) async {
+        // A run whose token is already stale (cancelled before this body got a
+        // turn on the main actor) must not touch shared state: `cancelScan()`
+        // already moved the UI to `.idle`.
+        guard scanRunner.isCurrent(token) else { return }
         scanState = .scanning(0)
         selectedForDeletion.removeAll()
         errorMessage = nil
@@ -101,38 +88,34 @@ final class DuplicateFinderViewModel {
         let currentScanType = scanType
         let assets = await photoService.fetchAssets(filter: .allMedia)
 
-        if Task.isCancelled {
-            scanState = .idle
-            return
-        }
+        // A cancelled scan leaves the state alone: `cancelScan()` already moved
+        // the UI to `.idle`, and writing it here would stomp a scan the user
+        // restarted while this one was still unwinding (C1/C2).
+        if Task.isCancelled { return }
 
         if currentScanType == .exact || currentScanType == .all {
             let scale: Float = currentScanType == .all ? 0.5 : 1.0
             let result = await duplicateService.findExactDuplicates(assets: assets) { [weak self] progress in
                 Task { @MainActor in
-                    self?.scanState = .scanning(progress * scale)
+                    // C2: dropped when the scan is no longer current.
+                    self?.scanRunner.update(token) { self?.scanState = .scanning(progress * scale) }
                 }
             }
+            guard !Task.isCancelled else { return }
             exactGroups = result.groups
             skippedICloudCount = result.skippedCount
-            if Task.isCancelled {
-                scanState = .idle
-                return
-            }
         }
 
         if currentScanType == .visual || currentScanType == .all {
             let startProgress: Float = currentScanType == .all ? 0.5 : 0
             let scale: Float = currentScanType == .all ? 0.5 : 1.0
-            visualGroups = await duplicateService.findVisualDuplicates(assets: assets) { [weak self] progress in
+            let foundVisualGroups = await duplicateService.findVisualDuplicates(assets: assets) { [weak self] progress in
                 Task { @MainActor in
-                    self?.scanState = .scanning(startProgress + progress * scale)
+                    self?.scanRunner.update(token) { self?.scanState = .scanning(startProgress + progress * scale) }
                 }
             }
-            if Task.isCancelled {
-                scanState = .idle
-                return
-            }
+            guard !Task.isCancelled else { return }
+            visualGroups = foundVisualGroups
         }
 
         // DUP-07: exact groups are authoritative — an asset already claimed by an
@@ -144,6 +127,12 @@ final class DuplicateFinderViewModel {
                 visualGroups: visualGroups
             )
         }
+
+        // A cancelled or superseded run must never publish results: the user may
+        // have restarted the scan (and switched scan type) while this one was
+        // still unwinding, and publishing would pair these groups with the new
+        // type's empty list.
+        guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
         scanState = .completed
 
@@ -157,43 +146,58 @@ final class DuplicateFinderViewModel {
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: Array(selectedForDeletion))
-            deletedCount = selectedForDeletion.count
-            let deleted = selectedForDeletion
-            exactGroups = normalizeGroups(exactGroups, removing: deleted)
-            visualGroups = normalizeGroups(visualGroups, removing: deleted)
-            selectNonBestAssets()
-        } catch {
-            errorMessage = error.localizedDescription
+        // Freed bytes must be attributed from the pre-delete metadata — the
+        // assets are gone from the library once the delete returns.
+        let sizeById = allGroups.reduce(into: [String: Int64]()) { result, group in
+            for asset in group.assets { result[asset.id] = asset.fileSize }
         }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: selectedForDeletion,
+            kind: .duplicates,
+            sizeById: sizeById,
+            apply: { applyDeletion(of: $0) },
+            recordDeleted: { self.deletedCount = $0 }
+        )
+        errorMessage = outcome.errorMessage
     }
 
     /// DUP-04a: delete just one group's non-best assets through the shared
-    /// delete flow. On failure the previous selection is restored.
+    /// delete flow. `applyDeletion` collapses the selection to this group's
+    /// survivors, so the user's other selections are layered back on here —
+    /// restricted to assets that still exist, because a partial failure means
+    /// the rest of this group's ids really were deleted (re-arming them would
+    /// leave ghosts that inflate counts and report as deleted a second time).
     func delete(group: DuplicateGroup) async {
         let ids = Self.nonBestAssetIds(in: group)
         guard !ids.isEmpty, !isDeleting else { return }
         let previousSelection = selectedForDeletion
         selectedForDeletion = ids
         await deleteSelected()
-        if errorMessage != nil {
-            selectedForDeletion = previousSelection
-        }
+        let survivors = Set(allGroups.flatMap { $0.assets.map(\.id) })
+        selectedForDeletion.formUnion(previousSelection.intersection(survivors))
+    }
+
+    /// Removes deleted ids from both group lists (collapsing groups below two
+    /// members), then restores the selection to the surviving non-best assets —
+    /// WITHOUT re-arming assets the user explicitly deselected (C6).
+    private func applyDeletion(of deletedIds: Set<String>) {
+        exactGroups = normalizeGroups(exactGroups, removing: deletedIds)
+        visualGroups = normalizeGroups(visualGroups, removing: deletedIds)
+        // C6: intersect with survivors instead of recomputing select-all-non-best,
+        // so explicit keep-deselections survive the delete round-trip.
+        selectedForDeletion.formIntersection(Set(allGroups.flatMap { $0.assets.map(\.id) }))
     }
 
     // MARK: - Selection (DUP-04c)
 
+    /// Select All targets only the non-best assets (C7): keepers are never
+    /// selected, so a single confirmation can never wipe out every copy.
     func selectAllForDeletion() {
-        var state = SelectionState(ids: selectedForDeletion)
-        state.selectAll(Set(allGroups.flatMap { $0.assets.map(\.id) }))
-        selectedForDeletion = state.ids
+        selectedForDeletion = Set(allGroups.flatMap { Self.nonBestAssetIds(in: $0) })
     }
 
     func deselectAllForDeletion() {
-        var state = SelectionState(ids: selectedForDeletion)
-        state.deselectAll()
-        selectedForDeletion = state.ids
+        selectedForDeletion.removeAll()
     }
 
     func toggleSelection(_ assetId: String) {

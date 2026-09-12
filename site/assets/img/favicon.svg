@@ -1,12 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="TidyByte">
+  <rect width="64" height="64" rx="14" fill="url(#tb-favicon-bg)"/>
   <defs>
     <linearGradient id="tb-favicon-bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#16181D"/>
       <stop offset="100%" stop-color="#09090B"/>
     </linearGradient>
+    <linearGradient id="tb-fav-mark-back" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#853EA9"/>
+      <stop offset="100%" stop-color="#BC6EE3"/>
+    </linearGradient>
+    <linearGradient id="tb-fav-mark-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0762BD"/>
+      <stop offset="50%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#3B9DFF"/>
+    </linearGradient>
+    <linearGradient id="tb-fav-mark-highlight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.26"/>
+    </linearGradient>
+    <radialGradient id="tb-fav-mark-glow">
+      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#0A84FF" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="tb-fav-mark-front-clip">
+      <rect x="0.12" y="0.16451" width="0.645" height="0.55599" rx="0.1112"/>
+    </clipPath>
   </defs>
-  <rect width="64" height="64" rx="14" fill="url(#tb-favicon-bg)"/>
-  <rect x="16" y="18" width="32" height="28" rx="6" fill="#0A84FF"/>
-  <rect x="23" y="25" width="18" height="14" rx="3.5" fill="#0B0D10"/>
-  <path d="M26.5 32.5l3.5 3.5 7.5-8" fill="none" stroke="#30B0C7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(32,32) scale(44,-44) translate(-0.5,-0.5)">
+    <circle cx="0.46" cy="0.58" r="0.62" fill="url(#tb-fav-mark-glow)"/>
+    <rect x="0.235" y="0.27951" width="0.645" height="0.55599" rx="0.1112" fill="url(#tb-fav-mark-back)"/>
+    <rect x="0.12" y="0.16451" width="0.645" height="0.55599" rx="0.1112" fill="url(#tb-fav-mark-front)"/>
+    <g clip-path="url(#tb-fav-mark-front-clip)">
+      <rect x="0.12" y="0.53146" width="0.645" height="0.18904" fill="url(#tb-fav-mark-highlight)"/>
+    </g>
+    <rect x="0.13129" y="0.17579" width="0.62243" height="0.53341" rx="0.09991" fill="none" stroke="#0F1014" stroke-width="0.02258"/>
+    <path d="M0.33285 0.43138 L0.4038 0.37578 L0.55215 0.53146" fill="none" stroke="#49B9CE" stroke-opacity="0.3" stroke-width="0.20963" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M0.33285 0.43138 L0.4038 0.37578 L0.55215 0.53146" fill="none" stroke="#05303B" stroke-width="0.13416" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M0.33285 0.43138 L0.4038 0.37578 L0.55215 0.53146" fill="none" stroke="#30B0C7" stroke-width="0.08385" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 </svg>

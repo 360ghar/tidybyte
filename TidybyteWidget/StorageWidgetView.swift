@@ -30,6 +30,12 @@ struct StorageWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             storageRing(snapshot, size: 70, lineWidth: 8)
             Spacer(minLength: 0)
+            if let freed = snapshot.lifetimeFreedBytes, freed > 0 {
+                Label("Freed \(fmt(freed))", systemImage: "arrow.down.circle.fill")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.green)
+                    .lineLimit(1)
+            }
             Label("\(snapshot.screenshotCount + snapshot.largeFileCount) to clean",
                   systemImage: "sparkles")
                 .font(.caption2)
@@ -62,14 +68,53 @@ struct StorageWidgetView: View {
                             detail: fmt(snapshot.largeFileBytes))
                 }
 
-                Label("Reclaim ~\(fmt(snapshot.reclaimableBytes))", systemImage: "arrow.down.circle")
-                    .font(.caption.bold())
-                    .foregroundStyle(.green)
+                if let freed = snapshot.lifetimeFreedBytes, freed > 0 {
+                    // Tappable: same destination as the Activity & Savings
+                    // screen, without spending any extra height in the widget.
+                    Button(intent: ShowSavingsWidgetIntent()) {
+                        Label("Freed \(fmt(freed)) so far", systemImage: "arrow.down.circle.fill")
+                            .font(.caption.bold())
+                            .foregroundStyle(.green)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Label("Reclaim ~\(fmt(snapshot.reclaimableBytes))", systemImage: "arrow.down.circle")
+                        .font(.caption.bold())
+                        .foregroundStyle(.green)
+                }
+
+                quickActions
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .widgetURL(URL(string: "tidybyte://storage"))
+    }
+
+    /// Interactive row: each button runs an intent in the app's process and
+    /// hands the destination over through the App Group (`WidgetRoute`).
+    /// `.mini` control size keeps the row inside the medium widget's height
+    /// budget alongside the ring and the stat rows.
+    private var quickActions: some View {
+        HStack(spacing: 8) {
+            Button(intent: StartSwipeWidgetIntent()) {
+                Label("Swipe", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
+                    .font(.caption2.bold())
+                    .lineLimit(1)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
+            .tint(.blue)
+
+            Button(intent: CleanScreenshotsWidgetIntent()) {
+                Label("Screenshots", systemImage: "camera.viewfinder")
+                    .font(.caption2.bold())
+                    .lineLimit(1)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
+            .tint(.orange)
+        }
     }
 
     // MARK: - Pieces

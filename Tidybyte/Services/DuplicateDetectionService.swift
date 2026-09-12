@@ -235,6 +235,9 @@ actor DuplicateDetectionService {
         // download the full resource from iCloud (DUP-03) — and counted so the
         // UI can surface "N iCloud-only photos skipped".
         let (localAssets, skippedCount) = Self.splitByLocalAvailability(assets)
+        // One batched PhotoKit resolve for the whole scan — the hash loop
+        // below would otherwise do one identifier lookup per asset.
+        let phById = photoService.phAssetsById(localAssets.map(\.id))
         var candidates: [String: [AssetSummary]] = [:]
         let total = assets.count
         for (index, asset) in localAssets.enumerated() {
@@ -265,7 +268,10 @@ actor DuplicateDetectionService {
                     await Task.yield()
                 }
                 // Stream the hash so large videos aren't loaded fully into memory.
-                if let hashString = await photoService.sha256ForPrimaryResource(of: asset.id) {
+                // `phById` was resolved once up front — no per-asset fetch.
+                // (Missing = deleted externally mid-scan; skip like a nil hash.)
+                if let phAsset = phById[asset.id],
+                   let hashString = await photoService.sha256ForPrimaryResource(of: phAsset) {
                     hashGroups[hashString, default: []].append(asset)
                 }
                 processed += 1
@@ -298,17 +304,19 @@ actor DuplicateDetectionService {
     ) async -> [DuplicateGroup] {
         let photoAssets = assets.filter { $0.mediaType == .photo }
         let total = photoAssets.count
-        let estimatedPairs = total * (total - 1) / 2
-        // Weight the generation and comparison phases by their actual work
-        // (generation: per asset; comparison: per attempted pair) so neither
-        // phase stalls the progress bar (DUP-01/DUP-12).
-        let generationWeight: Float = total + estimatedPairs > 0
-            ? Float(total) / Float(total + estimatedPairs)
-            : 1
+        // C3: with the perceptual pre-filter in place the comparison phase is
+        // nearly free, so the old `total/(total+pairs)` weighting (which
+        // assumed raw O(n²) comparison dominated) pinned the bar near 0% for
+        // the whole expensive feature-print decode and then snapped to 100%.
+        // Feature-print generation IS the work now — it gets 90% of the bar.
+        let generationWeight: Float = 0.9
         let comparisonWeight = 1 - generationWeight
 
         // Phase 1 (0 → generationWeight): feature prints plus the cheap
         // perceptual pre-filter hash, both from the same 300px CGImage.
+        // One batched PhotoKit resolve for the whole scan — no per-asset fetch.
+        // (Missing = deleted externally mid-scan; skip like a nil image.)
+        let phById = photoService.phAssetsById(photoAssets.map(\.id))
         var featurePrints: [(asset: AssetSummary, print: FeaturePrint, hash: UInt64)] = []
         for (index, asset) in photoAssets.enumerated() {
             if Task.isCancelled { return [] }
@@ -316,7 +324,7 @@ actor DuplicateDetectionService {
                 await Task.yield()
             }
             var hash: UInt64 = 0
-            if let image = await loadCGImage(for: asset.id) {
+            if let phAsset = phById[asset.id], let image = await loadCGImage(for: phAsset) {
                 if let grid = VisualPreFilter.luminanceGrid(from: image) {
                     hash = VisualPreFilter.hash64(from: grid)
                 }
@@ -339,9 +347,38 @@ actor DuplicateDetectionService {
             }
         }
         let candidateSet = VisualPreFilter.candidatePairs(hashesByAsset)
+        // Progress denominator for phase 2: the actual candidate pairs, not
+        // the raw pair count (C3).
+        let comparisonTotal = max(candidateSet.count, 1)
 
         // Phase 2 (generationWeight → 1): greedy grouping, unchanged semantics
-        // (same anchor order, same threshold, same visited handling).
+        // (same anchor order, same threshold, same visited handling) — but the
+        // inner loop walks the candidate adjacency list instead of the full i/j
+        // triangle. The old loop ran O(n²) `candidateSet` membership probes
+        // (one PairKey hash per pair) even when the pre-filter had pruned
+        // nearly everything; now an anchor with no candidates costs nothing.
+        //
+        // Equivalence notes: the old inner loop only compared j > i, and every
+        // pair (k, i) with k < i was already decided when k was the anchor —
+        // so only later-neighbors are compared here. Neighbor indices are
+        // sorted to preserve the old comparison order (group member order is
+        // user-visible); `candidateSet` iteration order is deliberately not
+        // used. The index map keeps the FIRST index per id, mirroring the
+        // defensive `hashesByAsset` build above.
+        let indexById = featurePrints.enumerated().reduce(into: [String: Int]()) { result, entry in
+            if result[entry.element.asset.id] == nil {
+                result[entry.element.asset.id] = entry.offset
+            }
+        }
+        var laterNeighbors = Array(repeating: [Int](), count: featurePrints.count)
+        for pair in candidateSet {
+            guard let a = indexById[pair.a], let b = indexById[pair.b], a != b else { continue }
+            laterNeighbors[min(a, b)].append(max(a, b))
+        }
+        for i in laterNeighbors.indices {
+            laterNeighbors[i].sort()
+        }
+
         var visited = Set<String>()
         var groups: [DuplicateGroup] = []
         var attemptedPairs = 0
@@ -354,14 +391,14 @@ actor DuplicateDetectionService {
             var group: [AssetSummary] = [featurePrints[i].asset]
             visited.insert(featurePrints[i].asset.id)
 
-            for j in (i + 1)..<featurePrints.count {
+            for j in laterNeighbors[i] {
                 if Task.isCancelled { return groups.sorted { $0.assets.count > $1.assets.count } }
                 guard !visited.contains(featurePrints[j].asset.id) else { continue }
-                attemptedPairs += 1
 
-                guard candidateSet.contains(PairKey(featurePrints[i].asset.id, featurePrints[j].asset.id)) else {
-                    continue
-                }
+                // Count only real Vision comparisons: `comparisonTotal` is the
+                // post-prune candidate count, so counting pre-filter pairs made
+                // progress overshoot 1.0 by a wide factor.
+                attemptedPairs += 1
 
                 let distance = await visionService.computeDistance(
                     between: featurePrints[i].print,
@@ -384,7 +421,7 @@ actor DuplicateDetectionService {
                 ))
             }
 
-            progress(generationWeight + comparisonWeight * Float(attemptedPairs) / Float(max(estimatedPairs, 1)))
+            progress(min(generationWeight + comparisonWeight * Float(attemptedPairs) / Float(comparisonTotal), 1.0))
         }
 
         return groups.sorted { $0.assets.count > $1.assets.count }
@@ -397,8 +434,8 @@ actor DuplicateDetectionService {
         BestAssetSelector.bestByMetadata(from: assets) ?? assets[0]
     }
 
-    private func loadCGImage(for assetId: String) async -> CGImage? {
-        guard let uiImage = await photoService.loadThumbnail(for: assetId, size: CGSize(width: 300, height: 300)) else {
+    private func loadCGImage(for asset: PHAsset) async -> CGImage? {
+        guard let uiImage = await photoService.loadThumbnail(for: asset, size: CGSize(width: 300, height: 300)) else {
             return nil
         }
         return uiImage.cgImage
