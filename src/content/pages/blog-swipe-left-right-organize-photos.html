@@ -1,0 +1,239 @@
+  <main id="main">
+<nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6 text-sm">
+  <ol class="flex items-center gap-1.5 text-muted">
+    <li><a href="/" class="text-muted hover:text-ink hover:underline">Home</a></li>
+    <li aria-hidden="true">/</li>
+    <li><a href="/blog" class="text-muted hover:text-ink hover:underline">Blog</a></li>
+  </ol>
+</nav>
+
+<article class="container-prose mx-auto max-w-prose px-4 pb-16 pt-8 sm:pt-10">
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/blog#cat-features" class="badge">Features</a>
+  </div>
+
+  <h1 class="h-display mt-4">Swipe Left to Delete, Right to Keep: Organize Photos Fast</h1>
+
+  <p class="lede mt-5">Your iPhone probably holds thousands of photos you never look at again. Blurry shots, duplicate screenshots, near-identical burst frames -- they pile up quietly until your storage warning appears. The fastest way to sort through all of them is to swipe left right to organize photos, turning a tedious chore into something you can finish in a single sitting. This guide explains exactly how the swipe gesture system works inside TidyByte, what each direction does, and how to customize the experience to match how you manage your library.</p>
+
+  <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+    <time datetime="2026-06-13">June 13, 2026</time>
+    <span aria-hidden="true">&middot;</span>
+    <span>8 min read</span>
+  </div>
+
+  <figure class="mt-8">
+    <picture>
+      <source srcset="/assets/img/blog/swipe-left-right-organize-photos.avif" type="image/avif">
+      <img src="/assets/img/blog/swipe-left-right-organize-photos.webp" alt="Clay illustration: a large arrow pointing left and a large arrow pointing right with a single photograph card caught mid-swipe between them" width="1400" height="933"
+           loading="eager" fetchpriority="high" decoding="async"
+           class="block h-auto w-full rounded-2xl border border-hairline">
+    </picture>
+  </figure>
+
+  <nav aria-labelledby="toc-h" class="clay-card mt-10 p-5 sm:p-6">
+    <h2 id="toc-h" class="font-display text-sm font-semibold uppercase tracking-[0.12em] text-muted">On this page</h2>
+    <ol class="mt-3 space-y-2 text-[15px]">
+      <li><a href="#swipe-left-right-organize-photos-section-1" class="link decoration-1">How the Swipe Gesture Works</a></li>
+      <li><a href="#swipe-left-right-organize-photos-section-2" class="link decoration-1">Left Swipe: Delete with Confidence</a></li>
+      <li><a href="#swipe-left-right-organize-photos-section-3" class="link decoration-1">Right Swipe: Keep and Organize</a></li>
+      <li><a href="#swipe-left-right-organize-photos-section-4" class="link decoration-1">Customizing Swipe Behavior</a></li>
+      <li><a href="#swipe-left-right-organize-photos-section-5" class="link decoration-1">Undoing Accidental Swipes</a></li>
+      <li><a href="#swipe-left-right-organize-photos-section-6" class="link decoration-1">Assigning Albums on Keep</a></li>
+      <li><a href="#faq" class="link decoration-1">Frequently Asked Questions</a></li>
+    </ol>
+  </nav>
+
+
+  <nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6 text-sm">
+    <ol class="flex items-center gap-1.5 text-muted">
+      <li><a href="/" class="text-muted hover:text-ink">Home</a></li>
+      <li aria-hidden="true">/</li>
+      <li><a href="/blog" class="text-muted hover:text-ink">Blog</a></li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page" class="text-body">Swipe Left to Delete, Right to Keep</li>
+    </ol>
+  </nav>
+
+  <article class="container-prose mx-auto max-w-prose">
+
+    
+
+    
+
+    <h2 id="swipe-left-right-organize-photos-section-1" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">How the Swipe Gesture Works</h2>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte presents one photo at a time in full-screen view. You see the image, its date, resolution, and file size. From there, the decision is binary: keep it or delete it. A right swipe keeps the photo in your library. A left swipe marks it for removal. After each swipe, the next photo loads instantly so your momentum never breaks.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The gesture is intentionally simple. There are no checkboxes to tick, no multi-select menus to navigate, and no confirmation dialogs between photos. Research on mobile interaction design shows that binary swipe decisions can be made in under one second per item, which means you can review 60 photos per minute. At that pace, a library of 3,000 photos takes roughly 50 minutes to sort -- a task that would take hours using the default Photos app approach of tap-select-delete.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The swipe view loads photos from your camera roll chronologically, starting with the oldest or newest depending on your sort preference. You can also jump into the swipe view from a specific album, a set of detected duplicates, or a filtered group like screenshots. This flexibility means you are not limited to a linear pass through every photo. You can target the messiest parts of your library first and work outward.</p>
+
+    <h2 id="swipe-left-right-organize-photos-section-2" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Left Swipe: Delete with Confidence</h2>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">When you swipe left, TidyByte moves the photo to the iOS Recently Deleted album. This is the same trash flow Apple uses natively, so nothing is permanently removed on the first pass. iOS holds deleted photos for 30 days before purging them, which gives you a full month to recover anything removed by accident. TidyByte never bypasses this safety mechanism.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The left swipe is designed for speed. You do not need to second-guess every blurry photo or near-duplicate because the 30-day window acts as a buffer. Many users report that they swipe left on 40 to 60 percent of their library in a single session, then do a quick spot-check in the Recently Deleted album before the 30-day window expires. This two-pass approach balances speed with safety.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For users who want even more control, TidyByte groups related photos together. If it detects 15 burst shots of the same scene, it surfaces them consecutively so you can compare and keep only the sharpest frame. The <a href="/blog/duplicate-photo-finder-iphone-free" class="link hover:underline">duplicate detection feature</a> uses SHA-256 hashing for exact matches and Apple Vision feature prints for near-duplicates, so you are not just guessing which photos look the same.</p>
+
+    <h2 id="swipe-left-right-organize-photos-section-3" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Right Swipe: Keep and Organize</h2>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">A right swipe tells TidyByte you want to keep the photo. By default, the photo stays exactly where it is in your camera roll. No movement, no re-encoding, no quality loss. But if you want to go further, TidyByte offers an optional album assignment prompt on keep. After you swipe right, a small sheet can appear asking which album you want to add the photo to.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Album assignment on keep turns the swipe process into a two-in-one workflow. Instead of first sorting your library and then organizing into albums separately, you do both in one pass. Users who enable this feature report that they are far more likely to maintain an organized library over time because the organizational effort is bundled into the cleanup action rather than being a separate task they never get around to.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">If you skip the album prompt, nothing changes. The photo remains in its original location. There is no penalty for skipping, and you can always batch-move photos into albums later using the standard iOS Photos app or other TidyByte tools. The key point is that right-swiping is always safe -- you are never at risk of losing a photo you intended to keep.</p>
+
+    <h2 id="swipe-left-right-organize-photos-section-4" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Customizing Swipe Behavior</h2>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Not everyone organizes photos the same way, so TidyByte exposes several customization options in its Settings tab. You can adjust the swipe sensitivity, which controls how far your finger needs to travel before the gesture registers. Users with larger hands or faster swiping habits often increase the threshold to prevent accidental triggers. Users who prefer light, quick flicks can lower it.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">You can also change what happens on each swipe direction. By default, left is delete and right is keep, but you can reverse these if you are left-handed or if the reversed mapping feels more natural to you. The app also supports an optional haptic feedback pulse on each swipe, so you get a physical confirmation that your gesture was registered even if you are not watching the screen closely.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For users working through large libraries, TidyByte offers a "quick mode" that hides the album assignment prompt and the undo button, letting you move through photos as fast as possible. You can switch between quick mode and standard mode at any time without losing your progress. The table below summarizes the key settings.</p>
+
+    <div class="mt-6 overflow-x-auto">
+      <div class="clay-card mt-6 overflow-x-auto p-1">
+<table class="w-full min-w-[36rem] text-left text-sm">
+        <thead>
+          <tr class="border-b border-hairline text-ink">
+            <th class="py-3 pr-4 font-semibold">Setting</th>
+            <th class="py-3 pr-4 font-semibold">Default</th>
+            <th class="py-3 font-semibold">What It Does</th>
+          </tr>
+        </thead>
+        <tbody class="muted">
+          <tr class="border-b border-hairline">
+            <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Swipe sensitivity</td>
+            <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Medium</td>
+            <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Adjusts the distance threshold before a swipe registers</td>
+          </tr>
+          <tr class="border-b border-hairline">
+            <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Reverse swipe directions</td>
+            <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Off</td>
+            <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Swaps left/right so left keeps and right deletes</td>
+          </tr>
+          <tr class="border-b border-hairline">
+            <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Haptic feedback</td>
+            <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">On</td>
+            <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Pulses the Taptic Engine when a swipe completes</td>
+          </tr>
+          <tr class="border-b border-hairline">
+            <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Album prompt on keep</td>
+            <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Off</td>
+            <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Shows an album picker after each right swipe</td>
+          </tr>
+          <tr>
+            <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Quick mode</td>
+            <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Off</td>
+            <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Hides undo and album prompt for maximum speed</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    </div>
+
+    <h2 id="swipe-left-right-organize-photos-section-5" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Undoing Accidental Swipes</h2>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Mistakes happen. You swipe left on a photo you meant to keep, or right on one you wanted to delete. TidyByte handles both cases. An undo button appears after every swipe, giving you a one-tap way to reverse the most recent action. The button stays visible until you swipe again, so you do not need to rush your decision.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Beyond the in-app undo, every left-swipe deletion goes through the standard iOS trash flow. That means you can open the Photos app at any time, navigate to the Recently Deleted album, and recover photos individually or in bulk. This double safety net -- in-app undo plus system-level recovery -- means you can swipe left right to organize photos at full speed without worrying about permanent data loss.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte also keeps a swipe history for the current session. If you realize partway through that you were too aggressive with deletions, you can review what you removed and restore items directly. The history clears when you close the app, but by then you have had time to check your Recently Deleted album. For a deeper look at how the app tracks your decisions, see the <a href="/changelog" class="link hover:underline">changelog</a> for recent improvements to the undo system.</p>
+
+    <h2 id="swipe-left-right-organize-photos-section-6" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Assigning Albums on Keep</h2>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Most people who organize their photo library into albums do it after the fact -- and then never finish. TidyByte solves this by letting you assign albums during the swipe process itself. When the album prompt is enabled in settings, swiping right triggers a lightweight sheet that lists your existing albums. Tap one to add the photo, or tap "Skip" to leave it in the camera roll.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">You can also create new albums on the fly from the prompt. If you are swiping through vacation photos and realize you do not have a "Summer 2026" album yet, you can create it right there without leaving the swipe view. This removes the friction of switching between apps or tabs, which is the number one reason people abandon their organizational efforts halfway through.</p>
+
+    <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Album assignment is completely optional. Many users prefer to do a pure deletion pass first, clearing out the obvious clutter, then run a second pass focused on organizing the remaining photos into albums. TidyByte supports both workflows equally well. The important thing is that the tool adapts to your style rather than forcing you into a rigid process.</p>
+
+    <div class="clay-card p-6 sm:p-8 mt-10">
+      <h3 class="mt-8 text-lg font-semibold text-ink">Quick tip: the 80/20 cleanup</h3>
+      <p class="muted mt-3 text-base leading-relaxed sm:text-lg">Most people find that 20 percent of their photos account for 80 percent of the clutter -- blurry shots, screenshots of memes, duplicate burst frames. Start your swipe session by targeting those categories first. TidyByte can surface screenshots and detected duplicates automatically, so you can clear the worst offenders before doing a general pass through the rest of your library.</p>
+    </div>
+
+    <section class="mt-12">
+      <h2 id="faq" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Frequently Asked Questions</h2>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">How do I swipe to organize photos?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed sm:text-lg">Open TidyByte's swipe view, which loads your camera roll by default. Each photo fills the screen. Swipe right to keep a photo, swipe left to mark it for deletion. The app immediately shows the next image so you can move through hundreds of photos in minutes without tapping menus or checkboxes.</p></div>
+    </details>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">What happens when I swipe left on a photo?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed sm:text-lg">A left swipe moves the photo to the Recently Deleted album inside iOS Photos. It is not permanently removed right away. iOS holds deleted photos for 30 days, giving you a safety window to recover anything removed by accident. TidyByte never bypasses this Apple-native trash flow.</p></div>
+    </details>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Can I undo a swipe decision?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed sm:text-lg">Yes. TidyByte provides an undo button that reverts the most recent swipe action. You can also tap the photo to bring it back into full-screen view and reverse your choice. Since deleted photos go to the iOS Recently Deleted album, you can always recover them from within the Photos app during the 30-day window.</p></div>
+    </details>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Can I choose which album to save to?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed sm:text-lg">When you swipe right to keep a photo, TidyByte can prompt you to assign it to a specific album. If you skip the prompt, the photo stays in your camera roll. Album assignment is optional, so power users who want full control can use it while anyone who prefers speed can skip it entirely.</p></div>
+    </details>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Is there a swipe-based photo organizer?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed sm:text-lg">Yes. TidyByte is a free, open-source iOS app built around a swipe-based photo organizer interface. It runs entirely on your device with no account and no cloud upload. The swipe gesture maps to keep or delete, and you can process thousands of photos in a single session.</p></div>
+    </details>
+    </section>
+
+    <section class="clay-card p-6 sm:p-8 text-center mt-12">
+      <h2 class="text-xl font-semibold text-ink">Ready to clean up your photo library?</h2>
+      <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and takes just minutes to use.</p>
+      <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+        <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+        <a href="/#features" class="btn-ghost">See all features</a>
+      </div>
+    </section>
+
+  </article>
+
+
+  <section aria-labelledby="related-h" class="mt-14">
+    <h2 id="related-h" class="h-section text-2xl sm:text-3xl">Keep reading</h2>
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <a href="/blog/how-to-use-tidybyte" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/how-to-use-tidybyte-card.webp" alt="Clay illustration: a chunky clay hand flicking a photograph card off a smartphone screen" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">How to Use TidyByte: Complete Beginner&#x27;s Guide</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 8 min read</p>
+        </div>
+      </a>
+      <a href="/blog/best-app-to-delete-similar-photos-iphone-free" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/best-app-to-delete-similar-photos-iphone-free-card.webp" alt="Clay illustration: a fan of near-identical clay photographs spread like playing cards" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Best Free App to Delete Similar Photos on iPhone</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 12 min read</p>
+        </div>
+      </a>
+      <a href="/blog/best-duplicate-photo-finder-free-iphone-2026" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/best-duplicate-photo-finder-free-iphone-2026-card.webp" alt="Clay illustration: an oversized clay magnifying glass hovering over two identical clay photographs" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Best Duplicate Photo Finder for iPhone &mdash; Free, 2026</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 8 min read</p>
+        </div>
+      </a>
+    </div>
+  </section>
+</article>
+  </main>

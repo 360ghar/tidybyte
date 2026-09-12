@@ -1,0 +1,14 @@
+---
+import { PAGES } from "../../data/pages";
+import { renderRoute } from "../../layouts/build-page";
+
+export function getStaticPaths() {
+  return PAGES.filter((p) => p.route.startsWith("/blog/")).map((p) => ({
+    params: { slug: p.route.slice("/blog/".length) },
+  }));
+}
+
+const { slug } = Astro.params;
+const html = renderRoute(`/blog/${slug}`);
+---
+<Fragment set:html={html} />

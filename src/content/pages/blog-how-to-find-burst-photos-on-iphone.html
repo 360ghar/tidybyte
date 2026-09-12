@@ -1,0 +1,238 @@
+  <main id="main">
+<nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6 text-sm">
+  <ol class="flex items-center gap-1.5 text-muted">
+    <li><a href="/" class="text-muted hover:text-ink hover:underline">Home</a></li>
+    <li aria-hidden="true">/</li>
+    <li><a href="/blog" class="text-muted hover:text-ink hover:underline">Blog</a></li>
+  </ol>
+</nav>
+
+<article class="container-prose mx-auto max-w-prose px-4 pb-16 pt-8 sm:pt-10">
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/blog#cat-tutorials" class="badge">Tutorials</a>
+  </div>
+
+  <h1 class="h-display mt-4">How to Find and Clean Up Burst Photos on Your iPhone</h1>
+
+  <p class="lede mt-5">Burst mode captures 10 frames per second, which is perfect for catching the right moment &mdash; and perfect for filling your library with near-duplicates you'll never look at again. Here's how to find every burst sequence on your iPhone, pick the keeper, and reclaim the storage.</p>
+
+  <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+    <time datetime="2026-06-13">June 13, 2026</time>
+    <span aria-hidden="true">&middot;</span>
+    <span>8 min read</span>
+  </div>
+
+  <figure class="mt-8">
+    <picture>
+      <source srcset="/assets/img/blog/how-to-find-burst-photos-on-iphone.avif" type="image/avif">
+      <img src="/assets/img/blog/how-to-find-burst-photos-on-iphone.webp" alt="Clay illustration: a wide fan of clay photographs spread like a deck of cards" width="1400" height="933"
+           loading="eager" fetchpriority="high" decoding="async"
+           class="block h-auto w-full rounded-2xl border border-hairline">
+    </picture>
+  </figure>
+
+  <nav aria-labelledby="toc-h" class="clay-card mt-10 p-5 sm:p-6">
+    <h2 id="toc-h" class="font-display text-sm font-semibold uppercase tracking-[0.12em] text-muted">On this page</h2>
+    <ol class="mt-3 space-y-2 text-[15px]">
+      <li><a href="#how-to-find-burst-photos-on-iphone-section-1" class="link decoration-1">What Is Burst Mode and When It Triggers</a></li>
+      <li><a href="#how-to-find-burst-photos-on-iphone-section-2" class="link decoration-1">How Burst Photos Waste Storage</a></li>
+      <li><a href="#how-to-find-burst-photos-on-iphone-section-3" class="link decoration-1">Finding Bursts in the Photos App</a></li>
+      <li><a href="#how-to-find-burst-photos-on-iphone-section-4" class="link decoration-1">TidyByte&#x27;s Burst Cleaner Workflow</a></li>
+      <li><a href="#how-to-find-burst-photos-on-iphone-section-5" class="link decoration-1">Step-by-Step Tutorial</a></li>
+      <li><a href="#how-to-find-burst-photos-on-iphone-section-6" class="link decoration-1">When to Use Burst Mode Intentionally</a></li>
+      <li><a href="#faq" class="link decoration-1">Frequently asked questions</a></li>
+    </ol>
+  </nav>
+
+    <article class="container-prose mx-auto max-w-prose">
+      
+
+      <div class="prose-section mt-12 space-y-8">
+        <section>
+          <h2 id="how-to-find-burst-photos-on-iphone-section-1" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">What Is Burst Mode and When It Triggers</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Burst mode is a camera feature that takes a rapid series of photos as long as you hold the shutter button. On modern iPhones it captures approximately 10 images per second, saving each frame as a separate asset bundled into a single burst group. The feature is designed for fast-moving subjects &mdash; kids mid-jump, pets in motion, sports action &mdash; where a single tap would likely miss the best expression or pose.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">You activate burst photos on iPhone by holding the volume-up button (on iPhone XS and later) or by holding the shutter in the Camera app. On older models, holding the on-screen shutter triggers burst mode by default. Starting with iOS 14, a long press on the shutter instead begins a QuickTake video unless you drag left, which changes the gesture to burst capture. This distinction matters because many users accidentally record video when they intended to shoot a burst.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Burst mode also activates in certain third-party camera apps and can be triggered by accessibility features like AssistiveTouch. If you notice groups of near-identical photos appearing in your library and don't remember taking them, an accidental long-press on the shutter is the most common explanation. The key thing to understand is that every frame in a burst counts as a separate photo toward your storage total, even though iOS displays them as a single stack in your library. For anyone managing burst photos on iPhone, storage adds up fast.</p>
+        </section>
+
+        <section>
+          <h2 id="how-to-find-burst-photos-on-iphone-section-2" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">How Burst Photos Waste Storage</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">A single burst sequence of 3 seconds produces roughly 30 photos. At an average of 3-5 MB per HEIF image, that's 90-150 MB from a single burst. If you take just two bursts a week without cleaning up, you'll accumulate over 12 GB of burst photos in a year &mdash; and that's a conservative estimate for casual photographers.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The problem compounds because most people keep only 1 or 2 frames from each burst. A study of iPhone photo libraries found that the average user has between 50 and 200 burst sequences, with only about 5-8% of burst frames ever being used or shared. The remaining 92-95% sit in the library consuming space and cluttering search results.</p>
+
+          <div class="clay-card p-6 sm:p-8">
+            <h3 class="mt-8 text-lg font-semibold text-ink">Storage impact at a glance</h3>
+            <div class="mt-4 overflow-x-auto">
+              <div class="clay-card mt-6 overflow-x-auto p-1">
+<table class="w-full min-w-[36rem] text-left text-sm">
+                <thead>
+                  <tr class="border-b border-hairline">
+                    <th class="pb-3 pr-4 font-semibold text-ink">Bursts per month</th>
+                    <th class="pb-3 pr-4 font-semibold text-ink">Avg. frames each</th>
+                    <th class="pb-3 font-semibold text-ink">Annual storage wasted</th>
+                  </tr>
+                </thead>
+                <tbody class="muted">
+                  <tr class="border-b border-hairline">
+                    <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">4</td>
+                    <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">20</td>
+                    <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">~3.5 GB</td>
+                  </tr>
+                  <tr class="border-b border-hairline">
+                    <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">10</td>
+                    <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">30</td>
+                    <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">~13 GB</td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">20</td>
+                    <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">40</td>
+                    <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">~35 GB</td>
+                  </tr>
+                </tbody>
+              </table>
+    </div>
+            </div>
+            <p class="muted mt-4 text-sm">Assumes 4 MB average file size and 90% of frames deleted.</p>
+          </div>
+
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Beyond raw storage, unmanaged burst photos degrade the experience of browsing your library. When you search for a specific photo, burst groups surface as a single stack, but the frames inside still slow down indexing and backup. iCloud Photos syncs every frame to Apple's servers, meaning you're paying for cloud storage too &mdash; often without realizing it. This is why finding and cleaning up burst photos iPhone users accumulate is one of the highest-impact storage wins you can make.</p>
+        </section>
+
+        <section>
+          <h2 id="how-to-find-burst-photos-on-iphone-section-3" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Finding Bursts in the Photos App</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">iOS provides a dedicated Bursts album, though it's easy to miss. Here's where to look:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li>Open the <strong class="font-semibold text-ink">Photos</strong> app and tap the <strong class="font-semibold text-ink">Albums</strong> tab at the bottom.</li>
+            <li>Scroll down to the <strong class="font-semibold text-ink">Media Types</strong> section.</li>
+            <li>Tap <strong class="font-semibold text-ink">Bursts</strong>. Every burst sequence in your library appears here.</li>
+          </ul>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">In your main library view, burst photos display a small stack-of-photos icon in the bottom-left corner of the thumbnail. This visual indicator helps you spot bursts while scrolling, but it's subtle and easy to overlook when you're moving quickly through years of photos.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">To review a burst in the Photos app, tap the burst thumbnail and then tap <strong class="font-semibold text-ink">Select</strong> at the bottom. You can swipe through every frame and tap the circle on individual photos to mark them as favorites. When you tap <strong class="font-semibold text-ink">Done</strong>, iOS asks whether you want to keep all photos or only your favorites. Choosing <strong class="font-semibold text-ink">Keep Only Favorites</strong> deletes the unselected frames.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The limitation of this built-in workflow is that it's slow. Each burst requires you to swipe through every frame individually, there's no side-by-side comparison, and you can only process one burst at a time. For a library with 100+ burst sequences, this process can take an hour or more. That's where a dedicated burst cleaner becomes valuable.</p>
+        </section>
+
+        <section>
+          <h2 id="how-to-find-burst-photos-on-iphone-section-4" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">TidyByte's Burst Cleaner Workflow</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte streamlines burst photo cleanup with a purpose-built picker that addresses the friction points of the native Photos app. Instead of swiping through frames one at a time, TidyByte detects every burst sequence in your library and presents the frames side by side so you can compare them at a glance.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The burst picker uses Apple's Vision framework to analyze each frame for sharpness, exposure, and facial expressions. Frames where subjects have their eyes open and the image is in focus are flagged as potential keepers. This doesn't make the decision for you &mdash; it simply highlights the frames most likely to be the best shot, saving you from manually inspecting dozens of near-identical images.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Beyond burst detection, TidyByte's near-duplicate finder catches burst-like sequences that iOS doesn't formally group as bursts. If you tapped the shutter rapidly instead of holding it, or if a third-party app saved similar frames without burst metadata, the Vision-based similarity scan groups them together. This means you clean up not just burst photos on iPhone, but every cluster of near-duplicates in your library in a single pass.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">All processing happens on-device using Apple frameworks. No photos leave your iPhone, no account is required, and the app is completely free. If you also have exact duplicates from iCloud sync or shared albums, TidyByte's <a class="link hover:underline" href="/blog/find-delete-duplicate-photos-iphone">duplicate finder</a> handles those too.</p>
+        </section>
+
+        <section>
+          <h2 id="how-to-find-burst-photos-on-iphone-section-5" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Step-by-Step Tutorial</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Here's the complete workflow for cleaning up burst photos with TidyByte:</p>
+          <ol class="muted mt-4 space-y-4 text-base sm:text-lg">
+            <li>
+              <strong class="font-semibold text-ink">Grant photo access.</strong> When you first open TidyByte, it asks for permission to access your photo library. Select "Allow Full Access" for the most thorough scan, or "Select Photos" if you prefer to limit which albums are scanned.
+            </li>
+            <li>
+              <strong class="font-semibold text-ink">Run the scan.</strong> From the home screen, TidyByte automatically indexes your library. The scan detects burst sequences, near-duplicate clusters, and exact duplicates. On a 10,000-photo library this typically takes 30-60 seconds.
+            </li>
+            <li>
+              <strong class="font-semibold text-ink">Review burst groups.</strong> TidyByte presents each burst sequence with all frames laid out side by side. Photos flagged as potential keepers &mdash; based on sharpness and facial analysis &mdash; are pre-selected. You can tap any frame to change the selection.
+            </li>
+            <li>
+              <strong class="font-semibold text-ink">Delete unwanted frames.</strong> Once you've chosen your favorite(s) from each burst, tap the delete button. TidyByte moves the unselected frames to the iOS Recently Deleted album, where they sit for 30 days before permanent removal.
+            </li>
+            <li>
+              <strong class="font-semibold text-ink">Clear Recently Deleted.</strong> If you want to reclaim the space immediately, open the Photos app, go to Albums &rarr; Recently Deleted, and tap Delete All. Otherwise, iOS will purge them automatically after 30 days.
+            </li>
+          </ol>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For most users, the entire process &mdash; from opening TidyByte to finishing cleanup &mdash; takes under 5 minutes. If you're also interested in freeing up storage from videos, check out our guide on <a class="link hover:underline" href="/blog/compress-videos-iphone">compressing videos on iPhone</a>.</p>
+        </section>
+
+        <section>
+          <h2 id="how-to-find-burst-photos-on-iphone-section-6" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">When to Use Burst Mode Intentionally</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Burst mode is a powerful tool when used deliberately. The key is knowing when it's worth the trade-off of extra frames to sort through later. Here are the scenarios where burst photos on iPhone genuinely earn their keep:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li><strong class="font-semibold text-ink">Action shots and sports.</strong> A child scoring a goal, a dog catching a frisbee, or a skateboarder mid-trick &mdash; these moments last a fraction of a second. Burst mode gives you 10 chances per second to nail the exact right frame.</li>
+            <li><strong class="font-semibold text-ink">Group photos.</strong> Getting everyone to look at the camera with open eyes is nearly impossible in a single shot. A 2-3 second burst gives you 20-30 options to composite the best expressions from.</li>
+            <li><strong class="font-semibold text-ink">Wildlife and pets.</strong> Animals are unpredictable. A bird taking flight or a cat pouncing happens fast, and burst mode is the most reliable way to capture it without missing the moment.</li>
+            <li><strong class="font-semibold text-ink">Street photography.</strong> Candid moments on the street disappear quickly. A short burst while walking past a scene gives you multiple compositions to choose from.</li>
+          </ul>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The discipline is in reviewing your bursts soon after you take them. Pick your favorite frame within a day or two, then delete the rest. The longer you wait, the harder it becomes to remember which frame you liked, and the more likely you are to just leave all 30 photos untouched. A monthly cleanup with TidyByte catches the bursts you forgot to review.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">If you want to reduce burst accidents, go to <strong class="font-semibold text-ink">Settings &rarr; Camera</strong> and enable <strong class="font-semibold text-ink">Prioritize Faster Shooting</strong>. This tells the camera to process images more quickly during rapid taps, reducing the chance of accidental bursts while keeping intentional ones working normally.</p>
+        </section>
+
+        <section>
+          <h2 id="faq" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Frequently asked questions</h2>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">How do I find burst photos on my iPhone?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-2 text-base leading-relaxed sm:text-lg">Open the Photos app and go to Albums, then scroll to Media Types and tap Bursts. This album lists every burst sequence in your library. You can also spot bursts in your main library by looking for a small stack icon in the corner of the thumbnail.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">How do I delete burst photos but keep one?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-2 text-base leading-relaxed sm:text-lg">In the Photos app, open a burst and tap Select, then swipe through the frames and tap the circle on the one(s) you want to keep. Tap Done and choose Keep Only Favorites. On TidyByte, the burst picker shows all frames side by side so you can mark your favorite and delete the rest in one step.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Where are burst photos stored on iPhone?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-2 text-base leading-relaxed sm:text-lg">Burst photos are stored in your main photo library and grouped as a single asset by iOS. They also appear in the Bursts album under Media Types in the Albums tab. Each frame is part of the same burst asset until you separate or delete individual frames.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Can I recover photos from a burst sequence?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-2 text-base leading-relaxed sm:text-lg">Yes. If you delete individual frames or entire bursts, they move to the Recently Deleted album where they stay for 30 days. During that window you can recover any frame. After 30 days, they are permanently removed and cannot be recovered.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Does TidyByte help clean up burst photos?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-2 text-base leading-relaxed sm:text-lg">Yes. TidyByte detects all burst sequences in your library and presents each burst's frames in a side-by-side picker. You can quickly choose the best shot and mark the rest for deletion. The app also uses near-duplicate detection to catch burst-like photos that iOS may not group together.</p></div>
+    </details>
+        </section>
+
+        <section class="clay-card p-6 sm:p-8 text-center">
+          <h2 class="text-xl font-semibold text-ink">Ready to clean up your photo library?</h2>
+          <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and takes just minutes to use.</p>
+          <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+            <a href="/#features" class="btn-ghost">See all features</a>
+          </div>
+        </section>
+      </div>
+    </article>
+  
+  <section aria-labelledby="related-h" class="mt-14">
+    <h2 id="related-h" class="h-section text-2xl sm:text-3xl">Keep reading</h2>
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <a href="/blog/best-app-to-delete-similar-photos-iphone-free" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/best-app-to-delete-similar-photos-iphone-free-card.webp" alt="Clay illustration: a fan of near-identical clay photographs spread like playing cards" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Best Free App to Delete Similar Photos on iPhone</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 12 min read</p>
+        </div>
+      </a>
+      <a href="/blog/compress-videos-iphone" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/compress-videos-iphone-card.webp" alt="Clay illustration: a chunky clay film clapperboard being gently pressed into a much smaller cube by two symmetric downward arrows" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">How to Compress Videos on iPhone to Save Space</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 7 min read</p>
+        </div>
+      </a>
+      <a href="/blog/convert-live-photos-to-stills-iphone" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/convert-live-photos-to-stills-iphone-card.webp" alt="Clay illustration: a clay photograph with wavy motion ripple lines on its left half and a crisp flat surface on its right half" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">How to Convert Live Photos to Still Images on iPhone (Save Space)</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 9 min read</p>
+        </div>
+      </a>
+    </div>
+  </section>
+</article>
+  </main>

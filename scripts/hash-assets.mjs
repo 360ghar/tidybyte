@@ -6,18 +6,14 @@
  * ship at fixed URLs, so without hashed filenames returning visitors keep
  * stale CSS/JS after a deploy.
  *
- * What it does:
- *   1. Hashes site/assets/css/styles.css + site/assets/js/{theme,nav,site,blog}.js
+ * What it does (runs on dist/ at the end of `npm run build`):
+ *   1. Hashes dist/assets/css/styles.css + dist/assets/js/{theme,nav,site,blog}.js
  *      (sha256, first 8 hex chars) and writes sibling copies, e.g.
  *      styles.3fa9c1e2.css. Stale hashed copies are deleted.
  *   2. Rewrites the references in all 51 HTML files. Idempotent: the regex
  *      matches both the fixed name and any previous hash.
  *
- * Local vs deploy: committed HTML keeps the FIXED names so
- * `python3 site/serve.py` works without a build. Netlify runs
- * `npm run build` (tailwind + this script) and publishes the rewritten
- * tree. Do not commit HTML rewritten by this script — restore with
- * `git checkout -- site/` after a local verification build.
+ * dist/ is a build output and is never committed.
  *
  * Usage: node scripts/hash-assets.mjs [--check]
  *   --check: fail if any asset reference points at a missing file.
@@ -28,7 +24,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SITE = join(ROOT, "site");
+const SITE = join(ROOT, "dist");
 const CHECK = process.argv.includes("--check");
 
 // [source file, url base without extension, extension]

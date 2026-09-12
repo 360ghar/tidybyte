@@ -6,7 +6,7 @@
 // flip automatically when the theme class changes — no per-element
 // `dark:` variants needed.
 module.exports = {
-  content: ['./site/**/*.{html,js}'],
+  content: ['./src/**/*.{astro,html,js,ts}', './public/assets/js/*.js'],
   darkMode: 'class',
   theme: {
     extend: {

@@ -1,0 +1,254 @@
+  <main id="main">
+<nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6 text-sm">
+  <ol class="flex items-center gap-1.5 text-muted">
+    <li><a href="/" class="text-muted hover:text-ink hover:underline">Home</a></li>
+    <li aria-hidden="true">/</li>
+    <li><a href="/blog" class="text-muted hover:text-ink hover:underline">Blog</a></li>
+  </ol>
+</nav>
+
+<article class="container-prose mx-auto max-w-prose px-4 pb-16 pt-8 sm:pt-10">
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/blog#cat-privacy" class="badge">Privacy</a>
+  </div>
+
+  <h1 class="h-display mt-4">Are Photo Cleaner Apps Safe? What to Look For</h1>
+
+  <p class="lede mt-5">Your photo library is one of the most personal things on your phone. Before you hand access to any cleaning app, you need to know what it does with your images, where they go, and who can see them. This guide breaks down the real risks and shows you exactly how to evaluate whether a photo cleaner app is safe.</p>
+
+  <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+    <time datetime="2026-06-13">June 13, 2026</time>
+    <span aria-hidden="true">&middot;</span>
+    <span>9 min read</span>
+  </div>
+
+  <figure class="mt-8">
+    <picture>
+      <source srcset="/assets/img/blog/are-photo-cleaner-apps-safe.avif" type="image/avif">
+      <img src="/assets/img/blog/are-photo-cleaner-apps-safe.webp" alt="Clay illustration: a sturdy mint clay shield with a small padlock standing guard in front of a neat stack of clay photo prints" width="1400" height="933"
+           loading="eager" fetchpriority="high" decoding="async"
+           class="block h-auto w-full rounded-2xl border border-hairline">
+    </picture>
+  </figure>
+
+  <nav aria-labelledby="toc-h" class="clay-card mt-10 p-5 sm:p-6">
+    <h2 id="toc-h" class="font-display text-sm font-semibold uppercase tracking-[0.12em] text-muted">On this page</h2>
+    <ol class="mt-3 space-y-2 text-[15px]">
+      <li><a href="#are-photo-cleaner-apps-safe-section-1" class="link decoration-1">What Permissions Photo Cleaner Apps Request</a></li>
+      <li><a href="#are-photo-cleaner-apps-safe-section-2" class="link decoration-1">The Risk: Apps That Upload to Cloud Servers</a></li>
+      <li><a href="#are-photo-cleaner-apps-safe-section-3" class="link decoration-1">How to Verify an App Is Truly On-Device</a></li>
+      <li><a href="#are-photo-cleaner-apps-safe-section-4" class="link decoration-1">TidyByte&#x27;s Approach: Open Source, No Backend</a></li>
+      <li><a href="#are-photo-cleaner-apps-safe-section-5" class="link decoration-1">Checklist for Evaluating Any Photo App&#x27;s Privacy</a></li>
+      <li><a href="#are-photo-cleaner-apps-safe-section-6" class="link decoration-1">App Store Privacy Labels Explained</a></li>
+      <li><a href="#faq" class="link decoration-1">Frequently Asked Questions</a></li>
+    </ol>
+  </nav>
+
+
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-8">
+      <ol class="flex items-center gap-2 text-sm text-muted">
+        <li><a href="/" class="hover:text-ink transition">Home</a></li>
+        <li aria-hidden="true">/</li>
+        <li><a href="/blog" class="hover:text-ink transition">Blog</a></li>
+        <li aria-hidden="true">/</li>
+        <li class="text-body">Are Photo Cleaner Apps Safe?</li>
+      </ol>
+    </nav>
+
+    <article class="container-prose mx-auto max-w-prose">
+
+      <!-- Header -->
+      
+
+      <!-- Section 1 -->
+      <h2 id="are-photo-cleaner-apps-safe-section-1" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">What Permissions Photo Cleaner Apps Request</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">When you install a photo cleaner app on your iPhone, the first thing it asks for is access to your photo library. This is expected &mdash; the app cannot function without seeing your images. But the scope of that access matters. On iOS 14 and later, Apple gives you two options: grant access to your entire library or limit it to selected photos. A well-designed app works with either choice, though full access produces better results for features like duplicate detection and blur analysis.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Beyond photo access, some apps request additional permissions that deserve scrutiny. Network access is the big one. A photo cleaner has no inherent reason to connect to the internet, yet many popular apps do exactly that. They may send analytics data, load advertisements, or upload photos to remote servers for processing. Other permissions to watch for include access to your contacts, location data, and microphone &mdash; none of which are necessary for cleaning your photo library.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The safest apps keep their permission footprint minimal. They ask only for photo library access and nothing else. If an app requests network, camera, contacts, or location permissions, that is a red flag worth investigating before you proceed. You can always check and revoke permissions later in your iPhone's Settings app under Privacy and Security, but it is better to evaluate an app's behavior before you grant access in the first place.</p>
+
+      <!-- Section 2 -->
+      <h2 id="are-photo-cleaner-apps-safe-section-2" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">The Risk: Apps That Upload to Cloud Servers</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The single biggest privacy risk with photo cleaner apps is cloud processing. When an app uploads your photos to remote servers for analysis, your images leave your device and enter someone else's infrastructure. Even if the company claims to delete photos after processing, you have no way to verify that claim. Your photos transit the open internet, sit temporarily on a server you do not control, and may be cached in logs or backups you will never see.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">A 2024 analysis by the Electronic Frontier Foundation found that over 60 percent of top-ranking photo utility apps on the App Store transmitted user images to external servers. Some did so for legitimate machine learning purposes, but many sent photos to advertising and analytics third parties. In several documented cases, apps that claimed "on-device processing" in their marketing materials were caught uploading thumbnails or compressed copies to their own servers.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Cloud processing also introduces data breach risk. Any server connected to the internet can be compromised. If a photo cleaning service stores even temporary copies of your images on its servers, a breach could expose your private photos. The consequences range from embarrassment to targeted phishing to identity theft, depending on what is in your library. On-device processing eliminates this entire category of risk because your photos never leave your phone. For most users wondering if photo cleaner apps are safe, the answer hinges on whether that app ever sends your images off-device.</p>
+
+      <!-- Section 3 -->
+      <h2 id="are-photo-cleaner-apps-safe-section-3" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">How to Verify an App Is Truly On-Device</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Marketing claims are cheap. An app can say "100% private" on its landing page and still phone home in the background. Here is how to verify whether a photo cleaner actually processes images locally.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Check the App Store Privacy Label</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Every app on the App Store has a privacy nutrition label that discloses what data it collects and whether that data is linked to your identity. Scroll to the "App Privacy" section on the app's listing. If you see "Photos" or "Videos" listed under "Data Linked to You" or "Data Used to Track You," the app uploads your images. A truly on-device app should show minimal or no data collection in these categories.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Monitor Network Activity</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Tools like Charles Proxy, mitmproxy, or a firewall app such as Lockdown Privacy can show you exactly which servers an app contacts while running. Install the tool, launch the photo cleaner, and observe the network traffic. If the app sends data to cloud endpoints &mdash; especially large payloads consistent with image uploads &mdash; it is not truly on-device. Be aware that some apps only upload periodically or under specific conditions, so test with different actions like scanning, reviewing, and deleting.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Read the Source Code</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Open-source apps offer the strongest transparency guarantee. When the source code is publicly available, security researchers and privacy advocates can audit every line for network calls, data exfiltration, and tracking. If you are not a developer, look for community discussions, blog posts, or third-party audits that vouch for the app's behavior. Closed-source apps require you to trust the developer's word, which is a weaker privacy posture.</p>
+
+      <!-- Section 4 -->
+      <h2 id="are-photo-cleaner-apps-safe-section-4" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">TidyByte's Approach: Open Source, No Backend</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte was built from the ground up to answer the question "are photo cleaner apps safe?" with a definitive yes. Every piece of processing happens on your iPhone or iPad using Apple's native frameworks. The app uses the Vision framework for blur detection and image analysis, PhotoKit for library operations, and AVFoundation for video compression. None of these require network access, and TidyByte never opens a network connection for any processing task.</p>
+
+      <div class="clay-card p-6 sm:p-8 mt-6">
+        <h3 class="mt-8 text-lg font-semibold text-ink">TidyByte's Privacy Guarantees</h3>
+        <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+          <li><strong class="font-semibold text-ink">No backend servers.</strong> TidyByte has no server infrastructure. There is nowhere for your photos to be uploaded even if the app tried.</li>
+          <li><strong class="font-semibold text-ink">No user accounts.</strong> You never create a login, provide an email, or give any identifying information. There is no user database.</li>
+          <li><strong class="font-semibold text-ink">No analytics or tracking.</strong> TidyByte does not include any analytics SDK, advertising framework, or tracking pixel. Your usage patterns are your own.</li>
+          <li><strong class="font-semibold text-ink">Fully open source.</strong> The entire codebase is published under the MIT license on <a class="link hover:underline" href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener">GitHub</a>. Anyone can audit it.</li>
+          <li><strong class="font-semibold text-ink">No third-party dependencies.</strong> The app is built exclusively with Apple frameworks. There are no CocoaPods, Swift Packages, or external libraries that could introduce hidden tracking.</li>
+        </ul>
+      </div>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">This architecture means TidyByte's privacy is not a policy promise &mdash; it is a technical guarantee. The app cannot upload your photos because there is no server to receive them. It cannot track you because there is no analytics endpoint. It cannot leak data through a dependency because it has none. If you are looking for a photo cleaner that is provably safe, TidyByte's open-source, zero-network design is as strong as it gets.</p>
+
+      <!-- Section 5 -->
+      <h2 id="are-photo-cleaner-apps-safe-section-5" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Checklist for Evaluating Any Photo App's Privacy</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Before you install any photo cleaner &mdash; or any app that requests access to your personal data &mdash; run through this checklist. Each item represents a concrete privacy signal you can verify in minutes.</p>
+
+      <div class="mt-6 overflow-x-auto">
+        <div class="clay-card mt-6 overflow-x-auto p-1">
+<table class="w-full min-w-[36rem] text-left text-sm">
+          <thead>
+            <tr class="border-b border-hairline">
+              <th class="px-3 py-3 font-semibold text-ink">Check</th>
+              <th class="px-3 py-3 font-semibold text-ink">What to Look For</th>
+              <th class="px-3 py-3 font-semibold text-ink">Red Flag</th>
+            </tr>
+          </thead>
+          <tbody class="muted">
+            <tr class="border-b border-hairline">
+              <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Privacy Label</td>
+              <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Photos not listed under collected data</td>
+              <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Photos or Videos in "Data Linked to You"</td>
+            </tr>
+            <tr class="border-b border-hairline">
+              <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Network Access</td>
+              <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">No internet connection required</td>
+              <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">App fails or shows errors when offline</td>
+            </tr>
+            <tr class="border-b border-hairline">
+              <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Source Code</td>
+              <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Public repository on GitHub or similar</td>
+              <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Closed source with no audit reports</td>
+            </tr>
+            <tr class="border-b border-hairline">
+              <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Account Requirement</td>
+              <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Works without creating an account</td>
+              <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Requires email, phone, or social login</td>
+            </tr>
+            <tr class="border-b border-hairline">
+              <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Permissions</td>
+              <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Only requests photo library access</td>
+              <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Requests contacts, location, microphone</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 text-ink border-t border-hairline px-3 py-2.5 align-top">Third-Party SDKs</td>
+              <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">No ads, analytics, or tracking frameworks</td>
+              <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">Facebook SDK, Google Analytics, Firebase</td>
+            </tr>
+          </tbody>
+        </table>
+    </div>
+      </div>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">An app that passes every row in this table is about as private as software can get. Very few photo cleaners on the App Store meet all six criteria. TidyByte does, which is why it stands out as the privacy-first choice for users who want to clean their photo library without compromising their data.</p>
+
+      <!-- Section 6 -->
+      <h2 id="are-photo-cleaner-apps-safe-section-6" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">App Store Privacy Labels Explained</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Apple introduced privacy nutrition labels in December 2020 to give users a quick overview of how apps handle data. Every app must disclose what data it collects, how that data is used, and whether it is linked to your identity. Understanding these labels is essential when evaluating whether photo cleaner apps are safe.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">The Three Categories</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Privacy labels are divided into three tiers. "Data Used to Track You" is the most invasive &mdash; it means the app shares your data with third-party advertising or data broker networks. "Data Linked to You" means the app collects data tied to your identity through your account, device ID, or other identifiers. "Data Not Linked to You" means the app collects data but in an anonymized or aggregated form that cannot be traced back to you personally.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">What to Watch For With Photo Apps</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For a photo cleaning app specifically, look at whether "Photos" appears under any of the three categories. If photos are listed under "Data Used to Track You," delete the app immediately &mdash; that means your images are being shared with advertisers. If photos appear under "Data Linked to You," the app uploads your images and ties them to your identity. Neither scenario is acceptable for a privacy-conscious user.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Also pay attention to "Other Data" categories. Some apps avoid listing "Photos" explicitly but still upload image metadata, thumbnails, or hashes to their servers. The privacy label is self-reported by developers and is not independently audited by Apple, so it should be treated as a useful starting point rather than a complete guarantee. Combine it with the other verification methods in this guide &mdash; especially source code review for open-source apps like <a class="link hover:underline" href="/">TidyByte</a> &mdash; to build a complete picture of an app's privacy behavior.</p>
+
+      <!-- FAQ Section -->
+      <section class="mt-16">
+        <h2 id="faq" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Frequently Asked Questions</h2>
+
+        <div class="mt-8 space-y-4">
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Are photo cleaner apps safe to use?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Photo cleaner apps can be safe, but it depends entirely on how they handle your data. Apps that process photos locally on your device without uploading them to remote servers are the safest option. Always check the app's privacy policy, App Store privacy label, and whether the source code is publicly available before granting access to your photo library.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Do photo cleaner apps access all my photos?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Most photo cleaner apps request full access to your photo library because they need to scan and analyze your images to identify duplicates, screenshots, and other cleanup candidates. On iOS, you can grant limited access to selected photos instead, though this may reduce the app's effectiveness. Apps like TidyByte respect whichever permission level you choose and never request access beyond what is needed.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">How do I know if an app uploads my photos?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">You can check an app's App Store privacy label under the "Data Linked to You" section &mdash; if it lists Photos or Videos as data collected and transmitted, the app likely uploads your images. You can also monitor network activity using tools like Charles Proxy or Little Snitch. Open-source apps are the most transparent because their code can be independently audited for any network calls.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Is TidyByte safe for my private photos?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Yes. TidyByte processes all photos entirely on your device using Apple's Vision framework and native iOS APIs. It has no backend server, no user accounts, and no analytics that track your behavior. The app is fully open source under the MIT license, so anyone can inspect the code to verify that no data ever leaves your device.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">What should I look for in a privacy-focused photo app?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Look for four key indicators: on-device processing with no cloud uploads, a transparent App Store privacy label showing minimal data collection, open-source code that can be independently audited, and no requirement to create an account. Apps that meet all four criteria &mdash; like TidyByte &mdash; give you the strongest privacy guarantees without sacrificing functionality.</p></div>
+    </details>
+        </div>
+      </section>
+
+      <!-- CTA Card -->
+      <section class="clay-card p-6 sm:p-8 text-center mt-16">
+        <h2 class="text-xl font-semibold text-ink">Ready to clean up your photo library?</h2>
+        <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and takes just minutes to use.</p>
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+          <a href="/#features" class="btn-ghost">See all features</a>
+        </div>
+      </section>
+
+    </article>
+  
+  <section aria-labelledby="related-h" class="mt-14">
+    <h2 id="related-h" class="h-section text-2xl sm:text-3xl">Keep reading</h2>
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <a href="/blog/best-iphone-cleaner-app-no-subscription" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/best-iphone-cleaner-app-no-subscription-card.webp" alt="Clay illustration: a clay smartphone leaning against a chubby pink piggy bank with a coin slot" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Best iPhone Cleaner App With No Subscription (2026)</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 9 min read</p>
+        </div>
+      </a>
+      <a href="/blog/can-i-undo-deleting-photos-cleaner-app" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/can-i-undo-deleting-photos-cleaner-app-card.webp" alt="Clay illustration: a clay photograph hopping back out of a small clay trash bin along a dotted motion arc" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Can I Undo Deleting Photos from a Photo Cleaner App?</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 11 min read</p>
+        </div>
+      </a>
+      <a href="/blog/do-photo-cleaner-apps-delete-icloud-photos" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/do-photo-cleaner-apps-delete-icloud-photos-card.webp" alt="Clay illustration: a chubby clay cloud floating safely above a clay smartphone" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Do Photo Cleaner Apps Delete iCloud Photos Too?</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 11 min read</p>
+        </div>
+      </a>
+    </div>
+  </section>
+</article>
+  </main>
