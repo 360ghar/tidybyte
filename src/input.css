@@ -102,6 +102,27 @@
       transform: none;
       transition: none;
     }
+  }
+
+  /* Storage donut segments (landing page): draw in when the section
+     reveals. Each circle carries --seg-len (its arc length of the
+     251.33 circumference) inline; reduced motion shows the full ring. */
+  html.js [data-reveal] .donut-seg {
+    stroke-dasharray: 0 251.33;
+    transition: stroke-dasharray 0.9s ease;
+  }
+  html.js [data-reveal].is-revealed .donut-seg {
+    stroke-dasharray: var(--seg-len, 0) 251.33;
+  }
+  html.js [data-reveal].is-revealed .donut-seg:nth-of-type(3) { transition-delay: 0.1s; }
+  html.js [data-reveal].is-revealed .donut-seg:nth-of-type(4) { transition-delay: 0.2s; }
+  html.js [data-reveal].is-revealed .donut-seg:nth-of-type(5) { transition-delay: 0.3s; }
+  html.js [data-reveal].is-revealed .donut-seg:nth-of-type(6) { transition-delay: 0.4s; }
+  @media (prefers-reduced-motion: reduce) {
+    html.js [data-reveal] .donut-seg {
+      stroke-dasharray: var(--seg-len, 0) 251.33;
+      transition: none;
+    }
     html {
       scroll-behavior: auto;
     }
