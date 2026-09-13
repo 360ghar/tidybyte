@@ -43,8 +43,32 @@ final class ScanRunner {
         }
     }
 
+    /// Runs `work` as a runner-owned run and awaits its completion, so callers
+    /// like pull-to-refresh get the same generation token + `cancel()`
+    /// coverage as `start` while suspending until the results land. Serializes
+    /// behind an in-flight run instead of overlapping it; no-op when cancelled
+    /// or when a newer run started while waiting.
+    func run(_ work: @escaping @MainActor (_ token: Int) async -> Void) async {
+        if let current = task {
+            await current.value
+        }
+        guard !Task.isCancelled, task == nil else { return }
+        generation += 1
+        let token = generation
+        let current = Task { [weak self] in
+            await work(token)
+            // Same C1 guard as `start`: only the current run releases the slot.
+            guard let self, self.generation == token else { return }
+            self.task = nil
+        }
+        task = current
+        await current.value
+    }
+
     /// Cancels the in-flight scan, if any. Callers set their own visible state
-    /// (e.g. `scanState = .idle`) right after.
+    /// (e.g. `scanState = .idle`) right after. Cancellation propagates to
+    /// structured children of the run — keep scan work structured (cf.
+    /// `AlbumMembershipLoader`); detached tasks would not observe it.
     func cancel() {
         task?.cancel()
         task = nil

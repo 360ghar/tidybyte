@@ -38,11 +38,30 @@ import SwiftData
 /// replacement `performChanges`) is what lets reconcile tell "we died during
 /// the export" apart from "we died between the library write and the journal
 /// update" — the first is safe to drop, the second may have stranded a copy.
+/// Thrown when the journal itself cannot persist. The pending row is the
+/// durability anchor for the whole save-then-delete swap — without it a crash
+/// mid-swap is unrecoverable, so callers must abort the swap (not proceed
+/// without a journal) when this surfaces.
+enum CompressionJournalError: LocalizedError, Sendable {
+    case beginPendingFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .beginPendingFailed(let detail):
+            "Could not save the pending compression record: \(detail)"
+        }
+    }
+}
+
 @MainActor
 enum CompressionJournal {
 
     /// Inserts the pending row for `assetId`. Returns the record so callers can
     /// finalize the SAME row later (no lookup ambiguity across batch items).
+    ///
+    /// Throws when the insert cannot be persisted: the caller must abort the
+    /// swap — proceeding without a durable pending row would leave a crash
+    /// mid-swap unrecoverable (a permanent duplicate or a lost history guard).
     static func beginPending(
         modelContext: ModelContext,
         mediaType: CompressionMediaType,
@@ -50,7 +69,7 @@ enum CompressionJournal {
         originalSize: Int64,
         compressedSize: Int64,
         exportPreset: String
-    ) -> CompressionRecord {
+    ) throws -> CompressionRecord {
         let record = CompressionRecord(
             assetLocalIdentifier: assetId,
             replacementAssetLocalIdentifier: nil,
@@ -61,7 +80,14 @@ enum CompressionJournal {
             mediaType: mediaType.rawValue
         )
         modelContext.insert(record)
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            // Detach the undurable row so a later unrelated save cannot persist
+            // it as a phantom pending row that reconcile would then chase.
+            modelContext.delete(record)
+            throw CompressionJournalError.beginPendingFailed(error.localizedDescription)
+        }
         return record
     }
 
@@ -71,6 +97,12 @@ enum CompressionJournal {
     /// finalizes a row whose bookkeeping was lost. `compressedSize` stays
     /// optional only as a default; video, photo, and Live Photo conversion
     /// all pass the real size at commit time.
+    ///
+    /// Deliberately best-effort (`try?`): unlike `beginPending`, the durable
+    /// pending row already exists by the time this runs, so a failed save only
+    /// delays bookkeeping that `finalize` (or `reconcile`, via `saveAttempted`)
+    /// still resolves. Throwing here would also force the services'
+    /// non-throwing `onReplacementSaved` callbacks to change signature.
     static func recordReplacement(
         _ record: CompressionRecord,
         replacementId: String,
@@ -89,6 +121,10 @@ enum CompressionJournal {
     /// creates the replacement, and never before the export/data-read phase:
     /// from this moment on, a crash can leave a copy in the library whose id the
     /// journal never learned, and reconcile needs to know that.
+    ///
+    /// Deliberately best-effort (`try?`) for the same reason as
+    /// `recordReplacement`: the pending row from `beginPending` is already
+    /// durable, and the service `onSaveWillCommit` callbacks are non-throwing.
     static func markSaveAttempted(_ record: CompressionRecord, modelContext: ModelContext) {
         record.saveAttempted = true
         try? modelContext.save()

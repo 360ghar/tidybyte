@@ -41,20 +41,21 @@ final class VideoCompressionViewModel {
         CompressionPreset.presets.first { $0.id == defaultPresetId } ?? CompressionPreset.presets[0]
     }
 
-    /// Cached sort (C13 parity): sort keys are immutable (`fileSize`), so the
-    /// cache is keyed on the id set + count and survives progress-tick mutations.
-    private var cachedSortedVideos: [VideoItem]?
-    private var cachedSortedVideoIds: Set<String> = []
+    /// Cached sort ORDER (ids only, C13 parity): sort keys are immutable
+    /// (`fileSize`), so the order is recomputed only when the id set changes
+    /// and survives progress-tick mutations. Items are always mapped from the
+    /// current `videos`, so preset/state edits never render stale copies.
+    private var cachedSortedVideoOrder: [String] = []
+    private var cachedSortedVideoIdSet: Set<String> = []
 
     var sortedVideos: [VideoItem] {
         let ids = Set(videos.map(\.id))
-        if let cached = cachedSortedVideos, cached.count == videos.count, cachedSortedVideoIds == ids {
-            return cached
+        if ids != cachedSortedVideoIdSet {
+            cachedSortedVideoOrder = videos.sorted { $0.asset.fileSize > $1.asset.fileSize }.map(\.id)
+            cachedSortedVideoIdSet = ids
         }
-        let sorted = videos.sorted { $0.asset.fileSize > $1.asset.fileSize }
-        cachedSortedVideos = sorted
-        cachedSortedVideoIds = ids
-        return sorted
+        let byId = Dictionary(uniqueKeysWithValues: videos.map { ($0.id, $0) })
+        return cachedSortedVideoOrder.compactMap { byId[$0] }
     }
 
     var selectedSize: Int64 {
@@ -145,9 +146,11 @@ final class VideoCompressionViewModel {
     }
 
     /// Starts the batch on a VM-owned task so the screen can cancel it on
-    /// disappear (COMP-08). Idempotent while a batch is running.
+    /// disappear (COMP-08). Idempotent while a batch is running. Blocked while
+    /// a single-item delete is in flight: `deleteVideo` mutates `videos` after
+    /// its await, which would shift rows under the batch's fixed `indexById`.
     func startBatchCompression(modelContext: ModelContext) {
-        guard batchTask == nil else { return }
+        guard batchTask == nil, !isDeleting else { return }
         batchTask = Task { [weak self] in
             await self?.compressSelected(modelContext: modelContext)
             self?.batchTask = nil
@@ -163,7 +166,10 @@ final class VideoCompressionViewModel {
     }
 
     func compressSelected(modelContext: ModelContext) async {
-        guard !selectedIds.isEmpty, !isCompressing else { return }
+        // `!isDeleting`: a single-item delete may be past its guard and about
+        // to mutate `videos` — starting the batch now would hand it an
+        // `indexById` its own trailing `removeAll` (plus the delete's) invalidates.
+        guard !selectedIds.isEmpty, !isCompressing, !isDeleting else { return }
         errorMessage = nil
         batchSummary = nil
 
@@ -255,7 +261,9 @@ final class VideoCompressionViewModel {
                 )
                 // D1: journal the swap BEFORE it starts, so a crash mid-swap is
                 // recoverable on next load instead of leaving a permanent duplicate.
-                let swap = CompressionSwap(
+                // Throws when the pending row is not durable — that aborts this
+                // item before any library write (no journal, no swap).
+                let swap = try CompressionSwap(
                     mediaType: .video,
                     assetId: id,
                     originalSize: originalSize,

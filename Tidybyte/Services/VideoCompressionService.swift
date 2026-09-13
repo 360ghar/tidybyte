@@ -243,6 +243,16 @@ actor VideoCompressionService {
         // real exported size so the journal never has to guess at 0.
         await onReplacementSaved?(replacementId, compressedSize)
 
+        // A cancel that landed after the replacement commit must not strand a
+        // duplicate: roll the just-saved copy back and report cancellation so
+        // the batch loop resets the row instead of recording a failure. The
+        // pending journal row still names the replacement, so if this rollback
+        // fails reconcile retries the removal on the next load.
+        if Task.isCancelled {
+            _ = try? await photoService.deleteAssets(identifiers: [replacementId])
+            throw CompressionError.cancelled
+        }
+
         // Restore album membership on the replacement (best effort).
         for albumId in albumIdentifiers {
             do {

@@ -371,11 +371,15 @@ actor DuplicateDetectionService {
             }
         }
         var laterNeighbors = Array(repeating: [Int](), count: featurePrints.count)
-        for pair in candidateSet {
+        for (pairIndex, pair) in candidateSet.enumerated() {
+            if Task.isCancelled { return [] }
+            if pairIndex % 20 == 0 { await Task.yield() }
             guard let a = indexById[pair.a], let b = indexById[pair.b], a != b else { continue }
             laterNeighbors[min(a, b)].append(max(a, b))
         }
         for i in laterNeighbors.indices {
+            if Task.isCancelled { return [] }
+            if i % 20 == 0 { await Task.yield() }
             laterNeighbors[i].sort()
         }
 

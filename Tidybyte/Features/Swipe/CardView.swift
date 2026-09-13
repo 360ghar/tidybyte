@@ -41,6 +41,10 @@ struct CardView: View {
     /// Offset captured when the current pan gesture began, so pan deltas
     /// accumulate instead of resetting from zero on each new drag.
     @State private var panStartOffset: CGSize?
+    /// Scale captured when the current pinch began, so a second pinch
+    /// multiplies from the card's scale instead of snapping back to ~1x
+    /// (mirrors `panStartOffset`; `MagnifyGesture` restarts at 1.0).
+    @State private var pinchStartScale: CGFloat?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -62,11 +66,15 @@ struct CardView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Image
+                // Image — the loading branch carries the same swipe drag so a
+                // slow image can't swallow the gesture; zoom/pan stay on the
+                // loaded image's own graph below.
                 if let image {
                     zoomableImage(image, frame: geometry.size)
                 } else {
                     SkeletonView(cornerRadius: 0)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .gesture(unifiedDrag(frame: geometry.size))
                 }
 
                 // Video playback (SWIPE-07): a play affordance on the top card
@@ -76,6 +84,12 @@ struct CardView: View {
                     if let player {
                         VideoPlayer(player: player)
                             .accessibilityLabel("Video preview playing")
+                            // The player layer sits above the gesture-bearing
+                            // image, so without its own drag a playing card
+                            // cannot be swiped. A tap travels zero distance and
+                            // fails this drag, so the player's controls stay
+                            // tappable.
+                            .gesture(unifiedDrag(frame: geometry.size))
                     } else {
                         Button {
                             startPlayback()
@@ -282,6 +296,7 @@ struct CardView: View {
             // otherwise the next pan reuses a stale base and jumps.
             if !zoomed {
                 panStartOffset = nil
+                pinchStartScale = nil
             }
         }
     }
@@ -345,15 +360,23 @@ struct CardView: View {
 
     // MARK: - Zoom Inspection
 
-    /// Cumulative pinch — `MagnifyGesture` reports total magnification from
-    /// gesture start, so each update is absolute (no start-scale bookkeeping).
+    /// Pinch relative to the scale captured at gesture start (mirrors the
+    /// `panStartOffset` pattern): `MagnifyGesture` reports magnification from
+    /// 1.0 on every gesture, so applying it raw snaps a second pinch to ~1x.
     private func pinchGesture(frame: CGSize) -> some Gesture {
         MagnifyGesture(minimumScaleDelta: 0.01)
             .onChanged { value in
+                if pinchStartScale == nil { pinchStartScale = zoomState.scale }
                 let content = renderedContentSize(for: frame)
-                zoomState.setScale(value.magnification, frame: frame, contentSize: content)
+                zoomState.setPinch(
+                    base: pinchStartScale ?? 1.0,
+                    magnification: value.magnification,
+                    frame: frame,
+                    contentSize: content
+                )
             }
             .onEnded { _ in
+                pinchStartScale = nil
                 zoomState.endPinch()
             }
     }
@@ -428,6 +451,7 @@ struct CardView: View {
         fullResTask = nil
         fullResImage = nil
         panStartOffset = nil
+        pinchStartScale = nil
         if zoomState.isZoomed {
             zoomState.reset()
             onZoomChanged?(false)

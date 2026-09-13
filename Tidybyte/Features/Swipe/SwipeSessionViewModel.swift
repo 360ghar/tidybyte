@@ -204,7 +204,11 @@ final class SwipeSessionViewModel {
     /// its own alert, because an error written to `errorMessage` here would
     /// render in an alert *behind* the presented sheet and never be seen (B4).
     func addToAlbum(albumId: String) async -> String? {
-        guard let asset = pendingKeepAsset, !isPerformingMutation else { return nil }
+        // A nil pending asset or an in-flight add is a real failure, not a
+        // success: returning nil would make the picker record recents and
+        // dismiss as if the photo had been filed.
+        guard let asset = pendingKeepAsset else { return "No photo is waiting to be filed. Dismiss and try again." }
+        guard !isPerformingMutation else { return "Still adding — please wait a moment and try again." }
         isPerformingMutation = true
         defer { isPerformingMutation = false }
 
@@ -310,12 +314,24 @@ final class SwipeSessionViewModel {
         // the library confirms as deleted are counted, so assets that vanished
         // externally before commit can't overstate "Storage Freed" (SWIPE-08).
         let sizeById = assets.reduce(into: [String: Int64]()) { $0[$1.id] = $1.fileSize }
+        // Fresh pre-delete existence check: deleteAssets' fast path returns
+        // every requested id, including assets that vanished externally (iCloud
+        // sync, the Photos app) between session load and commit. Only ids
+        // present here count toward bytes, stats, and the ledger — the pending
+        // list itself still clears, since "not in the library" is the goal
+        // state either way.
+        var existingIds = Set<String>()
+        PHAsset.fetchAssets(withLocalIdentifiers: pendingDeletionIds, options: nil)
+            .enumerateObjects { asset, _, _ in
+                existingIds.insert(asset.localIdentifier)
+            }
         do {
             let deletedIds = try await photoService.deleteAssets(identifiers: pendingDeletionIds)
-            let freedBytes = deletedIds.reduce(Int64(0)) { sum, id in sum + (sizeById[id] ?? 0) }
-            committedDeletionCount += deletedIds.count
+            let confirmedIds = deletedIds.intersection(existingIds)
+            let freedBytes = confirmedIds.reduce(Int64(0)) { sum, id in sum + (sizeById[id] ?? 0) }
+            committedDeletionCount += confirmedIds.count
             committedDeletionBytes += freedBytes
-            CleanupLedger.shared.record(kind: .swipe, deletedIds: deletedIds, sizeOf: { sizeById[$0] ?? 0 })
+            CleanupLedger.shared.record(kind: .swipe, deletedIds: confirmedIds, sizeOf: { sizeById[$0] ?? 0 })
             deletionCommitted = true
             // Replace the optimistic per-swipe tally with the exact one — same
             // visible result on first-pass success, no double-count on retry.
@@ -334,12 +350,19 @@ final class SwipeSessionViewModel {
                 // pendingDeletionBytes before (B6). sessionStats stays as-is:
                 // swipeLeft already counted every pending id optimistically,
                 // so succeeded ids are covered; a retry or discard resolves.
-                let succeededBytes = succeededIds.reduce(Int64(0)) { sum, id in sum + (sizeById[id] ?? 0) }
-                committedDeletionCount += succeededIds.count
+                // Like the success path, only pre-delete-existing ids count —
+                // externally-vanished ids clear from pending but add no bytes.
+                let confirmedSucceeded = succeededIds.intersection(existingIds)
+                let succeededBytes = confirmedSucceeded.reduce(Int64(0)) { sum, id in sum + (sizeById[id] ?? 0) }
+                committedDeletionCount += confirmedSucceeded.count
                 committedDeletionBytes += succeededBytes
-                CleanupLedger.shared.record(kind: .swipe, deletedIds: succeededIds, sizeOf: { sizeById[$0] ?? 0 })
+                CleanupLedger.shared.record(kind: .swipe, deletedIds: confirmedSucceeded, sizeOf: { sizeById[$0] ?? 0 })
                 pendingDeletionIds.removeAll { succeededIds.contains($0) }
-                pendingDeletionBytes = max(0, pendingDeletionBytes - succeededBytes)
+                // Pending bytes track pending ids: every removed id releases
+                // its optimistic bytes — including vanished ones, which added
+                // nothing to the committed tally above but must not linger here.
+                let removedBytes = succeededIds.reduce(Int64(0)) { sum, id in sum + (sizeById[id] ?? 0) }
+                pendingDeletionBytes = max(0, pendingDeletionBytes - removedBytes)
                 deletionCommitted = pendingDeletionIds.isEmpty
                 // The per-item retry may have cleared the batch entirely —
                 // that's success, not an error.

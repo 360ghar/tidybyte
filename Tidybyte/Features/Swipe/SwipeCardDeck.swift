@@ -146,6 +146,9 @@ struct SwipeCardDeck: View {
     /// Relay for the top card's drag end. Owns the commit policy: threshold,
     /// velocity, and the horizontal-before-vertical resolution.
     private func handleDragEnded(_ value: DragGesture.Value, cardWidth: CGFloat) {
+        // A second touch ending mid-fling (or mid-mutation) must not re-run
+        // the commit policy or snap the card back — mirrors handleDragChanged.
+        guard !viewModel.isSwiping, !viewModel.isPerformingMutation else { return }
         isDragging = false
         // A pinch can zoom the card mid-drag (the drag was already in flight
         // when the touch began) — snap back instead of committing a swipe the

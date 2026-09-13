@@ -85,7 +85,11 @@ final class ScreenshotCleanerViewModel {
     /// the pull-to-refresh spinner. Serialized behind an in-flight fetch by the
     /// runner; runs even after a completed load (unlike `startScan`).
     func refresh() async {
-        await fetchScreenshots(showsLoading: false)
+        // Same serialized cancellable runner as `startScan` (own token, covered
+        // by `cancelScan`), awaited so the caller suspends until results land.
+        await scanRunner.run { [weak self] _ in
+            await self?.fetchScreenshots(showsLoading: false)
+        }
     }
 
     private func fetchScreenshots(showsLoading: Bool) async {

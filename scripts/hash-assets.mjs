@@ -43,6 +43,7 @@ function hashFile(path) {
 function htmlFiles() {
   const out = [];
   for (const dir of [SITE, join(SITE, "blog")]) {
+    if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir)) {
       if (f.endsWith(".html")) out.push(join(dir, f));
     }
@@ -51,6 +52,11 @@ function htmlFiles() {
 }
 
 let failed = false;
+
+if (!existsSync(SITE)) {
+  console.error("dist/ not found — run `npm run build` first.");
+  process.exit(1);
+}
 
 // 1. Hash (skip in --check; still validate below).
 const renamed = new Map(); // url base -> hashed url

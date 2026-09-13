@@ -41,6 +41,7 @@ struct AsyncThumbnailView: View {
             // session (residual SHARED-05).
             var showingDegraded = false
             if let cached = await ImageCache.shared.image(for: assetId) {
+                guard !Task.isCancelled else { return }
                 image = cached
                 hasLoaded = true
                 loadedAssetId = assetId
@@ -48,6 +49,7 @@ struct AsyncThumbnailView: View {
             }
             let degradedKey = "\(assetId)#degraded"
             if let cached = await ImageCache.shared.image(for: degradedKey) {
+                guard !Task.isCancelled else { return }
                 image = cached
                 hasLoaded = true
                 showingDegraded = true

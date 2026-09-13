@@ -1,24 +1,23 @@
-# TidyByte marketing site
-
-Static marketing site for the TidyByte iOS app. Plain HTML + Tailwind CSS, no JavaScript framework, no build server.
+Astro marketing site for the TidyByte iOS app. Astro renders `src/` to
+static HTML in `dist/`; Tailwind CSS for styling; no client-side framework.
 
 ## Structure
 
 ```
-site/
-├── index.html        # Landing page
-├── support.html      # Contact / support form (Netlify Forms)
-├── privacy.html      # Privacy policy
-├── changelog.html    # Release notes
-├── 404.html          # Not-found page
-├── netlify.toml      # Netlify build + headers + redirects
-├── sitemap.xml       # Search engine sitemap
-├── robots.txt        # Crawler rules
-└── assets/
-    ├── css/styles.css   # Compiled Tailwind (generated)
-    ├── fonts/           # Fredoka variable font (SIL OFL, see OFL.txt)
-    ├── img/             # Screenshots, icons, illustrations/
-    └── js/              # nav.js, site.js, theme.js, blog.js
+src/
+├── pages/            # Astro routes: index, support, privacy, changelog,
+│                     # 404, blog/index, blog/[slug], llms.txt, llms-full.txt
+├── content/pages/    # Page bodies as HTML: index, support, privacy,
+│                     # changelog, 404 + one blog-<slug>.html per post
+├── layouts/build-page.ts  # Shared page shell (head, header, footer)
+├── chrome/           # header.html + footer.html partials
+├── data/pages.ts     # Page/post metadata (titles, descriptions, dates)
+├── lib/llms.ts       # llms.txt content builders
+└── input.css         # Tailwind source (design tokens live here)
+public/
+├── assets/           # css/, js/, img/, fonts/ — copied to dist/ as-is
+└── serve.py          # Local server for the built site (serves dist/)
+dist/                 # Build output (never committed)
 ```
 
 ## Theming (light / dark / system)
@@ -62,19 +61,16 @@ tokens above instead of raw `zinc`/`white` utilities.
 
 ```bash
 npm install
-npm run dev          # watch src/input.css → site/assets/css/styles.css
+npm run dev          # astro dev + watch src/input.css → public/assets/css/styles.css
 ```
 
-Open `site/index.html` directly, or serve it:
+Astro serves the site at http://localhost:4321. To preview the production
+build instead:
 
 ```bash
-# Recommended — mirrors the Netlify pretty-URL redirects
-python3 site/serve.py                # http://localhost:3000
-python3 site/serve.py 8080           # custom port
-
-# Alternatives
-npx serve site                       # http://localhost:3000
-python3 -m http.server -d site       # http://localhost:8000
+npm run build
+python3 public/serve.py                # http://localhost:3000, serves dist/
+python3 public/serve.py 8080           # custom port
 ```
 
 The `serve.py` wrapper handles the `/support`, `/privacy`, and `/changelog`
@@ -85,16 +81,18 @@ redirects only run on Netlify's infrastructure).
 ## Production build
 
 ```bash
-npm run build        # minified Tailwind → site/assets/css/styles.css
+npm run build        # astro build → dist/; minified Tailwind →
+                     # dist/assets/css/styles.css; hash-assets.mjs fingerprints CSS/JS
+npm run check        # verify asset references resolve in dist/ (build first)
 ```
 
-The `site/` folder is the deployable artifact.
+The `dist/` folder is the deployable artifact (never committed).
 
 ## Deploy to Netlify
 
-**Option A — connect the repo:** New site → Import from Git → pick this repo. `Publish directory = site`, `Build command = npm run build`, `Node version = 20`. Netlify deploys on every push to `main`.
+**Option A — connect the repo:** New site → Import from Git → pick this repo. `Publish directory = dist`, `Build command = npm run build`, `Node version = 22`. Netlify deploys on every push to `main`.
 
-**Option B — drag and drop:** `npm run build`, then drag the `site/` folder onto https://app.netlify.com/drop.
+**Option B — drag and drop:** `npm run build`, then drag the `dist/` folder onto https://app.netlify.com/drop.
 
 ## Before going live
 

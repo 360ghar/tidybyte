@@ -91,9 +91,12 @@ class RedirectHandler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    dist = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dist"))
+    if not os.path.isdir(dist):
+        sys.exit("dist/ not found — run `npm run build` first.")
+    os.chdir(dist)
     with socketserver.TCPServer(("", PORT), RedirectHandler) as httpd:
-        print(f"Serving site/ at http://localhost:{PORT}/")
+        print(f"Serving dist/ at http://localhost:{PORT}/")
         print(f"  /          → index.html")
         print(f"  /support   → support.html")
         print(f"  /privacy   → privacy.html")

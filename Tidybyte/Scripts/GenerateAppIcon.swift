@@ -4,7 +4,7 @@
 //
 // This script is the single source of truth for the app mark. It writes:
 //   * Tidybyte/Resources/Assets.xcassets/AppIcon.appiconset/  (light, dark, tinted)
-//   * (with --sync-site) the site copies under site/assets/img/
+//   * (with --sync-site) the site copies under public/assets/img/
 //
 // Usage, from the repository root:
 //   swift Tidybyte/Scripts/GenerateAppIcon.swift              # regenerate everything
@@ -15,7 +15,7 @@
 // on a light field, with a white shine sparkle above: cleaning reads as sparkle,
 // not as a checkmark.
 //
-// The website copies under site/assets/img/ are written only by --sync-site, and
+// The website copies under public/assets/img/ are written only by --sync-site, and
 // currently lag the app icon on purpose: the app mark leads, so the site keeps the
 // art it already has until someone runs that mode.
 //
@@ -106,7 +106,7 @@ struct Art {
     let satelliteRadius: CGFloat
 
     /// Checkmark path in front-card-local coordinates (origin bottom-left, 0...1).
-    /// Derived from the path in site/assets/img/favicon.svg.
+    /// Derived from the path in public/assets/img/favicon.svg.
     let checkPathLocal: [CGPoint]
 
     init(
@@ -307,7 +307,7 @@ struct RGB {
     func alpha(_ value: CGFloat) -> CGColor { cg(value) }
 }
 
-// Brand colors, matching site/assets/img/favicon.svg and tailwind.config.js.
+// Brand colors, matching public/assets/img/favicon.svg and tailwind.config.js.
 let brandBlue = RGB(0x0A84FF)
 let brandPurple = RGB(0xAF52DE)
 let brandTeal = RGB(0x30B0C7)
@@ -912,7 +912,7 @@ func writePNG(_ image: CGImage, to url: URL) throws {
 // MARK: - Asset catalog
 
 let appIconDir = "Tidybyte/Resources/Assets.xcassets/AppIcon.appiconset"
-let siteImageDir = "site/assets/img"
+let siteImageDir = "public/assets/img"
 
 /// The single size the catalog ships. Xcode derives 20pt through 83.5pt from it,
 /// for iPhone and iPad both.

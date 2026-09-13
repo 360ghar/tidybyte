@@ -17,6 +17,11 @@ enum CompressionItemOutcome: Sendable {
 
 /// Owns one journal row: begin → optional progress hooks → exactly one terminal.
 /// `finished` guard makes double-finalize impossible.
+///
+/// The initializer throws when the pending row cannot be persisted
+/// (`CompressionJournalError`): callers must let that abort the item's swap —
+/// running the save-then-delete without a durable journal row is what strands
+/// unrecoverable duplicates.
 @MainActor
 final class CompressionSwap {
     private let record: CompressionRecord
@@ -29,9 +34,9 @@ final class CompressionSwap {
         originalSize: Int64,
         exportPreset: String,
         modelContext: ModelContext
-    ) {
+    ) throws {
         self.modelContext = modelContext
-        self.record = CompressionJournal.beginPending(
+        self.record = try CompressionJournal.beginPending(
             modelContext: modelContext,
             mediaType: mediaType,
             assetId: assetId,

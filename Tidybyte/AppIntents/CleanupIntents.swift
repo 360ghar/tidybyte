@@ -68,6 +68,13 @@ struct FreeSpaceIntent: AppIntent {
             return .result(dialog: "Open TidyByte once so it can scan your library.")
         }
 
+        // The counts only cover screenshots + large files, but
+        // `reclaimableBytes` spans every category — gate the empty state on
+        // bytes so a positive estimate with both counts at zero still reports.
+        guard snapshot.reclaimableBytes > 0 else {
+            return .result(dialog: "Your library looks tidy. Nothing obvious to clean up.")
+        }
+
         var parts: [String] = []
         if snapshot.screenshotCount > 0 {
             parts.append("\(snapshot.screenshotCount) screenshots")
@@ -77,13 +84,10 @@ struct FreeSpaceIntent: AppIntent {
         }
 
         let reclaimable = snapshot.reclaimableBytes.formattedFileSize
-
-        guard !parts.isEmpty else {
-            return .result(dialog: "Your library looks tidy. Nothing obvious to clean up.")
-        }
+        let detail = parts.isEmpty ? "items" : parts.joined(separator: " and ")
 
         return .result(
-            dialog: "You can free about \(reclaimable) — \(parts.joined(separator: " and ")) to review."
+            dialog: "You can free about \(reclaimable) — \(detail) to review."
         )
     }
 }

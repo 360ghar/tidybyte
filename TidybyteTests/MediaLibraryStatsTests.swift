@@ -175,7 +175,7 @@ final class MediaLibraryStatsTests: XCTestCase {
     func testPendingRecordNeverCountsAsSavingsOrFailure() throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let record = CompressionJournal.beginPending(
+        let record = try CompressionJournal.beginPending(
             modelContext: context,
             mediaType: .video,
             assetId: "asset-1",
@@ -192,7 +192,7 @@ final class MediaLibraryStatsTests: XCTestCase {
     func testJournalFinalizeCompletesTheSwap() throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let record = CompressionJournal.beginPending(
+        let record = try CompressionJournal.beginPending(
             modelContext: context,
             mediaType: .photo,
             assetId: "asset-2",
@@ -215,7 +215,7 @@ final class MediaLibraryStatsTests: XCTestCase {
         // replacement was journaled (id + real compressed size, recorded at
         // save-commit time) finalizes as completed with real savings — not the
         // phantom originalSize - 0 that a 0-byte row would report.
-        let record = CompressionJournal.beginPending(
+        let record = try CompressionJournal.beginPending(
             modelContext: context,
             mediaType: .video,
             assetId: "definitely-not-a-real-asset-id",
@@ -276,7 +276,7 @@ final class MediaLibraryStatsTests: XCTestCase {
     func testMarkSaveAttemptedPersistsOnTheRow() throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let record = CompressionJournal.beginPending(
+        let record = try CompressionJournal.beginPending(
             modelContext: context,
             mediaType: .video,
             assetId: "asset-save-attempt",
@@ -298,7 +298,7 @@ final class MediaLibraryStatsTests: XCTestCase {
     func testMarkPendingSkippedIsNotAFailure() async throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let record = CompressionJournal.beginPending(
+        let record = try CompressionJournal.beginPending(
             modelContext: context,
             mediaType: .photo,
             assetId: "asset-icloud-only",
@@ -324,7 +324,7 @@ final class MediaLibraryStatsTests: XCTestCase {
         XCTAssertTrue(try context.fetch(FetchDescriptor<CompressionRecord>()).isEmpty)
 
         // A row that already completed must not be rewritten by a late skip.
-        let record = CompressionJournal.beginPending(
+        let record = try CompressionJournal.beginPending(
             modelContext: context,
             mediaType: .video,
             assetId: "already-done",
@@ -347,7 +347,7 @@ final class MediaLibraryStatsTests: XCTestCase {
         // failed rather than lingering as pending forever (or counting phantom
         // savings). The (original present) branches require a real library
         // asset and are covered by on-device behavior.
-        let first = CompressionJournal.beginPending(
+        let first = try CompressionJournal.beginPending(
             modelContext: context,
             mediaType: .video,
             assetId: "also-not-real",
@@ -355,7 +355,7 @@ final class MediaLibraryStatsTests: XCTestCase {
             compressedSize: 0,
             exportPreset: "480p"
         )
-        let second = CompressionJournal.beginPending(
+        let second = try CompressionJournal.beginPending(
             modelContext: context,
             mediaType: .photo,
             assetId: "still-not-real",

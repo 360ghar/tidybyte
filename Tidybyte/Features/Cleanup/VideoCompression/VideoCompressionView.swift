@@ -128,10 +128,11 @@ struct VideoCompressionView: View {
             viewModel.cancelCompression()
         }
         .task {
-            await viewModel.loadIfNeeded()
-            // D1: resolve any swaps a crash interrupted — the journal contract is
-            // that this runs on tool load, not only when a batch starts.
+            // D1: reconcile BEFORE loading — resolving interrupted swaps may
+            // delete orphaned replacements from the library, so the list loaded
+            // after it never shows just-deleted orphans.
             await CompressionJournal.reconcile(modelContext: modelContext)
+            await viewModel.loadIfNeeded()
         }
     }
 

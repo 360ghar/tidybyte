@@ -43,22 +43,23 @@ final class PhotoCompressionViewModel {
         PhotoCompressionPreset.presets.first { $0.id == defaultPresetId } ?? PhotoCompressionPreset.presets[0]
     }
 
-    /// Cached sort (C13 parity with ScreenshotCleanerViewModel): `sortedPhotos`
-    /// used to re-sort on every access, and progress ticks + `body` touch it
-    /// repeatedly. Sort keys are immutable (`fileSize`), so the cache is
-    /// keyed on the id set + count and survives state-only mutations.
-    private var cachedSortedPhotos: [PhotoItem]?
-    private var cachedSortedPhotoIds: Set<String> = []
+    /// Cached sort ORDER (ids only, C13 parity with ScreenshotCleanerViewModel):
+    /// `sortedPhotos` used to re-sort on every access, and progress ticks +
+    /// `body` touch it repeatedly. Sort keys are immutable (`fileSize`), so the
+    /// order is recomputed only when the id set changes. Items are always
+    /// mapped from the current `photos`, so preset/state edits never render
+    /// stale copies.
+    private var cachedSortedPhotoOrder: [String] = []
+    private var cachedSortedPhotoIdSet: Set<String> = []
 
     var sortedPhotos: [PhotoItem] {
         let ids = Set(photos.map(\.id))
-        if let cached = cachedSortedPhotos, cached.count == photos.count, cachedSortedPhotoIds == ids {
-            return cached
+        if ids != cachedSortedPhotoIdSet {
+            cachedSortedPhotoOrder = photos.sorted { $0.asset.fileSize > $1.asset.fileSize }.map(\.id)
+            cachedSortedPhotoIdSet = ids
         }
-        let sorted = photos.sorted { $0.asset.fileSize > $1.asset.fileSize }
-        cachedSortedPhotos = sorted
-        cachedSortedPhotoIds = ids
-        return sorted
+        let byId = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
+        return cachedSortedPhotoOrder.compactMap { byId[$0] }
     }
 
     var selectedSize: Int64 {
@@ -162,7 +163,7 @@ final class PhotoCompressionViewModel {
     }
 
     func compressSelected(modelContext: ModelContext) async {
-        guard !selectedIds.isEmpty, !isCompressing else { return }
+        guard !selectedIds.isEmpty, !isCompressing, !isDeleting else { return }
         errorMessage = nil
         batchSummary = nil
 
@@ -244,7 +245,9 @@ final class PhotoCompressionViewModel {
                 let preset = self.photos[index].selectedPreset
                 let originalSize = self.photos[index].asset.fileSize
                 // D1: journal the swap before it starts (see VideoCompressionViewModel).
-                let swap = CompressionSwap(
+                // Throws when the pending row is not durable — that aborts this
+                // item before any library write (no journal, no swap).
+                let swap = try CompressionSwap(
                     mediaType: .photo,
                     assetId: id,
                     originalSize: originalSize,

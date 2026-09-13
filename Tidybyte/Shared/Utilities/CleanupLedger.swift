@@ -79,11 +79,28 @@ final class CleanupLedger {
     /// Recomputes the cached totals from the store. Repairs any drift (an
     /// interrupted insert, a restore from backup, rows pruned by the user).
     /// Returns the summary it computed so callers that render it don't refetch.
+    ///
+    /// Failure contract: when either fetch fails, the store error is logged
+    /// and the UserDefaults lifetime cache is left UNTOUCHED — overwriting it
+    /// from a partial/empty fetch would zero lifetime totals the widget and
+    /// intent read. The returned summary then carries the preserved cached
+    /// totals so callers render last-known-good instead of zeros. (Returning
+    /// `nil`/throwing would let screens distinguish fresh-vs-stale, but that
+    /// changes this signature and needs matching edits in ActivityViewModel,
+    /// StorageDashboardViewModel, and the tests.)
     @discardableResult
     func refreshCache(modelContext: ModelContext) -> CleanupActivitySummary {
+        guard let activities = fetchActivityRecords(modelContext: modelContext),
+              let compressions = fetchCompressionRecords(modelContext: modelContext) else {
+            let cached = AppPreferences.lifetimeFreed()
+            return CleanupActivitySummary(
+                lifetimeFreedBytes: cached.bytes,
+                lifetimeItemCount: cached.items
+            )
+        }
         let events = Self.events(
-            activityRecords: fetchActivityRecords(modelContext: modelContext),
-            compressionRecords: fetchCompressionRecords(modelContext: modelContext)
+            activityRecords: activities,
+            compressionRecords: compressions
         )
         let summary = CleanupActivitySummary.build(events: events)
         AppPreferences.saveLifetimeFreed(
@@ -93,20 +110,26 @@ final class CleanupLedger {
         return summary
     }
 
-    private func fetchActivityRecords(modelContext: ModelContext) -> [CleanupActivityRecord] {
-        guard let records = try? modelContext.fetch(FetchDescriptor<CleanupActivityRecord>()) else {
-            AppLog.data.error("Failed to fetch cleanup activity records for reconciliation")
-            return []
+    /// Nil when the store fetch fails (the error is logged). Callers must leave
+    /// existing cached state alone rather than treat nil as "no records".
+    private func fetchActivityRecords(modelContext: ModelContext) -> [CleanupActivityRecord]? {
+        do {
+            return try modelContext.fetch(FetchDescriptor<CleanupActivityRecord>())
+        } catch {
+            AppLog.data.error("Failed to fetch cleanup activity records for reconciliation: \(error.localizedDescription, privacy: .public)")
+            return nil
         }
-        return records
     }
 
-    private func fetchCompressionRecords(modelContext: ModelContext) -> [CompressionRecord] {
-        guard let records = try? modelContext.fetch(FetchDescriptor<CompressionRecord>()) else {
-            AppLog.data.error("Failed to fetch compression records for reconciliation")
-            return []
+    /// Nil when the store fetch fails (the error is logged). Callers must leave
+    /// existing cached state alone rather than treat nil as "no records".
+    private func fetchCompressionRecords(modelContext: ModelContext) -> [CompressionRecord]? {
+        do {
+            return try modelContext.fetch(FetchDescriptor<CompressionRecord>())
+        } catch {
+            AppLog.data.error("Failed to fetch compression records for reconciliation: \(error.localizedDescription, privacy: .public)")
+            return nil
         }
-        return records
     }
 
     // MARK: - Summary

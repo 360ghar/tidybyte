@@ -27,6 +27,15 @@ struct ZoomState: Equatable {
         offset = Self.clampPan(offset, scale: scale, frame: frame, contentSize: contentSize)
     }
 
+    /// Applies a pinch drag on top of the scale captured at gesture start.
+    /// Mirrors `setPan`: `MagnifyGesture` reports magnification relative to the
+    /// current gesture's start (1.0), not the card's scale, so callers must
+    /// capture `scale` on first-fire and pass it as `base` — applying the raw
+    /// magnification directly snaps a second pinch back to ~1x.
+    mutating func setPinch(base: CGFloat, magnification: CGFloat, frame: CGSize, contentSize: CGSize? = nil) {
+        setScale(base * magnification, frame: frame, contentSize: contentSize)
+    }
+
     /// Applies a pan drag on top of the offset captured at gesture start.
     mutating func setPan(base: CGSize, translation: CGSize, frame: CGSize, contentSize: CGSize? = nil) {
         offset = Self.clampPan(

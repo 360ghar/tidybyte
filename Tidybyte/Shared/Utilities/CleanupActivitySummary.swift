@@ -34,6 +34,10 @@ struct CleanupActivitySummary: Sendable, Equatable {
     var lifetimeFreedBytes: Int64 = 0
     var lifetimeItemCount: Int = 0
     var monthFreedBytes: Int64 = 0
+    /// Rolling last-`chartWindowDays`-day total, summed from `daily` (NOT the
+    /// calendar month): the "Last 30 Days" section must match the chart it
+    /// captions even when a month boundary falls inside the window.
+    var last30DaysFreedBytes: Int64 = 0
     /// Oldest → newest, exactly `chartWindowDays` entries, zero-filled for days
     /// with no cleanup so the chart never has gaps.
     var daily: [DayBucket] = []
@@ -66,6 +70,7 @@ struct CleanupActivitySummary: Sendable, Equatable {
         }
 
         summary.daily = dailyBuckets(events: events, now: now, calendar: calendar)
+        summary.last30DaysFreedBytes = summary.daily.reduce(0) { $0 + $1.bytes }
         summary.byTool = toolBreakdowns(events: events)
         summary.recent = events.sorted { $0.date > $1.date }
 

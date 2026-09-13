@@ -41,7 +41,11 @@
   function parseStateFromUrl() {
     var params = new URLSearchParams(window.location.search);
     var cat = params.get('cat');
-    if (CATS.indexOf(cat) === -1) cat = 'all';
+    if (cat === null || CATS.indexOf(cat) === -1) {
+      // Legacy fallback: old post links use /blog#cat-<name> hashes.
+      var hash = (window.location.hash || '').replace(/^#cat-/, '');
+      cat = CATS.indexOf(hash) !== -1 ? hash : 'all';
+    }
     var page = parseInt(params.get('page'), 10);
     if (isNaN(page) || page < 1) page = 1;
     return { cat: cat, page: page };

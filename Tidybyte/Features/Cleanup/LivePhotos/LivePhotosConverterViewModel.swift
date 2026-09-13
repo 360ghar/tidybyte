@@ -221,7 +221,9 @@ final class LivePhotosConverterViewModel {
 
         // D1 (review pass): journal this swap like video/photo compression so a
         // crash mid-conversion can't leave a permanent Live Photo duplicate.
-        let journal = CompressionJournal.beginPending(
+        // Throws when the pending row is not durable — that aborts the
+        // conversion before any library write (no journal, no swap).
+        let journal = try CompressionJournal.beginPending(
             modelContext: modelContext,
             mediaType: .livePhoto,
             assetId: assetId,

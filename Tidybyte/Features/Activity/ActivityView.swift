@@ -163,10 +163,10 @@ struct ActivityView: View {
                 .accessibilityValue(
                     viewModel.summary.daily.isEmpty
                     ? "No activity"
-                    : "\(bytesLabel(viewModel.summary.monthFreedBytes)) freed in the last 30 days"
+                    : "\(bytesLabel(viewModel.summary.last30DaysFreedBytes)) freed in the last 30 days"
                 )
 
-                Text("\(bytesLabel(viewModel.summary.monthFreedBytes)) freed in the last 30 days")
+                Text("\(bytesLabel(viewModel.summary.last30DaysFreedBytes)) freed in the last 30 days")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

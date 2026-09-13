@@ -80,6 +80,7 @@ actor PhotoLibraryService {
             let changedIds = details.changedObjects.map(\.localIdentifier)
             for id in removedIds + changedIds {
                 await ImageCache.shared.removeImage(for: id)
+                await ImageCache.shared.removeImage(for: "\(id)#degraded")
             }
         } else {
             await ImageCache.shared.removeAll()
@@ -533,8 +534,10 @@ actor PhotoLibraryService {
                 } else if isInCloud && !allowsNetworkAccess {
                     // The full asset lives only in iCloud and network access is
                     // off, so no non-degraded result will ever arrive. Give up
-                    // promptly so a scan doesn't stall per iCloud-only photo; the
-                    // caller falls back.
+                    // promptly so a scan doesn't stall per iCloud-only photo.
+                    // Discard the retained degraded placeholder so the caller
+                    // gets nil and falls back to the thumbnail path.
+                    box.image = nil
                     resumer.resume(isDegraded)
                 }
                 // A degraded placeholder without an error (and reachable) means
@@ -622,7 +625,14 @@ actor PhotoLibraryService {
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.deleteAssets(assets)
             }
-            return Set(identifiers)
+            // fetchAssets silently drops externally-vanished ids, so intersect
+            // with what was actually fetched — callers sum freed bytes over
+            // returned ids, and crediting vanished ids would inflate the ledger.
+            var fetchedIds = Set<String>()
+            assets.enumerateObjects { asset, _, _ in
+                fetchedIds.insert(asset.localIdentifier)
+            }
+            return Set(identifiers).intersection(fetchedIds)
         } catch {
             var succeeded = Set<String>()
             var failed = 0
@@ -630,15 +640,16 @@ actor PhotoLibraryService {
                 // Serial by design (PhotoKit-safe); yield periodically so a
                 // long fallback retry stays cancellable and responsive.
                 if offset % 10 == 0 { await Task.yield() }
-                if Task.isCancelled { break }
+                if Task.isCancelled { throw CancellationError() }
                 do {
                     guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
                         // The asset no longer exists in the library (deleted
                         // externally — e.g. iCloud sync or the Photos app —
                         // between fetch and delete). The delete's goal state,
-                        // "not in the library", is already satisfied, so count
-                        // it as succeeded instead of scaring the user with a
-                        // bogus "couldn't be deleted" failure.
+                        // "not in the library", is already satisfied, so
+                        // deliberately report it in the succeeded set instead
+                        // of scaring the user with a bogus "couldn't be
+                        // deleted" failure.
                         succeeded.insert(id)
                         continue
                     }

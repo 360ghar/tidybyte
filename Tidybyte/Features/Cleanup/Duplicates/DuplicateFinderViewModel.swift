@@ -174,7 +174,14 @@ final class DuplicateFinderViewModel {
         selectedForDeletion = ids
         await deleteSelected()
         let survivors = Set(allGroups.flatMap { $0.assets.map(\.id) })
-        selectedForDeletion.formUnion(previousSelection.intersection(survivors))
+        if ids.isSubset(of: survivors) {
+            // Total failure: `apply` never ran, so the selection is still this
+            // group's full non-best set — restore exactly what the user had
+            // instead of re-arming assets they explicitly deselected.
+            selectedForDeletion = previousSelection
+        } else {
+            selectedForDeletion.formUnion(previousSelection.intersection(survivors))
+        }
     }
 
     /// Removes deleted ids from both group lists (collapsing groups below two

@@ -48,6 +48,12 @@ struct TidybyteApp: App {
             )
         } catch {
             AppLog.app.error("Persistent ModelContainer failed (\(error.localizedDescription, privacy: .public)); falling back to in-memory store")
+            // Tier-2 fallback: the in-memory store starts EMPTY, but the
+            // UserDefaults scan-date marker may still claim today's heavy scan
+            // already ran — which would skip the rebuild scan and leave the
+            // storage snapshot/widget empty. Invalidate it so the daily scan
+            // rebuilds from the live library on activation.
+            UserDefaults.standard.removeObject(forKey: AppPreferences.Key.lastStorageScanAt)
         }
 
         do {

@@ -14,6 +14,10 @@ struct AlbumPickerSheet: View {
     @State private var newAlbumName = ""
     @State private var isCreatingAlbum = false
     @State private var errorMessage: String?
+    /// True while an album add is in flight: album selection stays disabled so
+    /// a second tap can't stack another add behind it (the view model's guard
+    /// reports this as a failure message instead of a silent success).
+    @State private var isAddingToAlbum = false
     @Environment(\.dismiss) private var dismiss
 
     private var recentAlbumIds: [String] {
@@ -135,7 +139,7 @@ struct AlbumPickerSheet: View {
                         .bold()
                 }
             }
-            .disabled(newAlbumName.trimmingCharacters(in: .whitespaces).isEmpty || isCreatingAlbum)
+            .disabled(newAlbumName.trimmingCharacters(in: .whitespaces).isEmpty || isCreatingAlbum || isAddingToAlbum)
 
             Button {
                 showNewAlbumField = false
@@ -167,6 +171,7 @@ struct AlbumPickerSheet: View {
             .frame(width: 112)
             .contentShape(Rectangle())
         }
+        .disabled(isAddingToAlbum)
     }
 
     // MARK: - Album Grid Item
@@ -195,12 +200,16 @@ struct AlbumPickerSheet: View {
             }
             .foregroundStyle(.primary)
         }
+        .disabled(isAddingToAlbum)
     }
 
     // MARK: - Actions
 
     private func selectAlbum(_ album: AlbumInfo) {
+        guard !isAddingToAlbum else { return }
         Task {
+            isAddingToAlbum = true
+            defer { isAddingToAlbum = false }
             if let failure = await onAlbumSelected(album.id) {
                 errorMessage = failure
                 return
