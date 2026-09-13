@@ -4,29 +4,60 @@ import SwiftUI
 @MainActor
 final class SmartCategoriesViewModel {
     var categorizedPhotos: [CategorizedPhoto] = [] {
-        didSet { recomputeCategoryCounts() }
+        didSet { recomputeCategoryCounts(); recomputeFiltered() }
     }
     /// Per-category counts, recomputed only when `categorizedPhotos` changes so the
     /// chip row doesn't run an O(categories × photos) pass on every view update.
     private(set) var categoryCounts: [PhotoCategory: Int] = [:]
+    /// Memoized active-category filter + combined size (C13 parity with
+    /// `ScreenshotCleanerViewModel.sortedScreenshots`): the results view reads
+    /// `filteredPhotos` in the toolbar, grid, alert, and preview sheet, so a
+    /// computed filter re-ran on every render. Refreshed by the `didSet`s above.
+    private(set) var cachedFilteredPhotos: [CategorizedPhoto] = []
+    private(set) var cachedActiveCategorySize: Int64 = 0
     var scanState: ScanState = .idle
-    var selectedIds: Set<String> = []
-    var activeCategory: PhotoCategory = .memes
+    var activeCategory: PhotoCategory = .memes {
+        didSet { recomputeFiltered() }
+    }
     var errorMessage: String?
     var isDeleting = false
+    /// DUP-04/DUP-09 parity: how many items the last delete actually removed,
+    /// so the view can gate the success haptic on a non-zero result (C12).
+    private(set) var deletedCount = 0
     /// Number of photos the most recent scan attempted to categorize (used to
     /// judge whether a heuristic bucket is disproportionately large — D-06).
+    /// Updated live during the scan so the "N sorted" counter ticks (C9).
     private(set) var analyzedPhotoCount = 0
 
-    /// The in-flight scan, if any. Kept so scans can be cancelled when the
-    /// user leaves the screen and so re-entry can't start a second scan (D-01).
-    private var scanTask: Task<Void, Never>?
+    /// C1/C2: owns the cancellable scan task + generation token.
+    private let scanRunner = ScanRunner()
+
+    /// Selections kept PER CATEGORY (C11): switching categories no longer
+    /// destroys the selection made on another category.
+    private var selectionsByCategory: [PhotoCategory: Set<String>] = [:]
+
+    var selectedIds: Set<String> {
+        get { selectionsByCategory[activeCategory] ?? [] }
+        set { selectionsByCategory[activeCategory] = newValue }
+    }
+
+    /// Every selected id across all categories — what `deleteSelected()`
+    /// actually removes. The confirm dialog must use this, not `selectedIds`,
+    /// or it announces fewer photos than it deletes.
+    ///
+    /// Deduplicated through a Set, like `deleteSelected()` does: one photo can
+    /// carry several categories (e.g. a screenshot that is also a document), and
+    /// selecting it on both tabs would otherwise report two deletions for a
+    /// single asset.
+    var totalSelectedCount: Int {
+        Set(selectionsByCategory.values.flatMap { $0 }).count
+    }
 
     var sensitivity: CategorySensitivity {
         AppPreferences.smartCategorySensitivity()
     }
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
     private let visionService = VisionAnalysisService()
     private let categorizationService: PhotoCategorizationService
 
@@ -38,7 +69,7 @@ final class SmartCategoriesViewModel {
     }
 
     var filteredPhotos: [CategorizedPhoto] {
-        categorizedPhotos.filter { $0.categories.contains(activeCategory) }
+        cachedFilteredPhotos
     }
 
     /// Categories that actually have matches, in canonical order — drives the
@@ -62,68 +93,74 @@ final class SmartCategoriesViewModel {
     }
 
     var selectedSize: Int64 {
-        filteredPhotos.filter { selectedIds.contains($0.id) }
-            .reduce(0) { $0 + $1.asset.fileSize }
+        cachedFilteredPhotos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
     }
 
     /// Combined size of every photo in the active category (the whole list, not
     /// just the selection) — drives the count·size summary above the grid.
     var activeCategorySize: Int64 {
-        filteredPhotos.reduce(0) { $0 + $1.asset.fileSize }
+        cachedActiveCategorySize
     }
 
     /// True when every photo currently visible (active category) is selected —
     /// drives the Select All / Deselect All toolbar toggle.
     var allVisibleSelected: Bool {
-        !filteredPhotos.isEmpty && filteredPhotos.allSatisfy { selectedIds.contains($0.id) }
+        !cachedFilteredPhotos.isEmpty && cachedFilteredPhotos.allSatisfy { selectedIds.contains($0.id) }
+    }
+
+    private func recomputeFiltered() {
+        let filtered = categorizedPhotos.filter { $0.categories.contains(activeCategory) }
+        cachedFilteredPhotos = filtered
+        cachedActiveCategorySize = filtered.reduce(0) { $0 + $1.asset.fileSize }
     }
 
     /// Starts the scan unless one is already in flight. The scan runs in a
     /// tracked task so `cancelScan()` can stop it (D-01).
     func startScan() {
-        guard scanTask == nil else { return }
-        scanTask = Task {
-            await scan()
-            scanTask = nil
+        scanRunner.start { [weak self] token in
+            await self?.scan(token: token)
         }
     }
 
     /// Cancels an in-flight scan and returns the tool to `.idle`. No-op when
     /// nothing is scanning.
     func cancelScan() {
-        guard scanTask != nil else { return }
-        scanTask?.cancel()
-        scanTask = nil
+        guard scanRunner.isRunning else { return }
+        scanRunner.cancel()
         if case .scanning = scanState {
             scanState = .idle
         }
     }
 
-    func scan() async {
+    func scan(token: Int) async {
+        // A run whose token is already stale (cancelled before this body got a
+        // turn on the main actor) must not touch shared state: `cancelScan()`
+        // already moved the UI to `.idle`.
+        guard scanRunner.isCurrent(token) else { return }
         scanState = .scanning(0)
         categorizedPhotos = []
-        selectedIds.removeAll()
+        selectionsByCategory.removeAll()
+        deletedCount = 0
+        analyzedPhotoCount = 0
 
         let assets = await photoService.fetchAllPhotos()
-        analyzedPhotoCount = assets.filter { $0.mediaType == .photo }.count
+        // C9: counted live so the "N sorted" indicator ticks during the scan.
+        let photoCount = assets.filter { $0.mediaType == .photo }.count
+        scanRunner.update(token) { self.analyzedPhotoCount = photoCount }
         let results = await categorizationService.categorize(
             assets: assets,
             sensitivity: sensitivity
         ) { [weak self] progress in
             Task { @MainActor in
-                // Drop updates once the scan is no longer tracked: after
-                // `cancelScan()` (scanTask == nil) a queued update would
-                // otherwise resurrect the scanning state with no way to leave
-                // it (D-01).
-                guard self?.scanTask != nil else { return }
-                self?.scanState = .scanning(progress)
+                // C2: dropped when the scan is no longer current.
+                self?.scanRunner.update(token) { self?.scanState = .scanning(progress) }
             }
         }
 
-        if Task.isCancelled {
-            scanState = .idle
-            return
-        }
+        // A cancelled or superseded run must never publish results: the user may
+        // have restarted the scan while this one was still unwinding, and
+        // `cancelScan()` already moved the UI to `.idle` (C1/C2).
+        guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
         categorizedPhotos = results
         // Land on the first category that actually has results.
@@ -158,37 +195,46 @@ final class SmartCategoriesViewModel {
         selectedIds.removeAll()
     }
 
-    func synchronizeSelectionWithActiveCategory() {
-        // Scope the selection to the visible category so the action-bar count and
-        // the Delete action always match what the user can actually see.
-        selectedIds.formIntersection(Set(filteredPhotos.map(\.id)))
+    private func removeIds(_ ids: Set<String>) {
+        categorizedPhotos.removeAll { ids.contains($0.id) }
+        for category in PhotoCategory.allCases {
+            selectionsByCategory[category]?.subtract(ids)
+        }
     }
 
     func deleteSelected() async {
-        guard !selectedIds.isEmpty, !isDeleting else { return }
+        // C11: delete across ALL categories' selections.
+        let allSelected = Set(selectionsByCategory.values.flatMap { $0 })
+        guard !allSelected.isEmpty, !isDeleting else { return }
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: Array(selectedIds))
-            categorizedPhotos.removeAll { selectedIds.contains($0.id) }
-            selectedIds.removeAll()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        // Sizes captured before the await (the assets are gone afterwards).
+        let sizeById = categorizedPhotos.reduce(into: [String: Int64]()) { $0[$1.id] = $1.asset.fileSize }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: allSelected,
+            kind: .smartCategories,
+            sizeById: sizeById,
+            apply: { removeIds($0) },
+            recordDeleted: { self.deletedCount = $0 }
+        )
+        errorMessage = outcome.errorMessage
     }
 
-    func delete(assetId: String) async {
-        guard !isDeleting else { return }
+    func delete(assetId: String) async -> Bool {
+        guard !isDeleting else { return !categorizedPhotos.contains(where: { $0.id == assetId }) }
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: [assetId])
-            categorizedPhotos.removeAll { $0.id == assetId }
-            selectedIds.remove(assetId)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        let sizeById = categorizedPhotos.reduce(into: [String: Int64]()) { $0[$1.id] = $1.asset.fileSize }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: [assetId],
+            kind: .smartCategories,
+            sizeById: sizeById,
+            apply: { removeIds($0) },
+            recordDeleted: { self.deletedCount = $0 }
+        )
+        errorMessage = outcome.errorMessage
+        return !categorizedPhotos.contains(where: { $0.id == assetId })
     }
 }

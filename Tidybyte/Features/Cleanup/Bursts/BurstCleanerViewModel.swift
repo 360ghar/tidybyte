@@ -19,7 +19,7 @@ final class BurstCleanerViewModel {
 
     /// Group ids where the user explicitly picked a best frame via `setBest`.
     /// `refresh()` keeps those stored picks instead of recomputing them
-    /// (LF-01); `preferredBestAsset` remains the fallback for untouched groups.
+    /// (LF-01); `BestAssetSelector` remains the fallback for untouched groups.
     private(set) var manuallySetBest: Set<String> = []
 
     /// Group ids where the user interacted (toggled selection or set best).
@@ -27,7 +27,7 @@ final class BurstCleanerViewModel {
     /// user never touched, so explicit keep/deselect choices survive (LF-02).
     private(set) var touchedGroups: Set<String> = []
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
 
     var totalBurstCount: Int {
         groups.reduce(0) { $0 + $1.assets.count }
@@ -135,85 +135,125 @@ final class BurstCleanerViewModel {
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: Array(selectedForDeletion))
-            let deleted = selectedForDeletion
-            let oldSelection = selectedForDeletion
-            var collapsedToSingleFrame = 0
-            groups = groups.compactMap { group in
-                let remaining = group.assets.filter { !deleted.contains($0.id) }
-                guard remaining.count > 1 else {
-                    if remaining.count == 1 { collapsedToSingleFrame += 1 }
-                    return nil
-                }
-                let bestAssetId: String
-                if remaining.contains(where: { $0.id == group.bestAssetId }) {
-                    bestAssetId = group.bestAssetId
-                } else if let newBest = Self.preferredBestAsset(in: remaining) {
-                    bestAssetId = newBest.id
-                } else {
-                    return nil
-                }
-                return BurstGroup(id: group.id, assets: remaining, bestAssetId: bestAssetId)
-            }
-            // Bursts reduced to a single frame are no longer "bursts" and drop out
-            // of the list; let the user know rather than having them silently vanish.
-            if collapsedToSingleFrame > 0 {
-                statusMessage = collapsedToSingleFrame == 1
-                    ? "1 burst cleaned down to a single photo."
-                    : "\(collapsedToSingleFrame) bursts cleaned down to single photos."
-            }
-            // LF-02: never blanket re-select. Untouched groups get all non-best
-            // re-armed; touched groups keep exactly the user's surviving choices.
-            let survivingIds = Set(groups.flatMap { $0.assets.map(\.id) })
-            selectedForDeletion = Self.mergedSelection(
-                oldSelection: oldSelection,
-                survivingIds: survivingIds,
-                touchedGroups: touchedGroups,
-                groups: groups
-            )
-        } catch {
-            errorMessage = error.localizedDescription
+        // D7: capture BOTH the deleted set and the user's selection BEFORE the
+        // await. Snapshotting after the delete let toggles made during the
+        // deletion window be treated as deleted — frames vanished from the UI
+        // while still existing in the library.
+        let deleted = selectedForDeletion
+        let oldSelection = selectedForDeletion
+        // Sizes captured before the await (the frames are gone afterwards).
+        let sizeById = groups.reduce(into: [String: Int64]()) { result, group in
+            for asset in group.assets { result[asset.id] = asset.fileSize }
         }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: deleted,
+            kind: .bursts,
+            sizeById: sizeById,
+            apply: { applyPostDeleteState(removed: $0, previousSelection: oldSelection) }
+        )
+        errorMessage = outcome.errorMessage
     }
 
+    /// Shared post-delete pipeline: collapses groups, re-picks keepers, and
+    /// merges the surviving selection (used by both full success and partial
+    /// failure so the UI state matches the library in every path).
+    private func applyPostDeleteState(removed: Set<String>, previousSelection: Set<String>) {
+        var collapsedToSingleFrame = 0
+        groups = groups.compactMap { group in
+            let remaining = group.assets.filter { !removed.contains($0.id) }
+            guard remaining.count > 1 else {
+                if remaining.count == 1 { collapsedToSingleFrame += 1 }
+                return nil
+            }
+            let bestAssetId: String
+            if remaining.contains(where: { $0.id == group.bestAssetId }) {
+                bestAssetId = group.bestAssetId
+            } else if let newBest = BestAssetSelector.bestByMetadata(from: remaining) {
+                bestAssetId = newBest.id
+            } else {
+                return nil
+            }
+            return BurstGroup(id: group.id, assets: remaining, bestAssetId: bestAssetId)
+        }
+        // Bursts reduced to a single frame are no longer "bursts" and drop out
+        // of the list; let the user know rather than having them silently vanish.
+        if collapsedToSingleFrame > 0 {
+            statusMessage = collapsedToSingleFrame == 1
+                ? "1 burst cleaned down to a single photo."
+                : "\(collapsedToSingleFrame) bursts cleaned down to single photos."
+        }
+        // LF-02: never blanket re-select. Untouched groups get all non-best
+        // re-armed; touched groups keep exactly the user's surviving choices.
+        let survivingIds = Set(groups.flatMap { $0.assets.map(\.id) })
+        selectedForDeletion = Self.mergedSelection(
+            oldSelection: previousSelection,
+            survivingIds: survivingIds,
+            touchedGroups: touchedGroups,
+            groups: groups
+        )
+    }
+
+    /// D11: auto-clean arms every non-best frame EXCEPT in groups the user
+    /// explicitly curated (touched) — their surviving selection is preserved
+    /// instead of being silently overridden. Then deletes through the shared
+    /// pipeline.
     func autoCleanAll() async {
-        // Select all non-best from every group
-        selectNonBestFrames()
+        var armed: Set<String> = []
+        for group in groups {
+            if touchedGroups.contains(group.id) {
+                // Keep exactly what the user chose for this group.
+                armed.formUnion(selectedForDeletion.intersection(Self.nonBestAssetIds(in: group)))
+                if !group.assets.contains(where: { $0.id == group.bestAssetId }) {
+                    // Keeper was deleted earlier; arm all survivors.
+                    armed.formUnion(group.assets.map(\.id))
+                }
+            } else {
+                armed.formUnion(Self.nonBestAssetIds(in: group))
+            }
+        }
+        selectedForDeletion = armed
         await deleteSelected()
     }
 
     /// Deletes a single burst frame (used by the in-preview Delete action),
     /// rebuilding its group and dropping the group if it collapses to a single
     /// frame. Other groups' selections are left untouched.
-    func deleteAsset(id: String, fromGroup groupId: String) async {
-        guard !isDeleting else { return }
+    func deleteAsset(id: String, fromGroup groupId: String) async -> Bool {
+        guard !isDeleting else { return !groups.contains(where: { $0.assets.contains(where: { $0.id == id }) }) }
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: [id])
-            selectedForDeletion.remove(id)
-            guard let index = groups.firstIndex(where: { $0.id == groupId }) else { return }
-            let remaining = groups[index].assets.filter { $0.id != id }
-            if remaining.count > 1 {
-                let bestAssetId: String
-                if remaining.contains(where: { $0.id == groups[index].bestAssetId }) {
-                    bestAssetId = groups[index].bestAssetId
-                } else if let newBest = Self.preferredBestAsset(in: remaining) {
-                    bestAssetId = newBest.id
-                } else {
-                    return
-                }
-                groups[index] = BurstGroup(id: groupId, assets: remaining, bestAssetId: bestAssetId)
-            } else {
-                // No longer a burst once it's down to one frame — drop the group.
-                for asset in remaining { selectedForDeletion.remove(asset.id) }
-                groups.remove(at: index)
-            }
-        } catch {
-            errorMessage = error.localizedDescription
+        let sizeById = groups.reduce(into: [String: Int64]()) { result, group in
+            for asset in group.assets { result[asset.id] = asset.fileSize }
         }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: [id],
+            kind: .bursts,
+            sizeById: sizeById,
+            apply: { deletedIds in
+                guard deletedIds.contains(id) else { return }
+                selectedForDeletion.remove(id)
+                guard let index = groups.firstIndex(where: { $0.id == groupId }) else { return }
+                let remaining = groups[index].assets.filter { $0.id != id }
+                if remaining.count > 1 {
+                    let bestAssetId: String
+                    if remaining.contains(where: { $0.id == groups[index].bestAssetId }) {
+                        bestAssetId = groups[index].bestAssetId
+                    } else if let newBest = BestAssetSelector.bestByMetadata(from: remaining) {
+                        bestAssetId = newBest.id
+                    } else {
+                        return
+                    }
+                    groups[index] = BurstGroup(id: groupId, assets: remaining, bestAssetId: bestAssetId)
+                } else {
+                    // No longer a burst once it's down to one frame — drop the group.
+                    for asset in remaining { selectedForDeletion.remove(asset.id) }
+                    groups.remove(at: index)
+                }
+            }
+        )
+        errorMessage = outcome.errorMessage
+        return !groups.contains(where: { $0.assets.contains(where: { $0.id == id }) })
     }
 
     // MARK: - Selection helpers
@@ -257,25 +297,17 @@ final class BurstCleanerViewModel {
     }
 
     /// Sorts each burst bin by capture time and computes the best frame
-    /// (favorite → highest resolution → first), skipping empty bins (LF-13).
+    /// (via the shared `BestAssetSelector` ladder — D14: the previous local
+    /// duplicate used a different, non-deterministic-on-ties order), skipping
+    /// empty bins (LF-13).
     static func rebuildGroups(from burstGroups: [String: [AssetSummary]]) -> [BurstGroup] {
         var result: [BurstGroup] = []
         for (burstId, assets) in burstGroups {
             let sorted = assets.sorted { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) }
-            guard let best = preferredBestAsset(in: sorted) else { continue }
+            guard let best = BestAssetSelector.bestByMetadata(from: sorted) else { continue }
             result.append(BurstGroup(id: burstId, assets: sorted, bestAssetId: best.id))
         }
         return result.sorted { $0.assets.count > $1.assets.count }
-    }
-
-    /// Best = favorited one, or highest resolution, or first (de-slop D2;
-    /// the shared fallback used by load/refresh/rebuild).
-    private static func preferredBestAsset(in assets: [AssetSummary]) -> AssetSummary? {
-        assets.first(where: \.isFavorite)
-            ?? assets.max { a, b in
-                a.pixelWidth * a.pixelHeight < b.pixelWidth * b.pixelHeight
-            }
-            ?? assets.first
     }
 
     private static func nonBestAssetIds(in group: BurstGroup) -> Set<String> {

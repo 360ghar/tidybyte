@@ -17,25 +17,19 @@ struct LivePhotoPlayerView: UIViewRepresentable {
     var targetSize: CGSize = CGSize(width: 1200, height: 1200)
     var autoPlay: Bool = true
     var isActive: Bool = true
-    var onPlaybackStart: (() -> Void)? = nil
-    var onPlaybackEnd: (() -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onPlaybackStart: onPlaybackStart, onPlaybackEnd: onPlaybackEnd)
+        Coordinator()
     }
 
     func makeUIView(context: Context) -> PHLivePhotoView {
         let view = PHLivePhotoView()
         view.contentMode = .scaleAspectFit
         view.backgroundColor = .black
-        view.delegate = context.coordinator
         return view
     }
 
     func updateUIView(_ uiView: PHLivePhotoView, context: Context) {
-        context.coordinator.onPlaybackStart = onPlaybackStart
-        context.coordinator.onPlaybackEnd = onPlaybackEnd
-
         // COMP-14: the page went inactive — tear down immediately (a pager
         // keeps adjacent pages alive, so dismantleUIView is never called).
         guard isActive else {
@@ -96,28 +90,10 @@ struct LivePhotoPlayerView: UIViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, PHLivePhotoViewDelegate {
+    final class Coordinator: NSObject {
         var loadedAssetId: String?
         var isLoading = false
         var hasAutoPlayed = false
         var loadTask: Task<Void, Never>?
-        var onPlaybackStart: (() -> Void)?
-        var onPlaybackEnd: (() -> Void)?
-
-        init(
-            onPlaybackStart: (() -> Void)?,
-            onPlaybackEnd: (() -> Void)?
-        ) {
-            self.onPlaybackStart = onPlaybackStart
-            self.onPlaybackEnd = onPlaybackEnd
-        }
-
-        func livePhotoView(_ livePhotoView: PHLivePhotoView, willBeginPlaybackWith playbackStyle: PHLivePhotoViewPlaybackStyle) {
-            onPlaybackStart?()
-        }
-
-        func livePhotoView(_ livePhotoView: PHLivePhotoView, didEndPlaybackWith playbackStyle: PHLivePhotoViewPlaybackStyle) {
-            onPlaybackEnd?()
-        }
     }
 }

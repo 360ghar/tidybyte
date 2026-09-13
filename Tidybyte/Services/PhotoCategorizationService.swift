@@ -23,9 +23,6 @@ struct CategorizedPhoto: Identifiable, Sendable {
     let id: String
     let asset: AssetSummary
     let categories: Set<PhotoCategory>
-    /// Highest classification confidence among the matched scene/object buckets
-    /// (falls back to text/face coverage), used for display ordering/indicators.
-    let primaryConfidence: Float
 }
 
 /// Coordinates the Smart Categories scan: fetches thumbnails, runs Vision
@@ -50,6 +47,9 @@ actor PhotoCategorizationService {
         let photos = assets.filter { $0.mediaType == .photo }
         let total = photos.count
         var results: [CategorizedPhoto] = []
+        // One batched PhotoKit resolve for the whole scan — the per-id loader
+        // below would otherwise do one identifier lookup per image.
+        let phById = photoService.phAssetsById(photos.map(\.id))
 
         for (index, asset) in photos.enumerated() {
             if Task.isCancelled { return results }
@@ -63,25 +63,22 @@ actor PhotoCategorizationService {
                 categories.insert(.savedFromApps)
             }
 
-            var confidence: Float = 0
-            if let uiImage = await photoService.loadThumbnail(for: asset.id, size: CGSize(width: 300, height: 300)),
+            if let phAsset = phById[asset.id],
+               let uiImage = await photoService.loadThumbnail(for: phAsset, size: CGSize(width: 300, height: 300)),
                let cgImage = uiImage.cgImage {
                 let result = await visionService.classifyImageContent(
                     image: cgImage,
-                    assetId: asset.id,
                     sensitivity: sensitivity
                 )
-                let (matched, score) = buckets(from: result, asset: asset, sensitivity: sensitivity)
+                let matched = buckets(from: result, asset: asset, sensitivity: sensitivity)
                 categories.formUnion(matched)
-                confidence = score
             }
 
             if !categories.isEmpty {
                 results.append(CategorizedPhoto(
                     id: asset.id,
                     asset: asset,
-                    categories: categories,
-                    primaryConfidence: confidence
+                    categories: categories
                 ))
             }
 
@@ -99,17 +96,15 @@ actor PhotoCategorizationService {
         from result: ContentClassificationResult,
         asset: AssetSummary,
         sensitivity: CategorySensitivity
-    ) -> (Set<PhotoCategory>, Float) {
+    ) -> Set<PhotoCategory> {
         var set = Set<PhotoCategory>()
-        var maxConfidence: Float = 0
 
-        for (label, confidence) in result.labels {
+        for (label, confidence) in result.labels where confidence > 0 {
             // D-05: identifiers are normalized on both sides (lowercased,
-            // trimmed, spaces→underscores) so Vision taxonomy variants such as
-            // "Baked Goods" / "baked-goods" / "baked_goods" all resolve.
+            // trimmed, spaces/hyphens→underscores) so Vision taxonomy variants
+            // such as "Baked Goods" / "baked-goods" / "baked_goods" all resolve.
             if let bucket = Self.bucket(forIdentifier: label) {
                 set.insert(bucket)
-                maxConfidence = max(maxConfidence, confidence)
             }
         }
 
@@ -117,16 +112,14 @@ actor PhotoCategorizationService {
         // anything else is a document/receipt/whiteboard.
         if result.textCoverage >= sensitivity.textCoverageThreshold {
             set.insert(Self.textHeavyBucket(isScreenshot: asset.isScreenshot))
-            maxConfidence = max(maxConfidence, result.textCoverage)
         }
 
         // A face filling a large share of the frame reads as a selfie/portrait.
         if result.faceCoverage >= 0.10 {
             set.insert(.selfies)
-            maxConfidence = max(maxConfidence, result.faceCoverage)
         }
 
-        return (set, maxConfidence)
+        return set
     }
 
     /// Maps Vision's scene/object taxonomy identifiers onto coarse user-facing
@@ -156,13 +149,15 @@ actor PhotoCategorizationService {
     // MARK: - Normalization (D-05)
 
     /// Normalizes a taxonomy identifier for bucket lookup: lowercased, trimmed,
-    /// and whitespace collapsed to underscores. Vision emits identifier
-    /// variants ("Baked Goods", "baked goods", "baked_goods") that must all
-    /// resolve to the same bucket.
+    /// and whitespace/hyphens collapsed to underscores. Vision emits identifier
+    /// variants ("Baked Goods", "baked goods", "baked-goods", "baked_goods")
+    /// that must all resolve to the same bucket (C4: hyphen variants previously
+    /// fell through to nil despite the doc comment claiming otherwise).
     static func normalizeTaxonomyLabel(_ label: String) -> String {
         label.lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: " ", with: "_")
+            .replacingOccurrences(of: "-", with: "_")
     }
 
     /// Pure, unit-testable lookup of a single taxonomy identifier. Applies

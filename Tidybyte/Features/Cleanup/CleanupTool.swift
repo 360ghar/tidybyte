@@ -1,5 +1,40 @@
 import SwiftUI
 
+/// Groups the ten tools by what the user is actually trying to achieve.
+///
+/// Grouping is by intent, not by which tools happen to free space: Live Photos
+/// sits with compression (it converts rather than deletes) and Screenshots sits
+/// with organizing (it is a review-and-decide tool), even though both end up
+/// reclaiming room.
+enum CleanupToolCategory: String, CaseIterable, Identifiable, Sendable {
+    case freeUpSpace
+    case organize
+    case shrink
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .freeUpSpace: "Free Up Space"
+        case .organize: "Review & Organize"
+        case .shrink: "Reclaim Without Deleting"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .freeUpSpace: "Delete what you don't need"
+        case .organize: "Decide what's worth keeping"
+        case .shrink: "Keep everything, use less room"
+        }
+    }
+
+    /// Tools in this group, in `CleanupTool.allCases` order.
+    var tools: [CleanupTool] {
+        CleanupTool.allCases.filter { $0.category == self }
+    }
+}
+
 enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
     case duplicates
     case similar
@@ -13,6 +48,17 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
     case photoCompression
 
     var id: String { rawValue }
+
+    var category: CleanupToolCategory {
+        switch self {
+        case .duplicates, .similar, .blurry, .largeFiles, .bursts:
+            .freeUpSpace
+        case .screenshots, .smartCategories:
+            .organize
+        case .livePhotos, .videoCompression, .photoCompression:
+            .shrink
+        }
+    }
 
     var name: String {
         switch self {

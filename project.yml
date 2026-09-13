@@ -11,6 +11,9 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
+    # Single version source (A10): every target inherits these; bump once here.
+    CURRENT_PROJECT_VERSION: 3
+    MARKETING_VERSION: "1.0.2"
     INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "TidyByte needs access to your photo library to help you organize and clean up photos and videos."
     INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "TidyByte needs write access to save compressed videos and converted photos."
     CODE_SIGN_STYLE: Automatic
@@ -56,8 +59,6 @@ targets:
         # The INFOPLIST_KEY_UILaunchScreen_Generation build setting emits an invalid
         # nested UILaunchScreen, so we provide the dict via this seed instead.
         INFOPLIST_FILE: Tidybyte/Info.plist
-        CURRENT_PROJECT_VERSION: 3
-        MARKETING_VERSION: "1.0.2"
         SWIFT_STRICT_CONCURRENCY: complete
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         # iPhone stays portrait-only (the swipe UX is portrait-centric); iPad supports all orientations.
@@ -79,8 +80,8 @@ targets:
       path: TidybyteWidget/Info.plist
       properties:
         CFBundleDisplayName: TidyByte
-        # Version is build-setting-driven (not hardcoded) so the widget tracks the
-        # app target's MARKETING_VERSION / CURRENT_PROJECT_VERSION automatically.
+        # Version comes from the shared base MARKETING_VERSION / CURRENT_PROJECT_VERSION
+        # (single version source, A10).
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
@@ -94,8 +95,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sakshammittal.tidybyte.widget
         TARGETED_DEVICE_FAMILY: "1,2"
-        CURRENT_PROJECT_VERSION: 3
-        MARKETING_VERSION: "1.0.2"
         SWIFT_STRICT_CONCURRENCY: complete
 
   TidybyteTests:
@@ -112,3 +111,43 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_STRICT_CONCURRENCY: complete
         TARGETED_DEVICE_FAMILY: "1,2"
+
+  # Layout integrity at large text sizes. This is the only way to actually
+  # verify the Dynamic Type work: static analysis can show that @ScaledMetric is
+  # applied, but only a running app shows whether the scaled controls still fit
+  # on screen and stay reachable.
+  TidybyteUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: TidybyteUITests
+    dependencies:
+      - target: Tidybyte
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sakshammittal.tidybyte.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+# Declared explicitly so both test bundles run from the Tidybyte scheme. Without
+# this, XcodeGen's generated scheme only picks up the unit-test target.
+schemes:
+  Tidybyte:
+    build:
+      targets:
+        Tidybyte: all
+    run:
+      config: Debug
+      executable: Tidybyte
+    test:
+      config: Debug
+      targets:
+        - TidybyteTests
+        - TidybyteUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

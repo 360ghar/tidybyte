@@ -17,7 +17,6 @@ final class VideoCompressionViewModel {
     var selectedIds: Set<String> = []
     var isCompressing = false
     var errorMessage: String?
-    var totalSaved: Int64 = 0
     /// Per-batch outcome counts, set once the loop finishes so the view can
     /// show a single summary / success haptic (COMP-09, COMP-11).
     var batchSummary: CompressionBatchSummary?
@@ -31,7 +30,7 @@ final class VideoCompressionViewModel {
         set { AppPreferences.saveDefaultCompressionPresetID(newValue) }
     }
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
     private let compressionService: VideoCompressionService
 
     init() {
@@ -42,13 +41,25 @@ final class VideoCompressionViewModel {
         CompressionPreset.presets.first { $0.id == defaultPresetId } ?? CompressionPreset.presets[0]
     }
 
+    /// Cached sort ORDER (ids only, C13 parity): sort keys are immutable
+    /// (`fileSize`), so the order is recomputed only when the id set changes
+    /// and survives progress-tick mutations. Items are always mapped from the
+    /// current `videos`, so preset/state edits never render stale copies.
+    private var cachedSortedVideoOrder: [String] = []
+    private var cachedSortedVideoIdSet: Set<String> = []
+
     var sortedVideos: [VideoItem] {
-        videos.sorted { $0.asset.fileSize > $1.asset.fileSize }
+        let ids = Set(videos.map(\.id))
+        if ids != cachedSortedVideoIdSet {
+            cachedSortedVideoOrder = videos.sorted { $0.asset.fileSize > $1.asset.fileSize }.map(\.id)
+            cachedSortedVideoIdSet = ids
+        }
+        let byId = Dictionary(uniqueKeysWithValues: videos.map { ($0.id, $0) })
+        return cachedSortedVideoOrder.compactMap { byId[$0] }
     }
 
     var selectedSize: Int64 {
-        videos.filter { selectedIds.contains($0.id) }
-            .reduce(0) { $0 + $1.asset.fileSize }
+        videos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
     }
 
     func loadIfNeeded() async {
@@ -99,9 +110,13 @@ final class VideoCompressionViewModel {
     }
 
     func estimateSize(for video: VideoItem) -> Int64 {
-        // Synchronous estimation based on bitrate * duration
+        // Synchronous estimation based on bitrate * duration (D8: keyed off
+        // the EFFECTIVE preset — a 720p source with the default 1080p preset
+        // selected exports at 720p, so estimating at 1080p's bitrate showed
+        // ~2× the real result).
+        let effective = VideoCompressionService.effectivePreset(for: video.asset, selected: video.selectedPreset)
         let bitrate: Int64
-        switch video.selectedPreset.id {
+        switch effective.id {
         case "1080p": bitrate = 8_000_000
         case "720p": bitrate = 4_000_000
         case "480p": bitrate = 2_000_000
@@ -115,10 +130,11 @@ final class VideoCompressionViewModel {
 
     /// Deletes a single video (used by the per-row trash button and the
     /// in-preview Delete action).
-    func deleteVideo(id: String) async {
-        guard !isDeleting, !isCompressing else { return }
+    func deleteVideo(id: String) async -> Bool {
+        guard !isDeleting, !isCompressing else { return !videos.contains(where: { $0.id == id }) }
         errorMessage = nil
         isDeleting = true
+        defer { isDeleting = false }
         do {
             try await photoService.deleteAssets(identifiers: [id])
             videos.removeAll { $0.id == id }
@@ -126,13 +142,15 @@ final class VideoCompressionViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
-        isDeleting = false
+        return !videos.contains(where: { $0.id == id })
     }
 
     /// Starts the batch on a VM-owned task so the screen can cancel it on
-    /// disappear (COMP-08). Idempotent while a batch is running.
+    /// disappear (COMP-08). Idempotent while a batch is running. Blocked while
+    /// a single-item delete is in flight: `deleteVideo` mutates `videos` after
+    /// its await, which would shift rows under the batch's fixed `indexById`.
     func startBatchCompression(modelContext: ModelContext) {
-        guard batchTask == nil else { return }
+        guard batchTask == nil, !isDeleting else { return }
         batchTask = Task { [weak self] in
             await self?.compressSelected(modelContext: modelContext)
             self?.batchTask = nil
@@ -148,7 +166,10 @@ final class VideoCompressionViewModel {
     }
 
     func compressSelected(modelContext: ModelContext) async {
-        guard !selectedIds.isEmpty, !isCompressing else { return }
+        // `!isDeleting`: a single-item delete may be past its guard and about
+        // to mutate `videos` — starting the batch now would hand it an
+        // `indexById` its own trailing `removeAll` (plus the delete's) invalidates.
+        guard !selectedIds.isEmpty, !isCompressing, !isDeleting else { return }
         errorMessage = nil
         batchSummary = nil
 
@@ -165,11 +186,6 @@ final class VideoCompressionViewModel {
 
         isCompressing = true
         isCancelled = false
-        totalSaved = 0
-        var successfulIds: Set<String> = []
-        var completedCount = 0
-        var failedCount = 0
-        var skippedCount = 0
 
         // COMP-16: skip assets that already have a completed record so they are
         // never re-encoded (quality degradation).
@@ -177,136 +193,146 @@ final class VideoCompressionViewModel {
             FetchDescriptor<CompressionRecord>(predicate: #Predicate { $0.outcome == "completed" })
         )) ?? []).reduce(into: Set<String>()) { $0.insert($1.assetLocalIdentifier) }
 
+        // D1: resolve leftovers from any interrupted swap BEFORE the batch —
+        // otherwise a stranded duplicate could be re-compressed or double-counted.
+        await CompressionJournal.reconcile(modelContext: modelContext)
+
         // COMP-12: deterministic batch order (descending file size, id tiebreak)
         // matching the on-screen list instead of nondeterministic Set iteration.
-        let orderedIds = sortedBatchIds(
-            selected: selectedIds,
-            // Idempotent overwrite: PhotoKit identifiers are unique, so a
-            // repeated id (shouldn't happen) just re-records the same size
-            // instead of trapping the scan.
-            fileSizes: videos.reduce(into: [String: Int64]()) { $0[$1.id] = $1.asset.fileSize }
+        // Owned by CompressionBatchRunner.run; the VM only builds the inputs.
+        // Idempotent overwrite: PhotoKit identifiers are unique, so a
+        // repeated id (shouldn't happen) just re-records the same size
+        // instead of trapping the scan.
+        let fileSizes = videos.reduce(into: [String: Int64]()) { $0[$1.id] = $1.asset.fileSize }
+
+        // O(1) row lookup for the batch: `refresh()` and per-item delete are
+        // both no-ops while `isCompressing`, so no structural mutation can
+        // reorder rows mid-batch and these indices stay valid until the
+        // terminal removeAll below.
+        let indexById = Dictionary(uniqueKeysWithValues: videos.enumerated().map { ($1.id, $0) })
+
+        let handlers = CompressionBatchRunner.Handlers(
+            setExporting: { [weak self] index, progress in
+                guard let self else { return }
+                self.videos[index].compressionState = .exporting(progress)
+            },
+            setKeptOriginal: { [weak self] index, reason in
+                guard let self else { return }
+                self.videos[index].compressionState = .keptOriginal(reason: reason)
+            },
+            setCompleted: { [weak self] index, saved in
+                guard let self else { return }
+                self.videos[index].compressionState = .completed(savedBytes: saved)
+            },
+            setFailed: { [weak self] index, message in
+                guard let self else { return }
+                self.videos[index].compressionState = .failed(message)
+            },
+            setWaiting: { [weak self] index in
+                guard let self else { return }
+                self.videos[index].compressionState = .waiting
+            }
         )
 
-        for id in orderedIds {
-            // COMP-08: cancellation is checked at the top of every iteration.
-            if isCancelled { break }
-            guard let index = videos.firstIndex(where: { $0.id == id }) else { continue }
-            // Captured before the await so the failure audit trail below stays
-            // accurate even if the row vanishes from `videos` mid-export.
-            let originalSize = videos[index].asset.fileSize
-            let selectedPresetId = videos[index].selectedPreset.preset
+        let isSizeUnknown: @MainActor @Sendable (Error) -> Bool = { error in
+            guard let compressionError = error as? CompressionError else { return false }
+            if case .sizeUnknown = compressionError { return true }
+            return false
+        }
 
-            if previouslyCompletedIds.contains(id) {
-                videos[index].compressionState = .keptOriginal(reason: "Already compressed")
-                skippedCount += 1
-                continue
-            }
-
-            videos[index].compressionState = .exporting(0)
-
-            do {
+        let result = await CompressionBatchRunner.run(
+            selected: selectedIds,
+            fileSizes: fileSizes,
+            indexById: indexById,
+            alreadyCompletedIds: previouslyCompletedIds,
+            isCancelled: { [weak self] in self?.isCancelled ?? true },
+            isSizeUnknown: isSizeUnknown,
+            modelContext: modelContext,
+            handlers: handlers,
+            execute: { [weak self] id, index, report in
+                guard let self else { throw CancellationError() }
+                // Captured before the await so the failure audit trail below stays
+                // accurate even if the row vanishes from `videos` mid-export.
+                let originalSize = self.videos[index].asset.fileSize
                 // COMP-10: never export with a preset larger than the source.
                 let preset = VideoCompressionService.effectivePreset(
-                    for: videos[index].asset,
-                    selected: videos[index].selectedPreset
+                    for: self.videos[index].asset,
+                    selected: self.videos[index].selectedPreset
                 )
-                let result = try await compressionService.compressVideo(
+                // D1: journal the swap BEFORE it starts, so a crash mid-swap is
+                // recoverable on next load instead of leaving a permanent duplicate.
+                // Throws when the pending row is not durable — that aborts this
+                // item before any library write (no journal, no swap).
+                let swap = try CompressionSwap(
+                    mediaType: .video,
                     assetId: id,
-                    preset: preset
-                ) { [weak self] progress in
-                    guard let self else { return }
-                    if let idx = self.videos.firstIndex(where: { $0.id == id }) {
-                        self.videos[idx].compressionState = .exporting(progress)
-                    }
-                }
-
-                if result.skipped {
-                    // COMP-04: no-savings items stay in the list with an
-                    // explanation instead of silently vanishing.
-                    skippedCount += 1
-                    if let updatedIndex = videos.firstIndex(where: { $0.id == id }) {
-                        videos[updatedIndex].compressionState = .keptOriginal(reason: "No savings — kept original")
-                    }
-                    let record = CompressionRecord(
-                        assetLocalIdentifier: id,
-                        replacementAssetLocalIdentifier: nil,
-                        originalSizeBytes: result.originalSize,
-                        compressedSizeBytes: result.originalSize,
-                        exportPreset: preset.preset,
-                        outcome: "skipped"
-                    )
-                    modelContext.insert(record)
-                    do {
-                        try modelContext.save()
-                    } catch {
-                        AppLog.data.error("Failed to save compression record: \(error.localizedDescription, privacy: .public)")
-                    }
-                    continue
-                }
-
-                // Record the outcome unconditionally. The original was already
-                // deleted inside compressVideo, so the savings + record must be
-                // captured even if `videos` was mutated during the await; the UI
-                // state update below is best-effort.
-                let saved = max(0, result.originalSize - result.compressedSize)
-                totalSaved += saved
-                completedCount += 1
-                successfulIds.insert(id)
-                if let updatedIndex = videos.firstIndex(where: { $0.id == id }) {
-                    videos[updatedIndex].compressionState = .completed(savedBytes: saved)
-                }
-
-                // Save compression record
-                let record = CompressionRecord(
-                    assetLocalIdentifier: id,
-                    replacementAssetLocalIdentifier: result.replacementAssetIdentifier,
-                    originalSizeBytes: result.originalSize,
-                    compressedSizeBytes: result.compressedSize,
-                    exportPreset: preset.preset,
-                    outcome: "completed"
+                    originalSize: originalSize,
+                    // D15: history rows show the clean preset id ("1080p"),
+                    // matching the photo stack and the tests, instead of the raw
+                    // AVFoundation constant.
+                    exportPreset: preset.id,
+                    modelContext: modelContext
                 )
-                modelContext.insert(record)
                 do {
-                    try modelContext.save()
+                    let compressResult = try await self.compressionService.compressVideo(
+                        assetId: id,
+                        preset: preset,
+                        // D1: the library write is about to start — from here a crash
+                        // could strand a copy whose id the journal never learned.
+                        onSaveWillCommit: {
+                            swap.markSaveAttempted()
+                        },
+                        // D1: the replacement id lands in the journal the moment the
+                        // save commits — the earliest crash point that can strand a copy.
+                        onReplacementSaved: { replacementId, compressedSize in
+                            swap.recordReplacement(id: replacementId, size: compressedSize)
+                        },
+                        onProgress: { progress in
+                            report(progress)
+                        }
+                    )
+
+                    if compressResult.skipped {
+                        // COMP-04: no-savings items stay in the list with an
+                        // explanation instead of silently vanishing.
+                        swap.finalizeSkipped()
+                        self.videos[index].compressionState = .keptOriginal(reason: "No savings — kept original")
+                        return .skipped
+                    }
+
+                    // The original was already deleted inside compressVideo; the
+                    // journal row (written before the swap) now becomes the history
+                    // record. Even if `videos` was mutated during the await, the
+                    // record + savings are already durable.
+                    swap.finalizeCompleted(compressedSize: compressResult.compressedSize)
+                    return .completed(
+                        originalSize: compressResult.originalSize,
+                        compressedSize: compressResult.compressedSize
+                    )
                 } catch {
-                    AppLog.data.error("Failed to save compression record: \(error.localizedDescription, privacy: .public)")
+                    if self.isCancelled || error is CancellationError {
+                        // User cancelled mid-item: reset the row and stop the loop. A
+                        // cancel is not a failure — History must not render a red
+                        // badge for something the summary reports as cancelled.
+                        await swap.markSkipped(assetId: id)
+                        throw error
+                    }
+                    if let compressionError = error as? CompressionError,
+                       case .sizeUnknown = compressionError {
+                        // COMP-07: iCloud-only / unknown size — leave the original
+                        // alone. An intentional skip, not a failure.
+                        await swap.markSkipped(assetId: id)
+                        throw error
+                    }
+                    await swap.markFailed(assetId: id)
+                    throw error
                 }
-
-            } catch CompressionError.cancelled {
-                // User cancelled mid-item: nothing was replaced; reset the row
-                // and stop the loop.
-                if let idx = videos.firstIndex(where: { $0.id == id }) {
-                    videos[idx].compressionState = .waiting
-                }
-                break
-            } catch CompressionError.sizeUnknown {
-                // COMP-07: iCloud-only / unknown size — leave the original alone.
-                skippedCount += 1
-                if let idx = videos.firstIndex(where: { $0.id == id }) {
-                    videos[idx].compressionState = .keptOriginal(reason: "Size unknown (iCloud-only) — skipped")
-                }
-                continue
-            } catch {
-                failedCount += 1
-                if let idx = videos.firstIndex(where: { $0.id == id }) {
-                    videos[idx].compressionState = .failed(error.localizedDescription)
-                }
-
-                // Keep an audit trail of failed compressions too. Uses the
-                // values captured before the export so a vanished row can't
-                // degrade the record into a neutral "No savings" row.
-                let failed = CompressionRecord(
-                    assetLocalIdentifier: id,
-                    replacementAssetLocalIdentifier: nil,
-                    originalSizeBytes: originalSize,
-                    compressedSizeBytes: 0,
-                    exportPreset: selectedPresetId,
-                    outcome: "failed"
-                )
-                modelContext.insert(failed)
-                try? modelContext.save()
             }
-        }
+        )
+        let successfulIds = result.successfulIds
+        let completedCount = result.summary.completed
+        let failedCount = result.summary.failed
+        let skippedCount = result.summary.skipped
 
         // COMP-04: remove only successfully compressed (and deleted) items;
         // skipped ones stay so the user can see why they were left alone.

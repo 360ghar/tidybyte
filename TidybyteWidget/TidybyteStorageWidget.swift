@@ -16,7 +16,12 @@ struct StorageProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (StorageEntry) -> Void) {
-        completion(StorageEntry(date: Date(), snapshot: AppGroupStore.loadSnapshot() ?? .sample))
+        // E2: the snapshot completion renders in the real widget (not just the
+        // gallery) — fabricated "92 GB used / 214 screenshots" must not show as
+        // if it were the user's data. Real snapshot when one exists; the
+        // placeholder view handles nil. Gallery previews keep `.sample`.
+        let snapshot = context.isPreview ? WidgetSnapshot.sample : AppGroupStore.loadSnapshot()
+        completion(StorageEntry(date: Date(), snapshot: snapshot))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<StorageEntry>) -> Void) {
@@ -51,7 +56,9 @@ extension WidgetSnapshot {
             screenshotBytes: 1_400_000_000,
             largeFileCount: 18,
             largeFileBytes: 6_200_000_000,
-            reclaimableBytes: 7_600_000_000
+            reclaimableBytes: 7_600_000_000,
+            lifetimeFreedBytes: 4_300_000_000,
+            lifetimeItemCount: 612
         )
     }
 }

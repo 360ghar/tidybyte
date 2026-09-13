@@ -9,8 +9,10 @@ struct ActionBarView<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // E7: the adaptive border token, not a hardcoded near-invisible
+            // white that disappears in light mode.
             Rectangle()
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.cardBorder)
                 .frame(height: 0.5)
 
             HStack {

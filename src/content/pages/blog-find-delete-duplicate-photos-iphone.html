@@ -1,0 +1,227 @@
+  <main id="main">
+<nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6 text-sm">
+  <ol class="flex items-center gap-1.5 text-muted">
+    <li><a href="/" class="text-muted hover:text-ink hover:underline">Home</a></li>
+    <li aria-hidden="true">/</li>
+    <li><a href="/blog" class="text-muted hover:text-ink hover:underline">Blog</a></li>
+  </ol>
+</nav>
+
+<article class="container-prose mx-auto max-w-prose px-4 pb-16 pt-8 sm:pt-10">
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/blog#cat-tutorials" class="badge">Tutorials</a>
+  </div>
+
+  <h1 class="h-display mt-4">How to Find and Delete Duplicate Photos on Your iPhone</h1>
+
+  <p class="lede mt-5">Duplicate photos pile up fast &mdash; from iCloud sync, HDR mode, burst shots, and sharing across apps. Here's exactly how to find and delete them, including the near-identical shots that iOS misses.</p>
+
+  <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+    <time datetime="2026-06-13">June 13, 2026</time>
+    <span aria-hidden="true">&middot;</span>
+    <span>4 min read</span>
+  </div>
+
+  <figure class="mt-8">
+    <picture>
+      <source srcset="/assets/img/blog/find-delete-duplicate-photos-iphone.avif" type="image/avif">
+      <img src="/assets/img/blog/find-delete-duplicate-photos-iphone.webp" alt="Clay illustration: a small clay trash bin with a twin pair of identical photographs leaning over its edge" width="1400" height="933"
+           loading="eager" fetchpriority="high" decoding="async"
+           class="block h-auto w-full rounded-2xl border border-hairline">
+    </picture>
+  </figure>
+
+  <nav aria-labelledby="toc-h" class="clay-card mt-10 p-5 sm:p-6">
+    <h2 id="toc-h" class="font-display text-sm font-semibold uppercase tracking-[0.12em] text-muted">On this page</h2>
+    <ol class="mt-3 space-y-2 text-[15px]">
+      <li><a href="#find-delete-duplicate-photos-iphone-section-1" class="link decoration-1">Why duplicate photos accumulate</a></li>
+      <li><a href="#find-delete-duplicate-photos-iphone-section-2" class="link decoration-1">The built-in Duplicates album (and its limits)</a></li>
+      <li><a href="#find-delete-duplicate-photos-iphone-section-3" class="link decoration-1">How TidyByte finds duplicates</a></li>
+      <li><a href="#find-delete-duplicate-photos-iphone-section-4" class="link decoration-1">Step-by-step: deleting duplicates with TidyByte</a></li>
+      <li><a href="#find-delete-duplicate-photos-iphone-section-5" class="link decoration-1">How much space can you reclaim?</a></li>
+      <li><a href="#find-delete-duplicate-photos-iphone-section-6" class="link decoration-1">Tips to prevent duplicates in the future</a></li>
+      <li><a href="#faq" class="link decoration-1">Frequently asked questions</a></li>
+    </ol>
+  </nav>
+
+    <article class="container-prose mx-auto max-w-prose">
+      
+
+      <div class="prose-section mt-12 space-y-8">
+        <section>
+          <h2 id="find-delete-duplicate-photos-iphone-section-1" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Why duplicate photos accumulate</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">If you've been using an iPhone for more than a year, you almost certainly have duplicate photos. They come from several sources:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li><strong class="font-semibold text-ink">iCloud sync</strong> &mdash; when you restore from a backup or switch devices, iCloud sometimes creates duplicates during the sync process.</li>
+            <li><strong class="font-semibold text-ink">HDR mode</strong> &mdash; older iPhones saved both the HDR and non-HDR version of each shot, doubling your count.</li>
+            <li><strong class="font-semibold text-ink">Burst mode</strong> &mdash; holding the shutter captures 10 frames per second. Most users keep 1-2 and forget to delete the rest.</li>
+            <li><strong class="font-semibold text-ink">Sharing apps</strong> &mdash; WhatsApp, Telegram, and other messaging apps save received photos to your library, often duplicating what you already have.</li>
+            <li><strong class="font-semibold text-ink">Editing apps</strong> &mdash; some apps save a copy when you edit, leaving both the original and the modified version.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 id="find-delete-duplicate-photos-iphone-section-2" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">The built-in Duplicates album (and its limits)</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Starting with iOS 16, Apple added a <strong class="font-semibold text-ink">Duplicates</strong> album under <em>Photos &rarr; Albums &rarr; Utilities</em>. It automatically merges exact byte-for-byte duplicates.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">This is useful, but it has significant limitations:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li>It only finds <strong class="font-semibold text-ink">exact duplicates</strong> &mdash; photos with identical file data.</li>
+            <li>It does <strong class="font-semibold text-ink">not detect near-duplicates</strong> &mdash; photos that look almost identical but differ by a crop, filter, slight recomposition, or re-encoding.</li>
+            <li>It does <strong class="font-semibold text-ink">not group burst sequences</strong> or visually similar shots.</li>
+            <li>The merge process is slow and doesn't let you choose which version to keep.</li>
+          </ul>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For most users, the built-in tool catches maybe 30% of the actual duplicates. The rest &mdash; the near-duplicates, the similar shots, the burst sequences &mdash; require a more sophisticated approach.</p>
+        </section>
+
+        <section>
+          <h2 id="find-delete-duplicate-photos-iphone-section-3" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">How TidyByte finds duplicates</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte uses two complementary methods to catch every type of duplicate:</p>
+
+          <h3 class="mt-8 text-lg font-semibold text-ink">Exact duplicates: SHA-256 hashing</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Every file gets a SHA-256 hash &mdash; a unique fingerprint of its data. Two photos with the same hash are byte-for-byte identical, regardless of filename. This is the same method forensic analysts use for file verification.</p>
+
+          <h3 class="mt-8 text-lg font-semibold text-ink">Near-duplicates: Apple Vision feature prints</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">For visually similar photos, TidyByte uses Apple's Vision framework to generate a <strong class="font-semibold text-ink">feature print</strong> &mdash; a mathematical representation of what the image looks like. It then compares feature prints across your library to find photos that look nearly identical, even if they differ by:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li>A crop or slight recomposition</li>
+            <li>A filter or brightness adjustment</li>
+            <li>Different file formats (HEIF vs JPEG)</li>
+            <li>Slight differences in resolution</li>
+          </ul>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">This catches the duplicates that iOS's built-in tool misses entirely.</p>
+        </section>
+
+        <section>
+          <h2 id="find-delete-duplicate-photos-iphone-section-4" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Step-by-step: deleting duplicates with TidyByte</h2>
+          <ol class="muted mt-4 space-y-4 text-base sm:text-lg">
+            <li>
+              <strong class="font-semibold text-ink">Open TidyByte and tap "Duplicates"</strong> from the cleanup toolkit on the home screen.
+            </li>
+            <li>
+              <strong class="font-semibold text-ink">Wait for the scan to complete.</strong> TidyByte scans your entire library using SHA-256 hashing. The scan typically takes 30-60 seconds for a 10,000-photo library.
+            </li>
+            <li>
+              <strong class="font-semibold text-ink">Review each duplicate group.</strong> TidyByte shows you groups of identical photos side by side. The oldest photo in each group is pre-selected to keep; the rest are marked for deletion.
+            </li>
+            <li>
+              <strong class="font-semibold text-ink">Adjust your selections if needed.</strong> Tap any photo to change which version you want to keep.
+            </li>
+            <li>
+              <strong class="font-semibold text-ink">Confirm the deletion.</strong> Deleted photos go to the iOS Recently Deleted album, where they sit for 30 days before permanent removal.
+            </li>
+          </ol>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For near-duplicates, tap <strong class="font-semibold text-ink">"Similar photos"</strong> instead. The workflow is the same, but TidyByte groups photos by visual similarity rather than exact match.</p>
+        </section>
+
+        <section>
+          <h2 id="find-delete-duplicate-photos-iphone-section-5" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">How much space can you reclaim?</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">It varies by library, but here are typical results from real users:</p>
+          <div class="mt-6 overflow-x-auto">
+            <div class="clay-card mt-6 overflow-x-auto p-1">
+<table class="w-full min-w-[36rem] text-left text-sm">
+              <thead>
+                <tr class="border-b border-hairline">
+                  <th class="pb-3 pr-4 font-semibold text-ink">Library size</th>
+                  <th class="pb-3 pr-4 font-semibold text-ink">Typical duplicates found</th>
+                  <th class="pb-3 font-semibold text-ink">Space reclaimed</th>
+                </tr>
+              </thead>
+              <tbody class="muted">
+                <tr class="border-b border-hairline">
+                  <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">2,000 photos</td>
+                  <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">50-150</td>
+                  <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">500 MB - 1.5 GB</td>
+                </tr>
+                <tr class="border-b border-hairline">
+                  <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">5,000 photos</td>
+                  <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">200-500</td>
+                  <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">1.5 - 4 GB</td>
+                </tr>
+                <tr class="border-b border-hairline">
+                  <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">10,000 photos</td>
+                  <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">500-1,500</td>
+                  <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">3 - 8 GB</td>
+                </tr>
+                <tr>
+                  <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">20,000+ photos</td>
+                  <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">1,000-3,000</td>
+                  <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">5 - 15 GB</td>
+                </tr>
+              </tbody>
+            </table>
+    </div>
+          </div>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">These numbers include both exact duplicates and near-duplicates found by the Vision-based similarity scan.</p>
+        </section>
+
+        <section>
+          <h2 id="find-delete-duplicate-photos-iphone-section-6" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Tips to prevent duplicates in the future</h2>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li><strong class="font-semibold text-ink">Turn off "Keep Normal Photo" in HDR settings</strong> (Settings &rarr; Camera) so only the HDR version is saved.</li>
+            <li><strong class="font-semibold text-ink">Review burst photos immediately</strong> after taking them. Pick the best and delete the rest while you still remember which one you liked.</li>
+            <li><strong class="font-semibold text-ink">Disable auto-save in messaging apps.</strong> In WhatsApp, go to Settings &rarr; Chats &rarr; Save to Camera Album and turn it off.</li>
+            <li><strong class="font-semibold text-ink">Run a duplicate scan monthly.</strong> TidyByte is free and takes under a minute. A quick monthly cleanup prevents accumulation.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 id="faq" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Frequently asked questions</h2>
+
+          <h3 class="mt-8 text-lg font-semibold text-ink">Why do I have so many duplicate photos on my iPhone?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Duplicates accumulate from iCloud sync across devices, HDR mode saving both versions, sharing photos via messaging apps, burst mode, and editing apps that save copies. Each mechanism creates slightly different versions of the same photo.</p>
+
+          <h3 class="mt-8 text-lg font-semibold text-ink">Doesn't the iPhone already have a built-in Duplicates album?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Yes, iOS 16+ has a Duplicates album in the Photos app. It merges exact duplicates automatically. However, it only finds exact byte-for-byte matches &mdash; it does not detect near-duplicates, similar shots from burst mode, or photos that differ by a crop or filter.</p>
+
+          <h3 class="mt-8 text-lg font-semibold text-ink">Is it safe to delete duplicate photos?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Yes. Deleted photos go to the iOS Recently Deleted album, where they sit for 30 days before permanent removal. You can always recover them within that window.</p>
+
+          <h3 class="mt-8 text-lg font-semibold text-ink">How does TidyByte find near-duplicate photos?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">TidyByte uses Apple's Vision framework to generate feature prints &mdash; mathematical representations of each image. It then compares these prints to find visually similar photos, even if they differ by a crop, filter, or slight recomposition.</p>
+
+          <h3 class="mt-8 text-lg font-semibold text-ink">How much space can I reclaim by deleting duplicates?</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">It varies by library, but most users find 5-15% of their photo library consists of duplicates or near-duplicates. For a 10,000-photo library, that's 500-1,500 photos &mdash; often 2-5 GB of storage.</p>
+        </section>
+
+        <section class="clay-card p-6 sm:p-8 text-center">
+          <h2 class="text-xl font-semibold text-ink">Ready to clean up your duplicates?</h2>
+          <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and finds duplicates that iOS misses.</p>
+          <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+            <a href="/#features" class="btn-ghost">See all features</a>
+          </div>
+        </section>
+      </div>
+    </article>
+  
+  <section aria-labelledby="related-h" class="mt-14">
+    <h2 id="related-h" class="h-section text-2xl sm:text-3xl">Keep reading</h2>
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <a href="/blog/how-to-find-duplicate-photos-on-iphone-without-app" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/how-to-find-duplicate-photos-on-iphone-without-app-card.webp" alt="Clay illustration: a clay magnifying glass held over a smartphone showing two identical photo thumbnails" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">How to Find Duplicate Photos on iPhone Without an App</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 9 min read</p>
+        </div>
+      </a>
+      <a href="/blog/how-to-stop-duplicate-photos-iphone" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/how-to-stop-duplicate-photos-iphone-card.webp" alt="Clay illustration: a rounded stop sign on a short post with two identical clay photographs bouncing off it in mid-air" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">How to Stop Getting Duplicate Photos on Your iPhone</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 11 min read</p>
+        </div>
+      </a>
+      <a href="/blog/why-are-there-duplicate-photos-in-my-iphone" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/why-are-there-duplicate-photos-in-my-iphone-card.webp" alt="Clay illustration: a clay smartphone with a tiny conveyor belt printing pairs of identical photographs out of its screen" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Why Are There Duplicate Photos in My iPhone Library?</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 10 min read</p>
+        </div>
+      </a>
+    </div>
+  </section>
+</article>
+  </main>

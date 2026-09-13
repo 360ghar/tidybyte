@@ -1,34 +1,51 @@
 import SwiftUI
+import StoreKit
 
 struct SimilarPhotosView: View {
     @State private var viewModel = SimilarPhotosViewModel()
     @State private var showDeleteConfirm = false
     @State private var selectedGroup: SimilarGroup?
+    @Environment(\.requestReview) private var requestReview
+    @State private var isCelebrating = false
     // Shared with the Settings mirror on the same key — @AppStorage is the single
     // source of truth, so a change in either screen is observed by the other (the
     // value is invisible to @Observable if held on the VM, hence it lives here).
     @AppStorage(AppPreferences.Key.similarPhotoTimeWindow) private var timeWindow: Double = 5.0
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Group {
-            switch viewModel.scanState {
-            case .idle:
-                idleView
-                    .transition(.stateTransition)
-            case .scanning(let progress):
-                scanningView(progress: progress)
-                    .transition(.stateTransition)
-            case .completed:
-                resultsView
-                    .transition(.stateTransition)
-            case .error(let message):
-                errorView(message: message)
-                    .transition(.stateTransition)
+        VStack(spacing: 0) {
+            // Non-modal error surface. Replaces the OK-only alert: an alert
+            // interrupts the task and costs a tap to dismiss, and it left the
+            // screen exactly as it already was.
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Similar Photos",
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.sm)
+            }
+
+            Group {
+                switch viewModel.scanState {
+                case .idle:
+                    idleView
+                        .transition(.stateTransition)
+                case .scanning(let progress):
+                    scanningView(progress: progress)
+                        .transition(.stateTransition)
+                case .completed:
+                    resultsView
+                        .transition(.stateTransition)
+                }
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.scanState)
+        .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
         .navigationTitle("Similar Photos")
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: "removed \(viewModel.deletedCount) similar photos")
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.groups.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
@@ -42,23 +59,32 @@ struct SimilarPhotosView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Delete All") {
+                    // C8: deletes the current selection (keepers excluded).
+                    Button("Delete Selected") {
                         HapticHelper.impact(.light)
                         showDeleteConfirm = true
                     }
                     .foregroundStyle(.red)
-                    .disabled(viewModel.isDeleting)
+                    .disabled(viewModel.isDeleting || viewModel.selectedForDeletion.isEmpty)
                 }
             }
         }
         .navigationDestination(item: $selectedGroup) { group in
-            SimilarGroupDetailView(
-                group: group,
+            GroupComparisonView(
+                group: SimilarComparison(group),
                 selectedForDeletion: $viewModel.selectedForDeletion,
                 onSetBest: { assetId, groupId in
                     viewModel.setBest(assetId: assetId, in: groupId)
+                },
+                descriptor: .similar,
+                extraDetail: { asset in
+                    if let quality = group.qualityScores[asset.id] {
+                        ComparisonQualitySection(quality: quality)
+                    }
                 }
             )
+            .navigationTitle("Review Group")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .alert("Delete Similar Photos", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
@@ -67,22 +93,12 @@ struct SimilarPhotosView: View {
                     await viewModel.deleteSelected()
                     // DUP-04d: only celebrate an actual deletion.
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HapticHelper.notification(.success)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
                     }
                 }
             }
         } message: {
             Text("The best photo from each group will be kept.")
-        }
-        .alert("Similar Photos Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("OK") {
-                viewModel.errorMessage = nil
-            }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
         }
         // DUP-02: leaving the screen must stop the scan.
         .onDisappear {
@@ -93,154 +109,49 @@ struct SimilarPhotosView: View {
     // MARK: - Idle View
 
     private var idleView: some View {
-        ScrollView {
-            VStack(spacing: Spacing.xxl) {
-                Spacer(minLength: Spacing.xxxl)
-
-                // Hero icon
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [.blue.opacity(0.15), .clear],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: 80
-                            )
-                        )
-                        .frame(width: 160, height: 160)
-
-                    Image(systemName: "square.on.square")
-                        .font(.system(size: 72, weight: .light))
-                        .foregroundStyle(.blue.opacity(0.8))
-                        .subtleShadow()
-                }
-                .fadeSlideIn()
-
-                VStack(spacing: Spacing.sm) {
-                    Text("Find Similar Photos")
-                        .font(.title2.bold())
-
-                    Text("Groups photos taken within \(Int(timeWindow)) seconds of each other.")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, Spacing.xxxl)
-                }
-                .fadeSlideIn(delay: 0.05)
-
-                // Time window slider
-                VStack(spacing: Spacing.sm) {
-                    Text("Time Window: \(Int(timeWindow))s")
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
-
-                    Slider(value: $timeWindow, in: 1...60, step: 1)
-                        .padding(.horizontal, Spacing.xxxl)
-                        .onChange(of: timeWindow) {
-                            HapticHelper.selection()
-                        }
-                }
-                .glassCard()
-                .padding(.horizontal, Spacing.lg)
-                .fadeSlideIn(delay: 0.1)
-
-                Button {
-                    HapticHelper.impact(.light)
-                    // DUP-02: route through the VM-held task so the scan is
-                    // cancellable and re-entry is guarded.
-                    viewModel.startScan(timeWindow: timeWindow)
-                } label: {
-                    Text("Start Scan")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Spacing.md)
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
-                }
-                .scaleOnPress()
-                .padding(.horizontal, Spacing.xxxl)
-                .fadeSlideIn(delay: 0.15)
-
-                Spacer(minLength: Spacing.xxxl)
+        ToolIdleView(
+            icon: "square.on.square",
+            tint: .blue,
+            title: "Find Similar Photos",
+            message: "Groups photos taken within \(Int(timeWindow)) seconds of each other.",
+            primaryTitle: "Start Scan",
+            primaryHint: "Scans your library for photos taken close together",
+            primaryAction: {
+                HapticHelper.impact(.light)
+                // DUP-02: route through the VM-held task so the scan is
+                // cancellable and re-entry is guarded.
+                viewModel.startScan(timeWindow: timeWindow)
             }
+        ) {
+            VStack(spacing: Spacing.sm) {
+                Text("Time Window: \(Int(timeWindow))s")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+
+                Slider(value: $timeWindow, in: 1...60, step: 1)
+                    .onChange(of: timeWindow) {
+                        HapticHelper.selection()
+                    }
+            }
+            .glassCard()
         }
+        .fadeSlideIn()
     }
 
     // MARK: - Scanning View
 
     private func scanningView(progress: Float) -> some View {
-        VStack(spacing: Spacing.xxl) {
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [.blue.opacity(0.15), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 80
-                        )
-                    )
-                    .frame(width: 160, height: 160)
-
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 48, weight: .light))
-                    .foregroundStyle(.blue.opacity(0.8))
-                    .symbolEffect(.pulse)
-            }
-
-            VStack(spacing: Spacing.md) {
-                Text("Grouping similar photos...")
-                    .font(.headline)
-
-                ProgressView(value: progress)
-                    .tint(.blue)
-                    .padding(.horizontal, Spacing.xxxl)
-
-                Text("\(Int(progress * 100))%")
-                    .font(.title3.bold().monospacedDigit())
-                    .foregroundStyle(.blue)
-                    .animatedNumber()
-            }
-            .glassCard()
-            .padding(.horizontal, Spacing.lg)
-
-            // DUP-02: an explicit way out of a long scan.
-            Button(role: .destructive) {
+        ToolScanningView(
+            icon: "magnifyingglass",
+            tint: .blue,
+            title: "Grouping similar photos...",
+            progress: progress,
+            onCancel: {
                 HapticHelper.impact(.light)
                 viewModel.cancelScan()
-            } label: {
-                Text("Cancel")
-                    .font(.headline)
-                    .padding(.horizontal, Spacing.xxxl)
-                    .padding(.vertical, Spacing.sm)
-                    .background(Color.destructive.opacity(0.12))
-                    .foregroundStyle(Color.destructive)
-                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             }
-            .scaleOnPress()
-
-            Spacer()
-        }
+        )
         .fadeSlideIn()
-    }
-
-    // MARK: - Error View
-
-    private func errorView(message: String) -> some View {
-        EmptyStateView(
-            icon: "exclamationmark.triangle",
-            title: "Something Went Wrong",
-            message: message,
-            iconColor: .orange,
-            actionTitle: "Retry"
-        ) {
-            HapticHelper.impact(.light)
-            viewModel.scanState = .idle
-        }
     }
 
     // MARK: - Results View
@@ -384,6 +295,18 @@ struct SimilarPhotosView: View {
                                                 .padding(3)
                                                 .background(Color.black.opacity(0.5), in: Circle())
                                                 .padding(Spacing.xs)
+                                        }
+                                        // C10: warn that this photo's quality was
+                                        // scored from a low-res iCloud copy.
+                                        if quality?.usedFallback == true {
+                                            Image(systemName: "icloud.and.arrow.down")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundStyle(.white)
+                                                .padding(3)
+                                                .background(Color.orange.opacity(0.8), in: Circle())
+                                                .padding(Spacing.xs)
+                                                .offset(x: 22)
+                                                .accessibilityLabel("Quality analyzed from a low-resolution copy")
                                         }
                                     }
 

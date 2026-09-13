@@ -21,7 +21,7 @@ final class WidgetSnapshotCoordinator {
     private var lastWrittenGeneration: Int?
     private var debounceTask: Task<Void, Never>?
 
-    init(photoService: PhotoLibraryService = PhotoLibraryService()) {
+    init(photoService: PhotoLibraryService = PhotoLibraryService.shared) {
         self.photoService = photoService
     }
 
@@ -33,7 +33,6 @@ final class WidgetSnapshotCoordinator {
     func runDailyScanIfNeeded(modelContext: ModelContext) async {
         guard !isScanning else { return }
 
-        let measuredAt = Date()
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
         if let lastScan = AppPreferences.lastStorageScanDate(),
@@ -48,13 +47,23 @@ final class WidgetSnapshotCoordinator {
         isScanning = true
         defer { isScanning = false }
 
+        // `measuredAt` only marks that this scan ran (the once-per-day gate).
+        // Snapshot timestamps are stamped at WRITE time below — a scan spanning
+        // midnight must land on the day its data was recorded, not when the
+        // enumeration started (A2).
+        let measuredAt = Date()
+
         // A single enumeration feeds the storage snapshot, the reminder copy,
         // and the widget snapshot.
         let stats = await Self.computeStats(photoService: photoService)
 
-        recordStorageSnapshot(stats: stats, capturedAt: measuredAt, modelContext: modelContext)
+        recordStorageSnapshot(stats: stats, modelContext: modelContext)
         await refreshReminderIfNeeded(stats: stats)
-        writeWidgetSnapshot(stats: stats, capturedAt: measuredAt)
+        // Reconcile the cached lifetime totals from the ledger BEFORE the
+        // widget write, so the widget's "Freed ..." figure can't drift from
+        // the SwiftData history it's supposed to mirror.
+        CleanupLedger.shared.refreshCache(modelContext: modelContext)
+        writeWidgetSnapshot(stats: stats)
         // Record that the heavy scan ran today regardless of the SwiftData save
         // result above, so a persistent save failure can't re-trigger it on
         // every foreground.
@@ -68,7 +77,7 @@ final class WidgetSnapshotCoordinator {
     /// Skips until the daily scan has established a baseline, and skips
     /// rewrites when the generation hasn't advanced past the last write
     /// (APP-03).
-    func refreshAfterLibraryChange(generation: Int) async {
+    func refreshAfterLibraryChange(generation: Int, modelContext: ModelContext) async {
         guard AppPreferences.lastStorageScanDate() != nil else { return }
         guard generation != lastWrittenGeneration else { return }
 
@@ -76,20 +85,21 @@ final class WidgetSnapshotCoordinator {
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(1500))
             guard !Task.isCancelled, let self else { return }
-            // Re-check inside the task: a newer bump may have landed while we
-            // slept and already written.
-            guard generation != self.lastWrittenGeneration else { return }
+            // Compression and Live Photo conversion write `CompressionRecord`
+            // rows directly (not through the ledger), so this is the point that
+            // folds their savings into the cached lifetime total.
+            CleanupLedger.shared.refreshCache(modelContext: modelContext)
             let stats = await Self.computeStats(photoService: self.photoService)
-            self.writeWidgetSnapshot(stats: stats, capturedAt: Date())
+            self.writeWidgetSnapshot(stats: stats)
             self.lastWrittenGeneration = generation
         }
     }
 
     // MARK: - Snapshot Writing
 
-    private func recordStorageSnapshot(stats: MediaLibraryStats, capturedAt: Date, modelContext: ModelContext) {
+    private func recordStorageSnapshot(stats: MediaLibraryStats, modelContext: ModelContext) {
         let snapshot = StorageSnapshot(
-            capturedAt: capturedAt,
+            capturedAt: .now,
             photoBytes: stats.photoBytes,
             videoBytes: stats.videoBytes,
             screenshotBytes: stats.screenshotBytes,
@@ -97,7 +107,7 @@ final class WidgetSnapshotCoordinator {
             otherBytes: stats.otherBytes
         )
         modelContext.insert(snapshot)
-        pruneStorageSnapshots(olderThan: capturedAt, modelContext: modelContext)
+        pruneStorageSnapshots(modelContext: modelContext)
         do {
             try modelContext.save()
         } catch {
@@ -107,8 +117,8 @@ final class WidgetSnapshotCoordinator {
 
     /// APP-15: rows older than 60 days are never read (the dashboard trend
     /// filter is 30 days) — prune them so the store can't grow without bound.
-    private func pruneStorageSnapshots(olderThan capturedAt: Date, modelContext: ModelContext) {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -60, to: capturedAt) ?? capturedAt
+    private func pruneStorageSnapshots(modelContext: ModelContext) {
+        guard let cutoff = Calendar.current.date(byAdding: .day, value: -60, to: .now) else { return }
         let descriptor = FetchDescriptor<StorageSnapshot>(
             predicate: #Predicate { $0.capturedAt < cutoff }
         )
@@ -118,27 +128,45 @@ final class WidgetSnapshotCoordinator {
         }
     }
 
-    private func writeWidgetSnapshot(stats: MediaLibraryStats, capturedAt: Date) {
+    /// Writes the widget snapshot. No-ops when nothing changed — a foreground
+    /// that re-ran the daily-scan gate used to burn a WidgetKit reload budget
+    /// slot on every launch even with identical numbers (A5).
+    private func writeWidgetSnapshot(stats: MediaLibraryStats) {
         let capacity = Self.readDeviceCapacity()
+        let lifetime = AppPreferences.lifetimeFreed()
+        if let current = AppGroupStore.loadSnapshot(),
+           current.usedBytes == capacity.used,
+           current.totalBytes == capacity.total,
+           current.screenshotCount == stats.screenshotCount,
+           current.largeFileCount == stats.largeFileCount,
+           current.reclaimableBytes == stats.reclaimableBytes,
+           current.lifetimeFreedBytes == lifetime.bytes,
+           current.lifetimeItemCount == lifetime.items {
+            return
+        }
         let snapshot = WidgetSnapshot(
-            capturedAt: capturedAt,
+            capturedAt: .now,
             usedBytes: capacity.used,
             totalBytes: capacity.total,
             screenshotCount: stats.screenshotCount,
             screenshotBytes: stats.screenshotBytes,
             largeFileCount: stats.largeFileCount,
             largeFileBytes: stats.largeFileBytes,
-            reclaimableBytes: stats.reclaimableBytes
+            reclaimableBytes: stats.reclaimableBytes,
+            lifetimeFreedBytes: lifetime.bytes,
+            lifetimeItemCount: lifetime.items
         )
         AppGroupStore.save(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Cheap refresh of just the device-capacity figures (no PhotoKit), used
-    /// when the heavy library scan has already run today.
+    /// when the heavy library scan has already run today. Also skips the
+    /// reload when nothing changed (A5).
     private func refreshWidgetDeviceCapacity() {
         guard var snapshot = AppGroupStore.loadSnapshot() else { return }
         let capacity = Self.readDeviceCapacity()
+        guard snapshot.usedBytes != capacity.used || snapshot.totalBytes != capacity.total else { return }
         snapshot.usedBytes = capacity.used
         snapshot.totalBytes = capacity.total
         AppGroupStore.save(snapshot)

@@ -22,16 +22,13 @@ struct StorageDashboardView: View {
                 dashboardSkeleton
             } else {
                 VStack(spacing: Spacing.xl) {
+                    storageBreakdownSection
+                        .fadeSlideIn(delay: 0.0)
+
                     if !viewModel.wins.isEmpty {
                         reclaimHeroSection
-                            .fadeSlideIn(delay: 0.0)
+                            .fadeSlideIn(delay: 0.05)
                     }
-
-                    recentlyDeletedSection
-                        .fadeSlideIn(delay: 0.05)
-
-                    storageBreakdownSection
-                        .fadeSlideIn(delay: 0.05)
 
                     deviceStorageSection
                         .fadeSlideIn(delay: 0.1)
@@ -39,14 +36,20 @@ struct StorageDashboardView: View {
                     appsAndOtherStorageSection
                         .fadeSlideIn(delay: 0.15)
 
-                    whereStorageGoesSection
+                    recentlyDeletedSection
                         .fadeSlideIn(delay: 0.2)
 
-                    iCloudSection
+                    whereStorageGoesSection
                         .fadeSlideIn(delay: 0.25)
 
-                    trendSection
+                    iCloudSection
                         .fadeSlideIn(delay: 0.3)
+
+                    trendSection
+                        .fadeSlideIn(delay: 0.35)
+
+                    savingsSection
+                        .fadeSlideIn(delay: 0.4)
                 }
                 .padding(Spacing.lg)
                 .readableWidth()
@@ -65,10 +68,10 @@ struct StorageDashboardView: View {
 
     private var dashboardSkeleton: some View {
         VStack(spacing: Spacing.xl) {
-            reclaimHeroSkeleton
+            storageBreakdownSkeleton
                 .fadeSlideIn(delay: 0.0)
 
-            storageBreakdownSkeleton
+            reclaimHeroSkeleton
                 .fadeSlideIn(delay: 0.05)
 
             deviceStorageSkeleton
@@ -77,17 +80,53 @@ struct StorageDashboardView: View {
             appsAndOtherStorageSkeleton
                 .fadeSlideIn(delay: 0.15)
 
-            whereStorageGoesSkeleton
+            recentlyDeletedSkeleton
                 .fadeSlideIn(delay: 0.2)
 
-            iCloudSkeleton
+            whereStorageGoesSkeleton
                 .fadeSlideIn(delay: 0.25)
 
-            trendSkeleton
+            iCloudSkeleton
                 .fadeSlideIn(delay: 0.3)
+
+            trendSkeleton
+                .fadeSlideIn(delay: 0.35)
+
+            savingsSkeleton
+                .fadeSlideIn(delay: 0.4)
         }
         .padding(Spacing.lg)
         .readableWidth()
+    }
+
+    private var savingsSkeleton: some View {
+        GlassCard {
+            VStack(spacing: Spacing.md) {
+                SkeletonBar(width: 140, height: 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                SkeletonBar(height: 16)
+            }
+        }
+    }
+
+    /// Mirrors `recentlyDeletedSection`'s single-row card so the skeleton and the
+    /// loaded body stay the same height when `wins` is non-empty.
+    private var recentlyDeletedSkeleton: some View {
+        GlassCard {
+            HStack(spacing: Spacing.md) {
+                SkeletonCircle(size: 28)
+
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    SkeletonBar(width: 170, height: 12)
+                    SkeletonBar(width: 180, height: 10)
+                }
+
+                Spacer()
+
+                SkeletonBar(width: 10, height: 14, cornerRadius: 2)
+            }
+            .padding(.vertical, Spacing.xs)
+        }
     }
 
     private var reclaimHeroSkeleton: some View {
@@ -341,6 +380,60 @@ struct StorageDashboardView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Your Savings
+
+    /// Entry point into Activity & Savings. Always rendered (unlike the reclaim
+    /// hero, which needs data-backed wins) so the feature is discoverable before
+    /// the user has cleaned anything.
+    private var savingsSection: some View {
+        GlassCard {
+            Button {
+                HapticHelper.impact(.light)
+                handle(.activity)
+            } label: {
+                HStack(spacing: Spacing.md) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.title3)
+                        .foregroundStyle(.green)
+                        .frame(width: 32)
+
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Your Savings")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.primary)
+                        if viewModel.lifetimeItemCount > 0 {
+                            // "Zero KB freed" would be misleading — the items
+                            // really were cleaned, their sizes just weren't
+                            // readable (iCloud-only assets report 0 bytes).
+                            Text("\(savingsHeadline) · \(viewModel.lifetimeItemCount) items cleaned")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Track everything you clean up over time")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, Spacing.xs)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// "X freed" when a size is known, otherwise an honest size-free label.
+    private var savingsHeadline: String {
+        viewModel.lifetimeFreedBytes > 0
+            ? "\(viewModel.lifetimeFreedBytes.formattedFileSize) freed"
+            : "Sizes unavailable"
     }
 
     // MARK: - Recently Deleted
@@ -798,6 +891,8 @@ struct StorageDashboardView: View {
             appNavigation.showCleanup(tool: tool)
         case .swipe(let filter):
             appNavigation.showSwipeSession(filter: filter)
+        case .activity:
+            appNavigation.showActivity()
         }
     }
 }

@@ -24,7 +24,10 @@ struct ShimmerOverlayModifier: ViewModifier {
             .clipped()
         }
         .onAppear {
-            guard !reduceMotion else { return }
+            // E6: guard against re-arming — each re-appearance used to stack
+            // another `repeatForever` animation on `phase`, visibly speeding
+            // the shimmer up. Once started, the animation persists.
+            guard !reduceMotion, phase == -1 else { return }
             withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
                 phase = 1.5
             }

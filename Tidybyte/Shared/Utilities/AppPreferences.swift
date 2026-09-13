@@ -29,20 +29,23 @@ enum AppPreferences {
         static let blurSensitivity = "blurSensitivity"
         static let smartCategorySensitivity = "smartCategorySensitivity"
         static let largeFileThresholdMB = "largeFileThresholdMB"
+        static let hasSeenZoomHint = "hasSeenZoomHint"
         static let defaultCompressionPreset = "defaultCompressionPreset"
         static let defaultPhotoCompressionPreset = "defaultPhotoCompressionPreset"
         static let cleanupRemindersEnabled = "cleanupRemindersEnabled"
         static let reminderWeekday = "reminderWeekday"
         static let recentAlbumIds = "recentAlbumIds"
         static let lastStorageScanAt = "lastStorageScanAt"
+        static let successfulActionCount = "successfulActionCount"
+        static let lastReviewPromptAt = "lastReviewPromptAt"
+        static let lifetimeFreedBytes = "lifetimeFreedBytes"
+        static let lifetimeItemCount = "lifetimeItemCount"
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        static let hasSeenLimitedLibraryNotice = "hasSeenLimitedLibraryNotice"
     }
 
     static func defaultSwipeFilter(in defaults: UserDefaults = .standard) -> DefaultSwipeFilterPreference {
         DefaultSwipeFilterPreference(rawValue: defaults.string(forKey: Key.defaultSwipeFilter) ?? "") ?? .notSwipedYet
-    }
-
-    static func saveDefaultSwipeFilter(_ filter: DefaultSwipeFilterPreference, in defaults: UserDefaults = .standard) {
-        defaults.set(filter.rawValue, forKey: Key.defaultSwipeFilter)
     }
 
     static func similarPhotoTimeWindow(in defaults: UserDefaults = .standard) -> Double {
@@ -130,6 +133,34 @@ enum AppPreferences {
         defaults.set(albumIds, forKey: Key.recentAlbumIds)
     }
 
+    // MARK: - First Run
+
+    /// False until the user finishes the onboarding pages. `RootView` reads this
+    /// to decide whether to present onboarding over the tab bar; it is recorded
+    /// on finish (and on skip) so the flow is strictly once per install.
+    static func hasCompletedOnboarding(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: Key.hasCompletedOnboarding)
+    }
+
+    static func saveHasCompletedOnboarding(_ value: Bool, in defaults: UserDefaults = .standard) {
+        defaults.set(value, forKey: Key.hasCompletedOnboarding)
+    }
+
+    /// Whether the first-run onboarding should be presented.
+    ///
+    /// Pure, so the policy can be pinned by tests. Requiring
+    /// `.notDetermined` is what makes this safe for the installed base: the
+    /// `hasCompleted` flag is absent (false) for anyone upgrading into the
+    /// version that introduced it, but those users have already resolved
+    /// permission one way or the other, so they are never re-onboarded. Only a
+    /// genuinely fresh install — where nothing has asked yet — qualifies.
+    static func shouldPresentOnboarding(
+        hasCompleted: Bool,
+        permissionState: PhotoPermissionState
+    ) -> Bool {
+        !hasCompleted && permissionState == .notDetermined
+    }
+
     /// Timestamp of the last heavy storage scan, used to gate the once-per-day
     /// library enumeration independently of whether the SwiftData snapshot saved.
     static func lastStorageScanDate(in defaults: UserDefaults = .standard) -> Date? {
@@ -139,5 +170,80 @@ enum AppPreferences {
 
     static func saveLastStorageScanDate(_ date: Date, in defaults: UserDefaults = .standard) {
         defaults.set(date.timeIntervalSince1970, forKey: Key.lastStorageScanAt)
+    }
+
+    // MARK: - Lifetime Savings Cache
+
+    /// Mirror of the cleanup ledger totals, kept in UserDefaults so the widget
+    /// extension and the non-launching `FreeSpaceIntent` can read "freed so
+    /// far" without touching SwiftData. NEVER the source of truth — the
+    /// `CleanupActivityRecord` / `CompressionRecord` rows are — so
+    /// `CleanupLedger.refreshCache` reconciles it from the store during the
+    /// daily scan and after every library change.
+    static func lifetimeFreed(in defaults: UserDefaults = .standard) -> (bytes: Int64, items: Int) {
+        (
+            bytes: Int64(defaults.double(forKey: Key.lifetimeFreedBytes)),
+            items: defaults.integer(forKey: Key.lifetimeItemCount)
+        )
+    }
+
+    static func saveLifetimeFreed(bytes: Int64, items: Int, in defaults: UserDefaults = .standard) {
+        defaults.set(Double(bytes), forKey: Key.lifetimeFreedBytes)
+        defaults.set(items, forKey: Key.lifetimeItemCount)
+    }
+
+    /// Increments the cached totals by one cleanup's result. Called from the
+    /// ledger's write path (main actor) so the widget reflects a fresh cleanup
+    /// before the next full reconcile.
+    static func addLifetimeFreed(bytes: Int64, items: Int, in defaults: UserDefaults = .standard) {
+        let current = lifetimeFreed(in: defaults)
+        saveLifetimeFreed(bytes: current.bytes + bytes, items: current.items + items, in: defaults)
+    }
+
+    // MARK: - Happy-Path Review Prompt Gating
+
+    /// Success counts at which the native in-context review prompt may fire:
+    /// early delight at 3, then rarer; `% 50` keeps long-term users asked
+    /// roughly twice a year at their current cleanup cadence.
+    private static let reviewMilestones: Set<Int> = [3, 10, 25]
+
+    /// Local cooldown between native review prompts. Apple already caps the
+    /// OS prompt at 3 per 365 days and suppresses extras *silently*, so the
+    /// app must pace itself — otherwise real milestones get burned on nothing.
+    private static let reviewPromptCooldownDays = 60
+
+    static func successfulActionCount(in defaults: UserDefaults = .standard) -> Int {
+        defaults.integer(forKey: Key.successfulActionCount)
+    }
+
+    /// Pure decision so tests can pin the policy without UserDefaults.
+    /// Returns true when `successCount` hits a milestone AND the cooldown has
+    /// elapsed (a never-prompted install has no cooldown).
+    static func shouldRequestReview(successCount: Int, lastPromptAt: Date?, now: Date = .now) -> Bool {
+        let isMilestone = reviewMilestones.contains(successCount)
+            || (successCount > 0 && successCount % 50 == 0)
+        guard isMilestone else { return false }
+        guard let lastPromptAt else { return true }
+        return now.timeIntervalSince(lastPromptAt) >= TimeInterval(reviewPromptCooldownDays * 24 * 60 * 60)
+    }
+
+    /// Records one fully-successful happy-path action. Callers must only invoke
+    /// this when nothing failed, nothing was cancelled, and at least one item
+    /// was affected — a "success" on a no-op would cheapen the milestone.
+    /// Returns true when the caller should fire the native `requestReview` prompt.
+    @discardableResult
+    static func recordSuccessfulAction(now: Date = .now, in defaults: UserDefaults = .standard) -> Bool {
+        let count = successfulActionCount(in: defaults) + 1
+        defaults.set(count, forKey: Key.successfulActionCount)
+        let interval = defaults.double(forKey: Key.lastReviewPromptAt)
+        let lastPromptAt: Date? = interval == 0 ? nil : Date(timeIntervalSince1970: interval)
+        return shouldRequestReview(successCount: count, lastPromptAt: lastPromptAt, now: now)
+    }
+
+    /// Call immediately after firing `requestReview`. Recorded unconditionally
+    /// (whether or not the OS actually displayed the prompt) so a suppressed
+    /// attempt still consumes the cooldown instead of retrying every milestone.
+    static func recordReviewPromptDate(_ date: Date = .now, in defaults: UserDefaults = .standard) {
+        defaults.set(date.timeIntervalSince1970, forKey: Key.lastReviewPromptAt)
     }
 }

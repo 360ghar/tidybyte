@@ -21,27 +21,51 @@ struct AnalyzedPhoto: Identifiable, Sendable {
 @Observable
 @MainActor
 final class BlurryPhotosViewModel {
-    var analyzedPhotos: [AnalyzedPhoto] = []
+    var analyzedPhotos: [AnalyzedPhoto] = [] {
+        didSet { filterCache = nil }
+    }
     var scanState: ScanState = .idle
-    var selectedIds: Set<String> = []
     var activeTab: BlurryTab = .blurry
     var errorMessage: String?
     var isDeleting = false
+    /// DUP-04/DUP-09 parity: how many items the last delete actually removed,
+    /// so the view can gate the success haptic on a non-zero result (C12).
+    private(set) var deletedCount = 0
     /// Number of screenshots excluded from analysis on the most recent scan
     /// (they're covered by the dedicated Screenshots tool) — surfaced in the
     /// results footer (D-04).
     private(set) var skippedScreenshotCount = 0
 
-    /// The in-flight scan, if any. Kept so scans can be cancelled when the
-    /// user leaves the screen and so re-entry can't start a second scan (D-01).
-    private var scanTask: Task<Void, Never>?
+    /// C1/C2: owns the cancellable scan task + generation token.
+    private let scanRunner = ScanRunner()
 
     var sensitivity: BlurSensitivity {
         AppPreferences.blurSensitivity()
     }
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
     private let visionService = VisionAnalysisService()
+
+    /// Selections kept PER TAB (C11): switching tabs no longer destroys the
+    /// selection made on the other tab, so a user can curate blurry and dark
+    /// picks independently and delete both in one batch.
+    private var selectionsByTab: [BlurryTab: Set<String>] = [:]
+
+    var selectedIds: Set<String> {
+        get { selectionsByTab[activeTab] ?? [] }
+        set { selectionsByTab[activeTab] = newValue }
+    }
+
+    /// Every selected id across all tabs — what `deleteSelected()` actually
+    /// removes. The confirm dialog must use this, not `selectedIds`, or it
+    /// announces fewer photos than it deletes.
+    ///
+    /// Deduplicated through a Set, like `deleteSelected()` does: one photo can be
+    /// both blurry and too dark, and selecting it on both tabs would otherwise
+    /// report two deletions for a single asset.
+    var totalSelectedCount: Int {
+        Set(selectionsByTab.values.flatMap { $0 }).count
+    }
 
     /// Eligibility for quality analysis: screenshots are excluded — they're
     /// covered by the dedicated Screenshots tool. Live Photos ARE analyzed:
@@ -54,53 +78,86 @@ final class BlurryPhotosViewModel {
     /// Starts the scan unless one is already in flight. The scan runs in a
     /// tracked task so `cancelScan()` can stop it (D-01).
     func startScan() {
-        guard scanTask == nil else { return }
-        scanTask = Task {
-            await scan()
-            scanTask = nil
+        scanRunner.start { [weak self] token in
+            await self?.scan(token: token)
         }
     }
 
     /// Cancels an in-flight scan and returns the tool to `.idle`. No-op when
     /// nothing is scanning.
     func cancelScan() {
-        guard scanTask != nil else { return }
-        scanTask?.cancel()
-        scanTask = nil
+        guard scanRunner.isRunning else { return }
+        scanRunner.cancel()
         if case .scanning = scanState {
             scanState = .idle
         }
     }
 
-    var filteredPhotos: [AnalyzedPhoto] {
-        analyzedPhotos.filter { $0.categories.contains(activeTab) }
+    /// Memoized filter + per-tab counts (C13 parity with
+    /// `ScreenshotCleanerViewModel.sortedScreenshots`): the results view reads
+    /// `filteredPhotos` in the toolbar, grid, alert, and preview sheet, so the
+    /// computed filters re-ran ~9 full-array passes per render — including on
+    /// every selection toggle, which changes no photo. Keyed by tab; the
+    /// `analyzedPhotos` didSet invalidates on every mutation (scan appends,
+    /// deletes). During a scan each progress tick still rebuilds once, same as
+    /// before; after the scan, renders are free.
+    private var filterCache: (tab: BlurryTab, filtered: [AnalyzedPhoto], counts: [BlurryTab: Int])?
+
+    private func filteredAndCounts() -> (filtered: [AnalyzedPhoto], counts: [BlurryTab: Int]) {
+        if let cache = filterCache, cache.tab == activeTab {
+            return (cache.filtered, cache.counts)
+        }
+        var counts: [BlurryTab: Int] = [:]
+        var filtered: [AnalyzedPhoto] = []
+        for photo in analyzedPhotos {
+            for category in photo.categories {
+                counts[category, default: 0] += 1
+            }
+            if photo.categories.contains(activeTab) {
+                filtered.append(photo)
+            }
+        }
+        filterCache = (activeTab, filtered, counts)
+        return (filtered, counts)
     }
 
-    var blurryCount: Int { analyzedPhotos.filter { $0.categories.contains(.blurry) }.count }
-    var darkCount: Int { analyzedPhotos.filter { $0.categories.contains(.tooDark) }.count }
-    var overexposedCount: Int { analyzedPhotos.filter { $0.categories.contains(.overexposed) }.count }
+    var filteredPhotos: [AnalyzedPhoto] {
+        filteredAndCounts().filtered
+    }
+
+    var blurryCount: Int { filteredAndCounts().counts[.blurry] ?? 0 }
+    var darkCount: Int { filteredAndCounts().counts[.tooDark] ?? 0 }
+    var overexposedCount: Int { filteredAndCounts().counts[.overexposed] ?? 0 }
 
     var selectedSize: Int64 {
-        filteredPhotos.filter { selectedIds.contains($0.id) }
-            .reduce(0) { $0 + $1.asset.fileSize }
+        filteredPhotos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
     }
 
-    func scan() async {
+    func scan(token: Int) async {
+        // A run whose token is already stale (cancelled before this body got a
+        // turn on the main actor) must not touch shared state: `cancelScan()`
+        // already moved the UI to `.idle`.
+        guard scanRunner.isCurrent(token) else { return }
         scanState = .scanning(0)
         analyzedPhotos = []
         // D-02: stale selections from a previous scan must not persist across
-        // rescans (mirrors SmartCategoriesViewModel.scan()).
-        selectedIds.removeAll()
+        // rescans (all tabs — mirrors SmartCategoriesViewModel.scan()).
+        selectionsByTab.removeAll()
         skippedScreenshotCount = 0
+        deletedCount = 0
 
         let allPhotos = await photoService.fetchAllPhotos()
         let total = allPhotos.count
+        // One batched PhotoKit resolve for the whole scan — the per-image
+        // loaders below would otherwise do one identifier lookup per photo
+        // (plus a second for every iCloud fallback).
+        let phById = photoService.phAssetsById(allPhotos.map(\.id))
 
         for (index, photo) in allPhotos.enumerated() {
-            if Task.isCancelled {
-                scanState = .idle
-                return
-            }
+            // A cancelled scan leaves the state alone: `cancelScan()` already
+            // moved the UI to `.idle`, and writing it here would stomp a scan
+            // the user restarted while this one was unwinding (C1/C2).
+            if Task.isCancelled { return }
             // Yield periodically to reduce memory pressure and allow UI updates
             if index % 20 == 0 {
                 await Task.yield()
@@ -118,22 +175,25 @@ final class BlurryPhotosViewModel {
             // whose full resolution lives only in iCloud (so they're still
             // analyzed). Fallback analysis is flagged so the UI can warn that
             // a low-res copy may read as softer than the original (D-03).
-            var uiImage = await photoService.loadAnalysisImage(for: photo.id, targetSize: CGSize(width: 512, height: 512))
-            let usedFallback = uiImage == nil
-            if uiImage == nil {
-                uiImage = await photoService.loadThumbnail(for: photo.id, size: CGSize(width: 300, height: 300))
+            // `phById` was resolved once up front — no per-photo fetch.
+            // (Missing = deleted externally mid-scan; skip like a nil image.)
+            var uiImage: UIImage?
+            var usedFallback = true
+            if let phAsset = phById[photo.id] {
+                uiImage = await photoService.loadAnalysisImage(for: phAsset, targetSize: CGSize(width: 512, height: 512))
+                usedFallback = uiImage == nil
+                if uiImage == nil {
+                    uiImage = await photoService.loadThumbnail(for: phAsset, size: CGSize(width: 300, height: 300))
+                }
             }
             guard let cgImage = uiImage?.cgImage else {
                 continue
             }
 
             let blurResult = await visionService.analyzeBlurriness(image: cgImage, assetId: photo.id, sensitivity: sensitivity)
-            let exposureResult = await visionService.analyzeExposure(image: cgImage, assetId: photo.id)
+            let exposureResult = await visionService.analyzeExposure(image: cgImage)
 
-            if Task.isCancelled {
-                scanState = .idle
-                return
-            }
+            if Task.isCancelled { return }
 
             var categories = Set<BlurryTab>()
             if blurResult.isBlurry {
@@ -158,9 +218,13 @@ final class BlurryPhotosViewModel {
             }
 
             if index % 10 == 0 {
-                scanState = .scanning(Float(index + 1) / Float(max(total, 1)))
+                // C2: dropped when the scan is no longer current.
+                scanRunner.update(token) { self.scanState = .scanning(Float(index + 1) / Float(max(total, 1))) }
             }
         }
+
+        // A cancelled or superseded run must never publish progress/results.
+        guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
         scanState = .scanning(1.0)
         scanState = .completed
@@ -171,7 +235,7 @@ final class BlurryPhotosViewModel {
     }
 
     /// `allSatisfy` rather than count equality: `selectedIds` can briefly hold
-    /// off-tab ids between a tab change and `synchronizeSelectionWithActiveTab()`.
+    /// ids from other tabs (selections are per-tab, C11).
     var allVisibleSelected: Bool {
         !filteredPhotos.isEmpty && filteredPhotos.allSatisfy { selectedIds.contains($0.id) }
     }
@@ -184,35 +248,52 @@ final class BlurryPhotosViewModel {
         selectedIds.removeAll()
     }
 
-    func synchronizeSelectionWithActiveTab() {
-        selectedIds.formIntersection(Set(filteredPhotos.map(\.id)))
-    }
-
     func deleteSelected() async {
-        guard !selectedIds.isEmpty, !isDeleting else { return }
+        // C11: delete across ALL tabs' selections — a batch isn't limited to
+        // the visible tab.
+        let allSelected = Set(selectionsByTab.values.flatMap { $0 })
+        guard !allSelected.isEmpty, !isDeleting else { return }
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: Array(selectedIds))
-            analyzedPhotos.removeAll { selectedIds.contains($0.id) }
-            selectedIds.removeAll()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        // Sizes captured before the await (the assets are gone afterwards).
+        let sizeById = analyzedPhotos.reduce(into: [String: Int64]()) { $0[$1.id] = $1.asset.fileSize }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: allSelected,
+            kind: .blurry,
+            sizeById: sizeById,
+            apply: { deletedIds in
+                analyzedPhotos.removeAll { deletedIds.contains($0.id) }
+                for tab in BlurryTab.allCases {
+                    selectionsByTab[tab]?.subtract(deletedIds)
+                }
+            },
+            recordDeleted: { self.deletedCount = $0 }
+        )
+        errorMessage = outcome.errorMessage
     }
 
-    func delete(assetId: String) async {
-        guard !isDeleting else { return }
+    func delete(assetId: String) async -> Bool {
+        guard !isDeleting else { return !analyzedPhotos.contains(where: { $0.id == assetId }) }
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: [assetId])
-            analyzedPhotos.removeAll { $0.id == assetId }
-            selectedIds.remove(assetId)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        let sizeById = analyzedPhotos.reduce(into: [String: Int64]()) { $0[$1.id] = $1.asset.fileSize }
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: [assetId],
+            kind: .blurry,
+            sizeById: sizeById,
+            apply: { deletedIds in
+                analyzedPhotos.removeAll { deletedIds.contains($0.id) }
+                if deletedIds.contains(assetId) {
+                    for tab in BlurryTab.allCases {
+                        selectionsByTab[tab]?.remove(assetId)
+                    }
+                }
+            },
+            recordDeleted: { self.deletedCount = $0 }
+        )
+        errorMessage = outcome.errorMessage
+        return !analyzedPhotos.contains(where: { $0.id == assetId })
     }
 }

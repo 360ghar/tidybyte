@@ -1,13 +1,18 @@
 import SwiftUI
+import StoreKit
 
 struct SessionCompletionView: View {
     @Bindable var viewModel: SwipeSessionViewModel
     @Environment(AppNavigation.self) private var appNavigation
+    @Environment(\.requestReview) private var requestReview
 
     @State private var showCheckmark = false
     /// Where the user wanted to go when they hit an exit button while deletions
     /// were still pending — resolved after the confirmation dialog (SWIPE-02).
     @State private var pendingExit: ExitDestination?
+    /// Success is recorded exactly once per session, either on appear (no
+    /// batch deletions pending) or after the commit lands — never both.
+    @State private var recordedSessionSuccess = false
 
     private enum ExitDestination {
         case swipeHome
@@ -17,9 +22,21 @@ struct SessionCompletionView: View {
     private var stats: SessionStats { viewModel.sessionStats }
 
     var body: some View {
-        VStack(spacing: Spacing.xxxl) {
-            Spacer()
+        // The stats + celebration stack can exceed small-device height: the
+        // screen scrolls when it must and stays vertically centered when all
+        // content fits.
+        GeometryReader { proxy in
+            ScrollView {
+                completionContent
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: proxy.size.height)
+            }
+        }
+        .navigationBarBackButtonHidden()
+    }
 
+    private var completionContent: some View {
+        VStack(spacing: Spacing.xxxl) {
             // Animated checkmark with glow
             ZStack {
                 Circle()
@@ -31,11 +48,11 @@ struct SessionCompletionView: View {
                             endRadius: 60
                         )
                     )
-                    .frame(width: 140, height: 140)
+                    .scaledSquare(ScaledSize.celebrationHalo)
                     .scaleEffect(showCheckmark ? 1.0 : 0.3)
 
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 80))
+                    .scaledGlyph(ScaledSize.celebrationGlyph)
                     .foregroundStyle(.green)
                     .scaleEffect(showCheckmark ? 1.0 : 0.5)
                     .opacity(showCheckmark ? 1.0 : 0.0)
@@ -50,6 +67,8 @@ struct SessionCompletionView: View {
             VStack(spacing: Spacing.lg) {
                 deletionStatRow
                     .fadeSlideIn(delay: 0.3)
+                statRow(icon: "checkmark", color: .green, label: "Kept", value: "\(stats.keptCount) items")
+                    .fadeSlideIn(delay: 0.33)
                 statRow(icon: "folder", color: .blue, label: "Organized", value: "\(stats.organizedCount) items")
                     .fadeSlideIn(delay: 0.35)
                 statRow(icon: "forward.fill", color: .gray, label: "Skipped", value: "\(stats.skippedCount) items")
@@ -64,6 +83,13 @@ struct SessionCompletionView: View {
             }
             .glassCard()
             .padding(.horizontal, Spacing.lg)
+
+            // Rate / Share always offered on the big happy path — this screen
+            // is the best moment in the app, so the card is a permanent part
+            // of it, not a transient banner.
+            HappyPathPromptCard(statLine: celebrationStatLine)
+                .padding(.horizontal, Spacing.lg)
+                .fadeSlideIn(delay: 0.55)
 
             // Batch deletion confirmation
             if viewModel.hasPendingDeletions {
@@ -103,8 +129,6 @@ struct SessionCompletionView: View {
                 .fadeSlideIn(delay: 0.5)
             }
 
-            Spacer()
-
             // Action buttons
             VStack(spacing: Spacing.md) {
                 Button {
@@ -142,10 +166,19 @@ struct SessionCompletionView: View {
             .padding(.bottom, Spacing.lg)
             .fadeSlideIn(delay: viewModel.hasPendingDeletions ? 0.6 : 0.5)
         }
-        .navigationBarBackButtonHidden()
         .onAppear {
             showCheckmark = true
             HapticHelper.notification(.success)
+            // Batch mode records later (after commit); immediate-commit mode
+            // already has its final counts on appear.
+            if !viewModel.hasPendingDeletions {
+                recordSessionSuccess()
+            }
+        }
+        .onChange(of: viewModel.deletionCommitted) { _, committed in
+            if committed {
+                recordSessionSuccess()
+            }
         }
         .confirmationDialog(
             "You have \(viewModel.pendingDeletionIds.count) uncommitted deletions.",
@@ -167,22 +200,54 @@ struct SessionCompletionView: View {
             }
             Button("Cancel", role: .cancel) {
                 pendingExit = nil
+                // Back to the live deck — Cancel must not strand the user on
+                // the completion screen (B3).
+                viewModel.showCompletion = false
             }
         } message: {
             Text("Delete them, keep them, or discard?")
         }
-        .alert("Deletion Error", isPresented: .init(
-            get: { viewModel.deletionErrorMessage != nil },
-            set: { if !$0 { viewModel.deletionErrorMessage = nil } }
-        )) {
-            Button("Retry") {
-                viewModel.deletionErrorMessage = nil
-                Task { await viewModel.commitDeletions() }
+        // Non-modal error surface. Retry is preserved from the alert it
+        // replaces: a failed commit leaves the pending set intact, so
+        // re-running the commit is the correct recovery.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let message = viewModel.deletionErrorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Deletion Error",
+                    onRetry: {
+                        viewModel.deletionErrorMessage = nil
+                        Task { await viewModel.commitDeletions() }
+                    },
+                    onDismiss: { viewModel.deletionErrorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
             }
-            Button("OK", role: .cancel) { viewModel.deletionErrorMessage = nil }
-        } message: {
-            Text(viewModel.deletionErrorMessage ?? "")
         }
+    }
+
+    // MARK: - Happy-Path Review Gating
+
+    /// Counts the session as one successful action only when the user actually
+    /// did something (deleted, kept, or organized) — a session exited mid-deck
+    /// with zero interactions is not a happy path.
+    private func recordSessionSuccess() {
+        guard !recordedSessionSuccess else { return }
+        guard stats.deletedCount > 0 || stats.keptCount > 0 || stats.organizedCount > 0 else { return }
+        recordedSessionSuccess = true
+        if AppPreferences.recordSuccessfulAction() {
+            requestReview()
+            AppPreferences.recordReviewPromptDate()
+        }
+    }
+
+    private var celebrationStatLine: String? {
+        if viewModel.deletionCommitted, stats.deletedCount > 0 {
+            return "cleared \(stats.deletedCount) photos and freed \(stats.deletedBytes.formattedFileSize)"
+        }
+        let reviewed = stats.keptCount + stats.organizedCount + stats.skippedCount
+        return reviewed > 0 ? "reviewed \(reviewed) photos" : nil
     }
 
     // MARK: - Exit Flow (SWIPE-02)

@@ -1,5 +1,9 @@
 # App Store Connect Listing — TidyByte v1.0
 
+> **HISTORICAL (2026-08):** the shipped version is 1.0.2. This document
+> preserves the original v1.0 listing copy; the site's `/changelog` is now the
+> canonical version history.
+
 Paste-ready copy for App Store Connect. Char-count annotations are inline. Anything marked **TODO** needs a human decision before submission.
 
 > **Bundle ID (confirmed):** The app ships as **`com.sakshammittal.tidybyte`** (widget: `com.sakshammittal.tidybyte.widget`, tests: `com.sakshammittal.tidybyte.tests`). This matches `AppGroupStore.swift`'s App Group (`group.com.sakshammittal.tidybyte.shared`), both `.entitlements` files, and `project.yml`. Use `com.sakshammittal.tidybyte` when creating the App Store Connect app record, registered to Team **HMWGCVU4SV**.
@@ -62,6 +66,8 @@ Features:
 • Video compression — shrink videos while keeping them watchable
 • Photo compression — re-encode photos to reclaim space
 • Storage dashboard — see what's using your space at a glance
+• Activity & savings — track everything you've cleaned and total space freed
+• Home Screen widget and Siri shortcuts for one-tap cleanups
 • Optional cleanup reminders via local notifications
 
 Free up space. Keep your privacy. Clean with a swipe.
@@ -202,5 +208,5 @@ Length: 196 chars (well under the 4000-char release-notes limit).
 | Promotional Text | 170 | (see §2) | 157 | ✅ |
 | Keywords | 100 | (see §4) | 91 | ✅ |
 
-**Shipping cleanup tools** (verified against `Tidybyte/Features/Cleanup/CleanupTool.swift` enum + view directories): Duplicates, Similar Photos, Screenshots, Blurry Photos, Smart Categories, Large Files, Burst Photos, Live Photos, Video Compression, Photo Compression. Plus the Swipe review flow and Storage dashboard. **RecentlyDeleted was removed and is intentionally NOT listed.**
+**Shipping cleanup tools** (verified against `Tidybyte/Features/Cleanup/CleanupTool.swift` enum + view directories): Duplicates, Similar Photos, Screenshots, Blurry Photos, Smart Categories, Large Files, Burst Photos, Live Photos, Video Compression, Photo Compression. Plus the Swipe review flow, the Storage dashboard, and the Activity & Savings ledger. **RecentlyDeleted was removed and is intentionally NOT listed.**
 ```

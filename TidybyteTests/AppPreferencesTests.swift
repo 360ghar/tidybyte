@@ -33,7 +33,9 @@ final class AppPreferencesTests: XCTestCase {
     }
 
     func testTypedPreferenceRoundTrip() {
-        AppPreferences.saveDefaultSwipeFilter(.allMedia, in: defaults)
+        // The default-filter pref is written by Settings' @AppStorage directly
+        // (the typed saver was dead code, A9) — mirror that write path here.
+        defaults.set(DefaultSwipeFilterPreference.allMedia.rawValue, forKey: AppPreferences.Key.defaultSwipeFilter)
         AppPreferences.saveSimilarPhotoTimeWindow(12, in: defaults)
         AppPreferences.saveBlurSensitivity(.high, in: defaults)
         AppPreferences.saveLargeFileThresholdMB(42, in: defaults)

@@ -309,13 +309,30 @@ final class DuplicatesRegressionTests: XCTestCase {
         viewModel.scanType = .exact
 
         XCTAssertFalse(viewModel.allSelectedForDeletion)
+        // C7: Select All targets only the NON-BEST assets — keepers are never
+        // armed, so a single confirmation can't delete every copy of a photo.
         viewModel.selectAllForDeletion()
-        XCTAssertEqual(viewModel.selectedForDeletion, ["a", "b", "c", "d"])
+        XCTAssertEqual(viewModel.selectedForDeletion, ["b", "d"])
         XCTAssertTrue(viewModel.allSelectedForDeletion)
 
         viewModel.deselectAllForDeletion()
         XCTAssertTrue(viewModel.selectedForDeletion.isEmpty)
         XCTAssertFalse(viewModel.allSelectedForDeletion)
+    }
+
+    /// C7 invariant: keepers are never part of the select-all set.
+    func testAllSelectedExcludesKeepers() {
+        let viewModel = DuplicateFinderViewModel()
+        viewModel.exactGroups = [
+            DuplicateGroup(id: "g1", assets: [makeAsset(id: "a"), makeAsset(id: "b")], bestAssetId: "a", type: .exact)
+        ]
+        viewModel.scanType = .exact
+
+        viewModel.selectAllForDeletion()
+        XCTAssertEqual(viewModel.selectedForDeletion, ["b"])
+        // All *deletable* (non-best) assets are selected.
+        XCTAssertTrue(viewModel.allSelectedForDeletion)
+        XCTAssertFalse(viewModel.selectedForDeletion.contains("a"), "the keeper is never armed by select-all")
     }
 
     func testDeletedCountStartsAtZero() {

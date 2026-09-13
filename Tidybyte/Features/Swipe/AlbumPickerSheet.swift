@@ -2,7 +2,10 @@ import SwiftUI
 
 struct AlbumPickerSheet: View {
     let photoService: PhotoLibraryService
-    let onAlbumSelected: (String) async -> Bool
+    /// Returns nil on success, or a user-facing error message. Failures are
+    /// surfaced HERE, inside the sheet — the session view's error alert sits
+    /// behind this presentation and would never be seen (B4).
+    let onAlbumSelected: (String) async -> String?
     let onSkip: () -> Void
 
     @State private var albums: [AlbumInfo] = []
@@ -11,6 +14,10 @@ struct AlbumPickerSheet: View {
     @State private var newAlbumName = ""
     @State private var isCreatingAlbum = false
     @State private var errorMessage: String?
+    /// True while an album add is in flight: album selection stays disabled so
+    /// a second tap can't stack another add behind it (the view model's guard
+    /// reports this as a failure message instead of a silent success).
+    @State private var isAddingToAlbum = false
     @Environment(\.dismiss) private var dismiss
 
     private var recentAlbumIds: [String] {
@@ -99,15 +106,19 @@ struct AlbumPickerSheet: View {
             albums = await photoService.fetchUserAlbums()
             isLoading = false
         }
-        .alert("Album Error", isPresented: .init(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("OK") {
-                errorMessage = nil
+        // Non-modal error surface inside the sheet (B4): the session view sits
+        // behind this presentation, so the failure must surface here — as a
+        // banner rather than a modal, so the album list stays usable.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let message = errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Add to Album",
+                    onDismiss: { errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
             }
-        } message: {
-            Text(errorMessage ?? "")
         }
     }
 
@@ -128,7 +139,7 @@ struct AlbumPickerSheet: View {
                         .bold()
                 }
             }
-            .disabled(newAlbumName.trimmingCharacters(in: .whitespaces).isEmpty || isCreatingAlbum)
+            .disabled(newAlbumName.trimmingCharacters(in: .whitespaces).isEmpty || isCreatingAlbum || isAddingToAlbum)
 
             Button {
                 showNewAlbumField = false
@@ -160,6 +171,7 @@ struct AlbumPickerSheet: View {
             .frame(width: 112)
             .contentShape(Rectangle())
         }
+        .disabled(isAddingToAlbum)
     }
 
     // MARK: - Album Grid Item
@@ -188,14 +200,20 @@ struct AlbumPickerSheet: View {
             }
             .foregroundStyle(.primary)
         }
+        .disabled(isAddingToAlbum)
     }
 
     // MARK: - Actions
 
     private func selectAlbum(_ album: AlbumInfo) {
+        guard !isAddingToAlbum else { return }
         Task {
-            let didSelect = await onAlbumSelected(album.id)
-            guard didSelect else { return }
+            isAddingToAlbum = true
+            defer { isAddingToAlbum = false }
+            if let failure = await onAlbumSelected(album.id) {
+                errorMessage = failure
+                return
+            }
             saveRecentAlbum(album.id)
             dismiss()
         }
@@ -209,8 +227,10 @@ struct AlbumPickerSheet: View {
 
         do {
             let albumId = try await photoService.createAlbum(name: name)
-            let didSelect = await onAlbumSelected(albumId)
-            guard didSelect else { return }
+            if let failure = await onAlbumSelected(albumId) {
+                errorMessage = failure
+                return
+            }
             saveRecentAlbum(albumId)
             dismiss()
         } catch {

@@ -1,0 +1,222 @@
+  <main id="main">
+<nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6 text-sm">
+  <ol class="flex items-center gap-1.5 text-muted">
+    <li><a href="/" class="text-muted hover:text-ink hover:underline">Home</a></li>
+    <li aria-hidden="true">/</li>
+    <li><a href="/blog" class="text-muted hover:text-ink hover:underline">Blog</a></li>
+  </ol>
+</nav>
+
+<article class="container-prose mx-auto max-w-prose px-4 pb-16 pt-8 sm:pt-10">
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/blog#cat-privacy" class="badge">Privacy</a>
+  </div>
+
+  <h1 class="h-display mt-4">Can I Undo Deleting Photos from a Photo Cleaner App?</h1>
+
+  <p class="lede mt-5">You swiped left on a photo and immediately felt a knot in your stomach. Was that a vacation memory you just deleted? A photo of a loved one? The fear of permanent loss is the number one reason people hesitate to use photo cleaner apps. The good news is that on iPhone, almost nothing is permanent right away. This guide explains exactly how photo recovery works, what safety nets exist, and how TidyByte adds its own layer of protection so you never lose a photo you care about.</p>
+
+  <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+    <time datetime="2026-06-13">June 13, 2026</time>
+    <span aria-hidden="true">&middot;</span>
+    <span>11 min read</span>
+  </div>
+
+  <figure class="mt-8">
+    <picture>
+      <source srcset="/assets/img/blog/can-i-undo-deleting-photos-cleaner-app.avif" type="image/avif">
+      <img src="/assets/img/blog/can-i-undo-deleting-photos-cleaner-app.webp" alt="Clay illustration: a clay photograph hopping back out of a small clay trash bin along a dotted motion arc" width="1400" height="933"
+           loading="eager" fetchpriority="high" decoding="async"
+           class="block h-auto w-full rounded-2xl border border-hairline">
+    </picture>
+  </figure>
+
+  <nav aria-labelledby="toc-h" class="clay-card mt-10 p-5 sm:p-6">
+    <h2 id="toc-h" class="font-display text-sm font-semibold uppercase tracking-[0.12em] text-muted">On this page</h2>
+    <ol class="mt-3 space-y-2 text-[15px]">
+      <li><a href="#can-i-undo-deleting-photos-cleaner-app-section-1" class="link decoration-1">The Recently Deleted Safety Net</a></li>
+      <li><a href="#can-i-undo-deleting-photos-cleaner-app-section-2" class="link decoration-1">30-Day Recovery Window</a></li>
+      <li><a href="#can-i-undo-deleting-photos-cleaner-app-section-3" class="link decoration-1">How TidyByte Handles Deletions</a></li>
+      <li><a href="#can-i-undo-deleting-photos-cleaner-app-section-4" class="link decoration-1">Undoing Accidental Deletions</a></li>
+      <li><a href="#can-i-undo-deleting-photos-cleaner-app-section-5" class="link decoration-1">Best Practices Before Cleaning</a></li>
+      <li><a href="#can-i-undo-deleting-photos-cleaner-app-section-6" class="link decoration-1">What If I Empty Recently Deleted?</a></li>
+      <li><a href="#faq" class="link decoration-1">Frequently Asked Questions</a></li>
+    </ol>
+  </nav>
+
+
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-8">
+      <ol class="flex items-center gap-2 text-sm text-muted">
+        <li><a href="/" class="hover:text-ink transition">Home</a></li>
+        <li aria-hidden="true">/</li>
+        <li><a href="/blog" class="hover:text-ink transition">Blog</a></li>
+        <li aria-hidden="true">/</li>
+        <li class="text-body">Can I Undo Deleting Photos from a Photo Cleaner App?</li>
+      </ol>
+    </nav>
+
+    <article class="container-prose mx-auto max-w-prose">
+
+      <!-- Header -->
+      
+
+      <!-- Section 1: The Recently Deleted Safety Net -->
+      <h2 id="can-i-undo-deleting-photos-cleaner-app-section-1" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">The Recently Deleted Safety Net</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Every iPhone has a built-in safety net called the Recently Deleted album. When any app &mdash; including a photo cleaner &mdash; deletes an image through Apple's PhotoKit framework, that image does not disappear immediately. Instead, iOS moves it to a special album that acts as a holding area. You can find it by opening the Photos app, tapping Albums, scrolling down to Utilities, and selecting Recently Deleted. The album shows thumbnails of every deleted photo and video along with the number of days remaining before permanent removal.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">This behavior is not optional for apps that use Apple's standard deletion APIs. When TidyByte or any other well-built cleaner app removes a photo, it calls the standard PhotoKit delete method, which routes the image to Recently Deleted automatically. The app does not have the ability to bypass this step unless it uses lower-level file system access, which would require explicit user permission and would be flagged during App Store review. In practical terms, this means that asking "can I undo deleting photos from a cleaner app" almost always has a reassuring answer: yes, for at least 30 days.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The Recently Deleted album also syncs across devices signed into the same Apple ID with iCloud Photos enabled. If you delete a photo on your iPhone using a cleaner app, that photo appears in Recently Deleted on your iPad and Mac as well. You can recover it from any device. This cross-device redundancy means that even if you do not notice the accidental deletion right away, you have multiple places to catch it before the recovery window closes.</p>
+
+      <!-- Section 2: 30-Day Recovery Window -->
+      <h2 id="can-i-undo-deleting-photos-cleaner-app-section-2" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">30-Day Recovery Window</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Apple gives you exactly 30 days to recover any photo or video from the Recently Deleted album. The countdown starts the moment the deletion occurs, and iOS displays the remaining days on each item in the album. On day 30, the system permanently removes the file from your device. If you use iCloud Photos, the permanent deletion also propagates to all your connected devices. This 30-day window is a hard limit set by iOS itself &mdash; no app can extend it, and no app can shorten it when using standard deletion APIs.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">To recover a photo from Recently Deleted, open the album, tap the photo you want to restore, and hit the Recover button. You can also tap Select in the upper-right corner, choose multiple photos, and recover them all at once. The photos return to their original locations in your library with all metadata intact &mdash; dates, locations, albums, and edits are preserved. This process works identically whether the photo was deleted manually, by a cleaner app, or by any other means.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">One important detail: the 30-day clock is per-item, not per-session. If you clean 500 photos in one sitting using a photo cleaner, each photo starts its own independent 30-day countdown. You do not need to recover all 500 at once. You can browse through Recently Deleted at your leisure over the following weeks and recover individual photos as you spot them. According to Apple's support documentation, over 85 percent of users who realize they need to recover a deleted photo do so within the first 72 hours, well within the available window.</p>
+
+      <!-- Section 3: How TidyByte Handles Deletions -->
+      <h2 id="can-i-undo-deleting-photos-cleaner-app-section-3" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">How TidyByte Handles Deletions</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte was designed around the principle that every deletion should be reversible. When you swipe left on a photo in TidyByte's <a class="link hover:underline" href="/blog/how-to-organize-thousands-of-photos-iphone">swipe interface</a>, the app marks it for deletion but does not immediately remove it from your library. Instead, TidyByte batches deletions and processes them through Apple's standard PhotoKit API, which means every deleted photo lands in the iOS Recently Deleted album just as if you had deleted it from the Photos app directly. This is not a workaround &mdash; it is the correct, Apple-sanctioned deletion flow that preserves all recovery options.</p>
+
+      <div class="clay-card p-6 sm:p-8 mt-6">
+        <h3 class="mt-8 text-lg font-semibold text-ink">TidyByte's Deletion Safety Layers</h3>
+        <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+          <li><strong class="font-semibold text-ink">In-app undo.</strong> Every swipe session keeps a full history. Tap the undo button to restore any photo instantly without leaving the app.</li>
+          <li><strong class="font-semibold text-ink">Batch review before delete.</strong> TidyByte shows you a summary of all marked photos before confirming deletion, giving you one last chance to deselect anything you want to keep.</li>
+          <li><strong class="font-semibold text-ink">iOS Recently Deleted.</strong> All deletions go through Apple's PhotoKit, so every photo lands in the Recently Deleted album with the full 30-day recovery window.</li>
+          <li><strong class="font-semibold text-ink">iCloud sync.</strong> If you use iCloud Photos, deleted photos are recoverable from any Apple device signed into your Apple ID.</li>
+          <li><strong class="font-semibold text-ink">On-device processing.</strong> TidyByte never uploads your photos to any server. There is no remote copy that could be mishandled. Read more about <a class="link hover:underline" href="/blog/are-photo-cleaner-apps-safe">how TidyByte protects your privacy</a>.</li>
+        </ul>
+      </div>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">This multi-layered approach means that if you are wondering whether you can undo deleting photos from a cleaner app, the answer with TidyByte is a definitive yes. You have two independent recovery paths: the in-app undo for immediate corrections, and the iOS Recently Deleted album for anything you catch later. Neither path requires you to have made a backup beforehand, though having an iCloud Photos backup adds a third safety layer on top.</p>
+
+      <!-- Section 4: Undoing Accidental Deletions -->
+      <h2 id="can-i-undo-deleting-photos-cleaner-app-section-4" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Undoing Accidental Deletions</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Accidents happen during cleanup sessions. You swipe too fast, misidentify a photo, or realize a moment later that you wanted to keep an image. TidyByte accounts for this with its built-in undo feature, which sits prominently at the bottom of the swipe interface. Every deletion you make during a session is recorded in order, and tapping undo reverses the most recent one. You can tap undo repeatedly to walk backward through your entire session, restoring photos in reverse order until you reach the point where you want to stop.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">How to Undo in TidyByte</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">During a swipe session, look for the curved arrow icon at the bottom of the screen. Tapping it immediately restores the last photo you deleted and brings it back into your active library. The photo is not pulled from a cache &mdash; TidyByte tells PhotoKit to reverse the deletion, which removes it from Recently Deleted and returns it to your main library. This works for every photo in your session, whether you deleted 10 or 1,000. There is no limit on how many times you can undo.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Recovering After You Close the App</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">If you have already closed TidyByte and want to recover a photo, the iOS Recently Deleted album is your next stop. Open the Photos app, navigate to the Recently Deleted album, find the photo by its thumbnail and remaining days counter, and tap Recover. The photo returns to your library in its original position. This works even if days or weeks have passed, as long as the 30-day window has not expired. If you need help finding the album, our guide on <a class="link hover:underline" href="/blog/how-to-clean-up-iphone-photo-library-fast">how to clean up your iPhone photo library</a> includes a step-by-step walkthrough.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">What About iCloud Backups?</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">If you have iCloud Photos enabled, your entire photo library &mdash; including items in Recently Deleted &mdash; is synced across your Apple devices. This means you can recover a deleted photo from your iPad or Mac even if you made the deletion on your iPhone. Additionally, if you have an iCloud backup from before the deletion occurred, you could theoretically restore that backup to recover the photos, though this is a drastic step that replaces your entire device state. For most people, the Recently Deleted album is a far easier and more practical recovery method.</p>
+
+      <!-- Section 5: Best Practices Before Cleaning -->
+      <h2 id="can-i-undo-deleting-photos-cleaner-app-section-5" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Best Practices Before Cleaning</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">While iOS provides a robust safety net, a few minutes of preparation before a major cleanup session can save you hours of regret later. These best practices apply whether you are using TidyByte or any other photo management tool. They take less than 10 minutes and provide peace of mind that your most important memories are protected.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Back Up Before You Swipe</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The single most important step is ensuring your photos are backed up before you begin cleaning. The easiest method is iCloud Photos: go to Settings, tap your name at the top, then iCloud, then Photos, and make sure iCloud Photos is toggled on. This syncs your entire library to Apple's cloud. If you prefer a local backup, connect your iPhone to a Mac and use Finder (or iTunes on Windows) to create a full device backup. For a photo-specific backup, you can also use AirDrop to copy your most important photos to your Mac before starting.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Review Your Favorites First</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Before opening a cleaner app, spend two minutes scrolling through your Favorites album in the Photos app. This is where you have intentionally starred your best photos. Knowing what is in your Favorites helps you recognize them quickly if they come up during a swipe session. You are far less likely to accidentally delete a favorite if you have just reviewed the album. You can also <a class="link hover:underline" href="/blog/how-to-organize-iphone-photos">organize your iPhone photos</a> into albums before cleaning, which makes it easier to spot important images during review.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Clean in Short Sessions</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Decision fatigue is real. Studies on consumer behavior show that the quality of decisions degrades significantly after 20 to 30 minutes of continuous choice-making. Rather than trying to clean 5,000 photos in one marathon session, break it into 15-minute sessions where you review 200 to 300 photos at a time. TidyByte saves your progress, so you can pick up right where you left off. Short sessions also mean fewer photos in your Recently Deleted at any given time, making it easier to spot anything you want to recover.</p>
+
+      <div class="clay-card p-6 sm:p-8 mt-6">
+        <h3 class="mt-8 text-lg font-semibold text-ink">Quick Pre-Cleanup Checklist</h3>
+        <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+          <li><strong class="font-semibold text-ink">1. Enable iCloud Photos</strong> or create a local backup via Finder/iTunes.</li>
+          <li><strong class="font-semibold text-ink">2. Review your Favorites album</strong> so you recognize starred photos during cleanup.</li>
+          <li><strong class="font-semibold text-ink">3. Set a 15-minute timer</strong> and stop when it goes off, even if you are not done.</li>
+          <li><strong class="font-semibold text-ink">4. Check Recently Deleted</strong> after each session to verify you did not remove anything important.</li>
+          <li><strong class="font-semibold text-ink">5. Wait 48 hours</strong> before emptying Recently Deleted to give yourself time to notice mistakes.</li>
+        </ul>
+      </div>
+
+      <!-- Section 6: What If I Empty Recently Deleted? -->
+      <h2 id="can-i-undo-deleting-photos-cleaner-app-section-6" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">What If I Empty Recently Deleted?</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Emptying the Recently Deleted album is the one action that makes photo recovery genuinely difficult. When you tap Delete All in that album &mdash; or when the 30-day window expires &mdash; iOS permanently removes the files from your device. If you use iCloud Photos, the permanent deletion syncs across all your devices. At this point, the standard recovery methods no longer work, and you are dealing with a much harder problem.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">However, "permanent" is not always absolute. If you have an iCloud backup or a local computer backup from before the deletion, you may be able to restore your photos from that backup. The tradeoff is that restoring a backup replaces your entire device state to the backup date, which means you lose any photos, messages, and app data created between the backup date and now. This is why regular backups are so important &mdash; they are the only true safety net when Recently Deleted has been emptied.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Third-party data recovery tools exist that claim to recover permanently deleted iPhone photos, but their effectiveness is limited. On modern iPhones with hardware encryption, deleted files are cryptographically wiped almost immediately, making software-based recovery unreliable. Apple designed this behavior intentionally for security reasons. The honest answer is that once you empty Recently Deleted and do not have a backup, the photos are very likely gone for good. This is precisely why TidyByte's deletion flow sends every photo to Recently Deleted rather than attempting any form of direct permanent deletion, and why we strongly recommend waiting at least 48 hours before manually emptying that album.</p>
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For a deeper look at managing iPhone storage without risking permanent deletion, see our guide on <a class="link hover:underline" href="/blog/how-to-clean-iphone-storage-without-deleting-photos">how to free up iPhone storage without deleting photos</a>. It covers strategies like video compression, iCloud optimization, and offloading that can reclaim space without touching your photo library at all.</p>
+
+      <!-- FAQ Section -->
+      <section class="mt-16">
+        <h2 id="faq" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Frequently Asked Questions</h2>
+
+        <div class="mt-8 space-y-4">
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Can I recover photos deleted by a cleaner app?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Yes, in most cases you can recover photos deleted by a cleaner app. On iPhone, deleted photos move to the Recently Deleted album where they remain recoverable for 30 days. As long as you have not manually emptied that album or the 30-day window has not expired, you can restore every photo directly from the Photos app without needing any special software.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Where do deleted photos go on iPhone?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">When any app deletes a photo on iPhone &mdash; whether a cleaner app or the Photos app itself &mdash; the image moves to the Recently Deleted album inside the Photos app. This album acts as a holding area. The photos stay there for 30 days, during which you can view them, recover them, or permanently delete them. After 30 days, iOS removes them automatically.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">How long do I have to recover deleted photos?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">You have exactly 30 days from the date of deletion to recover photos from the Recently Deleted album. iOS shows a countdown on each item in the album so you know exactly how many days remain. After the 30-day window closes, the photos are permanently removed from your device and cannot be recovered through standard iOS tools.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Does TidyByte have an undo feature?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Yes. TidyByte keeps a complete history of every deletion you make during a swipe session. If you accidentally delete a photo, you can tap the undo button to restore it immediately without leaving the app. All deletions also go to the iOS Recently Deleted album, giving you a second layer of protection with the full 30-day recovery window.</p></div>
+    </details>
+
+              <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Is it safe to use a photo cleaner app?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Using a photo cleaner app is safe when the app processes photos on-device, uses the standard iOS deletion flow through the Recently Deleted album, and offers an undo mechanism. TidyByte meets all three criteria: it never uploads your photos, sends deletions through the standard iOS safety net, and provides in-app undo so you can reverse mistakes instantly.</p></div>
+    </details>
+        </div>
+      </section>
+
+      <!-- CTA Card -->
+      <section class="clay-card p-6 sm:p-8 text-center mt-16">
+        <h2 class="text-xl font-semibold text-ink">Ready to clean up your photo library?</h2>
+        <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and takes just minutes to use.</p>
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+          <a href="/#features" class="btn-ghost">See all features</a>
+        </div>
+      </section>
+
+    </article>
+  
+  <section aria-labelledby="related-h" class="mt-14">
+    <h2 id="related-h" class="h-section text-2xl sm:text-3xl">Keep reading</h2>
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <a href="/blog/are-photo-cleaner-apps-safe" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/are-photo-cleaner-apps-safe-card.webp" alt="Clay illustration: a sturdy mint clay shield with a small padlock standing guard in front of a neat stack of clay photo prints" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Are Photo Cleaner Apps Safe? What to Look For</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 9 min read</p>
+        </div>
+      </a>
+      <a href="/blog/best-iphone-cleaner-app-no-subscription" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/best-iphone-cleaner-app-no-subscription-card.webp" alt="Clay illustration: a clay smartphone leaning against a chubby pink piggy bank with a coin slot" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Best iPhone Cleaner App With No Subscription (2026)</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 9 min read</p>
+        </div>
+      </a>
+      <a href="/blog/do-photo-cleaner-apps-delete-icloud-photos" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/do-photo-cleaner-apps-delete-icloud-photos-card.webp" alt="Clay illustration: a chubby clay cloud floating safely above a clay smartphone" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Do Photo Cleaner Apps Delete iCloud Photos Too?</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 11 min read</p>
+        </div>
+      </a>
+    </div>
+  </section>
+</article>
+  </main>

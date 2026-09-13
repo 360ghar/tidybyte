@@ -1,0 +1,251 @@
+  <main id="main">
+<nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6 text-sm">
+  <ol class="flex items-center gap-1.5 text-muted">
+    <li><a href="/" class="text-muted hover:text-ink hover:underline">Home</a></li>
+    <li aria-hidden="true">/</li>
+    <li><a href="/blog" class="text-muted hover:text-ink hover:underline">Blog</a></li>
+  </ol>
+</nav>
+
+<article class="container-prose mx-auto max-w-prose px-4 pb-16 pt-8 sm:pt-10">
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/blog#cat-storage" class="badge">Storage</a>
+  </div>
+
+  <h1 class="h-display mt-4">How to Find Large Files in Your iPhone Photo Library</h1>
+
+  <p class="lede mt-5">If your iPhone keeps showing the dreaded "Storage Almost Full" notification, the culprit is almost always hiding in your photo library. A single 4K video can swallow 400 MB per minute, and years of recording add up fast. Learning how to find large files in your iPhone photo library is the single fastest way to reclaim gigabytes of space without losing the memories that matter.</p>
+
+  <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+    <time datetime="2026-06-13">June 13, 2026</time>
+    <span aria-hidden="true">&middot;</span>
+    <span>9 min read</span>
+  </div>
+
+  <figure class="mt-8">
+    <picture>
+      <source srcset="/assets/img/blog/how-to-find-large-files-in-iphone-photo-library.avif" type="image/avif">
+      <img src="/assets/img/blog/how-to-find-large-files-in-iphone-photo-library.webp" alt="Clay illustration: a giant clay photograph on a seesaw outweighing a pile of tiny photographs on the other end" width="1400" height="933"
+           loading="eager" fetchpriority="high" decoding="async"
+           class="block h-auto w-full rounded-2xl border border-hairline">
+    </picture>
+  </figure>
+
+  <nav aria-labelledby="toc-h" class="clay-card mt-10 p-5 sm:p-6">
+    <h2 id="toc-h" class="font-display text-sm font-semibold uppercase tracking-[0.12em] text-muted">On this page</h2>
+    <ol class="mt-3 space-y-2 text-[15px]">
+      <li><a href="#how-to-find-large-files-in-iphone-photo-library-section-1" class="link decoration-1">What Counts as a Large File</a></li>
+      <li><a href="#how-to-find-large-files-in-iphone-photo-library-section-2" class="link decoration-1">Why Large Files Accumulate</a></li>
+      <li><a href="#how-to-find-large-files-in-iphone-photo-library-section-3" class="link decoration-1">Finding Large Files with TidyByte</a></li>
+      <li><a href="#how-to-find-large-files-in-iphone-photo-library-section-4" class="link decoration-1">Types of Large Files: Video, Panorama, Slow-Mo</a></li>
+      <li><a href="#how-to-find-large-files-in-iphone-photo-library-section-5" class="link decoration-1">Prioritizing What to Delete</a></li>
+      <li><a href="#how-to-find-large-files-in-iphone-photo-library-section-6" class="link decoration-1">How Much Space Large File Cleanup Saves</a></li>
+      <li><a href="#faq" class="link decoration-1">Frequently Asked Questions</a></li>
+    </ol>
+  </nav>
+
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="container-prose mx-auto max-w-prose pt-6">
+      <ol class="flex items-center gap-2 text-sm text-muted">
+        <li><a href="/" class="hover:text-ink">Home</a></li>
+        <li aria-hidden="true">/</li>
+        <li><a href="/blog" class="hover:text-ink">Blog</a></li>
+        <li aria-hidden="true">/</li>
+        <li aria-current="page" class="text-body">How to Find Large Files in Your iPhone Photo Library</li>
+      </ol>
+    </nav>
+
+    <!-- Article -->
+    <article class="container-prose mx-auto max-w-prose">
+      
+      <p class="muted mt-2 text-sm">Published June 13, 2026 &middot; 8 min read</p>
+
+      
+
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">This guide walks you through what counts as a large file, why these files pile up, and exactly how to locate and remove them. We will also show you how TidyByte, a free open-source app, makes the entire process take minutes instead of hours.</p>
+
+      <!-- Section 1 -->
+      <h2 id="how-to-find-large-files-in-iphone-photo-library-section-1" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">What Counts as a Large File</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">On an iPhone, "large" is relative to the file type. A typical photo shot in HEIF format weighs 1.5 to 3 MB. A JPEG version of the same shot might be 4 to 8 MB. But the moment you switch to video, the numbers jump dramatically. A single minute of 4K video at 30 fps is roughly 175 MB. Bump that to 60 fps and you are looking at 400 MB per minute. Enable ProRes recording on an iPhone 15 Pro or later and one minute of 4K ProRes 422 HQ footage consumes about 6 GB.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">For practical purposes, any single file over 50 MB is worth flagging during a cleanup. That threshold captures most 4K clips, slow-motion recordings, panoramas, burst photo sets, and screen recordings. Files over 500 MB are almost always videos, and anything above 1 GB is typically a long ProRes clip or an extended slow-motion sequence. Understanding these size categories helps you prioritize: a handful of forgotten 4K videos often accounts for more space than thousands of photos combined.</p>
+
+      <div class="clay-card p-6 sm:p-8 mt-6">
+        <h3 class="mt-8 text-lg font-semibold text-ink">Typical iPhone File Sizes</h3>
+        <div class="mt-6 overflow-x-auto">
+          <div class="clay-card mt-6 overflow-x-auto p-1">
+<table class="w-full min-w-[36rem] text-left text-sm">
+            <thead>
+              <tr class="border-b border-hairline">
+                <th class="pb-3 pr-4 font-semibold text-ink">File Type</th>
+                <th class="pb-3 pr-4 font-semibold text-ink">Resolution / Mode</th>
+                <th class="pb-3 font-semibold text-ink">Size per Minute</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-hairline">
+              <tr>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Video (4K 30fps)</td>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">3840 x 2160</td>
+                <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">~175 MB</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Video (4K 60fps)</td>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">3840 x 2160</td>
+                <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">~400 MB</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">ProRes 422 HQ</td>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">3840 x 2160</td>
+                <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">~6 GB</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Slow-Motion</td>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">1080p 240fps</td>
+                <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">~375 MB</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">Panorama</td>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">up to 15,000 px wide</td>
+                <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">10–30 MB each</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">HEIF Photo</td>
+                <td class="py-3 pr-4 border-t border-hairline px-3 py-2.5 align-top">12 MP</td>
+                <td class="py-3 border-t border-hairline px-3 py-2.5 align-top">1.5–3 MB each</td>
+              </tr>
+            </tbody>
+          </table>
+    </div>
+        </div>
+      </div>
+
+      <!-- Section 2 -->
+      <h2 id="how-to-find-large-files-in-iphone-photo-library-section-2" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Why Large Files Accumulate</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Most iPhone users do not realize how quickly media accumulates. Modern iPhones default to 4K video recording, and each new model pushes the resolution and frame rate higher. If you have ever held down the shutter button to capture a burst of 20 or 30 photos, each of those individual frames is stored as a separate file. Add in the screen recordings you made to show a friend something, the slow-motion clips of pets and kids, and the panorama you took on vacation, and it is easy to see how a library balloons to 50 or 100 GB.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Cloud sync adds another layer of complexity. When iCloud Photos is enabled, your full-resolution originals stay on the device unless you enable "Optimize iPhone Storage." Even then, the optimized thumbnails still consume space, and any new media you capture is uploaded at full size. Over time, the gap between what you actively look at and what sits forgotten in the background grows wider. A 2024 survey by CIRP found that the average iPhone user has over 2,000 photos and videos in their library, and the top 5 percent of files by size often account for more than 50 percent of total storage used by Photos.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The core problem is visibility. The Photos app organizes media by date and location, not by size. There is no built-in way to sort by file size or to surface the largest files. That is why so many users end up deleting individual photos one by one, gaining only a few megabytes at a time, when a handful of old videos could free up gigabytes instantly.</p>
+
+      <!-- Section 3 -->
+      <h2 id="how-to-find-large-files-in-iphone-photo-library-section-3" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Finding Large Files with TidyByte</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte is a free, open-source iOS app built specifically for this problem. Unlike the Photos app, TidyByte reads your library metadata and ranks every asset by file size. The large file finder surfaces the biggest space hogs at the top of the list so you can review them immediately. No guesswork, no scrolling through thousands of thumbnails.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Here is how the process works. After granting photo library access, TidyByte scans your library on-device using PhotoKit. It reads the file size of every photo and video, groups them by media type, and presents a sorted view. You can set a minimum size threshold, for example 50 MB, to focus only on files that meaningfully impact your storage. Each item shows a thumbnail, its duration or dimensions, and its exact file size.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The swipe interface is what makes the review fast. Swipe left to mark a file for deletion, swipe right to keep it. You can also tap "Select All" to bulk-select an entire category, such as all videos over 200 MB, and delete them in one action. TidyByte moves deleted items to the system "Recently Deleted" album, giving you a 30-day recovery window before they are permanently removed. Everything happens on-device, nothing is uploaded, and the app is completely free with no account required. If you want to see other ways TidyByte can help, check out the full <a href="/#features" class="link hover:underline">feature overview</a>.</p>
+
+      <div class="clay-card p-6 sm:p-8 mt-6">
+        <h3 class="mt-8 text-lg font-semibold text-ink">Quick Steps</h3>
+        <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+          <li><strong class="font-semibold text-ink">Step 1:</strong> Download TidyByte from the <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="link hover:underline" target="_blank" rel="noopener">App Store</a> and grant photo library access.</li>
+          <li><strong class="font-semibold text-ink">Step 2:</strong> Open the large file scanner from the home screen.</li>
+          <li><strong class="font-semibold text-ink">Step 3:</strong> Set a size filter (e.g., 50 MB) to isolate the biggest files.</li>
+          <li><strong class="font-semibold text-ink">Step 4:</strong> Swipe through the list, keeping what matters and deleting the rest.</li>
+          <li><strong class="font-semibold text-ink">Step 5:</strong> Confirm deletions and watch your free storage climb.</li>
+        </ul>
+      </div>
+
+      <!-- Section 4 -->
+      <h2 id="how-to-find-large-files-in-iphone-photo-library-section-4" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Types of Large Files: Video, Panorama, Slow-Mo</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Understanding which file types consume the most space helps you clean up smarter. Here are the four main categories of large files you will encounter.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">4K and ProRes Video</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Standard 4K video at 60 fps produces roughly 400 MB per minute. ProRes 422 HQ, available on iPhone 15 Pro and later, is a professional codec that records at approximately 6 GB per minute. A single five-minute ProRes clip takes up 30 GB. If you have ever left ProRes recording on accidentally, a single clip can consume a significant chunk of your storage. TidyByte flags these files prominently so you can decide whether to offload them to a computer or delete them.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Slow-Motion Clips</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Slow-motion video at 240 fps in 1080p generates about 375 MB per minute. At 4K 120 fps on newer models, the size is even larger. The high frame rate that makes slow-mo look smooth also means the camera captures roughly four to eight times as much data per second as normal video. A 30-second slow-motion clip can easily exceed 150 MB, and many users shoot several takes to get the perfect moment.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Panoramas</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Panorama photos stitch together multiple exposures into a single wide image, sometimes reaching 15,000 pixels across. Each panorama file is typically 10 to 30 MB, which is modest compared to video but still three to ten times the size of a standard photo. If you have dozens of vacation panoramas stored from years past, they collectively occupy a meaningful amount of space.</p>
+
+      <h3 class="mt-8 text-lg font-semibold text-ink">Burst Photos and Screen Recordings</h3>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Burst mode captures 10 frames per second, so a three-second burst produces 30 individual files. Even at 3 MB each, that is 90 MB for one burst. Screen recordings at native resolution are similarly large, especially if you recorded a long tutorial or a gameplay session. These files are easy to forget because they often live outside your main camera roll timeline.</p>
+
+      <!-- Section 5 -->
+      <h2 id="how-to-find-large-files-in-iphone-photo-library-section-5" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Prioritizing What to Delete</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Not all large files are equal. The goal is to reclaim the most space with the least regret. Start by targeting the files that are easiest to part with: accidental recordings, duplicate takes, and screen captures you no longer need. A two-minute 4K video you recorded by accident is worth 800 MB of recovery with zero emotional cost.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Next, look for long videos where only a small portion is interesting. Instead of keeping a 10-minute 4K clip for one 20-second highlight, trim it in the Photos app and delete the original. This alone can turn a 2.5 GB file into a 100 MB clip. Slow-motion recordings are another high-value target: review each one and ask whether the effect still feels special, or if a normal-speed version would serve the same purpose.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Finally, consider offloading rather than deleting. If you have ProRes footage or important long videos, transfer them to a computer or external drive before removing them from your phone. TidyByte makes this easy by letting you sort by size so you can identify the files worth offloading first. The key is to work top-down: handle the biggest files first, because each one you remove frees up hundreds or thousands of times more space than a single photo. For tips on other cleanup strategies, visit our guide to <a href="/blog" class="link hover:underline">photo library organization</a>.</p>
+
+      <!-- Section 6 -->
+      <h2 id="how-to-find-large-files-in-iphone-photo-library-section-6" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">How Much Space Large File Cleanup Saves</h2>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The numbers speak for themselves. A typical iPhone user who has owned their device for two or more years will have accumulated between 5 and 30 large video files that total 5 to 20 GB. Removing just ten unwanted 4K clips averaging one minute each frees up approximately 4 GB. Deleting a handful of ProRes recordings you already transferred to a computer can recover 10 to 50 GB in seconds.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">In real-world tests, TidyByte users recover an average of 8 GB during their first cleanup session. Heavy video shooters, parents with kids in sports, and anyone who uses their iPhone as a portable camcorder regularly reclaim 20 GB or more. To put that in perspective, 8 GB is enough room for roughly 2,000 additional HEIF photos, several hours of music, or multiple app downloads. The iOS operating system itself needs about 8 to 12 GB of free space to install updates, so clearing large files can also unblock system updates that have been failing.</p>
+      <p class="muted mt-4 text-base leading-relaxed sm:text-lg">The compounding effect is worth noting. Once you clear out the backlog of large files, TidyByte's ongoing monitoring helps you stay on top of new ones. A quick monthly scan ensures that accidental recordings and forgotten screen captures do not pile up again. Combined with <a href="/#features" class="link hover:underline">TidyByte's duplicate detection</a> and screenshot cleanup tools, you can keep your library lean permanently without sacrificing the photos and videos you actually want to keep.</p>
+
+      <!-- FAQ Section -->
+      <h2 id="faq" class="h-section mt-12 scroll-mt-24 text-2xl sm:text-3xl">Frequently Asked Questions</h2>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">How do I find the largest files on my iPhone?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Go to Settings > General > iPhone Storage to see a breakdown by app and file category. For a more detailed view of your photo library specifically, use TidyByte's large file scanner, which sorts every photo and video by size and surfaces the biggest space hogs so you can review and delete them individually.</p></div>
+    </details>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">What takes up the most space in my photo library?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Videos are the biggest space consumers by far. A single minute of 4K video at 60 fps uses about 400 MB, while one minute of ProRes footage can exceed 6 GB. Slow-motion recordings, panoramas, and burst photos also accumulate quickly. Still photos in HEIF format are relatively small at 1 to 3 MB each, but thousands of them still add up.</p></div>
+    </details>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Can I sort photos by file size?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">The native Photos app does not offer a file-size sort option. TidyByte fills this gap by letting you sort and filter your entire library by file size, so the largest files appear first. You can then swipe through them and decide what to keep or delete.</p></div>
+    </details>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">How does TidyByte's large file finder work?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">TidyByte scans your photo library metadata on-device and ranks every asset by its file size. It groups files into categories like videos, panoramas, and slow-motion clips, and highlights anything over a configurable size threshold. All processing happens locally &mdash; nothing leaves your device.</p></div>
+    </details>
+
+          <details class="clay-card group p-5 sm:p-6">
+      <summary class="faq-summary">Should I delete large video files?
+        <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <div class="muted mt-4 leading-relaxed"><p class="muted mt-3 text-base leading-relaxed">Review large videos before deleting. Screen recordings, accidental long clips, and duplicate takes are usually safe to remove. Keep meaningful moments and back up anything important to iCloud or a computer first. Deleting a handful of unwanted 4K videos can easily free up 10 to 20 GB.</p></div>
+    </details>
+
+      <!-- CTA Card -->
+      <section class="clay-card p-6 sm:p-8 text-center mt-10">
+        <h2 class="text-xl font-semibold text-ink">Ready to clean up your photo library?</h2>
+        <p class="muted mt-2 text-base">TidyByte is free, runs 100% on your device, and takes just minutes to use.</p>
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">Download TidyByte Free</a>
+          <a href="/#features" class="btn-ghost">See all features</a>
+        </div>
+      </section>
+    </article>
+  
+  <section aria-labelledby="related-h" class="mt-14">
+    <h2 id="related-h" class="h-section text-2xl sm:text-3xl">Keep reading</h2>
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <a href="/blog/do-photo-cleaner-apps-delete-icloud-photos" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/do-photo-cleaner-apps-delete-icloud-photos-card.webp" alt="Clay illustration: a chubby clay cloud floating safely above a clay smartphone" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">Do Photo Cleaner Apps Delete iCloud Photos Too?</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 11 min read</p>
+        </div>
+      </a>
+      <a href="/blog/free-up-icloud-storage-without-deleting-photos" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/free-up-icloud-storage-without-deleting-photos-card.webp" alt="Clay illustration: a plump clay cloud sitting on a tidy stack of photographs with a round gauge beside it pointing to full" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">How to Free Up iCloud Storage Without Deleting Your Photos</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 9 min read</p>
+        </div>
+      </a>
+      <a href="/blog/how-to-check-iphone-storage-breakdown" class="clay-card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
+        <img src="/assets/img/blog/how-to-check-iphone-storage-breakdown-card.webp" alt="Clay illustration: a clay smartphone whose screen is a colorful round donut chart with chunky segments" width="640" height="427"
+             loading="lazy" decoding="async" class="block aspect-[3/2] h-auto w-full object-cover">
+        <div class="p-4">
+          <h3 class="font-display text-base font-medium leading-snug text-ink group-hover:underline">How to Check Your iPhone Storage Breakdown</h3>
+          <p class="muted mt-2 text-xs">June 13, 2026 &middot; 9 min read</p>
+        </div>
+      </a>
+    </div>
+  </section>
+</article>
+  </main>

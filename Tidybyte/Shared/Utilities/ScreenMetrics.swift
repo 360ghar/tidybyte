@@ -5,10 +5,30 @@ import UIKit
 /// window scene is available (e.g. very early in launch).
 @MainActor
 enum ScreenMetrics {
+    /// Scene resolution walks every connected scene, so the result is cached
+    /// briefly: prefetch sizing reads `pixelSize` per image request, and the
+    /// active screen can't meaningfully change within the TTL (worst case is
+    /// a slightly-off thumbnail size for a moment after a scene transition).
+    private static var screenCache: (screen: UIScreen?, at: Date)?
+    private static let screenCacheTTL: TimeInterval = 2
+
+    /// E5: resolve the scene from the app's key window, not "any foreground
+    /// scene". `scenes.first` could pick an external-display scene (huge
+    /// pixel size → oversized prefetch decodes) or the wrong scene under Split
+    /// View/Stage Manager, where multiple scenes report `.foregroundActive`.
     private static var screen: UIScreen? {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        return scenes.first(where: { $0.activationState == .foregroundActive })?.screen
-            ?? scenes.first?.screen
+        if let cache = screenCache, Date().timeIntervalSince(cache.at) < screenCacheTTL {
+            return cache.screen
+        }
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+        let keyWindowScene = scenes.first(where: { scene in
+            scene.windows.contains(where: \.isKeyWindow)
+        })
+        let resolved = (keyWindowScene ?? scenes.first)?.screen
+        screenCache = (resolved, Date())
+        return resolved
     }
 
     /// Point size of the active screen.

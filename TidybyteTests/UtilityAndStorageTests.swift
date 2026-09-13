@@ -31,14 +31,8 @@ final class UtilityAndStorageTests: XCTestCase {
         XCTAssertEqual(info.usedCapacity, 200_000_000_000)
     }
 
-    func testBurstBadgeCountUsesGroupCount() {
-        let groups: [String: [AssetSummary]] = [
-            "burst-1": [],
-            "burst-2": []
-        ]
-
-        XCTAssertEqual(CleanupHomeViewModel.burstBadgeCount(from: groups), 2)
-    }
+    // (burstBadgeCount test removed with the helper itself, E8: it asserted
+    // `groups.count == groups.count` — a tautology around an inlined value.)
 
     @MainActor
     func testOnDeviceMediaExcludesICloudOnly() {

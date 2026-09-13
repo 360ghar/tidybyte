@@ -48,36 +48,51 @@ struct SmartCategoriesView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = SmartCategoriesViewModel()
     @State private var showDeleteConfirm = false
+    @Environment(\.requestReview) private var requestReview
+    @State private var isCelebrating = false
     @State private var selectedSwipeRoute: SwipeSessionRoute?
     @State private var previewPhoto: CategorizedPhoto?
     @State private var pendingSwipeReview = false
     @State private var cellToDelete: CategorizedPhoto?
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
 
     private let columns = ResponsiveGrid.photo()
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        Group {
-            switch viewModel.scanState {
-            case .idle:
-                idleView
-                    .transition(.stateTransition)
-            case .scanning(let progress):
-                scanningView(progress: progress)
-                    .transition(.stateTransition)
-            case .completed:
-                resultsView
-                    .transition(.stateTransition)
-            default:
-                // `.error` is unreachable for this tool (de-slop) and stays in
-                // the shared `ScanState` for the Duplicates/Similar tools — keep
-                // the switch exhaustive with a no-op.
-                EmptyView()
+        VStack(spacing: 0) {
+            // Non-modal error surface. Replaces the OK-only alert: an alert
+            // interrupts the task and costs a tap to dismiss, and it left the
+            // screen exactly as it already was.
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Smart Categories",
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.sm)
+            }
+
+            Group {
+                switch viewModel.scanState {
+                case .idle:
+                    idleView
+                        .transition(.stateTransition)
+                case .scanning(let progress):
+                    scanningView(progress: progress)
+                        .transition(.stateTransition)
+                case .completed:
+                    resultsView
+                        .transition(.stateTransition)
+                }
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.scanState)
+        .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
         .navigationTitle("Smart Categories")
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) photos")
         .onDisappear {
             // D-01: a scan left running after the user leaves the screen would
             // keep consuming CPU (and PhotoKit calls) in the background.
@@ -114,21 +129,17 @@ struct SmartCategoriesView: View {
         }
         .alert("Delete Photos", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
-            Button("Delete \(viewModel.selectedIds.count) Photos", role: .destructive) {
-                Task { await viewModel.deleteSelected() }
+            Button("Delete \(viewModel.totalSelectedCount) Photos", role: .destructive) {
+                Task {
+                    await viewModel.deleteSelected()
+                    // C12: success feedback, gated on an actual deletion.
+                    if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                    }
+                }
             }
         } message: {
             Text("This action cannot be undone.")
-        }
-        .alert("Smart Categories Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("OK") {
-                viewModel.errorMessage = nil
-            }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
         }
         .alert("Delete Photo", isPresented: .init(
             get: { cellToDelete != nil },
@@ -160,9 +171,6 @@ struct SmartCategoriesView: View {
                 }
             )
         }
-        .onChange(of: viewModel.activeCategory) { _, _ in
-            viewModel.synchronizeSelectionWithActiveCategory()
-        }
     }
 
     private func startSwipeReview(with filter: SwipeFilter) {
@@ -172,91 +180,37 @@ struct SmartCategoriesView: View {
     // MARK: - Idle View
 
     private var idleView: some View {
-        VStack(spacing: Spacing.xxl) {
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [Color.pink.opacity(0.15), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 80
-                        )
-                    )
-                    .frame(width: 160, height: 160)
-
-                Image(systemName: "sparkles.rectangle.stack")
-                    .font(.system(size: 72, weight: .light))
-                    .foregroundStyle(Color.pink.opacity(0.8))
-                    .subtleShadow()
-            }
-            .fadeSlideIn()
-
-            VStack(spacing: Spacing.sm) {
-                Text("Organize by Content")
-                    .font(.title2.bold())
-                Text("Group photos into memes, documents, food, pets, nature, selfies and media saved from other apps.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, Spacing.xxxl)
-            }
-            .fadeSlideIn(delay: 0.05)
-
-            Button {
+        ToolIdleView(
+            icon: "sparkles.rectangle.stack",
+            tint: .pink,
+            title: "Organize by Content",
+            message: "Group photos into memes, documents, food, pets, nature, selfies and media saved from other apps.",
+            primaryTitle: "Start Analysis",
+            primaryHint: "Scans your library and sorts photos by what's in them",
+            primaryAction: {
                 HapticHelper.impact(.light)
                 viewModel.startScan()
-            } label: {
-                Text("Start Analysis")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(Spacing.lg)
-                    .background(.blue)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             }
-            .scaleOnPress()
-            .padding(.horizontal, Spacing.xxxl + Spacing.sm)
-            .fadeSlideIn(delay: 0.1)
-
-            Spacer()
-        }
+        )
+        .fadeSlideIn()
     }
 
     // MARK: - Scanning View
 
     private func scanningView(progress: Float) -> some View {
-        VStack(spacing: Spacing.xl) {
-            Spacer()
-            ProgressView(value: progress) {
-                Text("Sorting photos...")
-                    .font(.headline)
-            } currentValueLabel: {
-                Text("\(Int(progress * 100))% \u{00B7} \(viewModel.categorizedPhotos.count) sorted")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, Spacing.xxxl + Spacing.sm)
-
-            // D-01: explicit cancel so users aren't trapped in a long scan.
-            Button {
+        ToolScanningView(
+            icon: "sparkles.rectangle.stack",
+            tint: .pink,
+            title: "Sorting photos...",
+            progress: progress,
+            // C9: results only land at scan end, so count what's actually been
+            // processed — the photo total set right after the fetch.
+            detail: "\(viewModel.analyzedPhotoCount) photos",
+            onCancel: {
                 HapticHelper.impact(.light)
                 viewModel.cancelScan()
-            } label: {
-                Text("Cancel")
-                    .font(.headline)
-                    .padding(.horizontal, Spacing.xxxl)
-                    .padding(.vertical, Spacing.md)
-                    .background(Color.secondary.opacity(0.85))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             }
-            .scaleOnPress()
-            .padding(.horizontal, Spacing.xxxl + Spacing.sm)
-            Spacer()
-        }
+        )
         .fadeSlideIn()
     }
 

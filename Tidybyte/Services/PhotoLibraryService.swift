@@ -5,6 +5,7 @@ import UIKit
 
 enum SwipeFilter: Sendable, Hashable {
     case allMedia
+    case allMediaBefore(date: Date)
     case notInAnyAlbum
     case specificAlbum(id: String)
     case notSwipedYet
@@ -14,12 +15,24 @@ enum SwipeFilter: Sendable, Hashable {
 
 actor PhotoLibraryService {
 
+    /// Single app-wide instance (A11). Every view/view model used to construct
+    /// its own service, each owning a private `PHCachingImageManager` — that
+    /// fragmented the image cache across instances and multiplied actors.
+    /// One instance means one shared prefetch cache.
+    static let shared = PhotoLibraryService()
+
     /// Upper bound for any single PhotoKit image/data request so a stalled
     /// iCloud download can't hang the awaiting task indefinitely.
     private static let requestTimeoutSeconds: TimeInterval = 20
 
     private let imageManager = PHCachingImageManager()
     private var changeObserverHelper: PhotoLibraryChangeObserverHelper?
+
+    /// Baseline for incremental change details (SHARED-08): the broadest
+    /// recent fetch result, so `handleLibraryChange` can evict exactly the
+    /// removed/changed asset ids instead of purging the whole image cache.
+    /// `PHFetchResult` is a lazy snapshot — retaining it is cheap.
+    private var changeBaselineFetch: PHFetchResult<PHAsset>?
 
     // Called when the photo library changes — consumers can listen via this callback
     private var onLibraryChange: (@Sendable () -> Void)?
@@ -41,17 +54,49 @@ actor PhotoLibraryService {
     func startObservingChanges(onChange: @escaping @Sendable () -> Void) {
         guard changeObserverHelper == nil else { return }
         self.onLibraryChange = onChange
-        let helper = PhotoLibraryChangeObserverHelper { [weak self] in
+        let helper = PhotoLibraryChangeObserverHelper { [weak self] box in
             Task { [weak self] in
-                await self?.handleLibraryChange()
+                await self?.handleLibraryChange(box.change)
             }
         }
         self.changeObserverHelper = helper
         PHPhotoLibrary.shared().register(helper)
     }
 
-    private func handleLibraryChange() {
+    /// Keeps `ImageCache` coherent with the library (SHARED-08): evicts
+    /// exactly the assets PhotoKit reports as removed or changed, so an
+    /// in-app delete of N photos no longer re-decodes the other ~200 cached
+    /// thumbnails. Falls back to a full purge when incremental details are
+    /// unavailable (fetch result released, non-incremental change) — stale
+    /// thumbnails are worse than re-decode churn.
+    private func handleLibraryChange(_ change: PHChange) async {
+        if let baseline = changeBaselineFetch,
+           let details = change.changeDetails(for: baseline),
+           details.hasIncrementalChanges {
+            // Advance the baseline so the NEXT change diffs against current
+            // state rather than re-reporting these same objects.
+            changeBaselineFetch = details.fetchResultAfterChanges
+            let removedIds = details.removedObjects.map(\.localIdentifier)
+            let changedIds = details.changedObjects.map(\.localIdentifier)
+            for id in removedIds + changedIds {
+                await ImageCache.shared.removeImage(for: id)
+                await ImageCache.shared.removeImage(for: "\(id)#degraded")
+            }
+        } else {
+            await ImageCache.shared.removeAll()
+        }
         onLibraryChange?()
+    }
+
+    /// Records a fetch result as the change-details baseline. Keeps the
+    /// broadest recent fetch: narrow fetches (a preview sheet's handful of
+    /// ids, the screenshots-only census) must not displace a full-library
+    /// snapshot, or deletions outside their membership would go unreported
+    /// and leave stale thumbnails behind. Called from the `extractSummaries`
+    /// funnel so every census-style fetch participates.
+    private func retainChangeBaseline(_ fetchResult: PHFetchResult<PHAsset>) {
+        if let current = changeBaselineFetch, current.count > fetchResult.count { return }
+        changeBaselineFetch = fetchResult
     }
 
     // MARK: - Album Fetching
@@ -67,9 +112,14 @@ actor PhotoLibraryService {
         )
         for index in 0..<smartAlbums.count {
             let collection = smartAlbums.object(at: index)
-            let count = PHAsset.fetchAssets(in: collection, options: nil).count
+            // Single fetch per album: newest-first ordering gives both the
+            // count and the thumbnail id (previously two fetches per album).
+            let (count, thumbnailId) = Self.countAndNewestId(in: collection)
+            // Smart albums with zero assets are system noise ("Recently
+            // Added" before any import, etc.) — still skipped. User albums
+            // below are kept even when empty: a newly created album must be
+            // visible in the pickers or it can never receive anything (A6).
             guard count > 0 else { continue }
-            let thumbnailId = self.firstThumbnailId(in: collection)
             albums.append(AlbumInfo(
                 id: collection.localIdentifier,
                 title: collection.localizedTitle ?? "Untitled",
@@ -79,7 +129,7 @@ actor PhotoLibraryService {
             ))
         }
 
-        // User-created albums
+        // User-created albums — including empty ones.
         let userAlbums = PHAssetCollection.fetchAssetCollections(
             with: .album,
             subtype: .any,
@@ -87,9 +137,7 @@ actor PhotoLibraryService {
         )
         for index in 0..<userAlbums.count {
             let collection = userAlbums.object(at: index)
-            let count = PHAsset.fetchAssets(in: collection, options: nil).count
-            guard count > 0 else { continue }
-            let thumbnailId = self.firstThumbnailId(in: collection)
+            let (count, thumbnailId) = Self.countAndNewestId(in: collection)
             albums.append(AlbumInfo(
                 id: collection.localIdentifier,
                 title: collection.localizedTitle ?? "Untitled",
@@ -107,19 +155,29 @@ actor PhotoLibraryService {
         return smart + user
     }
 
-    nonisolated private func firstThumbnailId(in collection: PHAssetCollection) -> String? {
+    /// One PhotoKit fetch per album returning both the asset count and the
+    /// newest asset's id (for thumbnails).
+    nonisolated private static func countAndNewestId(in collection: PHAssetCollection) -> (Int, String?) {
         let options = PHFetchOptions()
-        options.fetchLimit = 1
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        return PHAsset.fetchAssets(in: collection, options: options).firstObject?.localIdentifier
+        let fetched = PHAsset.fetchAssets(in: collection, options: options)
+        return (fetched.count, fetched.firstObject?.localIdentifier)
     }
 
     // MARK: - Asset Fetching
 
-    func fetchAssets(filter: SwipeFilter, swipedIdentifiers: Set<String> = []) -> [AssetSummary] {
+    func fetchAssets(filter: SwipeFilter) -> [AssetSummary] {
         switch filter {
         case .allMedia:
             let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
+            return extractSummaries(from: fetchResult)
+
+        case .allMediaBefore(let cutoffDate):
+            // Same options (and therefore ordering) as All Media, narrowed to
+            // media created on or before the user's chosen starting position.
+            let options = allAssetsFetchOptions()
+            options.predicate = NSPredicate(format: "creationDate <= %@", cutoffDate as NSDate)
+            let fetchResult = PHAsset.fetchAssets(with: options)
             return extractSummaries(from: fetchResult)
 
         case .notInAnyAlbum:
@@ -137,8 +195,10 @@ actor PhotoLibraryService {
             return extractSummaries(from: fetchResult)
 
         case .notSwipedYet:
-            let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
-            return extractSummaries(from: allAssets, excluding: swipedIdentifiers)
+            // Swipe history lives in SwiftData, not PhotoKit — the session view
+            // model filters it out after the fetch.
+            let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
+            return extractSummaries(from: fetchResult)
 
         case .screenshots:
             let options = allAssetsFetchOptions()
@@ -185,7 +245,7 @@ actor PhotoLibraryService {
         for index in 0..<allAssets.count {
             let asset = allAssets.object(at: index)
             if let burstId = asset.burstIdentifier {
-                let summary = self.makeSummary(from: asset)
+                let summary = Self.makeSummary(from: asset)
                 groups[burstId, default: []].append(summary)
             }
         }
@@ -216,10 +276,38 @@ actor PhotoLibraryService {
     }
 
     func loadThumbnail(for assetId: String, size: CGSize = CGSize(width: 200, height: 200)) async -> UIImage? {
+        await loadThumbnailWithQuality(for: assetId, size: size).image
+    }
+
+    /// `PHAsset` overload so scan loops can resolve a whole batch with one
+    /// `phAssetsById` fetch instead of one identifier lookup per image.
+    func loadThumbnail(for asset: PHAsset, size: CGSize = CGSize(width: 200, height: 200)) async -> UIImage? {
+        await loadThumbnailWithQuality(for: asset, size: size).image
+    }
+
+    /// E4 (residual SHARED-05): reports whether the returned thumbnail is the
+    /// DEGRADED fast-format placeholder (asset not on this device). Callers
+    /// caching results key degraded images separately so a sharp version
+    /// fetched later (after iCloud download) replaces the soft one instead of
+    /// being blocked by it for the whole session.
+    func loadThumbnailWithQuality(for assetId: String, size: CGSize = CGSize(width: 200, height: 200)) async -> (image: UIImage?, isDegraded: Bool) {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil).firstObject else {
-            return nil
+            return (nil, false)
         }
-        return await requestImage(for: asset, targetSize: size, contentMode: .aspectFill, deliveryMode: .fastFormat)
+        return await loadThumbnailWithQuality(for: asset, size: size)
+    }
+
+    func loadThumbnailWithQuality(for asset: PHAsset, size: CGSize = CGSize(width: 200, height: 200)) async -> (image: UIImage?, isDegraded: Bool) {
+        await requestImageWithQuality(
+            for: asset,
+            targetSize: size,
+            contentMode: .aspectFill,
+            deliveryMode: .fastFormat,
+            // Preserve the original loadThumbnail behavior exactly (.none):
+            // .fast can crop when aspect-filling.
+            resizeMode: .none,
+            allowsNetworkAccess: true
+        )
     }
 
     /// Loads a sharp, deterministically-sized image for on-device analysis
@@ -232,7 +320,13 @@ actor PhotoLibraryService {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil).firstObject else {
             return nil
         }
-        return await requestImage(
+        return await loadAnalysisImage(for: asset, targetSize: targetSize)
+    }
+
+    /// `PHAsset` overload so scan loops can resolve a whole batch with one
+    /// `phAssetsById` fetch instead of one identifier lookup per image.
+    func loadAnalysisImage(for asset: PHAsset, targetSize: CGSize) async -> UIImage? {
+        await requestImage(
             for: asset,
             targetSize: targetSize,
             contentMode: .aspectFit,
@@ -366,8 +460,32 @@ actor PhotoLibraryService {
         resizeMode: PHImageRequestOptionsResizeMode = .none,
         allowsNetworkAccess: Bool = true
     ) async -> UIImage? {
+        await requestImageWithQuality(
+            for: asset,
+            targetSize: targetSize,
+            contentMode: contentMode,
+            deliveryMode: deliveryMode,
+            resizeMode: resizeMode,
+            allowsNetworkAccess: allowsNetworkAccess
+        ).image
+    }
+
+    /// `requestImage` plus the degraded flag (E4). A `.fastFormat` request for
+    /// an iCloud-optimized asset delivers exactly one callback, flagged
+    /// degraded — that soft placeholder is the terminal result and is reported
+    /// as such so callers can cache it under a degraded key.
+    private func requestImageWithQuality(
+        for asset: PHAsset,
+        targetSize: CGSize,
+        contentMode: PHImageContentMode,
+        deliveryMode: PHImageRequestOptionsDeliveryMode,
+        resizeMode: PHImageRequestOptionsResizeMode,
+        allowsNetworkAccess: Bool
+    ) async -> (image: UIImage?, isDegraded: Bool) {
+        let box = QualityResultBox()
+
         await withCheckedContinuation { continuation in
-            let resumer = ContinuationResumer(continuation)
+            let resumer = ContinuationResumer<Bool>(continuation)
 
             let options = PHImageRequestOptions()
             options.deliveryMode = deliveryMode
@@ -382,7 +500,7 @@ actor PhotoLibraryService {
             var requestID: PHImageRequestID = PHInvalidImageRequestID
             let timeoutTask = Task {
                 try? await Task.sleep(for: .seconds(Self.requestTimeoutSeconds))
-                resumer.resume(nil)
+                resumer.resume(false)
             }
             resumer.onResume = {
                 manager.cancelImageRequest(requestID)
@@ -398,73 +516,74 @@ actor PhotoLibraryService {
                 let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
                 let isCancelled = (info?[PHImageCancelledKey] as? Bool) ?? false
                 let isInCloud = (info?[PHImageResultIsInCloudKey] as? Bool) ?? false
-                if let error = info?[PHImageErrorKey] {
-                    AppLog.photo.error("Image request failed: \(String(describing: error), privacy: .public)")
-                    resumer.resume(image)
+                if isDegraded { box.isDegraded = true }
+                if let image = image { box.image = image }
+
+                if info?[PHImageErrorKey] != nil {
+                    AppLog.photo.error("Image request failed: \(String(describing: info?[PHImageErrorKey]), privacy: .public)")
+                    resumer.resume(isDegraded)
                 } else if isCancelled {
-                    resumer.resume(image)
+                    resumer.resume(isDegraded)
                 } else if !isDegraded {
-                    resumer.resume(image)
+                    resumer.resume(false)
                 } else if deliveryMode == .fastFormat {
                     // .fastFormat delivers exactly one callback; for iCloud-optimized
                     // assets that single result is flagged degraded. No non-degraded
-                    // result is coming, so the degraded image IS the terminal result —
-                    // resume with it rather than waiting out the timeout (which would
-                    // yield nil → a gray placeholder for the thumbnail).
-                    resumer.resume(image)
+                    // result is coming, so the degraded image IS the terminal result.
+                    resumer.resume(true)
                 } else if isInCloud && !allowsNetworkAccess {
                     // The full asset lives only in iCloud and network access is
                     // off, so no non-degraded result will ever arrive. Give up
-                    // promptly (rather than waiting out the timeout) so a scan
-                    // doesn't stall per iCloud-only photo; the caller falls back.
-                    resumer.resume(nil)
+                    // promptly so a scan doesn't stall per iCloud-only photo.
+                    // Discard the retained degraded placeholder so the caller
+                    // gets nil and falls back to the thumbnail path.
+                    box.image = nil
+                    resumer.resume(isDegraded)
                 }
                 // A degraded placeholder without an error (and reachable) means
                 // the full-quality result is still coming — keep waiting for it.
             }
         }
+
+        return (box.image, box.isDegraded)
+    }
+
+    /// Mutable capture box bridging the PhotoKit completion closure (which may
+    /// fire on a PhotoKit queue) into the quality tuple returned on the actor.
+    private final class QualityResultBox: @unchecked Sendable {
+        var image: UIImage?
+        var isDegraded = false
     }
 
     // MARK: - Album Membership
-
-    func albumsContaining(assetId: String) -> [String] {
-        guard PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil).firstObject != nil else {
-            return []
-        }
-        var albumNames: [String] = []
-        let userAlbums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
-        userAlbums.enumerateObjects { collection, _, _ in
-            let opts = PHFetchOptions()
-            opts.predicate = NSPredicate(format: "localIdentifier = %@", assetId)
-            let count = PHAsset.fetchAssets(in: collection, options: opts).count
-            if count > 0 {
-                albumNames.append(collection.localizedTitle ?? "Untitled")
-            }
-        }
-        return albumNames
-    }
 
     /// Local identifiers of the user albums that currently contain the asset.
     /// Used to restore album membership when an asset is replaced (e.g. after
     /// video compression or Live Photo conversion).
     func userAlbumIdentifiers(containing assetId: String) -> [String] {
-        var ids: [String] = []
-        let userAlbums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
-        userAlbums.enumerateObjects { collection, _, _ in
-            let opts = PHFetchOptions()
-            opts.predicate = NSPredicate(format: "localIdentifier = %@", assetId)
-            if PHAsset.fetchAssets(in: collection, options: opts).count > 0 {
-                ids.append(collection.localIdentifier)
-            }
-        }
-        return ids
+        userAlbumIdentifiers(for: [assetId])[assetId] ?? []
     }
 
-    /// Local identifiers of every asset in at least one user-created album,
-    /// computed in a single pass. The swipe session uses this to skip the
-    /// "Add to Album" prompt for photos that are already organized.
-    func assetIdentifiersInUserAlbums() -> Set<String> {
-        collectAssetsInUserAlbums()
+    /// Album membership for a batch of assets in a single pass over user
+    /// albums (one fetch per album instead of one predicate fetch per
+    /// album per item). Batch loops should call this once before iterating.
+    func userAlbumIdentifiers(for assetIds: Set<String>) -> [String: [String]] {
+        guard !assetIds.isEmpty else { return [:] }
+        var result: [String: [String]] = Dictionary(uniqueKeysWithValues: assetIds.map { ($0, [String]()) })
+        let userAlbums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
+        userAlbums.enumerateObjects { collection, _, _ in
+            let fetched = PHAsset.fetchAssets(in: collection, options: nil)
+            var memberIds = Set<String>()
+            fetched.enumerateObjects { asset, _, _ in
+                if assetIds.contains(asset.localIdentifier) {
+                    memberIds.insert(asset.localIdentifier)
+                }
+            }
+            for id in memberIds {
+                result[id, default: []].append(collection.localIdentifier)
+            }
+        }
+        return result
     }
 
     // MARK: - Pre-fetching
@@ -496,41 +615,58 @@ actor PhotoLibraryService {
     /// Deletes the given assets atomically. If the batch fails (e.g. one
     /// protected/undeletable asset aborts the whole `performChanges`), retries
     /// each identifier individually so the deletable ones still go through,
-    /// then throws `partialDeletion` if any remain (SHARED-01).
-    func deleteAssets(identifiers: [String]) async throws {
+    /// then throws `partialDeletion` carrying the identifiers that DID succeed,
+    /// so callers can drop them from their lists instead of showing ghosts
+    /// (SHARED-01).
+    @discardableResult
+    func deleteAssets(identifiers: [String]) async throws -> Set<String> {
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
         do {
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.deleteAssets(assets)
             }
+            // fetchAssets silently drops externally-vanished ids, so intersect
+            // with what was actually fetched — callers sum freed bytes over
+            // returned ids, and crediting vanished ids would inflate the ledger.
+            var fetchedIds = Set<String>()
+            assets.enumerateObjects { asset, _, _ in
+                fetchedIds.insert(asset.localIdentifier)
+            }
+            return Set(identifiers).intersection(fetchedIds)
         } catch {
-            var succeeded = 0
+            var succeeded = Set<String>()
             var failed = 0
-            for id in identifiers {
+            for (offset, id) in identifiers.enumerated() {
+                // Serial by design (PhotoKit-safe); yield periodically so a
+                // long fallback retry stays cancellable and responsive.
+                if offset % 10 == 0 { await Task.yield() }
+                if Task.isCancelled { throw CancellationError() }
                 do {
                     guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
                         // The asset no longer exists in the library (deleted
                         // externally — e.g. iCloud sync or the Photos app —
                         // between fetch and delete). The delete's goal state,
-                        // "not in the library", is already satisfied, so count
-                        // it as succeeded instead of scaring the user with a
-                        // bogus "couldn't be deleted" failure.
-                        succeeded += 1
+                        // "not in the library", is already satisfied, so
+                        // deliberately report it in the succeeded set instead
+                        // of scaring the user with a bogus "couldn't be
+                        // deleted" failure.
+                        succeeded.insert(id)
                         continue
                     }
                     try await PHPhotoLibrary.shared().performChanges {
                         PHAssetChangeRequest.deleteAssets([asset] as NSArray)
                     }
-                    succeeded += 1
+                    succeeded.insert(id)
                 } catch {
                     failed += 1
                 }
             }
             if failed > 0 {
-                throw PhotoServiceError.partialDeletion(succeeded: succeeded, failed: failed)
+                throw PhotoServiceError.partialDeletion(succeededIds: succeeded, failedCount: failed)
             }
             // Every individual retry succeeded — the batch failure was
             // transient; nothing remains.
+            return succeeded
         }
     }
 
@@ -598,6 +734,12 @@ actor PhotoLibraryService {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil).firstObject else {
             return nil
         }
+        return await sha256ForPrimaryResource(of: asset)
+    }
+
+    /// `PHAsset` overload so duplicate scans can resolve a whole batch with
+    /// one `phAssetsById` fetch instead of one identifier lookup per asset.
+    func sha256ForPrimaryResource(of asset: PHAsset) async -> String? {
         let resources = PHAssetResource.assetResources(for: asset)
         guard let resource = preferredPrimaryResource(from: resources) else {
             return nil
@@ -643,6 +785,22 @@ actor PhotoLibraryService {
         PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject
     }
 
+    /// Resolves a batch of identifiers with ONE PhotoKit fetch. Scan loops
+    /// that load an image (or hash) per asset must use this + the `PHAsset`
+    /// loader overloads instead of the per-id loaders — one identifier lookup
+    /// per image turned full-library scans into tens of thousands of fetches.
+    /// Missing ids (deleted externally mid-scan) are simply absent.
+    nonisolated func phAssetsById(_ ids: [String]) -> [String: PHAsset] {
+        guard !ids.isEmpty else { return [:] }
+        let fetched = PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+        var byId: [String: PHAsset] = [:]
+        byId.reserveCapacity(fetched.count)
+        fetched.enumerateObjects { asset, _, _ in
+            byId[asset.localIdentifier] = asset
+        }
+        return byId
+    }
+
     /// Loads an image asset's full-resolution encoded data (with EXIF, including
     /// the orientation tag, intact). Used by photo compression to re-encode.
     /// Mirrors `requestImage`'s single-resume / timeout behaviour so a stalled
@@ -651,6 +809,12 @@ actor PhotoLibraryService {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil).firstObject else {
             return nil
         }
+        return await loadFullImageData(for: asset)
+    }
+
+    /// `PHAsset` overload so compression batches can resolve a whole batch
+    /// with one `phAssetsById` fetch instead of one identifier lookup per item.
+    func loadFullImageData(for asset: PHAsset) async -> Data? {
         return await withCheckedContinuation { continuation in
             let resumer = ContinuationResumer<Data?>(continuation)
 
@@ -705,9 +869,13 @@ actor PhotoLibraryService {
         let total = identifiers.count
         var completed = 0
 
+        // One batched resolve for the whole export, not one identifier lookup
+        // per file (ids deleted externally mid-export are skipped).
+        let assetsById = phAssetsById(identifiers)
         for id in identifiers {
             if Task.isCancelled { break }
-            if let url = await writeResourceToTemp(assetId: id, in: folder) {
+            if let asset = assetsById[id],
+               let url = await writeResourceToTemp(asset: asset, in: folder) {
                 urls.append(url)
             }
             completed += 1
@@ -717,10 +885,7 @@ actor PhotoLibraryService {
         return urls
     }
 
-    private func writeResourceToTemp(assetId: String, in folder: URL) async -> URL? {
-        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil).firstObject else {
-            return nil
-        }
+    private func writeResourceToTemp(asset: PHAsset, in folder: URL) async -> URL? {
         let resources = PHAssetResource.assetResources(for: asset)
         guard let resource = preferredPrimaryResource(from: resources) else { return nil }
 
@@ -785,15 +950,15 @@ actor PhotoLibraryService {
         return options
     }
 
-    nonisolated private func estimateFileSize(from resources: [PHAssetResource]) -> Int64 {
+    nonisolated private static func estimateFileSize(from resources: [PHAssetResource]) -> Int64 {
         var totalSize: Int64 = 0
         for resource in resources {
-            totalSize += safeFileSize(for: resource)
+            totalSize += Self.safeFileSize(for: resource)
         }
         return totalSize
     }
 
-    nonisolated private func makeSummary(from asset: PHAsset) -> AssetSummary {
+    nonisolated private static func makeSummary(from asset: PHAsset) -> AssetSummary {
         let resources = PHAssetResource.assetResources(for: asset)
         let isLocal = resources.allSatisfy { resource in
             guard resource.responds(to: NSSelectorFromString("locallyAvailable")) else { return true }
@@ -820,7 +985,7 @@ actor PhotoLibraryService {
             pixelWidth: asset.pixelWidth,
             pixelHeight: asset.pixelHeight,
             duration: asset.duration,
-            fileSize: estimateFileSize(from: resources),
+            fileSize: Self.estimateFileSize(from: resources),
             filename: resources.first?.originalFilename,
             isFavorite: asset.isFavorite,
             isBurst: asset.representsBurst,
@@ -828,7 +993,7 @@ actor PhotoLibraryService {
             isLivePhoto: asset.mediaSubtypes.contains(.photoLive),
             isScreenshot: asset.mediaSubtypes.contains(.photoScreenshot),
             isLocallyAvailable: isLocal,
-            assetOrigin: detectOrigin(for: asset, filename: resources.first?.originalFilename)
+            assetOrigin: Self.detectOrigin(for: asset, filename: resources.first?.originalFilename)
         )
     }
 
@@ -838,7 +1003,7 @@ actor PhotoLibraryService {
     /// depth, Live, GPS); screenshots have the screenshot subtype; anything else
     /// that's an image is treated as likely saved from another app (the category
     /// is intentionally recall-leaning and surfaced to the user as "likely").
-    nonisolated private func detectOrigin(for asset: PHAsset, filename: String?) -> AssetOrigin {
+    nonisolated private static func detectOrigin(for asset: PHAsset, filename: String?) -> AssetOrigin {
         if asset.mediaSubtypes.contains(.photoScreenshot) {
             return .screenshot
         }
@@ -864,12 +1029,17 @@ actor PhotoLibraryService {
         return asset.mediaType == .image ? .savedFromApp : .unknown
     }
 
-    nonisolated private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+    private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+        retainChangeBaseline(fetchResult)
+        return Self.buildSummaries(from: fetchResult, excluding: excluding, sort: sort)
+    }
+
+    nonisolated private static func buildSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
         var summaries: [AssetSummary] = []
         summaries.reserveCapacity(fetchResult.count)
         fetchResult.enumerateObjects { asset, _, _ in
             if !excluding.contains(asset.localIdentifier) {
-                summaries.append(self.makeSummary(from: asset))
+                summaries.append(Self.makeSummary(from: asset))
             }
         }
         if sort {
@@ -899,7 +1069,7 @@ actor PhotoLibraryService {
         ?? resources.first
     }
 
-    nonisolated private func safeFileSize(for resource: PHAssetResource) -> Int64 {
+    nonisolated private static func safeFileSize(for resource: PHAssetResource) -> Int64 {
         guard resource.responds(to: NSSelectorFromString("fileSize")),
               let size = resource.value(forKey: "fileSize") as? Int64 else {
             return 0
@@ -914,31 +1084,49 @@ enum PhotoServiceError: LocalizedError {
     case albumNotFound
     case albumCreationFailed
     case albumChangeFailed
-    case partialDeletion(succeeded: Int, failed: Int)
+    case partialDeletion(succeededIds: Set<String>, failedCount: Int)
 
     var errorDescription: String? {
         switch self {
         case .albumNotFound: return "Album not found."
         case .albumCreationFailed: return "Failed to create album."
         case .albumChangeFailed: return "Couldn't modify the album. Please try again."
-        case .partialDeletion(let succeeded, let failed):
-            let total = succeeded + failed
-            return "Deleted \(succeeded) of \(total) items. \(failed) couldn't be deleted. Try again."
+        case .partialDeletion(let succeededIds, let failedCount):
+            let total = succeededIds.count + failedCount
+            return "Deleted \(succeededIds.count) of \(total) items. \(failedCount) couldn't be deleted. Try again."
         }
+    }
+
+    /// Ids that were deleted before a partial failure. `nil` for non-partial
+    /// errors. Shared by all cleanup tools' delete reconciliation (C5).
+    var succeededIds: Set<String>? {
+        if case .partialDeletion(let succeededIds, _) = self {
+            return succeededIds
+        }
+        return nil
     }
 }
 
 // MARK: - Change Observer Helper
 
-final class PhotoLibraryChangeObserverHelper: NSObject, PHPhotoLibraryChangeObserver, Sendable {
-    private let onChange: @Sendable () -> Void
+/// Carries a `PHChange` from PhotoKit's arbitrary callback queue to the
+/// service actor. `PHChange` isn't `Sendable`, but the object is immutable
+/// once delivered — Apple's own PhotoKit samples hand it across queues the
+/// same way — and the box is unwrapped immediately on the actor, never stored.
+/// Internal (not private) so the observer helper's initializer can name it.
+struct LibraryChangeBox: @unchecked Sendable {
+    let change: PHChange
+}
 
-    init(onChange: @escaping @Sendable () -> Void) {
+final class PhotoLibraryChangeObserverHelper: NSObject, PHPhotoLibraryChangeObserver, Sendable {
+    private let onChange: @Sendable (LibraryChangeBox) -> Void
+
+    init(onChange: @escaping @Sendable (LibraryChangeBox) -> Void) {
         self.onChange = onChange
         super.init()
     }
 
     func photoLibraryDidChange(_ changeInstance: PHChange) {
-        onChange()
+        onChange(LibraryChangeBox(change: changeInstance))
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import Photos
 
 enum ConversionState {
@@ -25,39 +26,28 @@ final class LivePhotosConverterViewModel {
     var isSelectionMode = false
     var convertingAll = false
     var errorMessage: String?
-    var totalSavedBytes: Int64 = 0
-    var convertedCount: Int = 0
     /// Outcome of the most recent Convert All, so the view can decide the
     /// haptic/summary (COMP-09): success only when `failed == 0`.
     var lastBatch: (converted: Int, failed: Int)?
+    private(set) var isCancelled = false
+    /// D2: the Convert-All loop, owned by the VM so leaving the screen can
+    /// cancel it instead of letting it keep converting (and deleting originals)
+    /// with no way to stop — COMP-08 was never ported to this tool.
+    private var batchTask: Task<Void, Never>?
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
 
     /// Album names keyed by asset id, populated in a single pass over the
-    /// user's albums (O(albums)) instead of one `albumsContaining` fetch per
-    /// item (O(items × albums)) — COMP-13.
+    /// user's albums (O(albums)) — COMP-13. The blocking PhotoKit enumeration
+    /// runs off the main actor via `AlbumMembershipLoader` (D12).
     private(set) var albumNamesByAsset: [String: [String]] = [:]
 
-    /// One pass over all user albums collecting the name of every album that
-    /// contains one of the given assets. Called once per list shape change.
     func refreshAlbumNames(for itemIds: Set<String>) async {
         guard !itemIds.isEmpty else {
             albumNamesByAsset = [:]
             return
         }
-        var result: [String: [String]] = [:]
-        let userAlbums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
-        userAlbums.enumerateObjects { collection, _, _ in
-            let options = PHFetchOptions()
-            options.predicate = NSPredicate(format: "localIdentifier IN %@", itemIds)
-            let assets = PHAsset.fetchAssets(in: collection, options: options)
-            guard assets.count > 0 else { return }
-            let name = collection.localizedTitle ?? "Untitled"
-            assets.enumerateObjects { asset, _, _ in
-                result[asset.localIdentifier, default: []].append(name)
-            }
-        }
-        albumNamesByAsset = result
+        albumNamesByAsset = await AlbumMembershipLoader.membership(for: itemIds)
     }
 
     var totalSize: Int64 {
@@ -80,12 +70,18 @@ final class LivePhotosConverterViewModel {
     /// the Live Photo is junk from the preview. Album membership is dropped
     /// automatically by iOS on delete.
     func deleteLivePhoto(itemId: String) async {
-        guard indexOfItem(id: itemId) != nil else { return }
+        // COMP-18: never delete outright while Convert All is running — the
+        // batch may be converting (and about to delete) this same item.
+        guard !convertingAll else { return }
+        guard let index = items.firstIndex(where: { $0.id == itemId }) else { return }
+        // Captured before the await: a post-delete fetch returns nothing.
+        let size = items[index].asset.fileSize
         errorMessage = nil
         do {
-            try await photoService.deleteAssets(identifiers: [itemId])
-            items.removeAll { $0.id == itemId }
-            deletedCount += 1
+            let deletedIds = try await photoService.deleteAssets(identifiers: [itemId])
+            CleanupLedger.shared.record(kind: .livePhotos, deletedIds: deletedIds, sizeOf: { _ in size })
+            items.removeAll { deletedIds.contains($0.id) }
+            deletedCount += deletedIds.count
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -107,14 +103,34 @@ final class LivePhotosConverterViewModel {
 
     /// Re-fetches Live Photos without toggling `isLoading`, so the existing list
     /// stays visible under the pull-to-refresh spinner instead of flashing the skeleton.
+    /// D3: blocked during Convert All — replacing rows mid-batch resets every
+    /// row's state and lets the user re-tap Convert on an item whose original is
+    /// already deleted (guaranteed assetNotFound failure).
     func refresh() async {
+        guard !convertingAll else { return }
         errorMessage = nil
         let livePhotos = await photoService.fetchLivePhotos()
         items = livePhotos.map { LivePhotoItem(id: $0.id, asset: $0) }
         hasLoadedItems = true
     }
 
-    func convertSingle(itemId: String) async {
+    /// D2: starts Convert All on a VM-owned task so leaving the screen cancels
+    /// it. Idempotent while running.
+    func startConvertAll(modelContext: ModelContext) {
+        guard batchTask == nil else { return }
+        batchTask = Task { [weak self] in
+            await self?.convertAll(modelContext: modelContext)
+            self?.batchTask = nil
+        }
+    }
+
+    /// D2: requests cancellation of the running batch.
+    func cancelConvertAll() {
+        isCancelled = true
+        batchTask?.cancel()
+    }
+
+    func convertSingle(itemId: String, modelContext: ModelContext) async {
         // COMP-18: never start a single conversion while Convert All is
         // running (double spinners, double counts).
         guard !convertingAll else { return }
@@ -123,9 +139,7 @@ final class LivePhotosConverterViewModel {
         items[index].conversionState = .converting
 
         do {
-            let savedBytes = try await performConversion(assetId: itemId)
-            totalSavedBytes += savedBytes
-            convertedCount += 1
+            let savedBytes = try await performConversion(assetId: itemId, modelContext: modelContext)
             // Re-lookup: the array may have shifted during the await.
             if let idx = items.firstIndex(where: { $0.id == itemId }) {
                 items[idx].savedBytes = savedBytes
@@ -139,24 +153,32 @@ final class LivePhotosConverterViewModel {
         }
     }
 
-    func convertAll() async {
+    func convertAll(modelContext: ModelContext) async {
         errorMessage = nil
+        isCancelled = false
         convertingAll = true
+        // D1 (review pass): resolve leftovers from interrupted conversions
+        // before starting a batch.
+        await CompressionJournal.reconcile(modelContext: modelContext)
         // COMP-09: snapshot the eligible (idle) ids up front so the summary's
         // denominator matches what was actually attempted.
         let pendingIds = items.compactMap { item -> String? in
             guard case .idle = item.conversionState else { return nil }
             return item.id
         }
+        // One album pass for the whole batch instead of one predicate scan
+        // per album per item inside `performConversion`.
+        let albumMap = await photoService.userAlbumIdentifiers(for: Set(pendingIds))
         var converted = 0
         var failed = 0
         for itemId in pendingIds {
+            // D2: cancellation checked at the top of every iteration — this loop
+            // deletes originals, so it must be stoppable at every step.
+            if isCancelled { break }
             guard let index = items.firstIndex(where: { $0.id == itemId }) else { continue }
             items[index].conversionState = .converting
             do {
-                let savedBytes = try await performConversion(assetId: itemId)
-                totalSavedBytes += savedBytes
-                convertedCount += 1
+                let savedBytes = try await performConversion(assetId: itemId, modelContext: modelContext, albumIdentifiers: albumMap[itemId] ?? [])
                 converted += 1
                 // Re-lookup: the array may have shifted during the await.
                 if let idx = items.firstIndex(where: { $0.id == itemId }) {
@@ -179,7 +201,7 @@ final class LivePhotosConverterViewModel {
         }
     }
 
-    private func performConversion(assetId: String) async throws -> Int64 {
+    private func performConversion(assetId: String, modelContext: ModelContext, albumIdentifiers: [String]? = nil) async throws -> Int64 {
         guard let phAsset = photoService.getPHAsset(for: assetId) else {
             throw LivePhotoError.assetNotFound
         }
@@ -196,6 +218,19 @@ final class LivePhotosConverterViewModel {
             }
             return total + size
         }
+
+        // D1 (review pass): journal this swap like video/photo compression so a
+        // crash mid-conversion can't leave a permanent Live Photo duplicate.
+        // Throws when the pending row is not durable — that aborts the
+        // conversion before any library write (no journal, no swap).
+        let journal = try CompressionJournal.beginPending(
+            modelContext: modelContext,
+            mediaType: .livePhoto,
+            assetId: assetId,
+            originalSize: originalSize,
+            compressedSize: 0,
+            exportPreset: "still"
+        )
 
         // Read the still-image resource bytes directly. Writing these bytes back
         // (rather than decoding to a UIImage and re-encoding) preserves the
@@ -239,13 +274,23 @@ final class LivePhotosConverterViewModel {
             throw LivePhotoError.invalidImageData
         }
 
-        // Capture album membership before deleting the original.
-        let albumIdentifiers = await photoService.userAlbumIdentifiers(containing: assetId)
+        // Capture album membership before deleting the original (batch callers
+        // pass the precomputed map; single conversions look it up directly).
+        let resolvedAlbumIds: [String]
+        if let precomputed = albumIdentifiers {
+            resolvedAlbumIds = precomputed
+        } else {
+            resolvedAlbumIds = await photoService.userAlbumIdentifiers(containing: assetId)
+        }
 
         // Save as a new still photo, preserving the original's metadata
         // (including hidden state — COMP-17). Burst membership cannot be
         // carried over: PHAssetCreationRequest has no burst-linkage API, so a
         // converted still loses its burst grouping.
+        //
+        // D1: the still is about to be written to the library — from here a
+        // crash could strand a copy whose id the journal never learned.
+        CompressionJournal.markSaveAttempted(journal, modelContext: modelContext)
         var placeholder: PHObjectPlaceholder?
         try await PHPhotoLibrary.shared().performChanges {
             let request = PHAssetCreationRequest.forAsset()
@@ -260,11 +305,15 @@ final class LivePhotosConverterViewModel {
         }
 
         guard let replacementId = placeholder?.localIdentifier else {
+            CompressionJournal.finalize(journal, outcome: .failed, modelContext: modelContext)
             throw LivePhotoError.invalidImageData
         }
+        // D1: the durable new copy exists — record it in the journal at the
+        // earliest crash point that could strand a duplicate.
+        CompressionJournal.recordReplacement(journal, replacementId: replacementId, compressedSize: Int64(imageData.count), modelContext: modelContext)
 
         // Restore album membership on the replacement (best effort).
-        for albumId in albumIdentifiers {
+        for albumId in resolvedAlbumIds {
             do {
                 try await photoService.addToAlbum(assetIdentifiers: [replacementId], albumIdentifier: albumId)
             } catch {
@@ -285,9 +334,21 @@ final class LivePhotosConverterViewModel {
             } catch {
                 rollbackSucceeded = false
             }
+            // Journal: on successful rollback nothing durable remains (the row
+            // resolves now); if rollback also failed the replacement is still in
+            // the library, so leave the row PENDING — only `reconcile` (which
+            // looks at pending rows) can remove the stranded copy, and a
+            // finalized row would hide it from that cleanup permanently.
+            if rollbackSucceeded {
+                CompressionJournal.finalize(journal, outcome: .failed, modelContext: modelContext)
+            }
             throw LivePhotoError.originalDeletionFailed(rollbackSucceeded: rollbackSucceeded)
         }
 
+        // Journal the replacement's actual byte size (not the savings): history
+        // computes savedBytes as originalSizeBytes - compressedSizeBytes.
+        journal.compressedSizeBytes = Int64(imageData.count)
+        CompressionJournal.finalize(journal, outcome: .completed, modelContext: modelContext)
         return max(0, originalSize - Int64(imageData.count))
     }
 }

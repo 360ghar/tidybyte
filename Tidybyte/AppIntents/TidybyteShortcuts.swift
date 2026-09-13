@@ -31,5 +31,22 @@ struct TidybyteShortcuts: AppShortcutsProvider {
             shortTitle: "Clean Screenshots",
             systemImageName: "camera.viewfinder"
         )
+        AppShortcut(
+            intent: FreeSpaceIntent(),
+            phrases: [
+                "How much can I free with \(.applicationName)",
+                "Check free space with \(.applicationName)"
+            ],
+            shortTitle: "How Much Can I Free?",
+            systemImageName: "arrow.down.circle"
+        )
+        AppShortcut(
+            intent: ShowSavingsIntent(),
+            phrases: [
+                "Show my savings in \(.applicationName)"
+            ],
+            shortTitle: "Show My Savings",
+            systemImageName: "chart.line.uptrend.xyaxis"
+        )
     }
 }

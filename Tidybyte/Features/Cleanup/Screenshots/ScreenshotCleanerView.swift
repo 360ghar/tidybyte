@@ -1,40 +1,37 @@
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct ScreenshotCleanerView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = ScreenshotCleanerViewModel()
     @State private var showDeleteConfirm = false
+    @Environment(\.requestReview) private var requestReview
+    @State private var isCelebrating = false
     @State private var selectedSwipeRoute: SwipeSessionRoute?
     @State private var previewAsset: AssetSummary?
     @State private var pendingSwipeReview = false
     @State private var cellToDelete: AssetSummary?
 
-    private let photoService = PhotoLibraryService()
+    private let photoService = PhotoLibraryService.shared
 
     private let columns = ResponsiveGrid.photo()
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             if viewModel.isLoading {
-                ScrollView {
-                    SkeletonGrid(columns: 3, rows: 5)
-                        .padding(Spacing.xs)
-                }
-                // D-01: explicit cancel while the initial fetch is in flight.
-                .overlay(alignment: .bottom) {
-                    Button {
-                        HapticHelper.impact(.light)
-                        viewModel.cancelScan()
-                    } label: {
-                        Text("Cancel")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, Spacing.lg)
-                            .padding(.vertical, Spacing.sm)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
+                // D-01: the fetch runs inside a cancellable task, so this is the
+                // one loading state that keeps a Cancel.
+                ToolLoadingView(onCancel: {
+                    HapticHelper.impact(.light)
+                    viewModel.cancelScan()
+                }) {
+                    ScrollView {
+                        SkeletonGrid(columns: 3, rows: 5)
+                            .padding(Spacing.xs)
                     }
-                    .padding(.bottom, Spacing.lg)
                 }
             } else if viewModel.screenshots.isEmpty {
                 EmptyStateView(
@@ -106,8 +103,9 @@ struct ScreenshotCleanerView: View {
                 }
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.isLoading)
+        .animation(.reduceMotionAware(.spring(response: 0.35, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.isLoading)
         .navigationTitle("Screenshots")
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) screenshots")
         .onDisappear {
             // D-01: stop an in-flight fetch when the user leaves the screen.
             viewModel.cancelScan()
@@ -128,7 +126,7 @@ struct ScreenshotCleanerView: View {
             if !viewModel.screenshots.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
                     SelectAllToolbarButton(
-                        allSelected: viewModel.selectedIds.count == viewModel.screenshots.count,
+                        allSelected: viewModel.allVisibleSelected,
                         selectAll: { viewModel.selectAll() },
                         deselectAll: { viewModel.deselectAll() }
                     )
@@ -145,20 +143,29 @@ struct ScreenshotCleanerView: View {
         .alert("Delete Screenshots", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Delete \(viewModel.selectedIds.count) Screenshots", role: .destructive) {
-                Task { await viewModel.deleteSelected() }
+                Task {
+                    await viewModel.deleteSelected()
+                    // C12: success feedback, gated on an actual deletion.
+                    if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                    }
+                }
             }
         } message: {
             Text("This action cannot be undone.")
         }
-        .alert("Screenshot Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("OK") {
-                viewModel.errorMessage = nil
+        // Non-modal error surface. `safeAreaInset` pushes the grid down rather
+        // than floating the banner over its first row.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Screenshots",
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
             }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
         }
         .alert("Delete Screenshot", isPresented: .init(
             get: { cellToDelete != nil },

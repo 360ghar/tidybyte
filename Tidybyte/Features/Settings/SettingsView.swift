@@ -32,12 +32,23 @@ struct SettingsView: View {
     @State private var showResetConfirm = false
     @State private var showResetErrorAlert = false
     @State private var photoPermissionStatus: PHAuthorizationStatus = .notDetermined
+    /// Drives the shared pre-prompt explainer for the "Allow Access to Photos"
+    /// row, so Settings asks the same way every other surface does.
+    @State private var showPhotoPermissionPrimer = false
     @State private var isRequestingNotificationPermission = false
     @State private var showNotificationDeniedAlert = false
     @State private var showMailUnavailableAlert = false
+    /// The last weekday we actually committed to the scheduler. The Reminder Day
+    /// picker reverts to this when permission was revoked, and the revert must
+    /// not be mistaken for a fresh user pick (that would loop forever: each
+    /// revert re-triggers `onChange`, whose revert re-triggers `onChange`…).
+    @State private var committedReminderWeekday = AppPreferences.reminderWeekday()
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
+    /// The same handler `RootView` injects, so granting from Settings updates
+    /// the tab gate in the same pass instead of on the next activation.
+    @Environment(PhotoPermissionHandler.self) private var permissionHandler
 
     private let feedbackEmail = "contact@sakshammittal.com"
 
@@ -158,6 +169,9 @@ struct SettingsView: View {
                                 let granted = await NotificationService.requestPermission()
                                 isRequestingNotificationPermission = false
                                 if granted {
+                                    // Keep the committed mirror in sync so a later
+                                    // revert lands on the day the user actually has.
+                                    committedReminderWeekday = reminderWeekday
                                     await NotificationService.scheduleWeeklyReminder(weekday: reminderWeekday)
                                 } else {
                                     remindersEnabled = false
@@ -175,16 +189,20 @@ struct SettingsView: View {
                             Text(day.1).tag(day.0)
                         }
                     }
-                    .onChange(of: reminderWeekday) { oldDay, newDay in
+                    .onChange(of: reminderWeekday) { _, newDay in
+                        // Ignore our own revert below — treating it as a user
+                        // pick would flip the value back and forth forever.
+                        guard newDay != committedReminderWeekday else { return }
                         Task {
                             // APP-14: if notification permission was revoked, the
                             // reschedule would silently no-op — revert the picker
                             // and surface the same alert as the toggle's deny path.
                             guard await NotificationService.isPermissionGranted() else {
-                                reminderWeekday = oldDay
+                                reminderWeekday = committedReminderWeekday
                                 showNotificationDeniedAlert = true
                                 return
                             }
+                            committedReminderWeekday = newDay
                             await NotificationService.scheduleWeeklyReminder(weekday: newDay)
                         }
                     }
@@ -212,6 +230,20 @@ struct SettingsView: View {
                     sendFeedback(subject: "TidyByte Feature Request", isBug: false)
                 } label: {
                     Label("Request a Feature", systemImage: "lightbulb")
+                }
+
+                // Same guarantee as the happy-path card's Rate button: the
+                // write-review deep link can't be silently swallowed by the
+                // OS prompt quota the way `requestReview` can.
+                Button {
+                    HapticHelper.impact(.light)
+                    openURL(AppStoreLinks.writeReviewURL)
+                } label: {
+                    Label("Rate TidyByte on the App Store", systemImage: "star.fill")
+                }
+
+                ShareLink(item: AppStoreLinks.shareMessage(statLine: nil)) {
+                    Label("Share with Friends", systemImage: "square.and.arrow.up")
                 }
             }
 
@@ -249,12 +281,43 @@ struct SettingsView: View {
                     Text(photoPermissionLabel)
                         .foregroundStyle(.secondary)
                 }
-                if photoPermissionStatus != .authorized && photoPermissionStatus != .limited {
+
+                // The offered action comes from the state itself. A fresh
+                // install asks for access here — through the same pre-prompt
+                // explainer every other surface uses — instead of opening the
+                // Settings app, where there is nothing to turn on yet.
+                switch permissionHandler.permissionState.presentation.action {
+                case .requestPermission:
+                    Button {
+                        showPhotoPermissionPrimer = true
+                    } label: {
+                        Label("Allow Access to Photos", systemImage: "checkmark")
+                    }
+                case .openSettings:
                     Button {
                         openSystemSettings()
                     } label: {
                         Label("Open Settings", systemImage: "arrow.up.right.square")
                     }
+                case .none:
+                    EmptyView()
+                }
+
+                if photoPermissionStatus == .limited {
+                    Button {
+                        PhotoPermissionHandler.presentLimitedLibraryPicker()
+                    } label: {
+                        Label("Add More Photos", systemImage: "photo.badge.plus")
+                    }
+                }
+
+                // `.restricted` deliberately has no button: Screen Time or
+                // device management keeps the Photos switch disabled, so the
+                // only useful thing to show is where the block comes from.
+                if permissionHandler.permissionState == .restricted {
+                    Text(permissionHandler.permissionState.presentation.message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -266,6 +329,11 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .photoPermissionPrimer(
+            isPresented: $showPhotoPermissionPrimer,
+            permissionHandler: permissionHandler,
+            onResolved: { refreshPhotoPermissionStatus() }
+        )
         .task {
             refreshPhotoPermissionStatus()
         }
@@ -274,14 +342,9 @@ struct SettingsView: View {
                 refreshPhotoPermissionStatus()
             }
         }
-        // Settings shows only `@AppStorage`-backed controls and inline `Bundle.main`
-        // version/build reads — all synchronous and always current — so there's no
-        // async/derived state to re-fetch. The gesture is wired purely for app-wide
-        // consistency (every screen pulls-to-refresh); the helper still fires its
-        // completion haptic to acknowledge the gesture.
-        .pullToRefresh {
-            refreshPhotoPermissionStatus()
-        }
+        // No pull-to-refresh (E8): Settings shows only `@AppStorage`-backed
+        // controls and inline `Bundle.main` reads — synchronous and always
+        // current — so the gesture could only fake work.
         .alert("Reset Swipe History", isPresented: $showResetConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Reset", role: .destructive) {

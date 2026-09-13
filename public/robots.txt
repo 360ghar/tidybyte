@@ -1,0 +1,50 @@
+# Standard crawlers
+User-agent: *
+Allow: /
+
+# CSS/JS are NOT blocked: crawlers need them to render the page, and blocking
+# render resources degrades Google's rendering-based evaluation.
+
+# AI search crawlers (allow — content appears in real-time answers)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Apple Intelligence
+User-agent: Applebot-Extended
+Allow: /
+
+# AI training crawlers (block — content not used for model training)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+# Common Crawl (used by many AI companies for training)
+User-agent: CCBot
+Disallow: /
+
+# Allow image crawling for Google Images
+User-agent: Googlebot-Image
+Allow: /assets/img/screenshots/
+Allow: /assets/img/icon-1024.png
+
+Sitemap: https://tidybyte.360ghar.com/sitemap-index.xml

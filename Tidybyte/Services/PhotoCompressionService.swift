@@ -37,6 +37,8 @@ actor PhotoCompressionService {
     func compressPhoto(
         assetId: String,
         preset: PhotoCompressionPreset,
+        onSaveWillCommit: (@MainActor @Sendable () -> Void)? = nil,
+        onReplacementSaved: (@MainActor @Sendable (String, Int64) -> Void)? = nil,
         onProgress: @escaping @MainActor @Sendable (Float) -> Void
     ) async throws -> CompressionResult {
         guard let phAsset = photoService.getPHAsset(for: assetId) else {
@@ -57,7 +59,7 @@ actor PhotoCompressionService {
             throw PhotoCompressionError.sizeUnknown
         }
 
-        guard let imageData = await photoService.loadFullImageData(for: assetId) else {
+        guard let imageData = await photoService.loadFullImageData(for: phAsset) else {
             throw PhotoCompressionError.imageDataLoadFailed
         }
         await onProgress(0.4)
@@ -108,6 +110,10 @@ actor PhotoCompressionService {
         let albumIdentifiers = await photoService.userAlbumIdentifiers(containing: assetId)
         let replacementFilename = heicFilename(from: resources.first?.originalFilename)
 
+        // D1: tell the journal a library write is about to begin (see
+        // VideoCompressionService.compressVideo) — reconcile uses it to tell a
+        // crash here apart from a crash during the encode, which strands nothing.
+        await onSaveWillCommit?()
         var placeholder: PHObjectPlaceholder?
         try await PHPhotoLibrary.shared().performChanges {
             let request = PHAssetCreationRequest.forAsset()
@@ -124,6 +130,9 @@ actor PhotoCompressionService {
         guard let replacementId = placeholder?.localIdentifier else {
             throw PhotoCompressionError.saveFailed("Failed to save compressed photo to library.")
         }
+        // D1: report the durable new copy to the journal immediately, with the
+        // real encoded size so the journal never has to guess at 0.
+        await onReplacementSaved?(replacementId, compressedSize)
         await onProgress(1.0)
 
         for albumId in albumIdentifiers {
@@ -137,15 +146,32 @@ actor PhotoCompressionService {
         // Delete the original only after confirming the replacement exists. If
         // deletion fails, roll the replacement back so we don't leave a
         // duplicate behind (COMP-02).
+        var originalDeleteUnconfirmed = false
         do {
-            try await photoService.deleteAssets(identifiers: [assetId])
+            let deleted = try await photoService.deleteAssets(identifiers: [assetId])
+            // SHARED-01: deleteAssets reports success as a SUBSET of its input —
+            // the per-identifier fallback returns a partial (or empty) set
+            // without throwing when it is cancelled mid-retry. An unconfirmed
+            // delete means the original is still in the library, so the swap
+            // must not be reported as done (that would credit savings for a
+            // duplicate and hide the leftover from the journal).
+            originalDeleteUnconfirmed = !deleted.contains(assetId)
         } catch {
+            originalDeleteUnconfirmed = true
+        }
+        if originalDeleteUnconfirmed {
             var rollbackSucceeded = false
             do {
-                try await photoService.deleteAssets(identifiers: [replacementId])
-                rollbackSucceeded = true
+                let rolledBack = try await photoService.deleteAssets(identifiers: [replacementId])
+                rollbackSucceeded = rolledBack.contains(replacementId)
             } catch {
                 rollbackSucceeded = false
+            }
+            // A cancelled delete left the library as we found it — report a
+            // cancellation so the batch loop can reset the row instead of
+            // claiming a failure the user did not cause.
+            if Task.isCancelled {
+                throw PhotoCompressionError.cancelled
             }
             throw PhotoCompressionError.originalDeletionFailed(rollbackSucceeded: rollbackSucceeded)
         }

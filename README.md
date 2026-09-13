@@ -30,6 +30,8 @@ A native iOS app that helps users clean up their photo library. Core UX is a Tin
 - Large file finder
 - Video compression
 - Storage dashboard
+- Activity & savings history (lifetime space freed, 30-day chart, per-tool breakdown)
+- Home Screen widget with interactive Swipe / Screenshots buttons, plus Siri and Shortcuts intents
 
 ## Requirements
 

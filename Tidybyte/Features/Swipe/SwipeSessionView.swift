@@ -1,16 +1,20 @@
 import SwiftUI
-import Photos
 
 struct SwipeSessionView: View {
     @Bindable var viewModel: SwipeSessionViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(AppNavigation.self) private var appNavigation
+    /// The app-wide handler `RootView` injects, so the empty-state permission
+    /// block offers the same ask the tab gate does.
+    @Environment(PhotoPermissionHandler.self) private var permissionHandler
 
-    @State private var dragOffset: CGSize = .zero
-    @State private var isDragging = false
-    @State private var swipeTask: Task<Void, Never>?
-    @State private var showUndoHint = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Single transient-message channel. The undo hint and the one-time zoom
+    /// hint both surface here so they can never stack or overlap.
+    @State private var toast: ToastMessage?
+    /// Drives the shared pre-prompt explainer when the empty state has to ask
+    /// for access rather than hand the user off to Settings.
+    @State private var showPermissionPrimer = false
+    @AppStorage(AppPreferences.Key.hasSeenZoomHint) private var hasSeenZoomHint = false
 
     var body: some View {
         let isBootstrapping = !viewModel.hasLoadedInitialAssets || viewModel.isLoading
@@ -28,25 +32,15 @@ struct SwipeSessionView: View {
                 emptyState
                 Spacer()
             } else {
-                // Card stack — capped to a phone-like width and centered so a single
-                // card doesn't span the full width of an iPad. The cap is a no-op on
-                // iPhone (screen is narrower than 560pt), preserving the 16pt inset.
-                cardStack
-                    .readableWidth(560)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-
-                // Action buttons
-                actionBar
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
+                // The card stack and its action bar live in their own view so a
+                // drag frame re-renders only the deck, not this whole screen.
+                SwipeCardDeck(viewModel: viewModel, onUndoHint: {
+                    toast = ToastMessage(text: "Marked for deletion — tap Undo to restore", systemImage: "trash")
+                })
             }
         }
-        .overlay(alignment: .top) {
-            if showUndoHint {
-                undoHintBanner
-            }
-        }
+        .toast($toast)
+        .photoPermissionPrimer(isPresented: $showPermissionPrimer, permissionHandler: permissionHandler)
         .navigationTitle("Swipe Session")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -85,7 +79,11 @@ struct SwipeSessionView: View {
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
                 }
-                .disabled(viewModel.undoStack.isEmpty)
+                .keyboardShortcut(.leftArrow, modifiers: [])
+                // Undo is inert during the animation window (wrong-card
+                // attribution, B1) and mid-commit (would resurrect a card the
+                // batch is deleting right now, B2).
+                .disabled(viewModel.undoStack.isEmpty || viewModel.isSwiping || viewModel.isDeletingBatch)
                 .accessibilityLabel("Undo")
                 .accessibilityHint("Reverts your last swipe")
             }
@@ -107,16 +105,47 @@ struct SwipeSessionView: View {
         .navigationDestination(isPresented: $viewModel.showCompletion) {
             SessionCompletionView(viewModel: viewModel)
         }
-        .alert("Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.errorMessage = nil } }
-        )) {
-            Button("OK") { viewModel.errorMessage = nil }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
+        // Non-modal error surface. The session is a full-screen task flow — a
+        // modal here blocks swiping until dismissed, while the banner leaves
+        // the deck usable when the failure is non-fatal.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let message = viewModel.errorMessage {
+                ToolErrorBanner(
+                    message: message,
+                    title: "Swipe Session",
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
+            }
         }
         .task {
             await viewModel.loadAssetsIfNeeded()
+            // One-time zoom hint, only when there is actually a card to pinch.
+            // An empty deck leaves the flag unset so the hint fires on a
+            // later session that has cards.
+            if !hasSeenZoomHint, viewModel.hasMoreCards {
+                hasSeenZoomHint = true
+                flashZoomHint()
+            }
+            // Register the live session so external launches (deep link /
+            // widget / intent) can respect the pending-deletion review gate
+            // instead of tearing the session down blindly (A1). Deliberately
+            // never cleared here: the reference is weak, a new session
+            // overwrites it, and any session that reaches home has already
+            // resolved its deletions through the review gate — so a stale
+            // entry can never wrongly trigger the gate. Registering only here
+            // (not pairing with onDisappear) matters: onDisappear fires when
+            // the completion screen pushes on top, which is exactly when the
+            // gate must stay armed.
+            appNavigation.setActiveSwipeSession(viewModel)
+        }
+        .onChange(of: viewModel.deletionReviewRequested) { _, requested in
+            // A deep link asked for a new session while this one held uncommitted
+            // deletions — push the review instead of tearing down silently (A1).
+            guard requested else { return }
+            viewModel.clearDeletionReviewRequest()
+            Task { await viewModel.endSession() }
         }
         .onChange(of: appNavigation.swipeDismissRequestID) { _, _ in
             // External dismissal (deep link / tab switch): never drop pending
@@ -130,7 +159,6 @@ struct SwipeSessionView: View {
             }
         }
         .onDisappear {
-            swipeTask?.cancel()
             // Any path that leaves the session view (back, empty-state exit,
             // external dismissal, completion push) releases the prefetch cache
             // so a session never pins images in the image manager (SWIPE-01).
@@ -155,174 +183,6 @@ struct SwipeSessionView: View {
         .accessibilityElement()
         .accessibilityLabel("Review progress")
         .accessibilityValue("\(min(viewModel.currentIndex, viewModel.assets.count)) of \(viewModel.assets.count) reviewed")
-    }
-
-    // MARK: - Card Stack
-
-    private var cardStack: some View {
-        GeometryReader { geometry in
-            ZStack {
-                ForEach(Array(viewModel.visibleCards.enumerated().reversed()), id: \.element.id) { index, asset in
-                    let isTop = index == 0
-                    let scale = 1.0 - CGFloat(index) * 0.05
-                    let yOffset = CGFloat(index) * 10
-
-                    CardView(
-                        asset: asset,
-                        photoService: viewModel.photoService,
-                        isTopCard: isTop,
-                        dragOffset: isTop ? dragOffset : .zero
-                    )
-                    .scaleEffect(isTop ? 1.0 : scale)
-                    .offset(y: isTop ? 0 : yOffset)
-                    .offset(x: isTop ? dragOffset.width : 0, y: isTop ? dragOffset.height : 0)
-                    .rotationEffect(isTop ? .degrees(Double(dragOffset.width / 20)) : .zero)
-                    .gesture(isTop && !viewModel.isPerformingMutation && !viewModel.isSwiping ? dragGesture(cardWidth: geometry.size.width) : nil)
-                    .animation(.reduceMotionAware(.spring(response: 0.3, dampingFraction: 0.8), reduceMotion: reduceMotion), value: dragOffset)
-                    .allowsHitTesting(isTop && !viewModel.isPerformingMutation)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityHidden(!isTop)
-                    .accessibilityLabel(isTop ? accessibilityLabel(for: asset) : Text(""))
-                    .accessibilityActions {
-                        if isTop {
-                            Button("Delete") { triggerDelete() }
-                            Button("Keep") { triggerKeep() }
-                            Button("Skip") { viewModel.skip() }
-                        }
-                    }
-                }
-            }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-        }
-    }
-
-    // MARK: - Drag Gesture
-
-    private func dragGesture(cardWidth: CGFloat) -> some Gesture {
-        DragGesture()
-            .onChanged { value in
-                if !isDragging {
-                    isDragging = true
-                    HapticHelper.impact(.light)
-                }
-                dragOffset = value.translation
-            }
-            .onEnded { value in
-                isDragging = false
-                let threshold = cardWidth * 0.4
-                let velocityThreshold: CGFloat = 500
-                let predictedWidth = value.predictedEndTranslation.width
-
-                if value.translation.width > threshold || predictedWidth > velocityThreshold {
-                    // Swipe right — keep
-                    HapticHelper.impact(.heavy)
-                    performSwipeAnimation(offset: CGSize(width: 1000, height: value.translation.height)) {
-                        viewModel.swipeRight()
-                    }
-                } else if value.translation.width < -threshold || predictedWidth < -velocityThreshold {
-                    // Swipe left — delete
-                    HapticHelper.impact(.heavy)
-                    performSwipeAnimation(offset: CGSize(width: -1000, height: value.translation.height)) {
-                        viewModel.swipeLeft()
-                        flashUndoHint()
-                    }
-                } else {
-                    // Snap back
-                    withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
-                        dragOffset = .zero
-                    }
-                }
-            }
-    }
-
-    // MARK: - Accessibility / Actions
-
-    private func accessibilityLabel(for asset: AssetSummary) -> Text {
-        var parts: [String] = [asset.mediaType == .video ? "Video" : "Photo"]
-        if let date = asset.creationDate {
-            parts.append(date.formatted(date: .abbreviated, time: .omitted))
-        }
-        parts.append(asset.formattedFileSize)
-        if asset.isFavorite { parts.append("Favorite") }
-        if asset.isLivePhoto { parts.append("Live Photo.") }
-        if !asset.isLocallyAvailable { parts.append("In iCloud.") }
-        return Text(parts.joined(separator: ", "))
-    }
-
-    private func triggerDelete() {
-        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        HapticHelper.impact(.heavy)
-        performSwipeAnimation(offset: CGSize(width: -1000, height: 0)) {
-            viewModel.swipeLeft()
-            flashUndoHint()
-        }
-    }
-
-    private func triggerKeep() {
-        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        HapticHelper.impact(.heavy)
-        performSwipeAnimation(offset: CGSize(width: 1000, height: 0)) {
-            viewModel.swipeRight()
-        }
-    }
-
-    private func flashUndoHint() {
-        withAnimation { showUndoHint = true }
-        Task {
-            try? await Task.sleep(for: .seconds(2.5))
-            withAnimation { showUndoHint = false }
-        }
-    }
-
-    // MARK: - Action Bar
-
-    private var actionBar: some View {
-        HStack(spacing: 32) {
-            // Delete button
-            Button {
-                triggerDelete()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 60, height: 60)
-                    .background(.red)
-                    .clipShape(Circle())
-                    .shadow(color: .red.opacity(0.3), radius: 8)
-            }
-            .accessibilityLabel("Delete")
-            .accessibilityHint("Marks this photo for deletion and shows the next one")
-
-            // Info / Skip button
-            Button {
-                viewModel.skip()
-            } label: {
-                Image(systemName: "forward.fill")
-                    .font(.title3)
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .background(Color(.systemGray))
-                    .clipShape(Circle())
-            }
-            .accessibilityLabel("Skip")
-            .accessibilityHint("Leaves this photo unchanged and shows the next one")
-
-            // Keep / Add to Album button
-            Button {
-                triggerKeep()
-            } label: {
-                Image(systemName: "checkmark")
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 60, height: 60)
-                    .background(.green)
-                    .clipShape(Circle())
-                    .shadow(color: .green.opacity(0.3), radius: 8)
-            }
-            .accessibilityLabel("Keep")
-            .accessibilityHint("Keeps this photo and lets you add it to an album")
-        }
-        .disabled(!viewModel.hasMoreCards || viewModel.isPerformingMutation)
     }
 
     // MARK: - Empty State
@@ -359,35 +219,47 @@ struct SwipeSessionView: View {
                 .scaleOnPress()
             } else if !viewModel.isPhotoLibraryAccessible {
                 // A permission problem reads as an empty library; surface it
-                // instead of "All Caught Up!" (SWIPE-09).
+                // instead of "All Caught Up!" (SWIPE-09). Copy and the offered
+                // action come from the shared presentation model, so this screen
+                // can never disagree with the tab gate about what a state means —
+                // in particular `.restricted` offers no button, because Screen
+                // Time or device management keeps the Photos switch disabled.
+                let presentation = permissionHandler.permissionState.presentation
+
                 Image(systemName: "lock.shield")
                     .font(.system(size: 64))
                     .foregroundStyle(.orange)
 
-                Text("Photo Access Required")
+                Text(presentation.title)
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
-                Text("TidyByte needs photo library access to show your photos here. Grant access in Settings, then try again.")
+                Text(presentation.message)
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.75)
                     .padding(.horizontal, Spacing.xxl)
 
-                Button {
-                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(settingsURL)
+                switch presentation.action {
+                case .requestPermission:
+                    Button {
+                        showPermissionPrimer = true
+                    } label: {
+                        emptyStateButtonLabel("Allow Access")
                     }
-                } label: {
-                    Text("Open Settings")
-                        .font(.headline)
-                        .padding(.horizontal, Spacing.xxxl)
-                        .padding(.vertical, Spacing.md)
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                    .scaleOnPress()
+                case .openSettings:
+                    Button {
+                        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(settingsURL)
+                        }
+                    } label: {
+                        emptyStateButtonLabel("Open Settings")
+                    }
+                    .scaleOnPress()
+                case .none:
+                    EmptyView()
                 }
-                .scaleOnPress()
             } else {
                 Image(systemName: "checkmark.circle")
                     .font(.system(size: 64))
@@ -422,49 +294,19 @@ struct SwipeSessionView: View {
         .padding()
     }
 
-    private var undoHintBanner: some View {
-        HStack(spacing: Spacing.sm) {
-            Image(systemName: "trash")
-            Text("Marked for deletion — tap Undo to restore")
-                .font(.footnote.weight(.medium))
-                .minimumScaleFactor(0.8)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, Spacing.sm)
-        .background(Capsule().fill(Color.black.opacity(0.8)))
-        .padding(.top, Spacing.sm)
-        .transition(.move(edge: .top).combined(with: .opacity))
-        .accessibilityHidden(true)
+    /// Filled primary button for the empty state, matching the styling of the
+    /// other empty-state actions.
+    private func emptyStateButtonLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .padding(.horizontal, Spacing.xxxl)
+            .padding(.vertical, Spacing.md)
+            .background(.blue)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
     }
 
-    private func performSwipeAnimation(
-        offset: CGSize,
-        action: @escaping @MainActor () async -> Void
-    ) {
-        // Serialize swipes: a second gesture during the animation window is
-        // ignored instead of racing the in-flight task (SWIPE-05).
-        guard !viewModel.isPerformingMutation, viewModel.beginSwipeAnimation() else { return }
-        withAnimation(.reduceMotionAware(.spring(response: 0.3, dampingFraction: 0.8), reduceMotion: reduceMotion)) {
-            dragOffset = offset
-        }
-
-        swipeTask?.cancel()
-        swipeTask = Task {
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else {
-                viewModel.endSwipeAnimation()
-                return
-            }
-            await MainActor.run {
-                // Only reset the offset if the drag actually ended — resetting
-                // mid-gesture yanks the card back from under a new drag (SWIPE-05).
-                if !isDragging {
-                    dragOffset = .zero
-                }
-            }
-            await action()
-            viewModel.endSwipeAnimation()
-        }
+    private func flashZoomHint() {
+        toast = ToastMessage(text: "Pinch or double-tap a photo to inspect it", systemImage: "magnifyingglass")
     }
 }

@@ -6,11 +6,23 @@ import Observation
 final class AppNavigation {
     var selectedTab: AppTab = .swipe
     var cleanupPath: [CleanupTool] = []
+    /// Push stack for the Storage tab. Storage previously had no stack; the
+    /// Activity & Savings screen is its first push destination.
+    var storagePath: [StorageRoute] = []
     private(set) var swipeDismissRequestID = UUID()
 
     /// One‑shot channel for external tabs (e.g., Storage) to launch a Swipe session
     /// with a custom filter. SwipeHomeView consumes this via `consumePendingSwipeFilter()`.
     private(set) var pendingSwipeFilter: SwipeFilter?
+
+    /// The live swipe session, registered by SwipeSessionView on appear and
+    /// cleared on disappear. Lets deep-link launches respect the session's
+    /// pending-deletion review gate instead of tearing it down blindly.
+    private(set) weak var activeSwipeSession: SwipeSessionViewModel?
+
+    func setActiveSwipeSession(_ session: SwipeSessionViewModel?) {
+        activeSwipeSession = session
+    }
 
     func showCleanup(tool: CleanupTool? = nil) {
         if let tool {
@@ -39,8 +51,11 @@ final class AppNavigation {
         switch link {
         case .storage:
             cleanupPath.removeAll()
+            storagePath.removeAll()
             selectedTab = .storage
             requestSwipeDismissal()
+        case .activity:
+            showActivity()
         case .swipe:
             returnToSwipeHome()
         case .cleanupHome:
@@ -48,6 +63,13 @@ final class AppNavigation {
         case .cleanupTool(let tool):
             showCleanup(tool: tool)
         }
+    }
+
+    /// Pushes the Activity & Savings screen inside the Storage tab.
+    func showActivity() {
+        storagePath = [.activity]
+        selectedTab = .storage
+        requestSwipeDismissal()
     }
 
     private func requestSwipeDismissal() {
@@ -66,6 +88,15 @@ final class AppNavigation {
         if case .customAssetIds(let ids) = filter, ids.count > 500 {
             AppLog.app.info("Launching Swipe session with \(ids.count, privacy: .public) asset IDs")
         }
+        // A mounted session with uncommitted deletions must not be torn down
+        // blindly — surface its completion review instead; the queued filter
+        // replays when the user next lands on the swipe home (A1).
+        if let session = activeSwipeSession, session.hasPendingDeletions {
+            pendingSwipeFilter = filter
+            selectedTab = .swipe
+            session.requestDeletionReview()
+            return
+        }
         pendingSwipeFilter = filter
         selectedTab = .swipe
     }
@@ -75,4 +106,9 @@ final class AppNavigation {
         defer { pendingSwipeFilter = nil }
         return pendingSwipeFilter
     }
+}
+
+/// Push destinations inside the Storage tab (the tab's `NavigationStack`).
+enum StorageRoute: Hashable {
+    case activity
 }

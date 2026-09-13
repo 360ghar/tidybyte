@@ -2,12 +2,21 @@
   "name": "tidybyte-site",
   "private": true,
   "version": "1.0.0",
-  "description": "Marketing site for TidyByte iOS app",
+  "description": "Marketing site for TidyByte iOS app (Astro)",
+  "type": "module",
   "scripts": {
-    "build": "tailwindcss -i ./src/input.css -o ./site/assets/css/styles.css --minify",
-    "dev": "tailwindcss -i ./src/input.css -o ./site/assets/css/styles.css --watch"
+    "dev": "concurrently -k \"tailwindcss -i ./src/input.css -o ./public/assets/css/styles.css --watch\" \"astro dev\"",
+    "build": "astro build && tailwindcss -i ./src/input.css -o ./dist/assets/css/styles.css --minify && node scripts/hash-assets.mjs",
+    "preview": "astro preview",
+    "check": "node scripts/hash-assets.mjs --check"
   },
   "devDependencies": {
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^7.3.2",
+    "concurrently": "^10.0.0",
+    "pixelmatch": "^7.2.0",
+    "playwright": "^1.55.0",
+    "pngjs": "^7.0.0",
     "tailwindcss": "^3.4.17"
   }
 }

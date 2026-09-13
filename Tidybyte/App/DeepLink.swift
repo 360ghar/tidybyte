@@ -6,6 +6,7 @@ import Observation
 /// `AppNavigation.handle(_:)` so there's a single routing code path.
 enum DeepLink: Sendable, Equatable {
     case storage
+    case activity
     case swipe
     case cleanupHome
     case cleanupTool(CleanupTool)
@@ -15,6 +16,7 @@ enum DeepLink: Sendable, Equatable {
         guard url.scheme == "tidybyte" else { return nil }
         switch url.host {
         case "storage": return .storage
+        case "activity": return .activity
         case "swipe": return .swipe
         case "cleanup":
             if let segment = url.pathComponents.first(where: { $0 != "/" }),

@@ -1,0 +1,79 @@
+  <main id="main">
+    <div class="container-prose">
+      <header class="mx-auto max-w-prose">
+        <p class="badge mb-5">Privacy</p>
+        <h1 class="h-display">Privacy Policy</h1>
+        <p class="lede mt-5">TidyByte is built around a single promise: your photos never leave your phone. This page explains exactly what data we do and don&rsquo;t collect, and why the App Store privacy label says &ldquo;Data Not Collected.&rdquo;</p>
+        <p class="muted mt-6 text-xs">Effective date: January 1, 2026 &middot; Last updated: January 1, 2026</p>
+      </header>
+
+      <article class="prose-section mt-12 space-y-12">
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">1. Overview</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte is a photo library cleanup app for iPhone. Every operation &mdash; reviewing, duplicate detection, blur detection, compression, conversion &mdash; runs locally on your device using Apple&rsquo;s system frameworks. The app performs no network requests of any kind. There is no account, no login, and no server component.</p>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Learn more about <a href="/#features" class="link hover:underline">all cleanup features</a> or <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="link hover:underline" target="_blank" rel="noopener">download TidyByte</a>.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">2. Data we collect</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg"><strong class="font-semibold text-ink">None.</strong> TidyByte performs no network requests, runs no analytics SDK, includes no advertising SDK, and has no user account system. There is no server. The App Store privacy label for TidyByte reads &ldquo;Data Not Collected.&rdquo;</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">3. How the app works</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">All processing happens on-device using Apple&rsquo;s system frameworks:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li><strong class="font-semibold text-ink">Photos framework</strong> &mdash; reads from and writes to your local photo library.</li>
+            <li><strong class="font-semibold text-ink">Vision framework</strong> &mdash; generates feature prints for near-duplicate detection and analyzes image quality (blur, exposure).</li>
+            <li><strong class="font-semibold text-ink">AVFoundation</strong> &mdash; compresses videos and re-encodes photos on-device.</li>
+            <li><strong class="font-semibold text-ink">SwiftData</strong> &mdash; stores local app records (swipe decisions, compression history) in a sandboxed database on your phone.</li>
+          </ul>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte ships no third-party SDKs and no third-party code. Every line that touches your library is auditable in the public source repository.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">4. Permissions the app requests</h2>
+
+          <h3 class="mt-6 text-lg font-semibold text-ink">Photo Library (read &amp; write)</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Required. The app cannot function without it. TidyByte uses this permission only to read your library for the swipe review and cleanup tools, and to write compressed videos or converted Live Photos back to the library. We never upload or transmit the data &mdash; the framework accesses local files on your device through Apple&rsquo;s standard, sandboxed APIs.</p>
+
+          <h3 class="mt-6 text-lg font-semibold text-ink">Notifications</h3>
+          <p class="muted mt-2 text-base leading-relaxed sm:text-lg">Optional. Requested only if you enable &ldquo;Cleanup Reminders&rdquo; in Settings. Used solely to schedule local reminders via the iOS notification system.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">5. Data storage on your device</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte stores a small amount of local data using SwiftData to power features and history:</p>
+          <ul class="muted mt-4 space-y-2 text-base sm:text-lg">
+            <li><code class="rounded bg-surface-card px-1.5 py-0.5 text-sm text-ink">SwipeRecord</code> &mdash; asset local identifiers and your keep/delete decisions. The actual photo data is never copied.</li>
+            <li><code class="rounded bg-surface-card px-1.5 py-0.5 text-sm text-ink">CompressionRecord</code> &mdash; bookkeeping for video and photo compression jobs.</li>
+            <li><code class="rounded bg-surface-card px-1.5 py-0.5 text-sm text-ink">StorageSnapshot</code> &mdash; cached storage breakdown used by the dashboard.</li>
+          </ul>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">This data never leaves your device and can be cleared at any time via <strong class="font-semibold text-ink">Settings &rarr; Reset Swipe History</strong> inside the app.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">6. Children&rsquo;s privacy</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte is not directed at children under 13. We do not knowingly collect any data from anyone &mdash; the app is fully local and has no network component of any kind.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">7. Open source</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">TidyByte&rsquo;s source code is publicly available under the MIT License. Anyone can audit the claims on this page. If you find something that contradicts this policy, please open an issue.</p>
+          <p class="mt-4">
+            <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="link hover:underline">View the source on GitHub &rarr;</a>
+          </p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">8. Changes to this policy</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">If we ever change anything material on this page, we&rsquo;ll bump the date at the top and note it in the <a href="/changelog" class="link hover:underline">changelog</a>. As of today, no data is collected and we have no plans to change that.</p>
+        </section>
+
+        <section>
+          <h2 class="h-section text-2xl sm:text-3xl">9. Contact</h2>
+          <p class="muted mt-4 text-base leading-relaxed sm:text-lg">Questions? Email <a href="mailto:contact@sakshammittal.com" class="link hover:underline">contact@sakshammittal.com</a> or open an issue on <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="link hover:underline">GitHub</a>.</p>
+        </section>
+      </article>
+    </div>
+    </main>
