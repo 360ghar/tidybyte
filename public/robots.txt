@@ -47,4 +47,4 @@ User-agent: Googlebot-Image
 Allow: /assets/img/screenshots/
 Allow: /assets/img/icon-1024.png
 
-Sitemap: https://tidybyte.360ghar.com/sitemap.xml
+Sitemap: https://tidybyte.360ghar.com/sitemap-index.xml

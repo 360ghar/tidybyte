@@ -4,6 +4,14 @@
 (function () {
   'use strict';
 
+  // Keep in sync with src/input.css: the drawer-out keyframe duration.
+  var DRAWER_EXIT = 160;
+
+  function prefersReduced() {
+    return Boolean(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initMobileMenu();
     initFaqAccordion();
@@ -16,15 +24,46 @@
     var menu = document.querySelector('[data-mobile-menu]');
     if (!toggle || !menu) return;
 
+    var reduced = prefersReduced();
+    var closing = false;
+    var closeTimer = null;
+
     // Ensure the menu starts hidden on mobile (the component classes set
     // visibility at md+, so we only need to keep the closed state consistent).
     if (!menu.hasAttribute('data-open')) menu.setAttribute('data-open', 'false');
 
+    // The drawer animates its own height, so `hidden` has to stay off until
+    // the collapse finishes. Scroll unlocks and aria-expanded flips right
+    // away: the menu is already closed as far as the document is concerned.
+    function finishClose() {
+      window.clearTimeout(closeTimer);
+      closeTimer = null;
+      closing = false;
+      menu.classList.remove('is-closing');
+      menu.classList.add('hidden');
+    }
+
     function setOpen(isOpen) {
       toggle.setAttribute('aria-expanded', String(isOpen));
       menu.setAttribute('data-open', String(isOpen));
-      menu.classList.toggle('hidden', !isOpen);
       document.body.classList.toggle('overflow-hidden', isOpen);
+
+      if (isOpen) {
+        window.clearTimeout(closeTimer);
+        closeTimer = null;
+        closing = false;
+        menu.classList.remove('is-closing');
+        menu.classList.remove('hidden');
+        return;
+      }
+
+      if (closing) return;
+      if (menu.classList.contains('hidden')) return;
+      if (reduced) { finishClose(); return; }
+
+      closing = true;
+      menu.classList.add('is-closing');
+      closeTimer = window.setTimeout(finishClose, DRAWER_EXIT + 120);
     }
 
     toggle.addEventListener('click', function () {
@@ -84,7 +123,7 @@
     form.hidden = true;
 
     var thanks = document.createElement('div');
-    thanks.className = 'clay-card p-6 sm:p-8';
+    thanks.className = 'clay-card motion-enter p-6 sm:p-8';
     thanks.setAttribute('role', 'status');
     thanks.setAttribute('aria-live', 'polite');
     thanks.innerHTML =

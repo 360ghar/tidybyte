@@ -8,12 +8,23 @@ struct CardView: View {
     let isTopCard: Bool
 
     var dragOffset: CGSize = .zero
+    /// True while the deck's swipe drag is active. Replaces a per-frame
+    /// `onChange(of: dragOffset)`, so the drag handler runs twice per gesture
+    /// instead of 60-120 times a second.
+    var isDragging: Bool = false
     /// Incremented by SwipeSessionView's "Zoom" accessibility action; CardView
     /// toggles zoom on change (only the top card receives a non-zero value).
     var zoomToggleRequest: Int = 0
     /// Reports whether this card is currently zoomed so the session can
     /// suspend its swipe drag while a pinch/pan is inspecting the photo.
     var onZoomChanged: ((Bool) -> Void)? = nil
+    /// Swipe drag relayed from this card's own gesture graph. The drag has to
+    /// live here, on the same view as the pinch: a gesture attached to a
+    /// descendant view blocks an ancestor's drag outright (measured — the card
+    /// did not move a single pixel), and neither `.simultaneousGesture` nor
+    /// `.highPriorityGesture` on the ancestor overrides that.
+    var onSwipeDragChanged: ((CGSize) -> Void)? = nil
+    var onSwipeDragEnded: ((DragGesture.Value, CGFloat) -> Void)? = nil
 
     @State private var image: UIImage?
     @State private var player: AVPlayer?
@@ -53,32 +64,7 @@ struct CardView: View {
             ZStack {
                 // Image
                 if let image {
-                    Image(uiImage: fullResImage ?? image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
-                        // Zoom applies after clipping so the image can grow
-                        // past the card; the card-level clipShape trims it.
-                        .scaleEffect(zoomState.scale)
-                        .offset(zoomState.offset)
-                        .transition(.opacity)
-                        // Pinch to inspect (photos only — videos keep their
-                        // play/fullscreen flow). One static gesture graph: the
-                        // pan member never recognizes while unzoomed (infinite
-                        // threshold), so single-finger drags still reach the
-                        // session's swipe drag; while zoomed that drag is
-                        // nil'd and the pan owns the touch.
-                        .gesture(
-                            asset.mediaType != .video
-                                ? pinchGesture(frame: geometry.size)
-                                    .simultaneously(with: panGesture(frame: geometry.size))
-                                : nil
-                        )
-                        .onTapGesture(count: 2) {
-                            guard asset.mediaType != .video else { return }
-                            toggleZoom(frame: geometry.size)
-                        }
+                    zoomableImage(image, frame: geometry.size)
                 } else {
                     SkeletonView(cornerRadius: 0)
                 }
@@ -227,7 +213,18 @@ struct CardView: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
-            .cardShadow()
+            // The top card carries the full card shadow; the two cards behind it
+            // get a lighter one. While a drag is live the top card drops to that
+            // same light shadow: an offscreen shadow pass on a rotating,
+            // translating layer is recomputed every frame, and this is the one
+            // view that moves during a drag. The look is unchanged at rest, and
+            // at full drag displacement the card is off-screen anyway.
+            .shadow(
+                color: .black.opacity(isDragging ? 0.10 : (isTopCard ? 0.2 : 0.10)),
+                radius: isDragging ? 3 : (isTopCard ? 8 : 3),
+                x: 0,
+                y: 4
+            )
             // Inside the GeometryReader so the accessibility-initiated toggle
             // clamps against the real card frame, not a screen-size proxy.
             .onChange(of: zoomToggleRequest) { _, _ in
@@ -256,10 +253,12 @@ struct CardView: View {
                 resetZoom()
             }
         }
-        .onChange(of: dragOffset) { _, newValue in
+        .onChange(of: isDragging) { _, dragging in
             // The user started dragging the card — stop playback so the video
-            // doesn't keep playing under the swipe (SWIPE-07).
-            if newValue != .zero {
+            // doesn't keep playing under the swipe (SWIPE-07). Keyed on the
+            // gesture's own flag rather than on `dragOffset`, which changed on
+            // every frame of the drag and so ran this handler 60-120×/s.
+            if dragging {
                 stopPlayback()
             }
         }
@@ -287,6 +286,54 @@ struct CardView: View {
         }
     }
 
+    /// The card image plus its gesture graph.
+    ///
+    /// Swipe and inspect share ONE gesture graph, on this view. That is
+    /// deliberate and load-bearing: a gesture attached here (a descendant of the
+    /// deck's card slot) takes the touch away from any drag attached further up
+    /// the hierarchy. Measured on the simulator, the card did not move a single
+    /// pixel during a drag until the finger lifted, and neither
+    /// `.simultaneousGesture` nor `.highPriorityGesture` on the ancestor changed
+    /// that. So the swipe is relayed to the deck through the drag callbacks
+    /// instead of being attached above this view.
+    @ViewBuilder
+    private func zoomableImage(_ image: UIImage, frame: CGSize) -> some View {
+        let base = Image(uiImage: fullResImage ?? image)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(width: frame.width, height: frame.height)
+            .clipped()
+            // Zoom applies after clipping so the image can grow past the card;
+            // the card-level clipShape trims it.
+            .scaleEffect(zoomState.scale)
+            .offset(zoomState.offset)
+            .transition(.opacity)
+
+        if !isTopCard {
+            // Only the leading card is interactive; the ones behind it are
+            // covered by `.allowsHitTesting(false)` and need no gesture graph.
+            base
+        } else if asset.mediaType == .video {
+            // Videos keep their inline play affordance and can still be swiped.
+            base.gesture(unifiedDrag(frame: frame))
+        } else {
+            // One graph for the swipe and the pinch, with the double-tap as a
+            // separate simultaneous gesture. This is the shape verified end to
+            // end on the simulator: the card tracks the finger during a drag,
+            // snaps back on release, commits past the threshold, and a
+            // double-tap zooms in and out. Folding the tap in as a third
+            // `simultaneously` member is untested, not known-bad.
+            base
+                .gesture(
+                    pinchGesture(frame: frame)
+                        .simultaneously(with: unifiedDrag(frame: frame))
+                )
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded { toggleZoom(frame: frame) }
+                )
+        }
+    }
+
     private func loadImage() async {
         // Full-screen pixel size matches the swipe session's prefetch target so the
         // cached image is reused instead of re-fetched. Avoids deprecated UIScreen.main.
@@ -311,20 +358,33 @@ struct CardView: View {
             }
     }
 
-    private func panGesture(frame: CGSize) -> some Gesture {
-        // Infinite threshold while unzoomed: the gesture never recognizes, so
-        // it cannot steal single-finger drags from the swipe deck. Only this
-        // threshold value flips on zoom transitions — never the graph shape —
-        // so a live pinch is never disturbed.
-        DragGesture(minimumDistance: zoomState.isZoomed ? 1.0 : .infinity)
+    /// One drag serves both interactions, chosen by zoom state rather than by
+    /// swapping the gesture graph (which would tear down a live pinch and skip
+    /// its `onEnded`):
+    /// - unzoomed: relays the swipe to the deck, which owns the commit policy
+    /// - zoomed: pans the zoomed photo
+    /// Combined with the pinch on the same view so both can recognize.
+    private func unifiedDrag(frame: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 1)
             .onChanged { value in
-                guard zoomState.isZoomed else { return }
-                if panStartOffset == nil { panStartOffset = zoomState.offset }
-                let content = renderedContentSize(for: frame)
-                zoomState.setPan(base: panStartOffset ?? .zero, translation: value.translation, frame: frame, contentSize: content)
+                if zoomState.isZoomed {
+                    if panStartOffset == nil { panStartOffset = zoomState.offset }
+                    zoomState.setPan(
+                        base: panStartOffset ?? .zero,
+                        translation: value.translation,
+                        frame: frame,
+                        contentSize: renderedContentSize(for: frame)
+                    )
+                } else {
+                    onSwipeDragChanged?(value.translation)
+                }
             }
-            .onEnded { _ in
-                panStartOffset = nil
+            .onEnded { value in
+                if zoomState.isZoomed {
+                    panStartOffset = nil
+                } else {
+                    onSwipeDragEnded?(value, frame.width)
+                }
             }
     }
 

@@ -92,8 +92,21 @@
     var start = (state.page - 1) * PER_PAGE;
     var end = Math.min(start + PER_PAGE, total);
 
+    // Only cards that were not already on screen get a stagger index. Cards
+    // that persist across a filter keep the delay they had, because changing
+    // animation-delay on a finished animation would push it back into its
+    // delay phase and flash the card out again.
+    var wasVisible = [];
+    cards.forEach(function (card) {
+      if (!card.classList.contains('hidden')) wasVisible.push(card);
+    });
     cards.forEach(function (card) { card.classList.add('hidden'); });
-    posts.slice(start, end).forEach(function (card) { card.classList.remove('hidden'); });
+    posts.slice(start, end).forEach(function (card, index) {
+      if (wasVisible.indexOf(card) === -1) {
+        card.style.setProperty('--i', String(Math.min(index, 7)));
+      }
+      card.classList.remove('hidden');
+    });
 
     if (gridHeading) {
       gridHeading.textContent = state.cat === 'all' ? 'All posts' : CAT_LABELS[state.cat];

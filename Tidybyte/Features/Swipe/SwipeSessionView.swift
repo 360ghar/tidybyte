@@ -1,24 +1,20 @@
 import SwiftUI
-import Photos
 
 struct SwipeSessionView: View {
     @Bindable var viewModel: SwipeSessionViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(AppNavigation.self) private var appNavigation
+    /// The app-wide handler `RootView` injects, so the empty-state permission
+    /// block offers the same ask the tab gate does.
+    @Environment(PhotoPermissionHandler.self) private var permissionHandler
 
-    @State private var dragOffset: CGSize = .zero
-    @State private var isDragging = false
-    @State private var swipeTask: Task<Void, Never>?
     /// Single transient-message channel. The undo hint and the one-time zoom
     /// hint both surface here so they can never stack or overlap.
     @State private var toast: ToastMessage?
-    /// True while the top card is pinch-zoomed: the swipe drag yields so a
-    /// one-finger drag pans the photo instead of committing a swipe.
-    @State private var isTopCardZoomed = false
-    /// Monotonic counter driving CardView's "Zoom" accessibility action.
-    @State private var zoomToggleRequest = 0
+    /// Drives the shared pre-prompt explainer when the empty state has to ask
+    /// for access rather than hand the user off to Settings.
+    @State private var showPermissionPrimer = false
     @AppStorage(AppPreferences.Key.hasSeenZoomHint) private var hasSeenZoomHint = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let isBootstrapping = !viewModel.hasLoadedInitialAssets || viewModel.isLoading
@@ -36,21 +32,15 @@ struct SwipeSessionView: View {
                 emptyState
                 Spacer()
             } else {
-                // Card stack — capped to a phone-like width and centered so a single
-                // card doesn't span the full width of an iPad. The cap is a no-op on
-                // iPhone (screen is narrower than 560pt), preserving the 16pt inset.
-                cardStack
-                    .readableWidth(560)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-
-                // Action buttons
-                actionBar
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
+                // The card stack and its action bar live in their own view so a
+                // drag frame re-renders only the deck, not this whole screen.
+                SwipeCardDeck(viewModel: viewModel, onUndoHint: {
+                    toast = ToastMessage(text: "Marked for deletion — tap Undo to restore", systemImage: "trash")
+                })
             }
         }
         .toast($toast)
+        .photoPermissionPrimer(isPresented: $showPermissionPrimer, permissionHandler: permissionHandler)
         .navigationTitle("Swipe Session")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -168,28 +158,7 @@ struct SwipeSessionView: View {
                 dismiss()
             }
         }
-        .onChange(of: viewModel.currentIndex) {
-            // The deck advanced (swipe/skip/undo/album confirm) — the parent
-            // owns the zoom flag, so clear it here rather than trusting the
-            // outgoing card's callback (whose onZoomChanged prop is already
-            // nil by teardown time). Resetting the request counter also stops
-            // a promoted card from re-firing a stale VoiceOver zoom request.
-            isTopCardZoomed = false
-            zoomToggleRequest = 0
-            dragOffset = .zero
-            isDragging = false
-        }
-        .onChange(of: isTopCardZoomed) {
-            // Zoom engaged mid-swipe-drag: the in-flight drag tears down
-            // without onEnded, so snap the card back instead of leaving it
-            // tilted with no swipe committed.
-            if isTopCardZoomed {
-                dragOffset = .zero
-                isDragging = false
-            }
-        }
         .onDisappear {
-            swipeTask?.cancel()
             // Any path that leaves the session view (back, empty-state exit,
             // external dismissal, completion push) releases the prefetch cache
             // so a session never pins images in the image manager (SWIPE-01).
@@ -214,245 +183,6 @@ struct SwipeSessionView: View {
         .accessibilityElement()
         .accessibilityLabel("Review progress")
         .accessibilityValue("\(min(viewModel.currentIndex, viewModel.assets.count)) of \(viewModel.assets.count) reviewed")
-    }
-
-    // MARK: - Card Stack
-
-    private var cardStack: some View {
-        GeometryReader { geometry in
-            ZStack {
-                ForEach(Array(viewModel.visibleCards.enumerated().reversed()), id: \.element.id) { index, asset in
-                    let isTop = index == 0
-                    let scale = 1.0 - CGFloat(index) * 0.05
-                    let yOffset = CGFloat(index) * 10
-
-                    CardView(
-                        asset: asset,
-                        photoService: viewModel.photoService,
-                        isTopCard: isTop,
-                        dragOffset: isTop ? dragOffset : .zero,
-                        zoomToggleRequest: isTop ? zoomToggleRequest : 0,
-                        onZoomChanged: isTop ? { isTopCardZoomed = $0 } : nil
-                    )
-                    .scaleEffect(isTop ? 1.0 : scale)
-                    .offset(y: isTop ? 0 : yOffset)
-                    .offset(x: isTop ? dragOffset.width : 0, y: isTop ? dragOffset.height : 0)
-                    .rotationEffect(isTop ? .degrees(Double(dragOffset.width / 20)) : .zero)
-                    .gesture(
-                        isTop && !isTopCardZoomed && !viewModel.isPerformingMutation && !viewModel.isSwiping
-                            ? dragGesture(cardWidth: geometry.size.width)
-                            : nil
-                    )
-                    .animation(.reduceMotionAware(.spring(response: 0.3, dampingFraction: 0.8), reduceMotion: reduceMotion), value: dragOffset)
-                    .allowsHitTesting(isTop && !viewModel.isPerformingMutation)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityHidden(!isTop)
-                    .accessibilityLabel(isTop ? accessibilityLabel(for: asset) : Text(""))
-                    .accessibilityActions {
-                        if isTop {
-                            Button("Delete") { triggerDelete() }
-                            Button("Keep") { triggerKeep() }
-                            Button("Add to Album") { triggerKeepWithAlbum() }
-                            Button("Skip") { viewModel.skip() }
-                            if asset.mediaType != .video {
-                                Button(isTopCardZoomed ? "Zoom Out" : "Zoom In") {
-                                    zoomToggleRequest += 1
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-        }
-    }
-
-    // MARK: - Drag Gesture
-
-    private func dragGesture(cardWidth: CGFloat) -> some Gesture {
-        DragGesture()
-            .onChanged { value in
-                if !isDragging {
-                    isDragging = true
-                    HapticHelper.impact(.light)
-                }
-                dragOffset = value.translation
-            }
-            .onEnded { value in
-                isDragging = false
-                // A pinch can zoom the card mid-drag (the drag gesture was
-                // already attached when the touch began) — snap back instead
-                // of committing a swipe the user replaced with an inspection.
-                guard !isTopCardZoomed else {
-                    withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
-                        dragOffset = .zero
-                    }
-                    return
-                }
-                let threshold = cardWidth * 0.4
-                let velocityThreshold: CGFloat = 500
-                let predictedWidth = value.predictedEndTranslation.width
-                let predictedHeight = value.predictedEndTranslation.height
-
-                // Horizontal checks come first so an ambiguous diagonal drag
-                // resolves to keep/delete, not the album picker — the up-swipe
-                // only wins when the vertical motion is unambiguous.
-                if value.translation.width > threshold || predictedWidth > velocityThreshold {
-                    // Swipe right — keep
-                    HapticHelper.impact(.heavy)
-                    performSwipeAnimation(offset: CGSize(width: 1000, height: value.translation.height)) {
-                        viewModel.swipeRight()
-                    }
-                } else if value.translation.width < -threshold || predictedWidth < -velocityThreshold {
-                    // Swipe left — delete
-                    HapticHelper.impact(.heavy)
-                    performSwipeAnimation(offset: CGSize(width: -1000, height: value.translation.height)) {
-                        viewModel.swipeLeft()
-                        flashUndoHint()
-                    }
-                } else if value.translation.height < -threshold || predictedHeight < -velocityThreshold {
-                    // Swipe up — file this photo into an album. Explicit intent:
-                    // the picker opens and the card stays until the choice resolves.
-                    HapticHelper.impact(.heavy)
-                    performSwipeAnimation(offset: CGSize(width: value.translation.width, height: -1000)) {
-                        viewModel.keepWithAlbum()
-                    }
-                } else {
-                    // Snap back
-                    withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
-                        dragOffset = .zero
-                    }
-                }
-            }
-    }
-
-    // MARK: - Accessibility / Actions
-
-    private func accessibilityLabel(for asset: AssetSummary) -> Text {
-        var parts: [String] = [asset.mediaType == .video ? "Video" : "Photo"]
-        if let date = asset.creationDate {
-            parts.append(date.formatted(date: .abbreviated, time: .omitted))
-        }
-        parts.append(asset.displaySize)
-        if asset.isFavorite { parts.append("Favorite") }
-        if asset.isLivePhoto { parts.append("Live Photo.") }
-        if !asset.isLocallyAvailable { parts.append("In iCloud.") }
-        return Text(parts.joined(separator: ", "))
-    }
-
-    private func triggerDelete() {
-        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        HapticHelper.impact(.heavy)
-        performSwipeAnimation(offset: CGSize(width: -1000, height: 0)) {
-            viewModel.swipeLeft()
-            flashUndoHint()
-        }
-    }
-
-    private func triggerKeep() {
-        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        HapticHelper.impact(.heavy)
-        performSwipeAnimation(offset: CGSize(width: 1000, height: 0)) {
-            viewModel.swipeRight()
-        }
-    }
-
-    private func triggerKeepWithAlbum() {
-        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        HapticHelper.impact(.heavy)
-        performSwipeAnimation(offset: CGSize(width: 0, height: -1000)) {
-            viewModel.keepWithAlbum()
-        }
-    }
-
-    private func flashUndoHint() {
-        toast = ToastMessage(text: "Marked for deletion — tap Undo to restore", systemImage: "trash")
-    }
-
-    // MARK: - Action Bar
-
-    private var actionBar: some View {
-        // The four controls are fixed-diameter circles, so at accessibility text
-        // sizes their scaled diameters can exceed the screen width. `ViewThatFits`
-        // picks the roomiest spacing that still fits rather than letting the row
-        // clip the outer buttons — which is what a fixed 32pt spacing did once the
-        // buttons grew.
-        ViewThatFits(in: .horizontal) {
-            actionBarRow(spacing: 32)
-            actionBarRow(spacing: Spacing.lg)
-            actionBarRow(spacing: Spacing.md)
-            actionBarRow(spacing: Spacing.xs)
-        }
-        // isSwiping included so Skip can't advance the deck mid-animation
-        // while the queued gesture would act on the wrong card (B1).
-        .disabled(!viewModel.hasMoreCards || viewModel.isPerformingMutation || viewModel.isSwiping)
-    }
-
-    private func actionBarRow(spacing: CGFloat) -> some View {
-        HStack(spacing: spacing) {
-            // Delete button
-            Button {
-                triggerDelete()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                    .scaledSquare(ScaledSize.actionButton)
-                    .background(.red)
-                    .clipShape(Circle())
-                    .shadow(color: .red.opacity(0.3), radius: 8)
-            }
-            .keyboardShortcut(.delete, modifiers: [])
-            .accessibilityLabel("Delete")
-            .accessibilityHint("Marks this photo for deletion and shows the next one")
-
-            // Info / Skip button
-            Button {
-                HapticHelper.impact(.light)
-                viewModel.skip()
-            } label: {
-                Image(systemName: "forward.fill")
-                    .font(.title3)
-                    .foregroundStyle(.white)
-                    .scaledSquare(ScaledSize.secondaryActionButton)
-                    .background(Color(.systemGray))
-                    .clipShape(Circle())
-            }
-            .keyboardShortcut(.rightArrow, modifiers: [])
-            .accessibilityLabel("Skip")
-            .accessibilityHint("Leaves this photo unchanged and shows the next one")
-
-            // Add to Album button — same as an up-swipe
-            Button {
-                triggerKeepWithAlbum()
-            } label: {
-                Image(systemName: "folder.badge.plus")
-                    .font(.title3)
-                    .foregroundStyle(.white)
-                    .scaledSquare(ScaledSize.secondaryActionButton)
-                    .background(.blue)
-                    .clipShape(Circle())
-            }
-            .keyboardShortcut(.upArrow, modifiers: [])
-            .accessibilityLabel("Add to Album")
-            .accessibilityHint("Opens the album picker to file this photo")
-
-            // Keep button
-            Button {
-                triggerKeep()
-            } label: {
-                Image(systemName: "checkmark")
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                    .scaledSquare(ScaledSize.actionButton)
-                    .background(.green)
-                    .clipShape(Circle())
-                    .shadow(color: .green.opacity(0.3), radius: 8)
-            }
-            .keyboardShortcut(.return, modifiers: [])
-            .accessibilityLabel("Keep")
-            .accessibilityHint("Keeps this photo without prompting")
-        }
     }
 
     // MARK: - Empty State
@@ -489,35 +219,47 @@ struct SwipeSessionView: View {
                 .scaleOnPress()
             } else if !viewModel.isPhotoLibraryAccessible {
                 // A permission problem reads as an empty library; surface it
-                // instead of "All Caught Up!" (SWIPE-09).
+                // instead of "All Caught Up!" (SWIPE-09). Copy and the offered
+                // action come from the shared presentation model, so this screen
+                // can never disagree with the tab gate about what a state means —
+                // in particular `.restricted` offers no button, because Screen
+                // Time or device management keeps the Photos switch disabled.
+                let presentation = permissionHandler.permissionState.presentation
+
                 Image(systemName: "lock.shield")
                     .font(.system(size: 64))
                     .foregroundStyle(.orange)
 
-                Text("Photo Access Required")
+                Text(presentation.title)
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
-                Text("TidyByte needs photo library access to show your photos here. Grant access in Settings, then try again.")
+                Text(presentation.message)
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.75)
                     .padding(.horizontal, Spacing.xxl)
 
-                Button {
-                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(settingsURL)
+                switch presentation.action {
+                case .requestPermission:
+                    Button {
+                        showPermissionPrimer = true
+                    } label: {
+                        emptyStateButtonLabel("Allow Access")
                     }
-                } label: {
-                    Text("Open Settings")
-                        .font(.headline)
-                        .padding(.horizontal, Spacing.xxxl)
-                        .padding(.vertical, Spacing.md)
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                    .scaleOnPress()
+                case .openSettings:
+                    Button {
+                        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(settingsURL)
+                        }
+                    } label: {
+                        emptyStateButtonLabel("Open Settings")
+                    }
+                    .scaleOnPress()
+                case .none:
+                    EmptyView()
                 }
-                .scaleOnPress()
             } else {
                 Image(systemName: "checkmark.circle")
                     .font(.system(size: 64))
@@ -552,37 +294,19 @@ struct SwipeSessionView: View {
         .padding()
     }
 
-    private func flashZoomHint() {
-        toast = ToastMessage(text: "Pinch or double-tap a photo to inspect it", systemImage: "magnifyingglass")
+    /// Filled primary button for the empty state, matching the styling of the
+    /// other empty-state actions.
+    private func emptyStateButtonLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .padding(.horizontal, Spacing.xxxl)
+            .padding(.vertical, Spacing.md)
+            .background(.blue)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
     }
 
-    private func performSwipeAnimation(
-        offset: CGSize,
-        action: @escaping @MainActor () async -> Void
-    ) {
-        // Serialize swipes: a second gesture during the animation window is
-        // ignored instead of racing the in-flight task (SWIPE-05). The slot
-        // guarantee means no task can be in flight here, so no cancel needed.
-        guard !viewModel.isPerformingMutation, viewModel.beginSwipeAnimation() else { return }
-        withAnimation(.reduceMotionAware(.spring(response: 0.3, dampingFraction: 0.8), reduceMotion: reduceMotion)) {
-            dragOffset = offset
-        }
-
-        swipeTask = Task {
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else {
-                viewModel.endSwipeAnimation()
-                return
-            }
-            await MainActor.run {
-                // Only reset the offset if the drag actually ended — resetting
-                // mid-gesture yanks the card back from under a new drag (SWIPE-05).
-                if !isDragging {
-                    dragOffset = .zero
-                }
-            }
-            await action()
-            viewModel.endSwipeAnimation()
-        }
+    private func flashZoomHint() {
+        toast = ToastMessage(text: "Pinch or double-tap a photo to inspect it", systemImage: "magnifyingglass")
     }
 }

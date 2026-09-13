@@ -3,19 +3,31 @@ import SwiftUI
 /// Full-screen permission gate shown in place of a tab's content when the app
 /// has no library access.
 ///
-/// Two states, and they need different things from the user:
+/// Every string and the offered action come from
+/// `PhotoPermissionState.presentation`, so this screen, the Settings row, and
+/// the unit tests agree on what each state means. Three shapes reach here:
 ///
-/// - `.notDetermined` — nothing has been asked yet. Lead with what the app does
-///   and offer the prompt.
-/// - `.denied` / `.restricted` — the prompt is spent and iOS will not show it
-///   again, so the only way forward is Settings. Lead with that.
+/// - `.notDetermined` — nothing has been asked yet. Explain first (the primer),
+///   then let iOS ask.
+/// - `.denied` — the prompt is spent and iOS will not show it again, so
+///   Settings is the only route back.
+/// - `.restricted` — Screen Time or device management blocks the library and
+///   the Photos switch in Settings is disabled, so there is no button to offer
+///   and the copy says why.
 struct PhotoPermissionView: View {
     let permissionHandler: PhotoPermissionHandler
 
-    /// True when the system prompt is spent and Settings is the only route back.
+    /// Drives the pre-prompt explainer. Tapping the ask affordance opens it;
+    /// only its "Continue" reaches `PHPhotoLibrary.requestAuthorization`.
+    @State private var showPrimer = false
+
+    private var presentation: PermissionPresentation {
+        permissionHandler.permissionState.presentation
+    }
+
     /// `.limited` never reaches this view — `RootView` renders tab content for
     /// it — but it is not a denial, so it is excluded here too.
-    private var isDenied: Bool {
+    private var isWarning: Bool {
         switch permissionHandler.permissionState {
         case .denied, .restricted: true
         default: false
@@ -23,7 +35,14 @@ struct PhotoPermissionView: View {
     }
 
     private var accent: Color {
-        isDenied ? .warning : .blue
+        isWarning ? .warning : .blue
+    }
+
+    private var glyph: String {
+        switch permissionHandler.permissionState {
+        case .denied, .restricted: "lock.shield"
+        default: "photo.on.rectangle.angled"
+        }
     }
 
     var body: some View {
@@ -46,20 +65,18 @@ struct PhotoPermissionView: View {
                             )
                             .scaledSquare(ScaledSize.stateHalo)
 
-                        Image(systemName: isDenied ? "lock.shield" : "photo.on.rectangle.angled")
+                        Image(systemName: glyph)
                             .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
                             .foregroundStyle(accent.opacity(0.85))
                     }
                     .accessibilityHidden(true)
 
                     VStack(spacing: Spacing.md) {
-                        Text(isDenied ? "Photo Access Is Off" : "TidyByte Needs Your Photos")
+                        Text(presentation.title)
                             .font(.title2.bold())
                             .multilineTextAlignment(.center)
 
-                        Text(isDenied
-                             ? "iOS is blocking TidyByte from your library. Turn access back on in Settings and everything here starts working again."
-                             : "TidyByte reviews your library on this device to find what's worth cleaning up. Nothing is uploaded, and nothing changes without your say-so.")
+                        Text(presentation.message)
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -78,6 +95,7 @@ struct PhotoPermissionView: View {
                 .readableWidth()
             }
         }
+        .photoPermissionPrimer(isPresented: $showPrimer, permissionHandler: permissionHandler)
     }
 
     // MARK: - What the access is for
@@ -110,9 +128,22 @@ struct PhotoPermissionView: View {
 
     // MARK: - Action
 
+    /// Driven by the presentation model, so a state that has no useful button
+    /// (`.restricted`) simply renders none instead of pointing at a switch the
+    /// OS keeps disabled.
     @ViewBuilder
     private var actionButton: some View {
-        if isDenied {
+        switch presentation.action {
+        case .requestPermission:
+            Button {
+                HapticHelper.impact(.light)
+                showPrimer = true
+            } label: {
+                primaryLabel("Allow Access", icon: "checkmark")
+            }
+            .scaleOnPress()
+            .accessibilityHint("Explains what TidyByte needs, then opens the iOS permission prompt")
+        case .openSettings:
             Button {
                 HapticHelper.impact(.light)
                 permissionHandler.openSettings()
@@ -121,15 +152,8 @@ struct PhotoPermissionView: View {
             }
             .scaleOnPress()
             .accessibilityHint("Opens iOS Settings, where you can turn photo access back on")
-        } else {
-            Button {
-                HapticHelper.impact(.light)
-                Task { await permissionHandler.requestPermission() }
-            } label: {
-                primaryLabel("Allow Access", icon: "checkmark")
-            }
-            .scaleOnPress()
-            .accessibilityHint("Opens the iOS permission prompt for your photo library")
+        case .none:
+            EmptyView()
         }
     }
 
@@ -141,5 +165,56 @@ struct PhotoPermissionView: View {
             .background(.tint)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+    }
+}
+
+// MARK: - Pre-prompt explainer
+
+/// Shown before the one-shot system prompt so the ask is never cold — and so a
+/// tap that can no longer produce a dialog is explained rather than silently
+/// forwarding the user to the Settings app.
+struct PhotoPermissionPrimer: ViewModifier {
+    @Binding var isPresented: Bool
+    let permissionHandler: PhotoPermissionHandler
+    /// Runs after the user answers, so a screen that mirrors the raw
+    /// `PHAuthorizationStatus` (Settings) can re-read it.
+    var onResolved: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        content.alert(PermissionPresentation.primerTitle, isPresented: $isPresented) {
+            Button(PermissionPresentation.primerButtonTitle) {
+                // Explicit main actor: `onResolved` reaches back into SwiftUI
+                // state (Settings re-reads its raw status), and this closure is
+                // not guaranteed to inherit the actor from the modifier's body.
+                Task { @MainActor in
+                    await permissionHandler.requestPermission()
+                    onResolved?()
+                }
+            }
+            Button(PermissionPresentation.declineButtonTitle, role: .cancel) {
+                // Deliberate no-op: declining the primer leaves the permission
+                // untouched, so the ask is still available on a later tap.
+            }
+        } message: {
+            Text(PermissionPresentation.primerMessage)
+        }
+    }
+}
+
+extension View {
+    /// Attaches the shared pre-prompt explainer. `onResolved` is called after
+    /// the system prompt closes.
+    func photoPermissionPrimer(
+        isPresented: Binding<Bool>,
+        permissionHandler: PhotoPermissionHandler,
+        onResolved: (() -> Void)? = nil
+    ) -> some View {
+        modifier(
+            PhotoPermissionPrimer(
+                isPresented: isPresented,
+                permissionHandler: permissionHandler,
+                onResolved: onResolved
+            )
+        )
     }
 }

@@ -21,7 +21,7 @@
     <div class="flex items-center gap-1 sm:gap-1.5">
       <!-- Theme toggle: Light / Dark / System -->
       <div class="relative">
-        <button type="button" data-theme-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Change color theme" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-body transition hover:bg-surface-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
+        <button type="button" data-theme-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Change color theme" class="icon-btn inline-flex h-9 w-9 items-center justify-center rounded-full text-body transition hover:bg-surface-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
           <svg data-theme-icon="sun" aria-hidden="true" focusable="false" class="block dark:hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           <svg data-theme-icon="moon" aria-hidden="true" focusable="false" class="hidden dark:block" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
         </button>
@@ -51,21 +51,25 @@
         Get the app
       </a>
 
-      <button type="button" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Toggle menu" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition hover:bg-surface-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50 md:hidden">
+      <button type="button" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Toggle menu" class="icon-btn inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition hover:bg-surface-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50 md:hidden">
         <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
       </button>
     </div>
   </div>
 
   <div id="mobile-menu" data-mobile-menu class="hidden border-t border-hairline md:hidden">
-    <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
-      <a href="#features" class="nav-link">Features</a>
-      <a href="#how-it-works" class="nav-link">How it works</a>
-      <a href="/blog" class="nav-link">Blog</a>
-      <a href="#faq" class="nav-link">FAQ</a>
-      <a href="/changelog" class="nav-link">Changelog</a>
-      <a href="/support" class="nav-link">Support</a>
-      <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="nav-link">GitHub &rarr;</a>
-    </nav>
+    <!-- data-drawer is the collapsing grid: the disclosure animates its own
+         height so the page below never jumps. See input.css motion system. -->
+    <div data-drawer>
+      <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#how-it-works" class="nav-link">How it works</a>
+        <a href="/blog" class="nav-link">Blog</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+        <a href="/changelog" class="nav-link">Changelog</a>
+        <a href="/support" class="nav-link">Support</a>
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="nav-link">GitHub &rarr;</a>
+      </nav>
+    </div>
   </div>
 </header>

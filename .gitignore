@@ -30,6 +30,15 @@ Thumbs.db
 # Claude Code local state
 .claude-personal/
 
+# Local agent working state (taste notes, scratch)
+.commandcode/
+
+# Python bytecode caches (e.g. public/serve.py artifacts)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
 # Archives & exports
 *.ipa
 *.dSYM/

@@ -85,7 +85,7 @@ class RedirectHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("Location", route + suffix)
                 self.end_headers()
                 return None
-            if not route.endswith(".html"):
+            if not route.endswith(".html") and not route.endswith(".md"):
                 return route + ".html" + suffix
         return path
 

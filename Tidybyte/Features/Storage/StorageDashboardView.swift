@@ -22,7 +22,7 @@ struct StorageDashboardView: View {
                 dashboardSkeleton
             } else {
                 VStack(spacing: Spacing.xl) {
-                    savingsSection
+                    storageBreakdownSection
                         .fadeSlideIn(delay: 0.0)
 
                     if !viewModel.wins.isEmpty {
@@ -30,26 +30,26 @@ struct StorageDashboardView: View {
                             .fadeSlideIn(delay: 0.05)
                     }
 
-                    recentlyDeletedSection
-                        .fadeSlideIn(delay: 0.05)
-
-                    storageBreakdownSection
-                        .fadeSlideIn(delay: 0.05)
-
                     deviceStorageSection
                         .fadeSlideIn(delay: 0.1)
 
                     appsAndOtherStorageSection
                         .fadeSlideIn(delay: 0.15)
 
-                    whereStorageGoesSection
+                    recentlyDeletedSection
                         .fadeSlideIn(delay: 0.2)
 
-                    iCloudSection
+                    whereStorageGoesSection
                         .fadeSlideIn(delay: 0.25)
 
-                    trendSection
+                    iCloudSection
                         .fadeSlideIn(delay: 0.3)
+
+                    trendSection
+                        .fadeSlideIn(delay: 0.35)
+
+                    savingsSection
+                        .fadeSlideIn(delay: 0.4)
                 }
                 .padding(Spacing.lg)
                 .readableWidth()
@@ -68,13 +68,10 @@ struct StorageDashboardView: View {
 
     private var dashboardSkeleton: some View {
         VStack(spacing: Spacing.xl) {
-            savingsSkeleton
+            storageBreakdownSkeleton
                 .fadeSlideIn(delay: 0.0)
 
             reclaimHeroSkeleton
-                .fadeSlideIn(delay: 0.05)
-
-            storageBreakdownSkeleton
                 .fadeSlideIn(delay: 0.05)
 
             deviceStorageSkeleton
@@ -83,14 +80,20 @@ struct StorageDashboardView: View {
             appsAndOtherStorageSkeleton
                 .fadeSlideIn(delay: 0.15)
 
-            whereStorageGoesSkeleton
+            recentlyDeletedSkeleton
                 .fadeSlideIn(delay: 0.2)
 
-            iCloudSkeleton
+            whereStorageGoesSkeleton
                 .fadeSlideIn(delay: 0.25)
 
-            trendSkeleton
+            iCloudSkeleton
                 .fadeSlideIn(delay: 0.3)
+
+            trendSkeleton
+                .fadeSlideIn(delay: 0.35)
+
+            savingsSkeleton
+                .fadeSlideIn(delay: 0.4)
         }
         .padding(Spacing.lg)
         .readableWidth()
@@ -103,6 +106,26 @@ struct StorageDashboardView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 SkeletonBar(height: 16)
             }
+        }
+    }
+
+    /// Mirrors `recentlyDeletedSection`'s single-row card so the skeleton and the
+    /// loaded body stay the same height when `wins` is non-empty.
+    private var recentlyDeletedSkeleton: some View {
+        GlassCard {
+            HStack(spacing: Spacing.md) {
+                SkeletonCircle(size: 28)
+
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    SkeletonBar(width: 170, height: 12)
+                    SkeletonBar(width: 180, height: 10)
+                }
+
+                Spacer()
+
+                SkeletonBar(width: 10, height: 14, cornerRadius: 2)
+            }
+            .padding(.vertical, Spacing.xs)
         }
     }
 

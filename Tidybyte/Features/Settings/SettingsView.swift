@@ -32,6 +32,9 @@ struct SettingsView: View {
     @State private var showResetConfirm = false
     @State private var showResetErrorAlert = false
     @State private var photoPermissionStatus: PHAuthorizationStatus = .notDetermined
+    /// Drives the shared pre-prompt explainer for the "Allow Access to Photos"
+    /// row, so Settings asks the same way every other surface does.
+    @State private var showPhotoPermissionPrimer = false
     @State private var isRequestingNotificationPermission = false
     @State private var showNotificationDeniedAlert = false
     @State private var showMailUnavailableAlert = false
@@ -43,6 +46,9 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
+    /// The same handler `RootView` injects, so granting from Settings updates
+    /// the tab gate in the same pass instead of on the next activation.
+    @Environment(PhotoPermissionHandler.self) private var permissionHandler
 
     private let feedbackEmail = "contact@sakshammittal.com"
 
@@ -275,19 +281,43 @@ struct SettingsView: View {
                     Text(photoPermissionLabel)
                         .foregroundStyle(.secondary)
                 }
-                if photoPermissionStatus != .authorized && photoPermissionStatus != .limited {
+
+                // The offered action comes from the state itself. A fresh
+                // install asks for access here — through the same pre-prompt
+                // explainer every other surface uses — instead of opening the
+                // Settings app, where there is nothing to turn on yet.
+                switch permissionHandler.permissionState.presentation.action {
+                case .requestPermission:
+                    Button {
+                        showPhotoPermissionPrimer = true
+                    } label: {
+                        Label("Allow Access to Photos", systemImage: "checkmark")
+                    }
+                case .openSettings:
                     Button {
                         openSystemSettings()
                     } label: {
                         Label("Open Settings", systemImage: "arrow.up.right.square")
                     }
+                case .none:
+                    EmptyView()
                 }
+
                 if photoPermissionStatus == .limited {
                     Button {
                         PhotoPermissionHandler.presentLimitedLibraryPicker()
                     } label: {
                         Label("Add More Photos", systemImage: "photo.badge.plus")
                     }
+                }
+
+                // `.restricted` deliberately has no button: Screen Time or
+                // device management keeps the Photos switch disabled, so the
+                // only useful thing to show is where the block comes from.
+                if permissionHandler.permissionState == .restricted {
+                    Text(permissionHandler.permissionState.presentation.message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -299,6 +329,11 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .photoPermissionPrimer(
+            isPresented: $showPhotoPermissionPrimer,
+            permissionHandler: permissionHandler,
+            onResolved: { refreshPhotoPermissionStatus() }
+        )
         .task {
             refreshPhotoPermissionStatus()
         }

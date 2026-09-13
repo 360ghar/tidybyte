@@ -18,6 +18,13 @@
     Content-Type = "text/plain; charset=utf-8"
     Cache-Control = "public, max-age=86400"
 
+# Per-post Markdown alternates for AI citation fetchers.
+[[headers]]
+  for = "/blog/*.md"
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"
+    Cache-Control = "public, max-age=86400"
+
 # Cache and security headers.
 [[headers]]
   for = "/*"
@@ -47,7 +54,7 @@
     Cache-Control = "public, max-age=3600"
 
 [[headers]]
-  for = "/sitemap.xml"
+  for = "/sitemap*.xml"
   [headers.values]
     Cache-Control = "public, max-age=3600"
 
@@ -130,6 +137,12 @@
   from = "/blog/:splat/"
   to = "/blog/:splat"
   status = 301
+
+# Markdown alternates serve directly; they must not hit the /*.html rewrite.
+[[redirects]]
+  from = "/blog/:slug.md"
+  to = "/blog/:slug.md"
+  status = 200
 
 [[redirects]]
   from = "/blog/*"

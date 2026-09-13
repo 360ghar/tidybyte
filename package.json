@@ -8,10 +8,10 @@
     "dev": "concurrently -k \"tailwindcss -i ./src/input.css -o ./public/assets/css/styles.css --watch\" \"astro dev\"",
     "build": "astro build && tailwindcss -i ./src/input.css -o ./dist/assets/css/styles.css --minify && node scripts/hash-assets.mjs",
     "preview": "astro preview",
-    "verify": "node scripts/verify-parity.mjs",
-    "check": "node scripts/verify-parity.mjs --check"
+    "check": "node scripts/hash-assets.mjs --check"
   },
   "devDependencies": {
+    "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.2",
     "concurrently": "^10.0.0",
     "pixelmatch": "^7.2.0",

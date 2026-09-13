@@ -171,11 +171,15 @@ struct OnboardingView: View {
             }
             return
         }
-        Task {
+        Task { @MainActor in
             // Ask first, finish second: the cover stays up behind the system
             // alert, so the user isn't dropped into an unexplained screen
             // mid-prompt. The cover then dismisses either way — granted lands in
             // the app, denied lands on the actionable permission screen.
+            //
+            // `advance()` is not main-actor-isolated, so a bare `Task {}` here
+            // would not inherit the main actor, yet `onFinish()` records the
+            // `@AppStorage` completion flag.
             await onRequestAccess()
             onFinish()
         }
