@@ -15,6 +15,11 @@ struct CardView: View {
     /// Incremented by SwipeSessionView's "Zoom" accessibility action; CardView
     /// toggles zoom on change (only the top card receives a non-zero value).
     var zoomToggleRequest: Int = 0
+    /// Incremented by the "Play Video" accessibility action: the card's own
+    /// Play button is hidden from VoiceOver with the rest of the card.
+    var playRequest: Int = 0
+    /// Incremented by the "Try Loading Again" accessibility action.
+    var retryRequest: Int = 0
     /// Reports whether this card is currently zoomed so the session can
     /// suspend its swipe drag while a pinch/pan is inspecting the photo.
     var onZoomChanged: ((Bool) -> Void)? = nil
@@ -25,8 +30,16 @@ struct CardView: View {
     /// `.highPriorityGesture` on the ancestor overrides that.
     var onSwipeDragChanged: ((CGSize) -> Void)? = nil
     var onSwipeDragEnded: ((DragGesture.Value, CGFloat) -> Void)? = nil
+    /// Called with the asset id once the card image is on screen. The deck
+    /// blocks Delete until then, so the user never deletes a photo they did
+    /// not see.
+    var onImageShown: ((String) -> Void)? = nil
 
     @State private var image: UIImage?
+    /// The image request returned nothing (an iCloud download failed or
+    /// timed out). Shows a retry state instead of an endless shimmer.
+    @State private var loadFailed = false
+    @State private var isLoadingPlayer = false
     @State private var player: AVPlayer?
     /// The in-flight player-item load, tracked so `stopPlayback` can cancel it:
     /// without cancellation, a load started on the top card would still create
@@ -71,6 +84,11 @@ struct CardView: View {
                 // loaded image's own graph below.
                 if let image {
                     zoomableImage(image, frame: geometry.size)
+                } else if loadFailed {
+                    loadFailedView
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .background(Color.cardSurface)
+                        .gesture(unifiedDrag(frame: geometry.size))
                 } else {
                     SkeletonView(cornerRadius: 0)
                         .frame(width: geometry.size.width, height: geometry.size.height)
@@ -80,8 +98,15 @@ struct CardView: View {
                 // Video playback (SWIPE-07): a play affordance on the top card
                 // loads the player item and plays inline; playback stops when the
                 // card is dragged or leaves the deck.
-                if asset.mediaType == .video, isTopCard {
-                    if let player {
+                // No Play button over the failed state: it would sit on top of
+                // the "Try Again" button.
+                if asset.mediaType == .video, isTopCard, !loadFailed {
+                    if isLoadingPlayer {
+                        ProgressView()
+                            .controlSize(.large)
+                            .tint(.white)
+                            .accessibilityLabel("Loading video")
+                    } else if let player {
                         VideoPlayer(player: player)
                             .accessibilityLabel("Video preview playing")
                             // The player layer sits above the gesture-bearing
@@ -125,6 +150,9 @@ struct CardView: View {
                             BadgeView(text: "iCloud", icon: "icloud.and.arrow.down", color: .blue)
                         }
                         Spacer()
+                        if asset.isFavorite {
+                            FavoriteMark(font: .title3)
+                        }
                     }
                     .padding(.top, Spacing.lg)
                     .padding(.horizontal, Spacing.lg)
@@ -241,6 +269,15 @@ struct CardView: View {
             )
             // Inside the GeometryReader so the accessibility-initiated toggle
             // clamps against the real card frame, not a screen-size proxy.
+            .onChange(of: retryRequest) { _, newValue in
+                guard newValue > 0, image == nil else { return }
+                loadFailed = false
+                Task { await loadImage() }
+            }
+            .onChange(of: playRequest) { _, newValue in
+                guard newValue > 0 else { return }
+                startPlayback()
+            }
             .onChange(of: zoomToggleRequest) { _, _ in
                 guard zoomToggleRequest > 0 else { return }
                 toggleZoom(frame: geometry.size)
@@ -353,9 +390,35 @@ struct CardView: View {
         // Full-screen pixel size matches the swipe session's prefetch target so the
         // cached image is reused instead of re-fetched. Avoids deprecated UIScreen.main.
         let loaded = await photoService.loadImage(for: asset.id, targetSize: ScreenMetrics.pixelSize)
+        guard !Task.isCancelled else { return }
         withAnimation(.easeIn(duration: 0.3)) {
             image = loaded
+            loadFailed = loaded == nil
         }
+        if loaded != nil {
+            onImageShown?(asset.id)
+        }
+    }
+
+    private var loadFailedView: some View {
+        VStack(spacing: Spacing.md) {
+            Image(systemName: asset.isLocallyAvailable ? "exclamationmark.triangle" : "icloud.slash")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text("Couldn't \(asset.isLocallyAvailable ? "load" : "download") this \(asset.mediaType == .video ? "video" : "photo")\(asset.isLocallyAvailable ? "" : " from iCloud").")
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            Text("You can keep or skip it. Delete is off until it shows.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Try Again") {
+                loadFailed = false
+                Task { await loadImage() }
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(Spacing.xl)
     }
 
     // MARK: - Zoom Inspection
@@ -474,8 +537,15 @@ struct CardView: View {
     private func startPlayback() {
         guard player == nil, isTopCard else { return }
         loadTask?.cancel()
+        isLoadingPlayer = true
         loadTask = Task { @MainActor in
-            guard let box = await photoService.loadPlayerItem(for: asset.id) else { return }
+            let box = await photoService.loadPlayerItem(for: asset.id)
+            // A cancelled load must not hide the spinner of a newer one.
+            guard !Task.isCancelled else { return }
+            isLoadingPlayer = false
+            // A nil item (iCloud download failed) puts the Play button back
+            // so the user can try again.
+            guard let box else { return }
             // The card may have been swiped away while the item was loading;
             // the isTopCard/drag/disappear teardowns above cancel this task —
             // respect that instead of creating a playing player off-screen.
@@ -489,6 +559,7 @@ struct CardView: View {
     private func stopPlayback() {
         loadTask?.cancel()
         loadTask = nil
+        isLoadingPlayer = false
         player?.pause()
         player = nil
     }

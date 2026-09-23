@@ -40,14 +40,15 @@ struct AsyncThumbnailView: View {
             // soft placeholder no longer blocks a sharp re-fetch for the whole
             // session (residual SHARED-05).
             var showingDegraded = false
-            if let cached = await ImageCache.shared.image(for: assetId) {
+            let sharpKey = ImageCache.key(for: assetId, size: targetSize)
+            if let cached = await ImageCache.shared.image(for: sharpKey) {
                 guard !Task.isCancelled else { return }
                 image = cached
                 hasLoaded = true
                 loadedAssetId = assetId
                 return
             }
-            let degradedKey = "\(assetId)#degraded"
+            let degradedKey = "\(sharpKey)#degraded"
             if let cached = await ImageCache.shared.image(for: degradedKey) {
                 guard !Task.isCancelled else { return }
                 image = cached
@@ -67,7 +68,7 @@ struct AsyncThumbnailView: View {
                         withAnimation(.easeIn(duration: 0.2)) { image = loaded }
                     }
                 } else {
-                    await ImageCache.shared.setImage(loaded, for: assetId)
+                    await ImageCache.shared.setImage(loaded, for: sharpKey)
                     // The soft placeholder is superseded.
                     await ImageCache.shared.removeImage(for: degradedKey)
                     withAnimation(.easeIn(duration: 0.2)) { image = loaded }
@@ -76,5 +77,20 @@ struct AsyncThumbnailView: View {
             hasLoaded = true
             loadedAssetId = assetId
         }
+    }
+}
+
+/// Bare heart drawn on a photo that is a favorite, so it is never deleted by
+/// accident. No tile or pill behind it: a tight dark shadow keeps it legible
+/// on light photos.
+struct FavoriteMark: View {
+    var font: Font = .caption
+
+    var body: some View {
+        Image(systemName: "heart.fill")
+            .font(font)
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
+            .accessibilityLabel("Favorite")
     }
 }

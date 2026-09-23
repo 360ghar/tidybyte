@@ -135,6 +135,7 @@ final class DuplicateFinderViewModel {
         guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
         scanState = .completed
+        ScanResults.record(.duplicates, count: totalDuplicateCount)
 
         selectNonBestAssets()
     }
@@ -168,7 +169,9 @@ final class DuplicateFinderViewModel {
     /// the rest of this group's ids really were deleted (re-arming them would
     /// leave ghosts that inflate counts and report as deleted a second time).
     func delete(group: DuplicateGroup) async {
-        let ids = Self.nonBestAssetIds(in: group)
+        // Only what the user has checked in this group: an unchecked copy was
+        // a deliberate "keep".
+        let ids = checkedIds(in: group)
         guard !ids.isEmpty, !isDeleting else { return }
         let previousSelection = selectedForDeletion
         selectedForDeletion = ids
@@ -193,6 +196,7 @@ final class DuplicateFinderViewModel {
         // C6: intersect with survivors instead of recomputing select-all-non-best,
         // so explicit keep-deselections survive the delete round-trip.
         selectedForDeletion.formIntersection(Set(allGroups.flatMap { $0.assets.map(\.id) }))
+        ScanResults.record(.duplicates, count: totalDuplicateCount)
     }
 
     // MARK: - Selection (DUP-04c)
@@ -223,7 +227,7 @@ final class DuplicateFinderViewModel {
                 type: exactGroups[exactIndex].type
             )
             var state = SelectionState(ids: selectedForDeletion)
-            state.setBest(newBest: assetId, oldBest: oldBest)
+            state.setBest(newBest: assetId, oldBest: oldBest, groupAssets: exactGroups[exactIndex].assets)
             selectedForDeletion = state.ids
             return
         }
@@ -237,12 +241,17 @@ final class DuplicateFinderViewModel {
                 type: visualGroups[visualIndex].type
             )
             var state = SelectionState(ids: selectedForDeletion)
-            state.setBest(newBest: assetId, oldBest: oldBest)
+            state.setBest(newBest: assetId, oldBest: oldBest, groupAssets: visualGroups[visualIndex].assets)
             selectedForDeletion = state.ids
         }
     }
 
     // MARK: - Helpers
+
+    /// The checked (marked for deletion) assets of one group.
+    func checkedIds(in group: DuplicateGroup) -> Set<String> {
+        Set(group.assets.map(\.id)).intersection(selectedForDeletion)
+    }
 
     /// The asset ids a group-scoped delete targets (everything but the keeper).
     static func nonBestAssetIds(in group: DuplicateGroup) -> Set<String> {
@@ -275,9 +284,12 @@ final class DuplicateFinderViewModel {
         }
     }
 
+    /// Default after a scan: exact copies are pre-selected (all but the keeper,
+    /// never a favorite). Visual groups are different shots that look alike,
+    /// so they start with nothing selected.
     private func selectNonBestAssets() {
         var state = SelectionState()
-        for group in allGroups {
+        for group in allGroups where group.type == .exact {
             state.selectNonBest(assets: group.assets, bestAssetId: group.bestAssetId)
         }
         selectedForDeletion = state.ids

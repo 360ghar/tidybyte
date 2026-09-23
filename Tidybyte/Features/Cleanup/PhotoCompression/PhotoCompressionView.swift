@@ -17,6 +17,16 @@ struct PhotoCompressionView: View {
         Group {
             if viewModel.isLoading {
                 loadingView
+            } else if viewModel.photos.isEmpty, viewModel.filterHidesPhotos {
+                EmptyStateView(
+                    icon: "photo.badge.arrow.down",
+                    title: "No Large Photos",
+                    message: "No photos over 2 MB are left to compress. HEIC photos are already small.",
+                    iconColor: .mint,
+                    actionTitle: "Show All Photos"
+                ) {
+                    viewModel.showAllPhotos = true
+                }
             } else if viewModel.photos.isEmpty {
                 EmptyStateView(
                     icon: "photo.badge.arrow.down",
@@ -46,18 +56,18 @@ struct PhotoCompressionView: View {
                     NavigationLink {
                         CompressionHistoryView()
                     } label: {
-                        Image(systemName: "clock.arrow.circlepath")
+                        Label("Compression History", systemImage: "clock.arrow.circlepath")
                     }
                 }
             }
         }
         .alert("Compress Photos", isPresented: $showCompressConfirm) {
             Button("Cancel", role: .cancel) { }
-            Button("Compress \(viewModel.selectedIds.count) Photos", role: .destructive) {
+            Button("Compress \(viewModel.selectedIds.count) Photos") {
                 viewModel.startBatchCompression(modelContext: modelContext)
             }
         } message: {
-            Text("This replaces the originals with re-encoded copies. Some photo metadata may not be preserved. This cannot be undone.")
+            Text(ReplaceOriginalsNotice.explainer(copies: "a new, smaller copy of each photo", originals: "the original photos"))
         }
         // Non-modal error surface. Also covers the batch summary
         // ("Compressed 8 of 10. 2 failed."), which is a report rather than a
@@ -96,8 +106,14 @@ struct PhotoCompressionView: View {
                 Task { await viewModel.deletePhoto(id: id) }
             }
         } message: { photo in
-            Text("This will delete \(photo.asset.displaySize). This action cannot be undone.")
+            Text("This will delete \(photo.asset.displaySize). \(CleanupDeletion.recoverableNote)")
         }
+        .originalsKeptAlert(
+            // Not over the preview cover: it would fail to present there.
+            isPresented: !viewModel.keptOriginals.isEmpty && previewStart == nil,
+            onTryAgain: { viewModel.retryRemovingOriginals() },
+            onRemoveCopies: { viewModel.removeCopies() }
+        )
         .fullScreenCover(item: $previewStart) { start in
             // COMP-05: resolve the pager's assets live from the VM (via the
             // provider closure) instead of a snapshot taken at presentation, so
@@ -123,8 +139,12 @@ struct PhotoCompressionView: View {
                 )
             }
         }
+        .onAppear { viewModel.isOnScreen = true }
         .onDisappear {
             // Don't orphan the mutation loop when the user leaves the screen.
+            // A full-screen preview also fires onDisappear; the user has not
+            // left then, and the preview shows the Originals Kept alert.
+            if previewStart == nil { viewModel.isOnScreen = false }
             viewModel.cancelCompression()
         }
         .task {
@@ -132,7 +152,7 @@ struct PhotoCompressionView: View {
             // delete orphaned replacements from the library, so the list loaded
             // after it never shows just-deleted orphans.
             await CompressionJournal.reconcile(modelContext: modelContext)
-            await viewModel.loadIfNeeded()
+            await viewModel.loadIfNeeded(modelContext: modelContext)
         }
     }
 
@@ -146,6 +166,7 @@ struct PhotoCompressionView: View {
 
     private var contentView: some View {
         VStack(spacing: 0) {
+            filterRow
             List {
                 ForEach(Array(viewModel.sortedPhotos.enumerated()), id: \.element.id) { index, photo in
                     photoRow(photo)
@@ -153,12 +174,31 @@ struct PhotoCompressionView: View {
                 }
             }
             .listStyle(.plain)
-            .pullToRefresh { await viewModel.refresh() }
+            .pullToRefresh { await viewModel.refresh(modelContext: modelContext) }
 
             if !viewModel.selectedIds.isEmpty {
                 bottomBar
             }
         }
+    }
+
+    /// States what the list shows, with one button to widen or narrow it.
+    private var filterRow: some View {
+        HStack(spacing: Spacing.sm) {
+            Text(viewModel.showAllPhotos
+                 ? "\(viewModel.photos.count) photos"
+                 : "\(viewModel.photos.count) photos over 2 MB that can shrink")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button(viewModel.showAllPhotos ? "Show Large Only" : "Show All") {
+                viewModel.showAllPhotos.toggle()
+            }
+            .font(.caption.bold())
+            .frame(minHeight: 44)
+            .disabled(viewModel.isCompressing)
+        }
+        .padding(.horizontal, Spacing.lg)
     }
 
     // MARK: - Photo Row
@@ -173,6 +213,8 @@ struct PhotoCompressionView: View {
             } label: {
                 Image(systemName: viewModel.selectedIds.contains(photo.id) ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(viewModel.selectedIds.contains(photo.id) ? .blue : .secondary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(viewModel.selectedIds.contains(photo.id) ? "Deselect photo" : "Select photo")
@@ -212,11 +254,14 @@ struct PhotoCompressionView: View {
                 Text(photo.asset.displaySize)
                     .font(.headline.monospacedDigit())
 
+                // A rough guess, so grey and labelled. HEIC is already
+                // efficient: a guess there would promise savings that rarely
+                // happen.
                 let estimated = viewModel.estimateSize(for: photo)
-                if estimated < photo.asset.fileSize {
-                    Text("\u{2192} ~\(estimated.formattedFileSize)")
+                if estimated < photo.asset.fileSize, !photo.asset.isHEIC {
+                    Text("est. ~\(estimated.formattedFileSize)")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -227,7 +272,8 @@ struct PhotoCompressionView: View {
                     Image(systemName: "trash")
                         .font(.body)
                         .foregroundStyle(.red)
-                        .padding(.leading, Spacing.xs)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete photo")
@@ -248,6 +294,10 @@ struct PhotoCompressionView: View {
             ProgressView(value: progress)
                 .tint(.blue)
                 .frame(width: 80)
+        case .copySaved:
+            Label("Copy saved", systemImage: "checkmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         case .completed(let saved):
             Text(saved > 0 ? "Saved \(saved.formattedFileSize)" : "No savings")
                 .font(.caption)
@@ -258,10 +308,12 @@ struct PhotoCompressionView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         case .failed(let msg):
+            // Room for the whole reason instead of "The operation cou…".
             Text(msg)
                 .font(.caption2)
-                .foregroundStyle(.red)
-                .lineLimit(1)
+                .foregroundStyle(Color.destructive)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -275,6 +327,19 @@ struct PhotoCompressionView: View {
                 Text(viewModel.selectedSize.formattedFileSize)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                // One quality choice for the whole selection.
+                if !viewModel.isCompressing {
+                    Menu {
+                        ForEach(PhotoCompressionPreset.presets) { preset in
+                            Button(preset.label) { viewModel.setPresetForSelected(preset) }
+                        }
+                    } label: {
+                        Text("Quality: \(viewModel.selectedPreset?.label ?? "Mixed")")
+                            .font(.caption.bold())
+                            .frame(minHeight: 32)
+                    }
+                    .accessibilityLabel("Quality for selected items")
+                }
             }
 
             Spacer()
@@ -282,19 +347,23 @@ struct PhotoCompressionView: View {
             if viewModel.isCompressing {
                 HStack(spacing: Spacing.md) {
                     ProgressView()
-                    Text("Compressing...")
-                        .font(.subheadline)
+                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase) ?? "Working…")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                    Button {
-                        HapticHelper.impact(.light)
-                        viewModel.cancelCompression()
-                    } label: {
-                        Text("Cancel")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.red)
+                        .lineLimit(2)
+                    // Step 2 is one iOS alert; there is nothing left to cancel.
+                    if case .savingCopies = viewModel.phase {
+                        Button {
+                            HapticHelper.impact(.light)
+                            viewModel.cancelCompression()
+                        } label: {
+                            Text("Cancel")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Cancel compression")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Cancel compression")
                 }
             } else {
                 Button {

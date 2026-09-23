@@ -156,24 +156,12 @@ struct ToolScanningView: View {
         VStack(spacing: Spacing.xl) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [tint.opacity(0.15), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 80
-                        )
-                    )
-                    .scaledSquare(ScaledSize.stateHalo / 2)
-
-                Image(systemName: icon)
-                    .scaledGlyph(ScaledSize.stateGlyph / 2, weight: .light)
-                    .foregroundStyle(tint.opacity(0.8))
-                    .symbolEffect(.pulse)
-            }
-            .accessibilityHidden(true)
+            // Bare glyph, no glow halo behind it.
+            Image(systemName: icon)
+                .scaledGlyph(ScaledSize.stateGlyph / 2, weight: .light)
+                .foregroundStyle(tint.opacity(0.8))
+                .symbolEffect(.pulse)
+                .accessibilityHidden(true)
 
             VStack(spacing: Spacing.md) {
                 Text(title)
@@ -281,23 +269,10 @@ struct ToolStateGlyph: View {
     let tint: Color
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [tint.opacity(0.15), .clear],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 80
-                    )
-                )
-                .scaledSquare(ScaledSize.stateHalo)
-
-            Image(systemName: icon)
-                .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
-                .foregroundStyle(tint.opacity(0.8))
-                .subtleShadow()
-        }
-        .accessibilityHidden(true)
+        // Bare glyph: no glow halo, no bloom shadow.
+        Image(systemName: icon)
+            .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
+            .foregroundStyle(tint.opacity(0.8))
+            .accessibilityHidden(true)
     }
 }

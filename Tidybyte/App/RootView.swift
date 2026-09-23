@@ -105,6 +105,7 @@ struct RootView: View {
             // coordinator's isScanning guard dedupes against any activation
             // scan still in flight.
             if newState == .authorized || newState == .limited {
+                Task { await libraryMonitor.start() }
                 Task { await widgetCoordinator.runDailyScanIfNeeded(modelContext: modelContext) }
             }
         }
@@ -139,7 +140,12 @@ struct RootView: View {
             }
             // Same for a widget button tapped while the app was not running.
             applyPendingWidgetRoute()
-            await libraryMonitor.start()
+            // Registering the library observer before access is decided can
+            // raise the one-time iOS photo prompt over onboarding. Start it
+            // only once access exists (the onChange below covers a grant).
+            if permissionHandler.permissionState == .authorized || permissionHandler.permissionState == .limited {
+                await libraryMonitor.start()
+            }
         }
     }
 

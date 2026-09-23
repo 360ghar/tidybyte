@@ -47,6 +47,7 @@ extension PhotoCategory {
 struct SmartCategoriesView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = SmartCategoriesViewModel()
+    @Environment(LibraryChangeMonitor.self) private var libraryMonitor
     @State private var showDeleteConfirm = false
     @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
@@ -92,6 +93,11 @@ struct SmartCategoriesView: View {
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
         .navigationTitle("Smart Categories")
+        // Items deleted elsewhere (Swipe Review, the Photos app) leave the
+        // list when the library changes, instead of lingering as blanks.
+        .task(id: libraryMonitor.generation) {
+            viewModel.pruneDeleted()
+        }
         .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) photos")
         .onDisappear {
             // D-01: a scan left running after the user leaves the screen would
@@ -99,24 +105,37 @@ struct SmartCategoriesView: View {
             viewModel.cancelScan()
         }
         .toolbar {
-            if viewModel.scanState == .completed && !viewModel.filteredPhotos.isEmpty {
-                ToolbarItem(placement: .topBarLeading) {
-                    SelectAllToolbarButton(
-                        allSelected: viewModel.allVisibleSelected,
-                        selectAll: { viewModel.selectAll() },
-                        deselectAll: { viewModel.deselectAll() }
-                    )
+            if viewModel.scanState == .completed {
+                if !viewModel.filteredPhotos.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) {
+                        SelectAllToolbarButton(
+                            allSelected: viewModel.allVisibleSelected,
+                            selectAll: { viewModel.selectAll() },
+                            deselectAll: { viewModel.deselectAll() }
+                        )
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: Spacing.md) {
+                    Menu {
+                        if !viewModel.filteredPhotos.isEmpty {
+                            Button {
+                                HapticHelper.impact(.light)
+                                let ids = Set(viewModel.filteredPhotos.map(\.id))
+                                startSwipeReview(with: .customAssetIds(ids))
+                            } label: {
+                                Label("Review with Swipe", systemImage: "hand.draw")
+                            }
+                        }
                         Button {
                             HapticHelper.impact(.light)
-                            let ids = Set(viewModel.filteredPhotos.map(\.id))
-                            startSwipeReview(with: .customAssetIds(ids))
+                            viewModel.scanState = .idle
                         } label: {
-                            Image(systemName: "hand.draw")
+                            Label("New Scan", systemImage: "arrow.counterclockwise")
                         }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel("More actions")
                 }
             }
         }
@@ -139,7 +158,7 @@ struct SmartCategoriesView: View {
                 }
             }
         } message: {
-            Text("This action cannot be undone.")
+            Text(CleanupDeletion.recoverableNote)
         }
         .alert("Delete Photo", isPresented: .init(
             get: { cellToDelete != nil },
@@ -152,7 +171,7 @@ struct SmartCategoriesView: View {
                 Task { await viewModel.delete(assetId: id) }
             }
         } message: { _ in
-            Text("This action cannot be undone.")
+            Text(CleanupDeletion.recoverableNote)
         }
         .fullScreenCover(item: $previewPhoto, onDismiss: {
             if pendingSwipeReview {
@@ -221,11 +240,14 @@ struct SmartCategoriesView: View {
             if viewModel.categorizedPhotos.isEmpty {
                 Spacer()
                 EmptyStateView(
-                    icon: "sparkles",
+                    icon: "square.grid.2x2",
                     title: "Nothing to Sort",
                     message: "We couldn't sort any photos into categories.",
-                    iconColor: .pink
-                )
+                    iconColor: .pink,
+                    actionTitle: "Scan Again"
+                ) {
+                    viewModel.startScan()
+                }
                 Spacer()
             } else {
                 categoryChips
@@ -266,11 +288,13 @@ struct SmartCategoriesView: View {
                             }
                         }
                     }
-                    .pullToRefresh { viewModel.startScan() }
+                }
 
+                // Outside the list branch: picks in other categories stay
+                // reachable even when this one is empty.
                     if !viewModel.selectedIds.isEmpty {
                         ActionBarView {
-                            Text("\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
+                            Text(viewModel.selectedInOtherCategories > 0 ? "\(viewModel.selectedIds.count) selected (\(viewModel.selectedInOtherCategories) on other tabs) \u{00B7} \(viewModel.selectedSize.formattedFileSize)" : "\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
                                 .font(.caption)
                             if viewModel.isDeleting {
                                 ProgressView()
@@ -285,7 +309,6 @@ struct SmartCategoriesView: View {
                         }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                }
             }
         }
     }
@@ -296,7 +319,7 @@ struct SmartCategoriesView: View {
                 ForEach(viewModel.nonEmptyCategories, id: \.self) { category in
                     let isActive = viewModel.activeCategory == category
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        withAnimation(.reduceMotionAware(.spring(response: 0.3, dampingFraction: 0.8), reduceMotion: reduceMotion)) {
                             viewModel.activeCategory = category
                         }
                     } label: {
@@ -344,7 +367,7 @@ struct SmartCategoriesView: View {
                     .shadow(color: .black.opacity(0.4), radius: 3)
                     .padding(Spacing.sm)
                     .scaleEffect(viewModel.selectedIds.contains(photo.id) ? 1.0 : 0.9)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(photo.id))
+                    .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(photo.id))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(viewModel.selectedIds.contains(photo.id) ? "Deselect photo" : "Select photo")

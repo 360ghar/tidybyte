@@ -18,7 +18,7 @@ struct MediaLibraryStats: Sendable {
     var otherCount: Int = 0
 
     /// Files at/above the user's large-file threshold, EXCLUDING screenshots —
-    /// the widget's "N to clean" adds this to `screenshotCount`, so a
+    /// `toCleanCount` adds this to `screenshotCount`, so a
     /// screenshot that also clears the threshold is never double-counted
     /// (APP-12).
     var largeFileCount: Int = 0
@@ -102,6 +102,10 @@ enum ReclaimBucketer {
     }
 
     static func buckets(from assets: [AssetSummary], largeFileThresholdBytes: Int64) -> [Bucket] {
+        // Only items stored on this iPhone: deleting an iCloud-only item frees
+        // iCloud space, not device space, and every hero that shows this total
+        // sits next to device storage.
+        let assets = assets.filter(\.isLocallyAvailable)
         var map: [String: (count: Int, bytes: Int64, ids: [String])] = [:]
         var claimed = Set<String>()
 

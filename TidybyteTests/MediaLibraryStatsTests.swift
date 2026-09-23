@@ -140,8 +140,7 @@ final class MediaLibraryStatsTests: XCTestCase {
     }
 
     func testBestAssetSelectorPrefersFavoriteAtEqualResolution() {
-        // Ladder: resolution → favorite → date → id. At equal pixels the
-        // favorite wins.
+        // Ladder: burst pick → favorite → resolution → date → id.
         let favorite = AssetSummary(
             id: "fav", mediaType: .photo, creationDate: nil, modificationDate: nil,
             pixelWidth: 100, pixelHeight: 100, duration: 0, fileSize: 1_000,
@@ -152,8 +151,9 @@ final class MediaLibraryStatsTests: XCTestCase {
         XCTAssertEqual(BestAssetSelector.bestByMetadata(from: [favorite, nonFavorite])?.id, "fav")
     }
 
-    func testBestAssetSelectorPrefersHigherResolutionOverFavorite() {
-        // Resolution comes FIRST in the ladder.
+    func testBestAssetSelectorPrefersFavoriteOverHigherResolution() {
+        // Favorite comes before resolution: deleting the favorited copy would
+        // drop the user's favorite mark.
         let favorite = asset(id: "fav", size: 1_000, isFavorite: true)
         let bigger = AssetSummary(
             id: "big", mediaType: .photo, creationDate: nil, modificationDate: nil,
@@ -161,7 +161,17 @@ final class MediaLibraryStatsTests: XCTestCase {
             filename: nil, isFavorite: false, isBurst: false, burstIdentifier: nil,
             isLivePhoto: false, isScreenshot: false, isLocallyAvailable: true
         )
-        XCTAssertEqual(BestAssetSelector.bestByMetadata(from: [favorite, bigger])?.id, "big")
+        XCTAssertEqual(BestAssetSelector.bestByMetadata(from: [favorite, bigger])?.id, "fav")
+    }
+
+    func testBestAssetSelectorPrefersUserBurstPickThenIPhonePick() {
+        var user = asset(id: "user", size: 1_000)
+        user.burstPick = .user
+        var auto = asset(id: "auto", size: 1_000, isFavorite: true)
+        auto.burstPick = .iPhone
+        let plain = asset(id: "plain", size: 1_000, isFavorite: true)
+        XCTAssertEqual(BestAssetSelector.bestByMetadata(from: [plain, auto, user])?.id, "user")
+        XCTAssertEqual(BestAssetSelector.bestByMetadata(from: [plain, auto])?.id, "auto")
     }
 
     // MARK: - Compression journal (D1)

@@ -24,9 +24,17 @@ struct CleanupLibraryRollup: Equatable {
     var videos = 0
     var largeFiles = 0
     var compressiblePhotos = 0
+    /// Badge counts: only items worth the tool's time. Videos over the
+    /// large-video threshold, and non-HEIC photos over 2 MB (HEIC rarely
+    /// shrinks).
+    var largeVideos = 0
+    var photoCompressionCandidates = 0
 
-    /// Bytes the user could delete outright, from two *disjoint* sets: every
-    /// screenshot, plus every file over the threshold that is not a screenshot.
+    static let photoCompressionMinBytes: Int64 = 2 * 1_000_000
+
+    /// The app-wide "up to X you could free" total. Same `ReclaimBucketer`
+    /// figure as the Storage tab and the widget, so the number never differs
+    /// between screens.
     var reclaimableBytes: Int64 = 0
 
     /// Item count that matches `reclaimableBytes`.
@@ -36,31 +44,28 @@ struct CleanupLibraryRollup: Equatable {
         var rollup = CleanupLibraryRollup()
 
         for asset in assets {
-            if asset.isScreenshot {
-                rollup.screenshots += 1
-                rollup.reclaimableBytes += asset.fileSize
-                rollup.reclaimableItemCount += 1
-            }
+            if asset.isScreenshot { rollup.screenshots += 1 }
 
             if asset.isLivePhoto {
                 rollup.livePhotos += 1
             } else if asset.mediaType == .photo {
                 rollup.compressiblePhotos += 1
-            }
-
-            if asset.mediaType == .video { rollup.videos += 1 }
-
-            if asset.fileSize >= thresholdBytes {
-                rollup.largeFiles += 1
-                // Excluded from the reclaimable total so a large screenshot is
-                // never counted twice. The Large Files *badge* still counts it,
-                // because that badge answers its own, narrower question.
-                if !asset.isScreenshot {
-                    rollup.reclaimableBytes += asset.fileSize
-                    rollup.reclaimableItemCount += 1
+                if asset.fileSize >= photoCompressionMinBytes, !asset.isHEIC {
+                    rollup.photoCompressionCandidates += 1
                 }
             }
+
+            if asset.mediaType == .video {
+                rollup.videos += 1
+                if asset.fileSize > ReclaimBucketer.largeVideoByteThreshold { rollup.largeVideos += 1 }
+            }
+
+            if asset.fileSize >= thresholdBytes { rollup.largeFiles += 1 }
         }
+
+        let buckets = ReclaimBucketer.buckets(from: assets, largeFileThresholdBytes: thresholdBytes)
+        rollup.reclaimableBytes = buckets.reduce(Int64(0)) { $0 + $1.bytes }
+        rollup.reclaimableItemCount = buckets.reduce(0) { $0 + $1.count }
 
         return rollup
     }
@@ -80,9 +85,6 @@ final class CleanupHomeViewModel {
     private(set) var reclaimableBytes: Int64 = 0
     private(set) var reclaimableItemCount = 0
 
-    /// The threshold rendered with the same formatter the Large Files rows use,
-    /// so the hero's footnote can't disagree with that tool's list.
-    private(set) var largeFileThresholdLabel = ""
 
     private let photoService = PhotoLibraryService.shared
 
@@ -141,24 +143,31 @@ final class CleanupHomeViewModel {
 
         reclaimableBytes = rollup.reclaimableBytes
         reclaimableItemCount = rollup.reclaimableItemCount
-        largeFileThresholdLabel = threshold.formattedFileSize
 
         updateTool(.screenshots, count: rollup.screenshots)
         updateTool(.livePhotos, count: rollup.livePhotos)
-        updateTool(.videoCompression, count: rollup.videos)
+        updateTool(.videoCompression, count: rollup.largeVideos)
         updateTool(.largeFiles, count: rollup.largeFiles)
-        updateTool(.photoCompression, count: rollup.compressiblePhotos)
+        updateTool(.photoCompression, count: rollup.photoCompressionCandidates)
 
-        // Bursts: grouped fetch — the one dedicated enumeration.
+        // Bursts: grouped fetch — the one dedicated enumeration. The badge
+        // counts removable frames (all but one per burst), like the tool.
         let burstGroups = await photoService.fetchBurstPhotos()
-        updateTool(.bursts, count: burstGroups.count)
+        // Same set the tool's Auto-Clean uses: all but the keeper, never a
+        // favorite.
+        let removableFrames = BurstCleanerViewModel.rebuildGroups(from: burstGroups)
+            .reduce(0) { $0 + BurstCleanerViewModel.suggestedIds(in: $1).count }
+        updateTool(.bursts, count: removableFrames)
 
-        // Duplicates/similar/blurry/smartCategories - too expensive to scan, show
-        // nil (will display "Scan")
-        updateTool(.duplicates, count: nil, isLoading: false)
-        updateTool(.similar, count: nil, isLoading: false)
-        updateTool(.blurry, count: nil, isLoading: false)
-        updateTool(.smartCategories, count: nil, isLoading: false)
+        applyScanResults()
+    }
+
+    /// Duplicates, similar, blurry and smart categories cost a full scan to
+    /// count: show the last scan's result, or nil ("Not scanned").
+    func applyScanResults() {
+        for tool in [CleanupTool.duplicates, .similar, .blurry, .smartCategories] {
+            updateTool(tool, count: ScanResults.counts[tool], isLoading: false)
+        }
     }
 
     private func updateTool(_ tool: CleanupTool, count: Int?, isLoading: Bool = false) {

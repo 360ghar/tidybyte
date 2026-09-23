@@ -1,3 +1,4 @@
+import Photos
 import SwiftData
 import XCTest
 @testable import Tidybyte
@@ -39,6 +40,69 @@ final class CompressionRegressionTests: XCTestCase {
             isScreenshot: false,
             isLocallyAvailable: true
         )
+    }
+
+    // MARK: - One delete prompt per batch
+
+    func testPartitionCommitsItemsWhoseOriginalIsGone() {
+        let split = OriginalsCommit.partition(["a", "b", "c"], id: { $0 }, stillPresent: ["b"])
+        XCTAssertEqual(split.committed, ["a", "c"])
+        XCTAssertEqual(split.kept, ["b"])
+    }
+
+    func testPartitionKeepsEverythingWhenUserDeclines() {
+        let split = OriginalsCommit.partition(["a", "b"], id: { $0 }, stillPresent: ["a", "b"])
+        XCTAssertTrue(split.committed.isEmpty)
+        XCTAssertEqual(split.kept, ["a", "b"])
+    }
+
+    /// Reconcile must not touch a row whose swap is still waiting for the
+    /// Originals Kept choice: deleting its copy would race Try Again.
+    func testSwapIsLiveUntilFinalized() throws {
+        let schema = Schema([CompressionRecord.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [configuration])
+        let swap = try CompressionSwap(
+            mediaType: .video,
+            assetId: "live-test",
+            originalSize: 100,
+            exportPreset: "720p",
+            modelContext: container.mainContext
+        )
+        XCTAssertTrue(CompressionSwap.isLive(assetId: "live-test"))
+        swap.finalizeOriginalKept(copyRemoved: true)
+        XCTAssertFalse(CompressionSwap.isLive(assetId: "live-test"))
+    }
+
+    func testPhotoCompressionCandidatesSkipCopiesSmallAndHEIC() {
+        func photo(_ id: String, size: Int64, file: String, live: Bool = false) -> AssetSummary {
+            AssetSummary(
+                id: id, mediaType: .photo, creationDate: nil, modificationDate: nil,
+                pixelWidth: 4000, pixelHeight: 3000, duration: 0, fileSize: size,
+                filename: file, isFavorite: false, isBurst: false, burstIdentifier: nil,
+                isLivePhoto: live, isScreenshot: false, isLocallyAvailable: true
+            )
+        }
+        let assets = [
+            photo("big-jpg", size: 5_000_000, file: "IMG_1.JPG"),
+            photo("small-jpg", size: 500_000, file: "IMG_2.JPG"),
+            photo("big-heic", size: 5_000_000, file: "IMG_3.HEIC"),
+            photo("copy", size: 5_000_000, file: "IMG_4.JPG"),
+            photo("live", size: 5_000_000, file: "IMG_5.JPG", live: true)
+        ]
+        let large = PhotoCompressionViewModel.candidates(from: assets, excluding: ["copy"], showAll: false)
+        XCTAssertEqual(large.map(\.id), ["big-jpg"])
+        let all = PhotoCompressionViewModel.candidates(from: assets, excluding: ["copy"], showAll: true)
+        XCTAssertEqual(all.map(\.id), ["big-jpg", "small-jpg", "big-heic"], "a compressed copy and a Live Photo are never listed")
+    }
+
+    func testIsUserDeclinedMatchesPhotoKitCancelOnly() {
+        let declined = NSError(domain: PHPhotosErrorDomain, code: PHPhotosError.Code.userCancelled.rawValue)
+        let other = NSError(domain: PHPhotosErrorDomain, code: PHPhotosError.Code.accessUserDenied.rawValue)
+        XCTAssertTrue(PhotoServiceError.isUserDeclined(declined))
+        XCTAssertTrue(PhotoServiceError.isUserDeclined(PhotoServiceError.userDeclined))
+        XCTAssertFalse(PhotoServiceError.isUserDeclined(other))
+        XCTAssertFalse(PhotoServiceError.isUserDeclined(PhotoServiceError.albumNotFound))
     }
 
     // MARK: - COMP-10: effectivePreset never upscales

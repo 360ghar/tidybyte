@@ -62,7 +62,7 @@ struct ComparisonDescriptor<G: ComparisonGroup> {
     let statusColor: (G, Bool) -> Color
     let keepBestTitle: String
     let keepTitle: String
-    /// "Mark for Deletion" (Duplicates) vs "Mark Delete" (Similar) — preserved.
+    /// Same wording in every tool: "Delete" marks, "Don't Delete" unmarks.
     let deleteTitle: String
     /// Pill background opacity: 0.8 (Duplicates) vs 0.85 (Similar) — preserved.
     let pillOpacity: Double
@@ -74,9 +74,9 @@ extension ComparisonDescriptor where G == DuplicateComparison {
             bestPillText: { _ in "Best" },
             statusText: { _, isBest in isBest ? "Best quality" : nil },
             statusColor: { _, _ in .green },
-            keepBestTitle: "Keep This Best",
-            keepTitle: "Keep This",
-            deleteTitle: "Mark for Deletion",
+            keepBestTitle: "Keep as Best",
+            keepTitle: "Don't Delete",
+            deleteTitle: "Delete",
             pillOpacity: 0.8
         )
     }
@@ -92,9 +92,9 @@ extension ComparisonDescriptor where G == SimilarComparison {
                     : "Recommended: \(group.base.bestReason.rawValue)"
             },
             statusColor: { _, isBest in isBest ? .green : .secondary },
-            keepBestTitle: "Keep This Best",
-            keepTitle: "Keep This",
-            deleteTitle: "Mark Delete",
+            keepBestTitle: "Keep as Best",
+            keepTitle: "Don't Delete",
+            deleteTitle: "Delete",
             pillOpacity: 0.85
         )
     }
@@ -113,6 +113,8 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
 
     @State private var currentPage = 0
     @State private var albumNames: [String: [String]] = [:]
+    /// Full-screen, full-resolution preview of the tapped photo.
+    @State private var fullScreenAssetId: String?
 
     private let photoService = PhotoLibraryService.shared
 
@@ -140,6 +142,8 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
+            // Dots on a backing so they stay visible over light photos.
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
             .frame(maxHeight: .infinity)
 
             // Bottom actions
@@ -160,51 +164,74 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
                 Spacer()
 
                 if let current, !isBest {
-                    Button {
-                        HapticHelper.selection()
-                        let oldBest = group.bestAssetId
-                        group = group.withBest(current.id)
-                        selectedForDeletion.remove(current.id)
-                        if oldBest != current.id {
-                            selectedForDeletion.insert(oldBest)
-                        }
-                        onSetBest(current.id, group.id)
-                    } label: {
-                        Text(descriptor.keepBestTitle)
-                            .font(.headline)
-                            .padding(.horizontal, Spacing.lg)
-                            .padding(.vertical, Spacing.sm)
-                            .background(.green)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                    // Side by side when they fit; stacked at large text sizes
+                    // or on narrow phones instead of truncating.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: Spacing.sm) { compareButtons(current) }
+                        VStack(alignment: .trailing, spacing: Spacing.sm) { compareButtons(current) }
                     }
-                    .scaleOnPress()
-
-                    Button {
-                        HapticHelper.selection()
-                        if selectedForDeletion.contains(current.id) {
-                            selectedForDeletion.remove(current.id)
-                        } else {
-                            selectedForDeletion.insert(current.id)
-                        }
-                    } label: {
-                        Text(selectedForDeletion.contains(current.id) ? descriptor.keepTitle : descriptor.deleteTitle)
-                            .font(.headline)
-                            .padding(.horizontal, Spacing.lg)
-                            .padding(.vertical, Spacing.sm)
-                            .background(selectedForDeletion.contains(current.id) ? .gray : .red)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
-                    }
-                    .scaleOnPress()
                 }
             }
+        }
+        .fullScreenCover(item: Binding(
+            get: { fullScreenAssetId.map(IdentifiedAssetId.init) },
+            set: { fullScreenAssetId = $0?.id }
+        )) { item in
+            MediaPreviewView(
+                assets: group.assets,
+                startIndex: group.assets.firstIndex { $0.id == item.id } ?? 0,
+                photoService: photoService
+            )
         }
         .task {
             // DUP-06: one batched pass over user albums instead of a per-asset
             // album fetch (which was O(assets × albums) blocking PhotoKit calls).
             albumNames = await AlbumMembershipLoader.membership(for: Set(group.assets.map(\.id)))
         }
+    }
+
+    @ViewBuilder
+    private func compareButtons(_ current: AssetSummary) -> some View {
+        let isMarked = selectedForDeletion.contains(current.id)
+        Button {
+            HapticHelper.selection()
+            let oldBest = group.bestAssetId
+            // Same rule as the list: the old keeper is marked only when the
+            // group was already selecting, and never when it is a favorite.
+            var state = SelectionState(ids: selectedForDeletion)
+            state.setBest(newBest: current.id, oldBest: oldBest, groupAssets: group.assets)
+            selectedForDeletion = state.ids
+            group = group.withBest(current.id)
+            onSetBest(current.id, group.id)
+        } label: {
+            Text(descriptor.keepBestTitle)
+                .font(.headline)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
+                .background(Color.success)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+        }
+        .scaleOnPress()
+
+        Button {
+            HapticHelper.selection()
+            if isMarked {
+                selectedForDeletion.remove(current.id)
+            } else {
+                selectedForDeletion.insert(current.id)
+            }
+        } label: {
+            Text(isMarked ? descriptor.keepTitle : descriptor.deleteTitle)
+                .font(.headline)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
+                .background(isMarked ? Color(.systemGray) : Color.destructive)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+        }
+        .scaleOnPress()
+        .accessibilityHint(isMarked ? "Removes this photo from the delete list" : "Adds this photo to the delete list")
     }
 
     private func assetDetailCard(_ asset: AssetSummary) -> some View {
@@ -217,6 +244,10 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
             )
             .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+            .contentShape(Rectangle())
+            .onTapGesture { fullScreenAssetId = asset.id }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Opens the photo full screen")
             .overlay(alignment: .topTrailing) {
                 if asset.id == group.bestAssetId {
                     statusPill(icon: "star.fill", text: descriptor.bestPillText(group), color: .green)
@@ -328,4 +359,9 @@ struct ComparisonQualitySection: View {
     private func exposureColor(_ quality: AssetQuality) -> Color {
         (quality.isTooDark || quality.isOverexposed) ? .warning : .success
     }
+}
+
+/// `fullScreenCover(item:)` needs an Identifiable value.
+private struct IdentifiedAssetId: Identifiable {
+    let id: String
 }

@@ -22,7 +22,7 @@ struct VideoCompressionView: View {
                     icon: "video.badge.waveform",
                     title: "No Videos",
                     message: "You don't have any videos in your library.",
-                    iconColor: .purple
+                    iconColor: CleanupTool.videoCompression.color
                 )
             } else {
                 contentView
@@ -46,18 +46,18 @@ struct VideoCompressionView: View {
                     NavigationLink {
                         CompressionHistoryView()
                     } label: {
-                        Image(systemName: "clock.arrow.circlepath")
+                        Label("Compression History", systemImage: "clock.arrow.circlepath")
                     }
                 }
             }
         }
         .alert("Compress Videos", isPresented: $showCompressConfirm) {
             Button("Cancel", role: .cancel) { }
-            Button("Compress \(viewModel.selectedIds.count) Videos", role: .destructive) {
+            Button("Compress \(viewModel.selectedIds.count) Videos") {
                 viewModel.startBatchCompression(modelContext: modelContext)
             }
         } message: {
-            Text("This replaces the original videos with compressed copies. Some video metadata may not be preserved. This cannot be undone.")
+            Text(ReplaceOriginalsNotice.explainer(copies: "a new, smaller copy of each video", originals: "the original videos"))
         }
         // Non-modal error surface. Also covers the batch summary
         // ("Compressed 8 of 10. 2 failed."), which is a report rather than a
@@ -96,8 +96,14 @@ struct VideoCompressionView: View {
                 Task { await viewModel.deleteVideo(id: id) }
             }
         } message: { video in
-            Text("This will delete \(video.asset.displaySize). This action cannot be undone.")
+            Text("This will delete \(video.asset.displaySize). \(CleanupDeletion.recoverableNote)")
         }
+        .originalsKeptAlert(
+            // Not over the preview cover: it would fail to present there.
+            isPresented: !viewModel.keptOriginals.isEmpty && previewStart == nil,
+            onTryAgain: { viewModel.retryRemovingOriginals() },
+            onRemoveCopies: { viewModel.removeCopies() }
+        )
         .fullScreenCover(item: $previewStart) { start in
             // COMP-05: resolve the pager's assets live from the VM (via the
             // provider closure) instead of a snapshot taken at presentation, so
@@ -123,8 +129,12 @@ struct VideoCompressionView: View {
                 )
             }
         }
+        .onAppear { viewModel.isOnScreen = true }
         .onDisappear {
             // Don't orphan the mutation loop when the user leaves the screen.
+            // A full-screen preview also fires onDisappear; the user has not
+            // left then, and the preview shows the Originals Kept alert.
+            if previewStart == nil { viewModel.isOnScreen = false }
             viewModel.cancelCompression()
         }
         .task {
@@ -173,6 +183,8 @@ struct VideoCompressionView: View {
             } label: {
                 Image(systemName: viewModel.selectedIds.contains(video.id) ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(viewModel.selectedIds.contains(video.id) ? .blue : .secondary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(viewModel.selectedIds.contains(video.id) ? "Deselect video" : "Select video")
@@ -223,10 +235,11 @@ struct VideoCompressionView: View {
                     .font(.headline.monospacedDigit())
 
                 let estimated = viewModel.estimateSize(for: video)
+                // A bitrate-based guess, so grey and labelled.
                 if estimated < video.asset.fileSize {
-                    Text("\u{2192} ~\(estimated.formattedFileSize)")
+                    Text("est. ~\(estimated.formattedFileSize)")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -237,7 +250,8 @@ struct VideoCompressionView: View {
                     Image(systemName: "trash")
                         .font(.body)
                         .foregroundStyle(.red)
-                        .padding(.leading, Spacing.xs)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete video")
@@ -258,6 +272,10 @@ struct VideoCompressionView: View {
             ProgressView(value: progress)
                 .tint(.blue)
                 .frame(width: 80)
+        case .copySaved:
+            Label("Copy saved", systemImage: "checkmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         case .completed(let saved):
             Text(saved > 0 ? "Saved \(saved.formattedFileSize)" : "No savings")
                 .font(.caption)
@@ -268,10 +286,12 @@ struct VideoCompressionView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         case .failed(let msg):
+            // Room for the whole reason instead of "The operation cou…".
             Text(msg)
                 .font(.caption2)
-                .foregroundStyle(.red)
-                .lineLimit(1)
+                .foregroundStyle(Color.destructive)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -285,6 +305,19 @@ struct VideoCompressionView: View {
                 Text(viewModel.selectedSize.formattedFileSize)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                // One quality choice for the whole selection.
+                if !viewModel.isCompressing {
+                    Menu {
+                        ForEach(CompressionPreset.presets) { preset in
+                            Button(preset.label) { viewModel.setPresetForSelected(preset) }
+                        }
+                    } label: {
+                        Text("Quality: \(viewModel.selectedPreset?.label ?? "Mixed")")
+                            .font(.caption.bold())
+                            .frame(minHeight: 32)
+                    }
+                    .accessibilityLabel("Quality for selected items")
+                }
             }
 
             Spacer()
@@ -292,19 +325,23 @@ struct VideoCompressionView: View {
             if viewModel.isCompressing {
                 HStack(spacing: Spacing.md) {
                     ProgressView()
-                    Text("Compressing...")
-                        .font(.subheadline)
+                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase) ?? "Working…")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                    Button {
-                        HapticHelper.impact(.light)
-                        viewModel.cancelCompression()
-                    } label: {
-                        Text("Cancel")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.red)
+                        .lineLimit(2)
+                    // Step 2 is one iOS alert; there is nothing left to cancel.
+                    if case .savingCopies = viewModel.phase {
+                        Button {
+                            HapticHelper.impact(.light)
+                            viewModel.cancelCompression()
+                        } label: {
+                            Text("Cancel")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Cancel compression")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Cancel compression")
                 }
             } else {
                 Button {

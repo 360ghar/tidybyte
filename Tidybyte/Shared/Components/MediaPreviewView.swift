@@ -115,7 +115,7 @@ struct MediaPreviewView: View {
                 Task { await performDelete() }
             }
         } message: {
-            Text("This permanently deletes this item from your photo library. This action cannot be undone.")
+            Text("This deletes this item from your photo library. \(CleanupDeletion.recoverableNote)")
         }
         .onChange(of: assets) { _, newAssets in
             if newAssets.isEmpty {

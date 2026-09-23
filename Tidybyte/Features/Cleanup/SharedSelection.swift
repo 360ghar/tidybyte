@@ -24,16 +24,26 @@ struct SelectionState {
     /// and the previous best enters it — "delete everything but one per group"
     /// stays true without manual bookkeeping. Re-selecting the same best is a
     /// no-op.
-    mutating func setBest(newBest: String, oldBest: String) {
+    ///
+    /// With `groupAssets`, the previous best is marked only when the group
+    /// already had something checked, and never when it is a favorite. Groups
+    /// that start with nothing selected (similar shots) stay unselected, and a
+    /// favorite is only marked by the user's own tap.
+    mutating func setBest(newBest: String, oldBest: String, groupAssets: [AssetSummary]? = nil) {
         guard newBest != oldBest else { return }
+        let groupWasSelecting = groupAssets.map { assets in assets.contains { ids.contains($0.id) } } ?? true
+        let oldBestIsFavorite = groupAssets?.first { $0.id == oldBest }?.isFavorite ?? false
         ids.remove(newBest)
-        ids.insert(oldBest)
+        if groupWasSelecting && !oldBestIsFavorite {
+            ids.insert(oldBest)
+        }
     }
 
-    /// Default selection after a scan or delete: every non-best asset across
-    /// groups.
+    /// Suggested selection: every non-best asset across groups, except
+    /// favorites. A favorite is never marked for deletion unless the user
+    /// taps it.
     mutating func selectNonBest(assets: [AssetSummary], bestAssetId: String) {
-        for asset in assets where asset.id != bestAssetId {
+        for asset in assets where asset.id != bestAssetId && !asset.isFavorite {
             ids.insert(asset.id)
         }
     }

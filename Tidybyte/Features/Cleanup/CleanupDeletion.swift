@@ -5,6 +5,10 @@ import Foundation
 /// the service await). Each tool supplies list surgery as `apply`.
 @MainActor
 enum CleanupDeletion {
+    /// Shown in every delete confirm. PhotoKit deletes go to Recently Deleted,
+    /// so "cannot be undone" was false and scared users.
+    static let recoverableNote = "iOS will ask you to confirm. Deleted items go to Recently Deleted in Photos, where you can restore them for 30 days."
+
     struct Outcome {
         let removed: Set<String>       // confirmed deleted; empty on total failure
         let errorMessage: String?      // nil on full success; set on partial + hard failure
@@ -38,6 +42,8 @@ enum CleanupDeletion {
                 apply(succeededIds)
                 return Outcome(removed: succeededIds, errorMessage: error.localizedDescription, deletedCount: succeededIds.count)
             }
+            // "Don't Allow" keeps its "Nothing was deleted." message: the
+            // views gate the success celebration on `errorMessage == nil`.
             return Outcome(removed: [], errorMessage: error.localizedDescription, deletedCount: nil)
         } catch {
             return Outcome(removed: [], errorMessage: error.localizedDescription, deletedCount: nil)

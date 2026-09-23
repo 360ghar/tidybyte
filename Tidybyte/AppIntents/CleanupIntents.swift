@@ -87,7 +87,7 @@ struct FreeSpaceIntent: AppIntent {
         let detail = parts.isEmpty ? "items" : parts.joined(separator: " and ")
 
         return .result(
-            dialog: "You can free about \(reclaimable) — \(detail) to review."
+            dialog: "You can free up to \(reclaimable) on this iPhone. Review \(detail) in TidyByte."
         )
     }
 }

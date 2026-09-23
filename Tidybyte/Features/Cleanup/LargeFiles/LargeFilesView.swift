@@ -80,7 +80,12 @@ struct LargeFilesView: View {
                                 Spacer()
                                 Button("Cancel") { viewModel.cancelShare() }
                             } else {
-                                Text("\(viewModel.selectedVisibleCount) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
+                                // Picks hidden by the filter are kept, but only
+                                // the visible ones are shared or deleted.
+                                let hidden = viewModel.selectedIds.count - viewModel.selectedVisibleCount
+                                Text(hidden > 0
+                                     ? "\(viewModel.selectedVisibleCount) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize) (\(hidden) hidden by filter)"
+                                     : "\(viewModel.selectedVisibleCount) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
                                     .font(.caption)
                                 Spacer()
                                 Button { viewModel.startShare() } label: {
@@ -88,10 +93,12 @@ struct LargeFilesView: View {
                                         .font(.headline)
                                 }
                                 .accessibilityLabel("Share selected")
+                                .disabled(viewModel.selectedVisibleCount == 0)
                                 Button(role: .destructive) { showDeleteConfirm = true } label: {
                                     Label("Delete", systemImage: "trash")
                                         .font(.headline)
                                 }
+                                .disabled(viewModel.selectedVisibleCount == 0)
                             }
                         }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -135,7 +142,7 @@ struct LargeFilesView: View {
                 }
             }
         } message: {
-            Text("This will delete \(viewModel.selectedSize.formattedFileSize) of media. This action cannot be undone.")
+            Text("This will delete \(viewModel.selectedSize.formattedFileSize) of media. \(CleanupDeletion.recoverableNote)")
         }
         // Non-modal error surface. `safeAreaInset` pushes the list down rather
         // than floating the banner over its first row.
@@ -161,7 +168,7 @@ struct LargeFilesView: View {
                 Task { await viewModel.deleteAsset(id: id) }
             }
         } message: { asset in
-            Text("This will delete \(asset.displaySize). This action cannot be undone.")
+            Text("This will delete \(asset.displaySize). \(CleanupDeletion.recoverableNote)")
         }
         .fullScreenCover(item: $previewStart) { start in
             MediaPreviewView(
@@ -174,15 +181,6 @@ struct LargeFilesView: View {
         .sheet(item: $viewModel.sharePayload, onDismiss: { viewModel.cleanupShareExport() }) { payload in
             ShareSheet(urls: payload.urls)
         }
-        .onChange(of: thresholdMB) { _, _ in
-            viewModel.synchronizeSelection()
-        }
-        .onChange(of: viewModel.mediaFilter) { _, _ in
-            viewModel.synchronizeSelection()
-        }
-        .onChange(of: viewModel.sortOrder) { _, _ in
-            viewModel.synchronizeSelection()
-        }
         .task {
             await viewModel.loadIfNeeded()
         }
@@ -192,7 +190,7 @@ struct LargeFilesView: View {
     private var emptyResultsView: some View {
         VStack(spacing: Spacing.md) {
             Image(systemName: emptyIcon)
-                .font(.system(size: 48, weight: .light))
+                .scaledGlyph(48, weight: .light)
                 .foregroundStyle(.secondary)
             Text(emptyTitle)
                 .font(.headline)
@@ -262,7 +260,7 @@ struct LargeFilesView: View {
                     .font(.title3)
                     .foregroundStyle(viewModel.selectedIds.contains(asset.id) ? .blue : .secondary)
                     .scaleEffect(viewModel.selectedIds.contains(asset.id) ? 1.0 : 0.9)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(asset.id))
+                    .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(asset.id))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(viewModel.selectedIds.contains(asset.id) ? "Deselect file" : "Select file")
@@ -310,7 +308,8 @@ struct LargeFilesView: View {
                 Image(systemName: "trash")
                     .font(.body)
                     .foregroundStyle(.red)
-                    .padding(.leading, Spacing.xs)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Delete file")

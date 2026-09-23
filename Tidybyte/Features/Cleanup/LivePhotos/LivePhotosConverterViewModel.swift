@@ -5,6 +5,8 @@ import Photos
 enum ConversionState {
     case idle
     case converting
+    /// Step 1 done: the still is saved. The Live Photo is deleted in step 2.
+    case copySaved
     case completed
     case failed(String)
 }
@@ -30,6 +32,26 @@ final class LivePhotosConverterViewModel {
     /// haptic/summary (COMP-09): success only when `failed == 0`.
     var lastBatch: (converted: Int, failed: Int)?
     private(set) var isCancelled = false
+    /// Which step of the conversion is running, for the bottom bar.
+    private(set) var phase: ReplacePhase = .idle
+    /// Saved stills whose Live Photos are still in the library (the user
+    /// tapped "Don't Allow"). The view offers Try Again / Remove Copies.
+    var keptOriginals: [PendingOriginal] = []
+    /// False once the screen is gone. A decline then has no alert to show,
+    /// so the kept copies are settled as "both kept" instead of staying
+    /// pending (which made a later reconcile ask to delete them, unexplained).
+    var isOnScreen = true
+
+    private func storeKept(_ kept: [PendingOriginal]) {
+        if isOnScreen {
+            keptOriginals = kept
+        } else {
+            for item in kept { item.swap.finalizeOriginalKept(copyRemoved: false) }
+        }
+    }
+    /// True while a single conversion or a retry runs, so row buttons and
+    /// Convert All stay disabled.
+    private(set) var isBusy = false
     /// D2: the Convert-All loop, owned by the VM so leaving the screen can
     /// cancel it instead of letting it keep converting (and deleting originals)
     /// with no way to stop — COMP-08 was never ported to this tool.
@@ -72,7 +94,7 @@ final class LivePhotosConverterViewModel {
     func deleteLivePhoto(itemId: String) async {
         // COMP-18: never delete outright while Convert All is running — the
         // batch may be converting (and about to delete) this same item.
-        guard !convertingAll else { return }
+        guard !convertingAll, !isBusy else { return }
         guard let index = items.firstIndex(where: { $0.id == itemId }) else { return }
         // Captured before the await: a post-delete fetch returns nothing.
         let size = items[index].asset.fileSize
@@ -107,7 +129,7 @@ final class LivePhotosConverterViewModel {
     /// row's state and lets the user re-tap Convert on an item whose original is
     /// already deleted (guaranteed assetNotFound failure).
     func refresh() async {
-        guard !convertingAll else { return }
+        guard !convertingAll, !isBusy else { return }
         errorMessage = nil
         let livePhotos = await photoService.fetchLivePhotos()
         items = livePhotos.map { LivePhotoItem(id: $0.id, asset: $0) }
@@ -133,27 +155,80 @@ final class LivePhotosConverterViewModel {
     func convertSingle(itemId: String, modelContext: ModelContext) async {
         // COMP-18: never start a single conversion while Convert All is
         // running (double spinners, double counts).
-        guard !convertingAll else { return }
+        guard !convertingAll, !isBusy else { return }
         guard let index = items.firstIndex(where: { $0.id == itemId }) else { return }
         errorMessage = nil
+        isBusy = true
+        defer { isBusy = false }
         items[index].conversionState = .converting
 
         do {
-            let savedBytes = try await performConversion(assetId: itemId, modelContext: modelContext)
-            // Re-lookup: the array may have shifted during the await.
-            if let idx = items.firstIndex(where: { $0.id == itemId }) {
-                items[idx].savedBytes = savedBytes
-                items[idx].conversionState = .completed
-            }
+            let pending = try await performConversion(assetId: itemId, modelContext: modelContext)
+            setState(.copySaved, for: itemId)
+            await commitOriginals([pending])
         } catch {
-            if let idx = items.firstIndex(where: { $0.id == itemId }) {
-                items[idx].conversionState = .failed(error.localizedDescription)
-            }
+            setState(.failed(error.localizedDescription), for: itemId)
             errorMessage = error.localizedDescription
         }
     }
 
+    /// Step 2: delete the Live Photos of every saved still in one call (one
+    /// iOS prompt). Returns how many were committed.
+    @discardableResult
+    private func commitOriginals(_ pending: [PendingOriginal]) async -> Int {
+        guard !pending.isEmpty else { return 0 }
+        phase = .removingOriginals(count: pending.count)
+        let outcome = await OriginalsCommit.commit(pending)
+        phase = .idle
+        for item in outcome.committed {
+            if let idx = items.firstIndex(where: { $0.id == item.assetId }) {
+                items[idx].savedBytes = max(0, item.originalSize - item.compressedSize)
+                items[idx].conversionState = .completed
+            }
+        }
+        storeKept(outcome.kept)
+        return outcome.committed.count
+    }
+
+    /// "Try Again" on the Originals Kept alert. Clears `keptOriginals`
+    /// synchronously so the alert does not re-present.
+    func retryRemovingOriginals() {
+        let pending = keptOriginals
+        keptOriginals = []
+        guard !pending.isEmpty else { return }
+        isBusy = true
+        Task {
+            await commitOriginals(pending)
+            isBusy = false
+        }
+    }
+
+    /// "Remove Copies" on the Originals Kept alert: the Live Photos stay,
+    /// the new stills go.
+    func removeCopies() {
+        let pending = keptOriginals
+        keptOriginals = []
+        guard !pending.isEmpty else { return }
+        isBusy = true
+        Task {
+            // A decline leaves both versions: say so instead of going quiet.
+            if await !OriginalsCommit.removeCopies(pending) {
+                errorMessage = "Copies kept. Both versions are in your library; delete either one in Photos."
+            }
+            for item in pending { setState(.idle, for: item.assetId) }
+            isBusy = false
+        }
+    }
+
+    private func setState(_ state: ConversionState, for itemId: String) {
+        // Re-lookup: the array may have shifted during an await.
+        if let idx = items.firstIndex(where: { $0.id == itemId }) {
+            items[idx].conversionState = state
+        }
+    }
+
     func convertAll(modelContext: ModelContext) async {
+        guard !isBusy else { return }
         errorMessage = nil
         isCancelled = false
         convertingAll = true
@@ -169,29 +244,27 @@ final class LivePhotosConverterViewModel {
         // One album pass for the whole batch instead of one predicate scan
         // per album per item inside `performConversion`.
         let albumMap = await photoService.userAlbumIdentifiers(for: Set(pendingIds))
-        var converted = 0
+        var saved: [PendingOriginal] = []
         var failed = 0
-        for itemId in pendingIds {
-            // D2: cancellation checked at the top of every iteration — this loop
-            // deletes originals, so it must be stoppable at every step.
+        for (offset, itemId) in pendingIds.enumerated() {
+            // D2: cancellation checked at the top of every iteration.
             if isCancelled { break }
+            phase = .savingCopies(done: offset, total: pendingIds.count)
             guard let index = items.firstIndex(where: { $0.id == itemId }) else { continue }
             items[index].conversionState = .converting
             do {
-                let savedBytes = try await performConversion(assetId: itemId, modelContext: modelContext, albumIdentifiers: albumMap[itemId] ?? [])
-                converted += 1
-                // Re-lookup: the array may have shifted during the await.
-                if let idx = items.firstIndex(where: { $0.id == itemId }) {
-                    items[idx].savedBytes = savedBytes
-                    items[idx].conversionState = .completed
-                }
+                let pending = try await performConversion(assetId: itemId, modelContext: modelContext, albumIdentifiers: albumMap[itemId] ?? [])
+                saved.append(pending)
+                setState(.copySaved, for: itemId)
             } catch {
                 failed += 1
-                if let idx = items.firstIndex(where: { $0.id == itemId }) {
-                    items[idx].conversionState = .failed(error.localizedDescription)
-                }
+                setState(.failed(error.localizedDescription), for: itemId)
             }
         }
+        // Step 2: one delete for every saved still — one iOS prompt. Also runs
+        // after a Stop, so finished items finish.
+        let converted = await commitOriginals(saved)
+        phase = .idle
         convertingAll = false
         lastBatch = (converted: converted, failed: failed)
         // COMP-09: one aggregated message instead of reporting only the last
@@ -201,7 +274,9 @@ final class LivePhotosConverterViewModel {
         }
     }
 
-    private func performConversion(assetId: String, modelContext: ModelContext, albumIdentifiers: [String]? = nil) async throws -> Int64 {
+    /// Step 1 of a conversion: save the still as a new asset. The Live Photo
+    /// itself is deleted later, in `commitOriginals`.
+    private func performConversion(assetId: String, modelContext: ModelContext, albumIdentifiers: [String]? = nil) async throws -> PendingOriginal {
         guard let phAsset = photoService.getPHAsset(for: assetId) else {
             throw LivePhotoError.assetNotFound
         }
@@ -223,13 +298,12 @@ final class LivePhotosConverterViewModel {
         // crash mid-conversion can't leave a permanent Live Photo duplicate.
         // Throws when the pending row is not durable — that aborts the
         // conversion before any library write (no journal, no swap).
-        let journal = try CompressionJournal.beginPending(
-            modelContext: modelContext,
+        let swap = try CompressionSwap(
             mediaType: .livePhoto,
             assetId: assetId,
             originalSize: originalSize,
-            compressedSize: 0,
-            exportPreset: "still"
+            exportPreset: "still",
+            modelContext: modelContext
         )
 
         // Read the still-image resource bytes directly. Writing these bytes back
@@ -274,7 +348,7 @@ final class LivePhotosConverterViewModel {
             throw LivePhotoError.invalidImageData
         }
 
-        // Capture album membership before deleting the original (batch callers
+        // Capture album membership for the new still (batch callers
         // pass the precomputed map; single conversions look it up directly).
         let resolvedAlbumIds: [String]
         if let precomputed = albumIdentifiers {
@@ -290,7 +364,7 @@ final class LivePhotosConverterViewModel {
         //
         // D1: the still is about to be written to the library — from here a
         // crash could strand a copy whose id the journal never learned.
-        CompressionJournal.markSaveAttempted(journal, modelContext: modelContext)
+        swap.markSaveAttempted()
         var placeholder: PHObjectPlaceholder?
         try await PHPhotoLibrary.shared().performChanges {
             let request = PHAssetCreationRequest.forAsset()
@@ -305,12 +379,12 @@ final class LivePhotosConverterViewModel {
         }
 
         guard let replacementId = placeholder?.localIdentifier else {
-            CompressionJournal.finalize(journal, outcome: .failed, modelContext: modelContext)
+            await swap.markFailed(assetId: assetId)
             throw LivePhotoError.invalidImageData
         }
         // D1: the durable new copy exists — record it in the journal at the
         // earliest crash point that could strand a duplicate.
-        CompressionJournal.recordReplacement(journal, replacementId: replacementId, compressedSize: Int64(imageData.count), modelContext: modelContext)
+        swap.recordReplacement(id: replacementId, size: Int64(imageData.count))
 
         // Restore album membership on the replacement (best effort).
         for albumId in resolvedAlbumIds {
@@ -321,35 +395,14 @@ final class LivePhotosConverterViewModel {
             }
         }
 
-        // Delete the original Live Photo only after confirming the new still
-        // exists. If deletion fails, roll the replacement back so we don't
-        // leave a duplicate behind (COMP-02).
-        do {
-            try await photoService.deleteAssets(identifiers: [assetId])
-        } catch {
-            var rollbackSucceeded = false
-            do {
-                try await photoService.deleteAssets(identifiers: [replacementId])
-                rollbackSucceeded = true
-            } catch {
-                rollbackSucceeded = false
-            }
-            // Journal: on successful rollback nothing durable remains (the row
-            // resolves now); if rollback also failed the replacement is still in
-            // the library, so leave the row PENDING — only `reconcile` (which
-            // looks at pending rows) can remove the stranded copy, and a
-            // finalized row would hide it from that cleanup permanently.
-            if rollbackSucceeded {
-                CompressionJournal.finalize(journal, outcome: .failed, modelContext: modelContext)
-            }
-            throw LivePhotoError.originalDeletionFailed(rollbackSucceeded: rollbackSucceeded)
-        }
-
-        // Journal the replacement's actual byte size (not the savings): history
-        // computes savedBytes as originalSizeBytes - compressedSizeBytes.
-        journal.compressedSizeBytes = Int64(imageData.count)
-        CompressionJournal.finalize(journal, outcome: .completed, modelContext: modelContext)
-        return max(0, originalSize - Int64(imageData.count))
+        // The Live Photo is NOT deleted here: the caller deletes all originals
+        // in one `OriginalsCommit.commit` call (one iOS prompt per batch).
+        return PendingOriginal(
+            assetId: assetId,
+            originalSize: originalSize,
+            compressedSize: Int64(imageData.count),
+            swap: swap
+        )
     }
 }
 
@@ -358,7 +411,6 @@ enum LivePhotoError: LocalizedError {
     case noPhotoResource
     case invalidImageData
     case conversionTimedOut
-    case originalDeletionFailed(rollbackSucceeded: Bool)
 
     var errorDescription: String? {
         switch self {
@@ -366,12 +418,6 @@ enum LivePhotoError: LocalizedError {
         case .noPhotoResource: "Could not find still image in Live Photo."
         case .invalidImageData: "Invalid image data."
         case .conversionTimedOut: "Timed out loading the photo (it may still be in iCloud). Please try again."
-        case .originalDeletionFailed(let rollbackSucceeded):
-            if rollbackSucceeded {
-                "Converted copy saved, but the original couldn't be deleted. We removed the new copy to avoid a duplicate."
-            } else {
-                "Converted copy saved, but the original couldn't be deleted, and the new copy couldn't be removed either. Check your library for a duplicate."
-            }
         }
     }
 }

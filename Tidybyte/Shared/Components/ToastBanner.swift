@@ -70,6 +70,13 @@ private struct ToastPresenter: ViewModifier {
     @Binding var message: ToastMessage?
     var duration: Duration
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+
+    /// With VoiceOver an actionable toast stays long enough to reach its
+    /// button.
+    private var visibleDuration: Duration {
+        voiceOverEnabled && message?.actionTitle != nil ? max(duration, .seconds(8)) : duration
+    }
 
     /// Reduce Motion keeps the appearance change but drops the travel, matching
     /// how the rest of the app treats `reduceMotionAware` animations.
@@ -89,7 +96,7 @@ private struct ToastPresenter: ViewModifier {
                         .accessibilityHidden(message.actionTitle == nil)
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .task(id: message.id) {
-                            try? await Task.sleep(for: duration)
+                            try? await Task.sleep(for: visibleDuration)
                             guard !Task.isCancelled else { return }
                             withAnimation(presentation) {
                                 self.message = nil
@@ -102,8 +109,10 @@ private struct ToastPresenter: ViewModifier {
                 // A transient overlay is easy to miss with VoiceOver unless it
                 // is announced; only announce text-only toasts, since an
                 // actionable one is reachable by focus.
-                guard newValue != nil, let message, message.actionTitle == nil else { return }
-                UIAccessibility.post(notification: .announcement, argument: message.text)
+                // Actionable toasts are announced too, naming the action.
+                guard newValue != nil, let message else { return }
+                let spoken = message.actionTitle.map { "\(message.text). \($0) available." } ?? message.text
+                UIAccessibility.post(notification: .announcement, argument: spoken)
             }
     }
 }

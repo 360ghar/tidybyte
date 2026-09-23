@@ -8,7 +8,7 @@ final class LargeFilesViewModelTests: XCTestCase {
         AppPreferences.saveLargeFileThresholdMB(10)
     }
 
-    func testSynchronizeSelectionDropsHiddenAssets() {
+    func testFilterChangeKeepsHiddenSelection() {
         let viewModel = LargeFilesViewModel()
         viewModel.assets = [
             makeAsset(id: "video-large", mediaType: .video, fileSize: 150_000_000, filename: "video-large.mov"),
@@ -18,9 +18,9 @@ final class LargeFilesViewModelTests: XCTestCase {
         viewModel.selectedIds = ["video-large", "photo-large"]
         viewModel.mediaFilter = .photos
 
-        viewModel.synchronizeSelection()
-
-        XCTAssertEqual(viewModel.selectedIds, ["photo-large"])
+        // The video pick survives; only the visible pick counts for delete.
+        XCTAssertEqual(viewModel.selectedIds, ["video-large", "photo-large"])
+        XCTAssertEqual(viewModel.selectedVisibleCount, 1)
     }
 
     func testSelectAllUsesOnlyCurrentlyVisibleAssets() {

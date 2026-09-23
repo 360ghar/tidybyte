@@ -200,7 +200,8 @@ final class LargeFilesViewModel {
     /// Shared load/refresh pipeline (de-slop D3).
     private func apply(_ newAssets: [AssetSummary]) {
         assets = newAssets.sorted { $0.fileSize > $1.fileSize }
-        synchronizeSelection()
+        // Drop picks for files that no longer exist; keep picks the filter hides.
+        selectedIds.formIntersection(assets.map(\.id))
         hasLoadedAssets = true
     }
 
@@ -208,16 +209,15 @@ final class LargeFilesViewModel {
         selectedIds.toggle(id)
     }
 
+    /// Select All / Deselect All act on the visible files. Picks hidden by
+    /// the filter or the size slider are kept, so peeking at another filter
+    /// never throws away a selection.
     func selectAll() {
-        selectedIds = Set(filteredAssets.map(\.id))
+        selectedIds.formUnion(filteredAssets.map(\.id))
     }
 
     func deselectAll() {
-        selectedIds.removeAll()
-    }
-
-    func synchronizeSelection() {
-        selectedIds.formIntersection(Set(filteredAssets.map(\.id)))
+        selectedIds.subtract(filteredAssets.map(\.id))
     }
 
     func deleteSelected() async {

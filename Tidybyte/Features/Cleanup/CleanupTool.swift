@@ -147,3 +147,14 @@ func cleanupDestinationView(for tool: CleanupTool) -> some View {
         PhotoCompressionView()
     }
 }
+
+/// The last scan result per scan-only tool, kept for this app run, so the
+/// Cleanup home shows "12 found" instead of "Not scanned" after a scan.
+@MainActor
+enum ScanResults {
+    private(set) static var counts: [CleanupTool: Int] = [:]
+
+    static func record(_ tool: CleanupTool, count: Int) {
+        counts[tool] = count
+    }
+}

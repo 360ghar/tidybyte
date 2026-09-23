@@ -161,8 +161,12 @@ final class SimilarPhotosViewModel {
 
         groups = foundGroups
         scanState = .completed
+        ScanResults.record(.similar, count: totalDuplicateCount)
 
-        selectNonBestAssets()
+        // Similar shots are different photos: start with nothing selected.
+        // "Select All" applies the suggestion (all but each keeper, never a
+        // favorite).
+        selectedForDeletion.removeAll()
     }
 
     // MARK: - Scan lifecycle (DUP-02/C1)
@@ -382,6 +386,7 @@ final class SimilarPhotosViewModel {
             )
         }
         selectedForDeletion.formIntersection(Set(groups.flatMap { $0.assets.map(\.id) }))
+        ScanResults.record(.similar, count: totalDuplicateCount)
     }
 
     func toggleSelection(_ assetId: String) {
@@ -396,16 +401,33 @@ final class SimilarPhotosViewModel {
         groups[index].bestAssetId = assetId
         groups[index].bestReason = .userChosen
         var state = SelectionState(ids: selectedForDeletion)
-        state.setBest(newBest: assetId, oldBest: oldBest)
+        state.setBest(newBest: assetId, oldBest: oldBest, groupAssets: groups[index].assets)
         selectedForDeletion = state.ids
     }
 
-    private func selectNonBestAssets() {
+    /// The suggested set: every non-keeper that is not a favorite.
+    private var suggestedIds: Set<String> {
         var state = SelectionState()
         for group in groups {
             state.selectNonBest(assets: group.assets, bestAssetId: group.bestAssetId)
         }
-        selectedForDeletion = state.ids
+        return state.ids
+    }
+
+    /// False when every extra is a favorite: "Select All" would do nothing.
+    var hasSuggestions: Bool { !suggestedIds.isEmpty }
+
+    var allSuggestedSelected: Bool {
+        let suggested = suggestedIds
+        return !suggested.isEmpty && suggested.isSubset(of: selectedForDeletion)
+    }
+
+    func selectSuggested() {
+        selectedForDeletion.formUnion(suggestedIds)
+    }
+
+    func deselectAll() {
+        selectedForDeletion.removeAll()
     }
 
     /// Quality-first keeper selection. Combines sharpness, exposure, resolution,

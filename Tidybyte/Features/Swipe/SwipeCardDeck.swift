@@ -12,7 +12,11 @@ import SwiftUI
 struct SwipeCardDeck: View {
     @Bindable var viewModel: SwipeSessionViewModel
     /// Surfaces the "marked for deletion — tap Undo" hint in the parent's toast.
-    var onUndoHint: () -> Void
+    /// Called with the id of the photo just marked for deletion, so the
+    /// toast's Undo can check it still undoes that photo.
+    var onUndoHint: (String) -> Void
+    /// Called when a delete is refused because the photo never showed.
+    var onDeleteBlocked: () -> Void = {}
 
     @State private var dragOffset: CGSize = .zero
     @State private var isDragging = false
@@ -22,6 +26,16 @@ struct SwipeCardDeck: View {
     @State private var isTopCardZoomed = false
     /// Monotonic counter driving CardView's "Zoom" accessibility action.
     @State private var zoomToggleRequest = 0
+    @State private var playRequest = 0
+    @State private var retryRequest = 0
+    /// Ids of cards whose image is on screen. Delete stays off for a card that
+    /// never showed its photo (still loading, or the iCloud download failed).
+    @State private var shownAssetIds: Set<String> = []
+
+    private var canDeleteTopCard: Bool {
+        guard let id = viewModel.currentAsset?.id else { return false }
+        return shownAssetIds.contains(id)
+    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -56,6 +70,8 @@ struct SwipeCardDeck: View {
             // card's flung-off position.
             isTopCardZoomed = false
             zoomToggleRequest = 0
+            playRequest = 0
+            retryRequest = 0
             dragOffset = .zero
             isDragging = false
         }
@@ -92,9 +108,12 @@ struct SwipeCardDeck: View {
                         dragOffset: isTop ? dragOffset : .zero,
                         isDragging: isTop && isDragging,
                         zoomToggleRequest: isTop ? zoomToggleRequest : 0,
+                        playRequest: isTop ? playRequest : 0,
+                        retryRequest: isTop ? retryRequest : 0,
                         onZoomChanged: isTop ? { isTopCardZoomed = $0 } : nil,
                         onSwipeDragChanged: handleDragChanged,
-                        onSwipeDragEnded: handleDragEnded
+                        onSwipeDragEnded: handleDragEnded,
+                        onImageShown: { shownAssetIds.insert($0) }
                     )
                     .scaleEffect(isTop ? 1.0 : scale)
                     .offset(y: isTop ? 0 : yOffset)
@@ -116,7 +135,12 @@ struct SwipeCardDeck: View {
                             Button("Keep") { triggerKeep() }
                             Button("Add to Album") { triggerKeepWithAlbum() }
                             Button("Skip") { viewModel.skip() }
-                            if asset.mediaType != .video {
+                            if !shownAssetIds.contains(asset.id) {
+                                Button("Try Loading Again") { retryRequest += 1 }
+                            }
+                            if asset.mediaType == .video {
+                                Button("Play Video") { playRequest += 1 }
+                            } else {
                                 Button(isTopCardZoomed ? "Zoom Out" : "Zoom In") {
                                     zoomToggleRequest += 1
                                 }
@@ -173,12 +197,20 @@ struct SwipeCardDeck: View {
             performSwipeAnimation(offset: CGSize(width: 1000, height: value.translation.height)) {
                 viewModel.swipeRight()
             }
+        } else if (value.translation.width < -threshold || predictedWidth < -velocityThreshold), !canDeleteTopCard {
+            // The photo never showed: refuse the delete and snap back.
+            HapticHelper.notification(.warning)
+            onDeleteBlocked()
+            withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
+                dragOffset = .zero
+            }
         } else if value.translation.width < -threshold || predictedWidth < -velocityThreshold {
             // Swipe left — delete
             HapticHelper.impact(.heavy)
+            let markedId = viewModel.currentAsset?.id
             performSwipeAnimation(offset: CGSize(width: -1000, height: value.translation.height)) {
                 viewModel.swipeLeft()
-                onUndoHint()
+                if let markedId { onUndoHint(markedId) }
             }
         } else if value.translation.height < -threshold || predictedHeight < -velocityThreshold {
             // Swipe up — file this photo into an album. Explicit intent:
@@ -206,15 +238,22 @@ struct SwipeCardDeck: View {
         if asset.isFavorite { parts.append("Favorite") }
         if asset.isLivePhoto { parts.append("Live Photo.") }
         if !asset.isLocallyAvailable { parts.append("In iCloud.") }
+        if !shownAssetIds.contains(asset.id) { parts.append("Not loaded yet. Delete is off until it shows.") }
         return Text(parts.joined(separator: ", "))
     }
 
     private func triggerDelete() {
         guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
+        guard canDeleteTopCard else {
+            HapticHelper.notification(.warning)
+            onDeleteBlocked()
+            return
+        }
         HapticHelper.impact(.heavy)
+        let markedId = viewModel.currentAsset?.id
         performSwipeAnimation(offset: CGSize(width: -1000, height: 0)) {
             viewModel.swipeLeft()
-            onUndoHint()
+            if let markedId { onUndoHint(markedId) }
         }
     }
 
@@ -265,9 +304,11 @@ struct SwipeCardDeck: View {
                     .scaledSquare(ScaledSize.actionButton)
                     .background(.red)
                     .clipShape(Circle())
-                    .shadow(color: .red.opacity(0.3), radius: 8)
             }
-            .keyboardShortcut(.delete, modifiers: [])
+            // Keys follow the swipe: left deletes, right keeps.
+            .keyboardShortcut(.leftArrow, modifiers: [])
+            .disabled(!canDeleteTopCard)
+            .opacity(canDeleteTopCard ? 1 : 0.4)
             .accessibilityLabel("Delete")
             .accessibilityHint("Marks this photo for deletion and shows the next one")
 
@@ -283,7 +324,7 @@ struct SwipeCardDeck: View {
                     .background(Color(.systemGray))
                     .clipShape(Circle())
             }
-            .keyboardShortcut(.rightArrow, modifiers: [])
+            .keyboardShortcut(.downArrow, modifiers: [])
             .accessibilityLabel("Skip")
             .accessibilityHint("Leaves this photo unchanged and shows the next one")
 
@@ -312,9 +353,8 @@ struct SwipeCardDeck: View {
                     .scaledSquare(ScaledSize.actionButton)
                     .background(.green)
                     .clipShape(Circle())
-                    .shadow(color: .green.opacity(0.3), radius: 8)
             }
-            .keyboardShortcut(.return, modifiers: [])
+            .keyboardShortcut(.rightArrow, modifiers: [])
             .accessibilityLabel("Keep")
             .accessibilityHint("Keeps this photo without prompting")
         }

@@ -5,6 +5,7 @@ struct SessionCompletionView: View {
     @Bindable var viewModel: SwipeSessionViewModel
     @Environment(AppNavigation.self) private var appNavigation
     @Environment(\.requestReview) private var requestReview
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var showCheckmark = false
     /// Where the user wanted to go when they hit an exit button while deletions
@@ -35,140 +36,97 @@ struct SessionCompletionView: View {
         .navigationBarBackButtonHidden()
     }
 
-    private var completionContent: some View {
-        VStack(spacing: Spacing.xxxl) {
-            // Animated checkmark with glow
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [.green.opacity(0.2), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 60
-                        )
-                    )
-                    .scaledSquare(ScaledSize.celebrationHalo)
-                    .scaleEffect(showCheckmark ? 1.0 : 0.3)
+    /// The deck ran out with nothing left pending, or the deletions were
+    /// committed. Only then is this a finished session worth celebrating.
+    /// An early exit, or keeping everything mid-deck, is not.
+    private var isFinished: Bool {
+        !viewModel.hasPendingDeletions && (viewModel.deletionCommitted || !viewModel.hasMoreCards)
+    }
 
+    private var title: String {
+        if viewModel.hasPendingDeletions { return "Review Changes" }
+        return viewModel.hasMoreCards ? "Session Ended" : "Session Complete"
+    }
+
+    private var pendingCount: Int { viewModel.pendingDeletionIds.count }
+
+    static func photos(_ count: Int) -> String {
+        "\(count) photo\(count == 1 ? "" : "s")"
+    }
+
+    private var completionContent: some View {
+        VStack(spacing: Spacing.xxl) {
+            if isFinished {
                 Image(systemName: "checkmark.circle.fill")
                     .scaledGlyph(ScaledSize.celebrationGlyph)
-                    .foregroundStyle(.green)
-                    .scaleEffect(showCheckmark ? 1.0 : 0.5)
-                    .opacity(showCheckmark ? 1.0 : 0.0)
+                    .foregroundStyle(Color.success)
+                    .scaleEffect(showCheckmark ? 1.0 : 0.8)
+                    .animation(.reduceMotionAware(.spring(response: 0.5, dampingFraction: 0.7), reduceMotion: reduceMotion), value: showCheckmark)
+                    .accessibilityHidden(true)
             }
-            .animation(.spring(response: 0.6, dampingFraction: 0.6), value: showCheckmark)
 
-            Text("Session Complete!")
+            Text(title)
                 .font(.largeTitle.bold())
-                .fadeSlideIn(delay: 0.2)
+                .multilineTextAlignment(.center)
+
+            // The one decision on this screen comes first, above the stats.
+            if viewModel.hasPendingDeletions {
+                pendingDeletionBlock
+            }
 
             // Stats card
             VStack(spacing: Spacing.lg) {
                 deletionStatRow
-                    .fadeSlideIn(delay: 0.3)
-                statRow(icon: "checkmark", color: .green, label: "Kept", value: "\(stats.keptCount) items")
-                    .fadeSlideIn(delay: 0.33)
-                statRow(icon: "folder", color: .blue, label: "Organized", value: "\(stats.organizedCount) items")
-                    .fadeSlideIn(delay: 0.35)
-                statRow(icon: "forward.fill", color: .gray, label: "Skipped", value: "\(stats.skippedCount) items")
-                    .fadeSlideIn(delay: 0.4)
-
-                Rectangle()
-                    .fill(Color.cardBorder)
-                    .frame(height: 1)
-
-                storageStatRow
-                    .fadeSlideIn(delay: 0.45)
+                statRow(icon: "checkmark", color: Color.success, label: "Kept", value: Self.photos(stats.keptCount))
+                statRow(icon: "folder", color: .blue, label: "Added to albums", value: Self.photos(stats.organizedCount))
+                statRow(icon: "forward.fill", color: .gray, label: "Skipped", value: Self.photos(stats.skippedCount))
+                if viewModel.deletionCommitted, stats.deletedBytes > 0 {
+                    statRow(icon: "internaldrive", color: Color.success, label: "Moved to Recently Deleted",
+                            value: stats.deletedBytes.formattedFileSize)
+                }
             }
             .glassCard()
             .padding(.horizontal, Spacing.lg)
 
-            // Rate / Share always offered on the big happy path — this screen
-            // is the best moment in the app, so the card is a permanent part
-            // of it, not a transient banner.
-            HappyPathPromptCard(statLine: celebrationStatLine)
-                .padding(.horizontal, Spacing.lg)
-                .fadeSlideIn(delay: 0.55)
-
-            // Batch deletion confirmation
-            if viewModel.hasPendingDeletions {
-                VStack(spacing: Spacing.md) {
-                    Button {
-                        Task { await viewModel.commitDeletions() }
-                    } label: {
-                        HStack {
-                            if viewModel.isDeletingBatch {
-                                ProgressView()
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: "trash.fill")
-                            }
-                            Text("Confirm Delete \(viewModel.pendingDeletionIds.count) Items")
-                                .font(.headline)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(Spacing.lg)
-                        .background(.red.gradient)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
-                    }
-                    .disabled(viewModel.isDeletingBatch)
-                    .scaleOnPress()
-
-                    Button {
-                        viewModel.discardPendingDeletions()
-                    } label: {
-                        Text("Skip Deletion")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .disabled(viewModel.isDeletingBatch)
-                }
-                .padding(.horizontal, Spacing.lg)
-                .fadeSlideIn(delay: 0.5)
+            // Rate / Share only on a real finish, never next to an open
+            // delete decision.
+            if isFinished {
+                HappyPathPromptCard(statLine: celebrationStatLine)
+                    .padding(.horizontal, Spacing.lg)
             }
 
-            // Action buttons
+            // One primary action; the second exit is a plain text button.
             VStack(spacing: Spacing.md) {
                 Button {
                     requestExit(.swipeHome)
                 } label: {
-                    Text("Back to Swipe Home")
+                    Text("Start Another Session")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(Spacing.lg)
-                        .background(.blue.gradient)
+                        .background(Color.accentColor)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
                 }
                 .scaleOnPress()
 
-                Button {
+                Button("Go to Cleanup Tools") {
                     requestExit(.cleanupTools)
-                } label: {
-                    Text("Go to Cleanup Tools")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(Spacing.lg)
-                        .background(Color.cardSurface)
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: CornerRadius.large)
-                                .strokeBorder(Color.cardBorder, lineWidth: 1)
-                        }
                 }
-                .scaleOnPress()
+                .font(.subheadline.weight(.semibold))
+                .frame(minHeight: 44)
             }
             .disabled(viewModel.isDeletingBatch)
             .padding(.horizontal, Spacing.lg)
             .padding(.bottom, Spacing.lg)
-            .fadeSlideIn(delay: viewModel.hasPendingDeletions ? 0.6 : 0.5)
         }
+        .readableWidth()
+        .padding(.top, Spacing.xl)
         .onAppear {
             showCheckmark = true
-            HapticHelper.notification(.success)
+            if isFinished {
+                HapticHelper.notification(.success)
+            }
             // Batch mode records later (after commit); immediate-commit mode
             // already has its final counts on appear.
             if !viewModel.hasPendingDeletions {
@@ -181,19 +139,19 @@ struct SessionCompletionView: View {
             }
         }
         .confirmationDialog(
-            "You have \(viewModel.pendingDeletionIds.count) uncommitted deletions.",
+            "\(pendingCount) photo\(pendingCount == 1 ? " is" : "s are") marked for deletion",
             isPresented: Binding(
                 get: { pendingExit != nil },
                 set: { if !$0 { pendingExit = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("Commit Deletion", role: .destructive) {
+            Button("Delete \(pendingCount) Photo\(pendingCount == 1 ? "" : "s")", role: .destructive) {
                 if let destination = pendingExit {
                     commitAndExit(to: destination)
                 }
             }
-            Button("Discard") {
+            Button("Keep All Photos") {
                 if let destination = pendingExit {
                     discardAndExit(to: destination)
                 }
@@ -205,7 +163,7 @@ struct SessionCompletionView: View {
                 viewModel.showCompletion = false
             }
         } message: {
-            Text("Delete them, keep them, or discard?")
+            Text("Deleted photos go to Recently Deleted in Photos, where you can restore them for 30 days.")
         }
         // Non-modal error surface. Retry is preserved from the alert it
         // replaces: a failed commit leaves the pending set intact, so
@@ -244,10 +202,10 @@ struct SessionCompletionView: View {
 
     private var celebrationStatLine: String? {
         if viewModel.deletionCommitted, stats.deletedCount > 0 {
-            return "cleared \(stats.deletedCount) photos and freed \(stats.deletedBytes.formattedFileSize)"
+            return "cleared \(Self.photos(stats.deletedCount)) (\(stats.deletedBytes.formattedFileSize))"
         }
         let reviewed = stats.keptCount + stats.organizedCount + stats.skippedCount
-        return reviewed > 0 ? "reviewed \(reviewed) photos" : nil
+        return reviewed > 0 ? "reviewed \(Self.photos(reviewed))" : nil
     }
 
     // MARK: - Exit Flow (SWIPE-02)
@@ -290,30 +248,58 @@ struct SessionCompletionView: View {
         performExit(to: destination)
     }
 
+    // MARK: - Pending Deletions
+
+    private var pendingDeletionBlock: some View {
+        VStack(spacing: Spacing.md) {
+            Text("\(pendingCount) photo\(pendingCount == 1 ? "" : "s") marked for deletion · \(viewModel.pendingDeletionBytes.formattedFileSize)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                Task { await viewModel.commitDeletions() }
+            } label: {
+                HStack {
+                    if viewModel.isDeletingBatch {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                    Text("Delete \(pendingCount) Photo\(pendingCount == 1 ? "" : "s")")
+                        .font(.headline)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(Spacing.lg)
+                .background(Color.destructive)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
+            }
+            .disabled(viewModel.isDeletingBatch)
+            .scaleOnPress()
+
+            Button("Keep All Photos") {
+                viewModel.discardPendingDeletions()
+            }
+            .font(.subheadline.weight(.semibold))
+            .frame(minHeight: 44)
+            .disabled(viewModel.isDeletingBatch)
+
+            Text("Deleted photos go to Recently Deleted in Photos for 30 days.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, Spacing.lg)
+    }
+
     // MARK: - Stat Rows
 
     @ViewBuilder
     private var deletionStatRow: some View {
-        if viewModel.deletionCommitted {
-            statRow(icon: "trash", color: .red, label: "Deleted", value: "\(stats.deletedCount) items")
-        } else if !viewModel.pendingDeletionIds.isEmpty {
-            statRow(icon: "trash", color: .orange, label: "Marked for Deletion", value: "\(viewModel.pendingDeletionIds.count) items")
+        if viewModel.hasPendingDeletions {
+            statRow(icon: "trash", color: .orange, label: "Marked for deletion", value: Self.photos(pendingCount))
         } else {
-            statRow(icon: "trash", color: .red, label: "Deleted", value: "0 items")
-        }
-    }
-
-    @ViewBuilder
-    private var storageStatRow: some View {
-        if viewModel.deletionCommitted {
-            statRow(icon: "internaldrive", color: .green, label: "Storage Freed",
-                    value: stats.deletedBytes.formattedFileSize)
-        } else if !viewModel.pendingDeletionIds.isEmpty {
-            statRow(icon: "internaldrive", color: .orange, label: "Potential Savings",
-                    value: stats.deletedBytes.formattedFileSize)
-        } else {
-            statRow(icon: "internaldrive", color: .green, label: "Storage Freed",
-                    value: stats.deletedBytes.formattedFileSize)
+            statRow(icon: "trash", color: Color.destructive, label: "Deleted", value: Self.photos(stats.deletedCount))
         }
     }
 

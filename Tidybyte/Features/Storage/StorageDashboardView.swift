@@ -22,6 +22,8 @@ struct StorageDashboardView: View {
                 dashboardSkeleton
             } else {
                 VStack(spacing: Spacing.xl) {
+                    LimitedLibraryBanner(note: "Figures on this screen cover only the photos you selected.")
+
                     storageBreakdownSection
                         .fadeSlideIn(delay: 0.0)
 
@@ -295,20 +297,18 @@ struct StorageDashboardView: View {
         GlassCard {
             VStack(spacing: Spacing.lg) {
                 HStack {
-                    Image(systemName: "sparkles")
-                        .font(.title3)
-                        .foregroundStyle(.blue)
-                    Text("Reclaimable Space")
+                    Text("You Could Free")
                         .font(.headline)
                     Spacer()
                 }
 
                 VStack(spacing: Spacing.xs) {
-                    Text("Up to \(viewModel.totalReclaimable.formattedFileSize) reclaimable")
+                    Text("Up to \(viewModel.totalReclaimable.formattedFileSize)")
                         .font(.title3.bold())
-                    Text("Review and clean up to free space")
+                    Text("On this iPhone. Live Photos and large videos count at about half their size.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
 
                 // Segmented wins bar — each segment is tappable. Segment widths are
@@ -327,7 +327,7 @@ struct StorageDashboardView: View {
                                     handle(win.action)
                                 } label: {
                                     RoundedRectangle(cornerRadius: CornerRadius.small)
-                                        .fill(win.color.gradient)
+                                        .fill(win.color)
                                         .frame(maxWidth: usable * CGFloat(win.bytes) / CGFloat(total))
                                 }
                                 .buttonStyle(.plain)
@@ -335,6 +335,8 @@ struct StorageDashboardView: View {
                         }
                     }
                     .frame(height: 24)
+                    // The legend rows below repeat every segment with a name.
+                    .accessibilityHidden(true)
                 }
 
                 // Legend rows — each win is tappable.
@@ -345,7 +347,7 @@ struct StorageDashboardView: View {
                         } label: {
                             HStack(spacing: Spacing.sm) {
                                 Circle()
-                                    .fill(win.color.gradient)
+                                    .fill(win.color)
                                     .frame(width: 10, height: 10)
                                 Text(win.title)
                                     .font(.subheadline)
@@ -432,7 +434,7 @@ struct StorageDashboardView: View {
     /// "X freed" when a size is known, otherwise an honest size-free label.
     private var savingsHeadline: String {
         viewModel.lifetimeFreedBytes > 0
-            ? "\(viewModel.lifetimeFreedBytes.formattedFileSize) freed"
+            ? "\(viewModel.lifetimeFreedBytes.formattedFileSize) cleaned up"
             : "Sizes unavailable"
     }
 
@@ -452,7 +454,7 @@ struct StorageDashboardView: View {
                     icon: "trash",
                     color: .gray,
                     title: "Recently Deleted",
-                    detail: "Empty the trash in Photos to reclaim space"
+                    detail: "Space comes back when it is emptied. In Photos, open Albums, then Recently Deleted."
                 )
             }
             .buttonStyle(.plain)
@@ -480,15 +482,20 @@ struct StorageDashboardView: View {
                                 angularInset: 2
                             )
                             .foregroundStyle(category.color)
-                            .cornerRadius(4)
+                            .cornerRadius(CornerRadius.small)
                         }
                         .frame(height: 200)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Library breakdown")
+                        .accessibilityValue(viewModel.categories
+                            .map { "\($0.name) \($0.bytes.formattedFileSize)" }
+                            .joined(separator: ", "))
 
                         // Center label
                         VStack(spacing: Spacing.xs) {
                             Text(viewModel.totalLibrarySize.formattedFileSize)
                                 .font(.title3.bold())
-                            Text("\(viewModel.totalItemCount) items")
+                            Text("\(viewModel.totalItemCount) \(viewModel.totalItemCount == 1 ? "item" : "items")")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -504,6 +511,8 @@ struct StorageDashboardView: View {
             }
         }
     }
+
+    private static let tappableCategoryIds: Set<String> = ["screenshots", "videos", "livePhotos"]
 
     /// Legend row that navigates to the appropriate tool when tapped.
     @ViewBuilder
@@ -521,15 +530,17 @@ struct StorageDashboardView: View {
             Button {
                 handle(action)
             } label: {
-                legendRowContent(category: category)
+                legendRowContent(category: category, isTappable: true)
             }
             .buttonStyle(.plain)
         } else {
-            legendRowContent(category: category)
+            legendRowContent(category: category, isTappable: false)
         }
     }
 
-    private func legendRowContent(category: StorageCategory) -> some View {
+    /// Chevron only on rows that open a tool, so a row that does nothing on
+    /// tap does not look like one that does.
+    private func legendRowContent(category: StorageCategory, isTappable: Bool) -> some View {
         HStack(spacing: Spacing.sm) {
             Circle()
                 .fill(category.color)
@@ -542,17 +553,42 @@ struct StorageDashboardView: View {
                 .foregroundStyle(.secondary)
             Text(category.bytes.formattedFileSize)
                 .font(.subheadline.monospacedDigit().bold())
+            // The slot is kept only when some row is tappable, so values
+            // still line up; with no tappable row there is no gap.
+            if isTappable || viewModel.categories.contains(where: { Self.tappableCategoryIds.contains($0.id) }) {
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(.tertiary)
+                    .opacity(isTappable ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
         }
+        .frame(minHeight: 32)
     }
 
     // MARK: - Device Storage
 
+    /// Hidden when capacity could not be read, so it never shows
+    /// "Zero KB used / Zero KB available".
+    @ViewBuilder
     private var deviceStorageSection: some View {
+        let isAlmostFull = viewModel.deviceStorage.totalCapacity > 0
+            && Double(viewModel.deviceStorage.usedCapacity) / Double(viewModel.deviceStorage.totalCapacity) > 0.9
+        if viewModel.deviceStorage.totalCapacity > 0 {
         GlassCard {
             VStack(spacing: Spacing.md) {
-                Text("Device Storage")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack {
+                    Text("Device Storage")
+                        .font(.headline)
+                    Spacer()
+                    // Text, not only a red bar, so the warning does not rely
+                    // on color.
+                    if isAlmostFull {
+                        Label("Almost full", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.bold())
+                            .foregroundStyle(Color.destructive)
+                    }
+                }
 
                 GeometryReader { geometry in
                     let usedRatio = viewModel.deviceStorage.totalCapacity > 0
@@ -563,11 +599,7 @@ struct StorageDashboardView: View {
                         RoundedRectangle(cornerRadius: CornerRadius.small)
                             .fill(Color.cardSurface)
                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .fill(
-                                usedRatio > 0.9
-                                    ? LinearGradient(colors: [.red, .red.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
-                                    : LinearGradient.storageBarGradient
-                            )
+                            .fill(usedRatio > 0.9 ? Color.destructive : Color.accentColor)
                             .frame(width: geometry.size.width * usedRatio)
                     }
                 }
@@ -582,6 +614,7 @@ struct StorageDashboardView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
         }
     }
 
@@ -606,7 +639,7 @@ struct StorageDashboardView: View {
 
                         HStack(spacing: 2) {
                             RoundedRectangle(cornerRadius: CornerRadius.small)
-                                .fill(LinearGradient.storageBarGradient)
+                                .fill(Color.accentColor)
                                 .frame(width: max(0, mediaWidth))
                             RoundedRectangle(cornerRadius: CornerRadius.small)
                                 .fill(Color.otherCategory)
@@ -619,12 +652,17 @@ struct StorageDashboardView: View {
                     .frame(height: 16)
 
                     VStack(spacing: Spacing.sm) {
-                        legendRow(style: LinearGradient.storageBarGradient, title: "Photos & Videos", note: "measured", bytes: viewModel.onDeviceMediaSize)
+                        legendRow(style: Color.accentColor, title: "Photos & Videos", note: "estimated", bytes: viewModel.onDeviceMediaSize)
                         legendRow(style: Color.otherCategory, title: "Apps, system & other", note: "estimated", bytes: viewModel.appsAndOtherSize)
                     }
+
+                    Text("Items in Recently Deleted still use space until Photos empties it, so \"Apps, system & other\" can grow right after a cleanup.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                Text("TidyByte can't itemize individual apps — iOS keeps that private. Manage it in Settings.")
+                Text("TidyByte can't list single apps. iOS keeps that private. Manage it in Settings.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -724,7 +762,7 @@ struct StorageDashboardView: View {
                 Text(label)
                     .font(.subheadline.bold())
                     .foregroundStyle(.primary)
-                Text("\(count) items")
+                Text("\(count) \(count == 1 ? "item" : "items")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -793,10 +831,31 @@ struct StorageDashboardView: View {
 
     // MARK: - Trend
 
+    /// Days between the first and last snapshot, for honest wording: the
+    /// chart can hold 2 snapshots taken 2 days apart.
+    private var trendSpanLabel: String {
+        guard let first = viewModel.snapshots.first?.capturedAt,
+              let last = viewModel.snapshots.last?.capturedAt else { return "" }
+        // Calendar days, not 24-hour spans: snapshots are taken once per day
+        // at whatever time the app opens.
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: first), to: calendar.startOfDay(for: last)).day ?? 0
+        return days < 1 ? "today" : "in \(days) day\(days == 1 ? "" : "s")"
+    }
+
+    /// Y range fitted to the data (with a margin), so a 1% change is visible
+    /// instead of a flat line on a zero-based axis.
+    private var trendDomain: ClosedRange<Int64> {
+        let values = viewModel.snapshots.map(\.totalBytes)
+        guard let low = values.min(), let high = values.max() else { return 0...1 }
+        let margin = max((high - low) / 5, 50_000_000)
+        return max(0, low - margin)...(high + margin)
+    }
+
     private var trendSection: some View {
         GlassCard {
             VStack(spacing: Spacing.md) {
-                Text("Storage Trend (30 Days)")
+                Text("Library Size")
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -805,27 +864,32 @@ struct StorageDashboardView: View {
                         Image(systemName: "chart.line.uptrend.xyaxis")
                             .font(.title)
                             .foregroundStyle(.secondary)
-                        Text("Not enough data yet")
+                        Text("Not enough data yet. TidyByte records the size once a day when you open the app.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
                     }
-                    .frame(height: 120)
+                    .frame(minHeight: 120)
                     .frame(maxWidth: .infinity)
                 } else {
+                    let first = viewModel.snapshots.first!
+                    let last = viewModel.snapshots.last!
+                    let delta = last.totalBytes - first.totalBytes
+                    let summary = delta == 0
+                        ? "No change \(trendSpanLabel)"
+                        : delta > 0
+                        ? "Library grew by \(delta.formattedFileSize) \(trendSpanLabel)"
+                        : "Library shrank by \(abs(delta).formattedFileSize) \(trendSpanLabel)"
+
                     Chart(viewModel.snapshots) { snapshot in
                         LineMark(
                             x: .value("Date", snapshot.capturedAt),
                             y: .value("Size", snapshot.totalBytes)
                         )
-                        .foregroundStyle(.blue)
-                        .interpolationMethod(.catmullRom)
-
-                        AreaMark(
-                            x: .value("Date", snapshot.capturedAt),
-                            y: .value("Size", snapshot.totalBytes)
-                        )
-                        .foregroundStyle(.blue.opacity(0.1))
+                        .foregroundStyle(Color.accentColor)
+                        .interpolationMethod(.monotone)
                     }
+                    .chartYScale(domain: trendDomain)
                     .frame(height: 150)
                     .chartYAxis {
                         AxisMarks { value in
@@ -837,20 +901,23 @@ struct StorageDashboardView: View {
                             }
                         }
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Library size chart")
+                    .accessibilityValue("\(summary). Now \(last.totalBytes.formattedFileSize).")
 
-                    if let first = viewModel.snapshots.first,
-                       let last = viewModel.snapshots.last {
-                        let delta = last.totalBytes - first.totalBytes
-                        HStack {
-                            Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
-                                .foregroundStyle(delta >= 0 ? .orange : .green)
-                            Text(delta >= 0
-                                 ? "Added \(delta.formattedFileSize) in 30 days"
-                                 : "Freed \(abs(delta).formattedFileSize) in 30 days")
-                                .font(.caption)
-                                .foregroundStyle(delta >= 0 ? .orange : .green)
-                        }
+                    HStack {
+                        Image(systemName: delta == 0 ? "equal" : delta > 0 ? "arrow.up.right" : "arrow.down.right")
+                        Text(summary)
+                            .font(.caption)
+                        Spacer()
                     }
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+
+                    Text("This is library size, not free space on the iPhone.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }

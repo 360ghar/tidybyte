@@ -146,8 +146,19 @@ final class SwipeSessionViewModel {
             fetched = await photoService.fetchAssets(filter: filter)
         }
 
-        assets = fetched
+        // One card per burst, like the Photos app: the frames are near copies
+        // and belong to the Bursts tool. An explicit id list is left alone.
+        let deck: [AssetSummary]
+        if case .customAssetIds = filter {
+            deck = fetched
+        } else {
+            deck = Self.collapsingBursts(fetched)
+        }
+        assets = Self.deckAssets(deck, excludingPending: pendingDeletionIds)
         currentIndex = 0
+        // Undo entries point into the old deck; after a reload they would
+        // rewind to cards that are no longer in it.
+        undoStack.removeAll()
         hasLoadedInitialAssets = true
         isLoading = false
 
@@ -157,6 +168,40 @@ final class SwipeSessionViewModel {
         let screenSize = ScreenMetrics.pixelSize
         Task {
             await photoService.startCaching(assetIds: prefetchIds, targetSize: screenSize)
+        }
+    }
+
+    /// A reload ("Try Again" after the deck ran out) must not show photos that
+    /// are already marked for deletion. A marked photo shown again could be
+    /// kept, yet stay on the delete list and be deleted at commit.
+    nonisolated static func deckAssets(_ fetched: [AssetSummary], excludingPending pending: [String]) -> [AssetSummary] {
+        guard !pending.isEmpty else { return fetched }
+        let pendingSet = Set(pending)
+        return fetched.filter { !pendingSet.contains($0.id) }
+    }
+
+    /// A keep, file or skip always wins over an earlier delete mark for the
+    /// same photo. Without this, a kept photo would still be deleted at commit.
+    private func unmarkPendingDeletion(_ asset: AssetSummary) {
+        guard let index = pendingDeletionIds.firstIndex(of: asset.id) else { return }
+        pendingDeletionIds.remove(at: index)
+        pendingDeletionBytes = max(0, pendingDeletionBytes - asset.fileSize)
+        sessionStats.deletedCount = max(0, sessionStats.deletedCount - 1)
+        sessionStats.deletedBytes = max(0, sessionStats.deletedBytes - asset.fileSize)
+    }
+
+    /// Keeps one frame per burst: the user's pick, then iPhone's pick, then
+    /// the first frame. Order of the list is kept.
+    nonisolated static func collapsingBursts(_ assets: [AssetSummary]) -> [AssetSummary] {
+        var keeper: [String: AssetSummary] = [:]
+        for asset in assets {
+            guard let burst = asset.burstIdentifier else { continue }
+            if let current = keeper[burst], current.burstPick >= asset.burstPick { continue }
+            keeper[burst] = asset
+        }
+        return assets.filter { asset in
+            guard let burst = asset.burstIdentifier else { return true }
+            return keeper[burst]?.id == asset.id
         }
     }
 
@@ -182,6 +227,7 @@ final class SwipeSessionViewModel {
         // Guard against a second keep overwriting one that is still awaiting
         // album selection behind the presented sheet.
         guard let asset = currentAsset, pendingKeepAsset == nil, !isPerformingMutation else { return }
+        unmarkPendingDeletion(asset)
         sessionStats.keptCount += 1
         undoStack.append(SwipeUndoEntry(asset: asset, decision: .kept, albumId: nil))
         upsertSwipeRecord(asset: asset, decision: .kept)
@@ -214,6 +260,7 @@ final class SwipeSessionViewModel {
 
         do {
             try await photoService.addToAlbum(assetIdentifiers: [asset.id], albumIdentifier: albumId)
+            unmarkPendingDeletion(asset)
             sessionStats.organizedCount += 1
             undoStack.append(SwipeUndoEntry(asset: asset, decision: .addedToAlbum, albumId: albumId))
             upsertSwipeRecord(asset: asset, decision: .addedToAlbum, albumId: albumId)
@@ -237,11 +284,14 @@ final class SwipeSessionViewModel {
         pendingKeepAsset = nil
     }
 
+    /// "Keep Without Album": the user swiped up to keep the photo, then chose
+    /// no album. Recorded as a keep, not a skip.
     func skipKeep() {
-        guard let asset = pendingKeepAsset else { return }
-        sessionStats.skippedCount += 1
-        undoStack.append(SwipeUndoEntry(asset: asset, decision: .skipped, albumId: nil))
-        upsertSwipeRecord(asset: asset, decision: .skipped)
+        guard let asset = pendingKeepAsset, !isPerformingMutation else { return }
+        unmarkPendingDeletion(asset)
+        sessionStats.keptCount += 1
+        undoStack.append(SwipeUndoEntry(asset: asset, decision: .kept, albumId: nil))
+        upsertSwipeRecord(asset: asset, decision: .kept)
         pendingKeepAsset = nil
         showAlbumPicker = false
         advance()
@@ -252,6 +302,7 @@ final class SwipeSessionViewModel {
         // second gesture: advancing the deck mid-animation would attribute the
         // queued decision to the wrong card (B1).
         guard let asset = currentAsset, !isPerformingMutation, !isSwiping else { return }
+        unmarkPendingDeletion(asset)
         sessionStats.skippedCount += 1
         undoStack.append(SwipeUndoEntry(asset: asset, decision: .skipped, albumId: nil))
         upsertSwipeRecord(asset: asset, decision: .skipped)
@@ -273,9 +324,10 @@ final class SwipeSessionViewModel {
         switch entry.decision {
         case .deleted:
             undoStack.removeLast()
-            if let index = pendingDeletionIds.lastIndex(of: entry.asset.id) {
-                pendingDeletionIds.remove(at: index)
-            }
+            // Not pending any more (a partial commit already deleted it):
+            // drop the stale entry without rewinding to a deleted photo.
+            guard let index = pendingDeletionIds.lastIndex(of: entry.asset.id) else { return }
+            pendingDeletionIds.remove(at: index)
             pendingDeletionBytes = max(0, pendingDeletionBytes - entry.asset.fileSize)
             sessionStats.deletedCount = max(0, sessionStats.deletedCount - 1)
             sessionStats.deletedBytes = max(0, sessionStats.deletedBytes - entry.asset.fileSize)
@@ -369,6 +421,9 @@ final class SwipeSessionViewModel {
                 handled = pendingDeletionIds.isEmpty
                 if handled { HapticHelper.notification(.success) }
             }
+            // "Don't Allow" is the user's choice, not a failure: the pending
+            // list stays so they can confirm again.
+            if !handled, case .userDeclined = error { handled = true }
             if !handled {
                 deletionErrorMessage = "Failed to delete \(pendingDeletionIds.count) photo\(pendingDeletionIds.count == 1 ? "" : "s"): \(error.localizedDescription)"
             }

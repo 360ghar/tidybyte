@@ -5,6 +5,7 @@ struct DuplicateFinderView: View {
     @State private var viewModel = DuplicateFinderViewModel()
     @State private var showDeleteConfirm = false
     @State private var selectedGroup: DuplicateGroup?
+    @State private var preview: GroupPreviewContext?
     @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     private let photoService = PhotoLibraryService.shared
@@ -55,24 +56,18 @@ struct DuplicateFinderView: View {
                     }
                 }
                 // DUP-04c: select/deselect every asset across all groups.
-                ToolbarItem(placement: .topBarLeading) {
+                // Delete lives in the bottom bar only.
+                ToolbarItem(placement: .topBarTrailing) {
                     SelectAllToolbarButton(
                         allSelected: viewModel.allSelectedForDeletion,
                         selectAll: { viewModel.selectAllForDeletion() },
                         deselectAll: { viewModel.deselectAllForDeletion() }
                     )
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    // C8: this deletes the current SELECTION (keepers excluded),
-                    // so the label says what it does instead of "Delete All".
-                    Button("Delete Selected") {
-                        HapticHelper.impact(.light)
-                        showDeleteConfirm = true
-                    }
-                    .foregroundStyle(.red)
-                    .disabled(viewModel.isDeleting || viewModel.selectedForDeletion.isEmpty)
-                }
             }
+        }
+        .fullScreenCover(item: $preview) { context in
+            MediaPreviewView(assets: context.assets, startIndex: context.startIndex, photoService: photoService)
         }
         .navigationDestination(item: $selectedGroup) { group in
             GroupComparisonView(
@@ -99,7 +94,7 @@ struct DuplicateFinderView: View {
                 }
             }
         } message: {
-            Text("This will permanently delete \(viewModel.selectedForDeletion.count) duplicate items.")
+            Text("This will delete \(viewModel.selectedForDeletion.count) duplicate items. \(CleanupDeletion.recoverableNote)")
         }
         // DUP-02: leaving the screen must stop the scan (it would otherwise run
         // to completion in the background and re-enter on return).
@@ -138,7 +133,7 @@ struct DuplicateFinderView: View {
     private func scanningView(progress: Float) -> some View {
         ToolScanningView(
             icon: "magnifyingglass",
-            tint: .blue,
+            tint: CleanupTool.duplicates.color,
             title: "Scanning for duplicates...",
             progress: progress,
             onCancel: {
@@ -173,6 +168,13 @@ struct DuplicateFinderView: View {
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
+                            // Only while no visual group has a pick yet.
+                            if viewModel.allGroups.contains(where: { $0.type == .visual }),
+                               !viewModel.allGroups.contains(where: { $0.type == .visual && !viewModel.checkedIds(in: $0).isEmpty }) {
+                                Text("Visual matches are not selected. Open a group to pick, or tap Select All.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
                         Image(systemName: "doc.on.doc")
@@ -186,24 +188,24 @@ struct DuplicateFinderView: View {
 
                     List {
                         ForEach(Array(viewModel.allGroups.enumerated()), id: \.element.id) { index, group in
-                            Button { selectedGroup = group } label: {
-                                duplicateGroupRow(group)
-                            }
-                            .buttonStyle(.plain)
-                            // DUP-04a: delete just this group's non-best assets.
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    HapticHelper.impact(.light)
-                                    Task { await viewModel.delete(group: group) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                            duplicateGroupRow(group)
+                            // DUP-04a: delete just this group's checked assets. No
+                            // full swipe: a delete needs a deliberate tap.
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                let checked = viewModel.checkedIds(in: group).count
+                                if checked > 0 {
+                                    Button(role: .destructive) {
+                                        HapticHelper.impact(.light)
+                                        Task { await viewModel.delete(group: group) }
+                                    } label: {
+                                        Label("Delete \(checked)", systemImage: "trash")
+                                    }
                                 }
                             }
                             .fadeSlideIn(delay: Double(index) * 0.03)
                         }
                     }
                     .listStyle(.plain)
-                    .pullToRefresh { viewModel.startScan() }
 
                     // DUP-04b: delete-selected bar, mirroring Similar Photos.
                     if !viewModel.selectedForDeletion.isEmpty {
@@ -247,40 +249,63 @@ struct DuplicateFinderView: View {
 
     private func duplicateGroupRow(_ group: DuplicateGroup) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            HStack {
-                Text("\(group.assets.count) items")
-                    .font(.subheadline.bold())
-                Text(group.type == .exact ? "Exact" : "Visual")
-                    .font(.caption2.bold())
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, Spacing.xs)
-                    .background(group.type == .exact ? Color.red.opacity(0.2) : Color.orange.opacity(0.2))
-                    .clipShape(Capsule())
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+            // The header opens Compare; each thumbnail opens a preview; the
+            // circle marks for deletion. Same pattern as Similar and Bursts.
+            Button { selectedGroup = group } label: {
+                HStack {
+                    Text("\(group.assets.count) \(group.type == .exact ? "exact copies" : "look alike")")
+                        .font(.subheadline.bold())
+                    Spacer()
+                    Text("Compare")
+                        .font(.caption.bold())
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens the side-by-side comparison")
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Spacing.sm) {
-                    ForEach(group.assets) { asset in
-                        ZStack(alignment: .topTrailing) {
+                HStack(alignment: .top, spacing: Spacing.sm) {
+                    ForEach(Array(group.assets.enumerated()), id: \.element.id) { index, asset in
+                        let isKeeper = asset.id == group.bestAssetId
+                        VStack(spacing: Spacing.xs) {
                             AsyncThumbnailView(assetId: asset.id, photoService: photoService)
                                 .frame(width: 80, height: 80)
                                 .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
-                            if asset.id == group.bestAssetId {
-                                Image(systemName: "star.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.yellow)
-                                    .padding(Spacing.xs)
-                            } else if viewModel.selectedForDeletion.contains(asset.id) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                                    .padding(Spacing.xs)
+                                .overlay(alignment: .bottomLeading) {
+                                    if asset.isFavorite {
+                                        FavoriteMark().padding(Spacing.xs)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    preview = GroupPreviewContext(assets: group.assets, startIndex: index)
+                                }
+                                .accessibilityAddTraits(.isButton)
+                                .accessibilityLabel("Preview photo, \(asset.displaySize)")
+                                .overlay(alignment: .topTrailing) {
+                                    if !isKeeper {
+                                        DeleteToggle(isMarked: viewModel.selectedForDeletion.contains(asset.id)) {
+                                            viewModel.toggleSelection(asset.id)
+                                        }
+                                        .offset(x: Spacing.xs, y: -Spacing.xs)
+                                    }
+                                }
+
+                            if isKeeper {
+                                KeeperMark()
+                                    .frame(minHeight: 44)
+                            } else {
+                                MakeKeeperButton {
+                                    viewModel.setBest(assetId: asset.id, in: group.id)
+                                }
                             }
                         }
+                        .frame(width: 80)
                     }
                 }
             }

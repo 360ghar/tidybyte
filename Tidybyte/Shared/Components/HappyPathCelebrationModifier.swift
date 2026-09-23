@@ -9,6 +9,8 @@ import StoreKit
 struct HappyPathCelebrationModifier: ViewModifier {
     @Binding var isPresented: Bool
     var statLine: String?
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let autoDismissSeconds: UInt64 = 6
 
@@ -17,20 +19,38 @@ struct HappyPathCelebrationModifier: ViewModifier {
             .overlay(alignment: .bottom) {
                 if isPresented {
                     HappyPathPromptCard(statLine: statLine)
+                        .overlay(alignment: .topTrailing) {
+                            // With VoiceOver the card stays until closed: six
+                            // seconds is not enough to reach its buttons.
+                            if voiceOverEnabled {
+                                Button {
+                                    isPresented = false
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.secondary)
+                                        .frame(minWidth: 44, minHeight: 44)
+                                }
+                                .accessibilityLabel("Close")
+                            }
+                        }
+                        .readableWidth(560)
                         .padding(.horizontal, Spacing.lg)
                         .padding(.bottom, Spacing.xl)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .task {
+                        // Re-run when VoiceOver turns off, so the timer starts.
+                        .task(id: voiceOverEnabled) {
                             // `.task` lives on the conditionally-inserted view,
                             // so setting `isPresented = false` below removes
                             // the view and cancels the sleep — no leak, and a
                             // re-trigger restarts the timer.
+                            guard !voiceOverEnabled else { return }
                             try? await Task.sleep(nanoseconds: Self.autoDismissSeconds * 1_000_000_000)
                             isPresented = false
                         }
                 }
             }
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: isPresented)
+            .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: isPresented)
     }
 }
 

@@ -247,17 +247,30 @@ enum CompressionJournal {
         )
         guard let pendings = try? modelContext.fetch(descriptor), !pendings.isEmpty else { return }
         AppLog.compression.info("Reconciling \(pendings.count, privacy: .public) pending compression record(s)")
-        for record in pendings {
+        var resolved: [(CompressionRecord, Resolution)] = []
+        // Rows still owned by a live swap (a running batch, or saved copies
+        // waiting on the Originals Kept choice) are not crash leftovers.
+        for record in pendings where !CompressionSwap.isLive(assetId: record.assetLocalIdentifier) {
             let originalExists = PHAsset.fetchAssets(
                 withLocalIdentifiers: [record.assetLocalIdentifier],
                 options: nil
             ).firstObject != nil
-            let resolution = Self.resolution(
+            resolved.append((record, Self.resolution(
                 originalExists: originalExists,
                 replacementId: record.replacementAssetLocalIdentifier,
                 saveAttempted: record.saveAttempted
-            )
+            )))
+        }
 
+        // Remove every stranded replacement in ONE call, so the user sees one
+        // iOS delete prompt instead of one per row.
+        let orphanIds = resolved.compactMap { _, resolution -> String? in
+            if case .deleteOrphanThenFail(let id) = resolution { return id }
+            return nil
+        }
+        let removedOrphans = await PhotoLibraryService.shared.removeOrphanedAssets(ids: orphanIds)
+
+        for (record, resolution) in resolved {
             switch resolution {
             case .completed:
                 // Original gone and a replacement was journaled: the swap
@@ -274,7 +287,7 @@ enum CompressionJournal {
                 // the item again. If the removal fails the row stays PENDING so
                 // the next reconcile retries instead of hiding the duplicate
                 // for good.
-                guard await PhotoLibraryService.shared.removeOrphanedAsset(id: orphanId) else {
+                guard removedOrphans.contains(orphanId) else {
                     AppLog.compression.error(
                         "Reconcile could not remove stranded replacement \(orphanId, privacy: .public); will retry on the next load"
                     )
@@ -305,7 +318,17 @@ extension PhotoLibraryService {
     /// identifiers it was given, and its per-identifier fallback returns a
     /// partial (or empty) set without throwing when it is cancelled.
     fileprivate func removeOrphanedAsset(id: String) async -> Bool {
-        let deleted = (try? await deleteAssets(identifiers: [id])) ?? []
-        return deleted.contains(id)
+        await removeOrphanedAssets(ids: [id]).contains(id)
+    }
+
+    /// Batch form: one `deleteAssets` call (one iOS prompt). Returns the ids
+    /// that are really gone, including those removed by a partial failure.
+    fileprivate func removeOrphanedAssets(ids: [String]) async -> Set<String> {
+        guard !ids.isEmpty else { return [] }
+        do {
+            return try await deleteAssets(identifiers: ids)
+        } catch {
+            return (error as? PhotoServiceError)?.succeededIds ?? []
+        }
     }
 }

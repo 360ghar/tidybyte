@@ -68,6 +68,15 @@ final class ScreenshotCleanerViewModel {
     }
 
     /// Loads on first appearance. No-op when already loaded or loading (D-01).
+    /// Drops screenshots deleted elsewhere (Swipe Review, the Photos app).
+    func pruneDeleted() {
+        guard !screenshots.isEmpty, !isDeleting else { return }
+        let present = PhotoLibraryService.existingIds(screenshots.map(\.id))
+        guard present.count < screenshots.count else { return }
+        screenshots.removeAll { !present.contains($0.id) }
+        selectedIds.formIntersection(present)
+    }
+
     func loadIfNeeded() async {
         guard !hasLoadedScreenshots else { return }
         startScan()

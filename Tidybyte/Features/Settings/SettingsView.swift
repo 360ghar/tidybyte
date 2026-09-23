@@ -30,6 +30,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.Key.reminderWeekday) private var reminderWeekday: Int = 1 // Sunday
 
     @State private var showResetConfirm = false
+    @State private var toast: ToastMessage?
     @State private var showResetErrorAlert = false
     @State private var photoPermissionStatus: PHAuthorizationStatus = .notDetermined
     /// Drives the shared pre-prompt explainer for the "Allow Access to Photos"
@@ -59,7 +60,7 @@ struct SettingsView: View {
 
     private var photoPermissionLabel: String {
         switch photoPermissionStatus {
-        case .notDetermined: return "Not Determined"
+        case .notDetermined: return "Not Asked Yet"
         case .restricted: return "Restricted"
         case .denied: return "Denied"
         case .authorized: return "Full Access"
@@ -78,7 +79,9 @@ struct SettingsView: View {
 
     private var photoPermissionColor: Color {
         switch photoPermissionStatus {
-        case .authorized, .limited: return .green
+        case .authorized: return .green
+        // Limited works, but TidyByte sees only some photos: not a full green.
+        case .limited: return .orange
         case .denied, .restricted: return .red
         default: return .orange
         }
@@ -86,6 +89,63 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            // MARK: - Privacy
+            Section("Permissions") {
+                HStack {
+                    Image(systemName: photoPermissionIcon)
+                        .foregroundStyle(photoPermissionColor)
+                    Text("Photo Library")
+                    Spacer()
+                    Text(photoPermissionLabel)
+                        .foregroundStyle(.secondary)
+                }
+
+                // The offered action comes from the state itself. A fresh
+                // install asks for access here — through the same pre-prompt
+                // explainer every other surface uses — instead of opening the
+                // Settings app, where there is nothing to turn on yet.
+                switch permissionHandler.permissionState.presentation.action {
+                case .requestPermission:
+                    Button {
+                        showPhotoPermissionPrimer = true
+                    } label: {
+                        Label("Allow Access to Photos", systemImage: "checkmark")
+                    }
+                case .openSettings:
+                    Button {
+                        openSystemSettings()
+                    } label: {
+                        Label("Open Settings", systemImage: "arrow.up.right.square")
+                    }
+                case .none:
+                    EmptyView()
+                }
+
+                if photoPermissionStatus == .limited {
+                    Button {
+                        PhotoPermissionHandler.presentLimitedLibraryPicker()
+                    } label: {
+                        Label("Add More Photos", systemImage: "photo.badge.plus")
+                    }
+                }
+
+                // `.restricted` deliberately has no button: Screen Time or
+                // device management keeps the Photos switch disabled, so the
+                // only useful thing to show is where the block comes from.
+                if permissionHandler.permissionState == .restricted {
+                    Text(permissionHandler.permissionState.presentation.message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
+                Label("All processing happens on your device.", systemImage: "lock.shield")
+                    .font(.subheadline)
+            } footer: {
+                Text("TidyByte has no account and no servers. Your photos and activity never leave your device.")
+            }
+
             // MARK: - Swipe Settings
             Section("Swipe") {
                 Picker("Default Filter", selection: $defaultSwipeFilter) {
@@ -96,14 +156,17 @@ struct SettingsView: View {
             }
 
             // MARK: - Cleanup Settings
-            Section("Cleanup") {
+            Section {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Similar Photo Time Window")
                     HStack {
                         Slider(value: $timeWindow, in: 1...60, step: 1)
+                            .accessibilityLabel("Similar Photo Time Window")
+                            .accessibilityValue("\(Int(timeWindow)) seconds")
                         Text("\(Int(timeWindow))s")
                             .monospacedDigit()
-                            .frame(width: 36)
+                            .fixedSize()
+                            .accessibilityHidden(true)
                     }
                 }
 
@@ -133,11 +196,18 @@ struct SettingsView: View {
                     Text("Large File Threshold")
                     HStack {
                         Slider(value: $largeFileThreshold, in: 5...500, step: 5)
+                            .accessibilityLabel("Large File Threshold")
+                            .accessibilityValue("\(Int(largeFileThreshold)) megabytes")
                         Text("\(Int(largeFileThreshold)) MB")
                             .monospacedDigit()
-                            .frame(width: 60)
+                            .fixedSize()
+                            .accessibilityHidden(true)
                     }
                 }
+            } header: {
+                Text("Cleanup")
+            } footer: {
+                Text("Time window: photos taken this close together count as similar. Higher blur sensitivity flags more photos. Broad sorting puts more photos in categories, with more mistakes.")
             }
 
             // MARK: - Video Compression
@@ -159,7 +229,7 @@ struct SettingsView: View {
             }
 
             // MARK: - Notifications
-            Section("Reminders") {
+            Section {
                 Toggle("Cleanup Reminders", isOn: $remindersEnabled)
                     .disabled(isRequestingNotificationPermission)
                     .onChange(of: remindersEnabled) { _, enabled in
@@ -206,6 +276,12 @@ struct SettingsView: View {
                             await NotificationService.scheduleWeeklyReminder(weekday: newDay)
                         }
                     }
+                }
+            } header: {
+                Text("Reminders")
+            } footer: {
+                if remindersEnabled {
+                    Text("Sent every week at 10 AM on the day you pick. Tapping it opens Cleanup.")
                 }
             }
 
@@ -269,66 +345,18 @@ struct SettingsView: View {
                     Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1")
                         .foregroundStyle(.secondary)
                 }
-            }
 
-            // MARK: - Privacy
-            Section("Permissions") {
-                HStack {
-                    Image(systemName: photoPermissionIcon)
-                        .foregroundStyle(photoPermissionColor)
-                    Text("Photo Library")
-                    Spacer()
-                    Text(photoPermissionLabel)
-                        .foregroundStyle(.secondary)
-                }
-
-                // The offered action comes from the state itself. A fresh
-                // install asks for access here — through the same pre-prompt
-                // explainer every other surface uses — instead of opening the
-                // Settings app, where there is nothing to turn on yet.
-                switch permissionHandler.permissionState.presentation.action {
-                case .requestPermission:
-                    Button {
-                        showPhotoPermissionPrimer = true
-                    } label: {
-                        Label("Allow Access to Photos", systemImage: "checkmark")
-                    }
-                case .openSettings:
-                    Button {
-                        openSystemSettings()
-                    } label: {
-                        Label("Open Settings", systemImage: "arrow.up.right.square")
-                    }
-                case .none:
-                    EmptyView()
-                }
-
-                if photoPermissionStatus == .limited {
-                    Button {
-                        PhotoPermissionHandler.presentLimitedLibraryPicker()
-                    } label: {
-                        Label("Add More Photos", systemImage: "photo.badge.plus")
-                    }
-                }
-
-                // `.restricted` deliberately has no button: Screen Time or
-                // device management keeps the Photos switch disabled, so the
-                // only useful thing to show is where the block comes from.
-                if permissionHandler.permissionState == .restricted {
-                    Text(permissionHandler.permissionState.presentation.message)
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Acknowledgements")
+                    Text("TidyByte is built only with Apple frameworks. It includes no third-party code.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section {
-                Label("All processing happens on your device.", systemImage: "lock.shield")
-                    .font(.subheadline)
-            } footer: {
-                Text("TidyByte has no account and no servers. Your photos and activity never leave your device.")
-            }
         }
         .navigationTitle("Settings")
+        .toast($toast)
         .photoPermissionPrimer(
             isPresented: $showPhotoPermissionPrimer,
             permissionHandler: permissionHandler,
@@ -428,6 +456,7 @@ struct SettingsView: View {
         do {
             try modelContext.delete(model: SwipeRecord.self)
             try modelContext.save()
+            toast = ToastMessage(text: "Swipe history cleared", systemImage: "checkmark.circle")
         } catch {
             AppLog.data.error("Failed to reset swipe history: \(error.localizedDescription, privacy: .public)")
             showResetErrorAlert = true

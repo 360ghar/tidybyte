@@ -56,15 +56,6 @@ extension Color {
     static let controlSurface = Color(.tertiarySystemFill)
 }
 
-// MARK: - Gradients
-
-extension LinearGradient {
-    static let storageBarGradient = LinearGradient(
-        colors: [.green, .yellow, .orange, .red],
-        startPoint: .leading,
-        endPoint: .trailing
-    )
-}
 
 // MARK: - Shadows
 

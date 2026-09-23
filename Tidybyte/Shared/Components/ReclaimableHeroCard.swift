@@ -1,16 +1,15 @@
 import SwiftUI
 
-/// "What's worth looking at" summary at the top of the cleanup home.
+/// "You could free" summary at the top of the cleanup home.
 ///
-/// The number is deliberately narrow. It measures the screenshots plus the files
-/// over the threshold — both computed in the single library pass the tool badges
-/// already do — and describes them as "in files worth a look", not as space the
-/// user will definitely free. Duplicates, similar photos, and blurry shots need
-/// a real scan, so any number claimed for them here would be invented.
+/// Shows the app-wide `ReclaimBucketer` total, the same figure as the Storage
+/// tab and the widget. It counts only items stored on this iPhone, and Live
+/// Photos and large videos at about half their size (the usual saving from
+/// converting or compressing them). Duplicates, similar and blurry photos need
+/// a scan, so they are not in the number.
 struct ReclaimableHeroCard: View {
     let bytes: Int64
     let itemCount: Int
-    let thresholdLabel: String
 
     private var itemLabel: String {
         "\(itemCount) \(itemCount == 1 ? "item" : "items")"
@@ -18,31 +17,25 @@ struct ReclaimableHeroCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack(spacing: Spacing.sm) {
-                Image(systemName: "sparkles")
-                    .font(.subheadline)
-                    .foregroundStyle(.blue)
-                    .accessibilityHidden(true)
+            Text("You Could Free")
+                .font(.subheadline.bold())
+                .foregroundStyle(.secondary)
 
-                Text("Worth a Look")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(bytes.formattedFileSize)
-                .font(.system(size: 40, weight: .bold, design: .rounded))
+            Text("Up to \(bytes.formattedFileSize)")
+                .font(.largeTitle.bold())
+                .fontDesign(.rounded)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
 
-            Text("across \(itemLabel) — your screenshots and files over \(thresholdLabel).")
+            Text("On this iPhone, from \(itemLabel): screenshots, Live Photos, large videos, photos saved from apps and large files.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("Scanning for duplicates, similar, and blurry photos usually finds more.")
+            Text("Live Photos and large videos count at about half their size. A scan for duplicates, similar and blurry photos usually finds more.")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -50,6 +43,6 @@ struct ReclaimableHeroCard: View {
         // VoiceOver reading "2.4 GB" without context tells the user nothing, so
         // the card is one element with the whole sentence as its label.
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("About \(bytes.formattedFileSize) across \(itemLabel), from your screenshots and files over \(thresholdLabel)")
+        .accessibilityLabel("You could free up to \(bytes.formattedFileSize) on this iPhone, from \(itemLabel)")
     }
 }

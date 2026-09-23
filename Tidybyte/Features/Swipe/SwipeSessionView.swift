@@ -15,6 +15,9 @@ struct SwipeSessionView: View {
     /// for access rather than hand the user off to Settings.
     @State private var showPermissionPrimer = false
     @AppStorage(AppPreferences.Key.hasSeenZoomHint) private var hasSeenZoomHint = false
+    /// The explanatory undo text shows the first few times only; after that
+    /// the toast is just "Marked for deletion" with its Undo button.
+    @AppStorage("swipeUndoHintCount") private var undoHintCount = 0
 
     var body: some View {
         let isBootstrapping = !viewModel.hasLoadedInitialAssets || viewModel.isLoading
@@ -28,14 +31,32 @@ struct SwipeSessionView: View {
                 ProgressView("Loading photos...")
                 Spacer()
             } else if viewModel.visibleCards.isEmpty {
-                Spacer()
-                emptyState
-                Spacer()
+                // Scrolls at large text sizes; centered when it fits.
+                GeometryReader { proxy in
+                    ScrollView {
+                        emptyState
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: proxy.size.height)
+                    }
+                }
             } else {
                 // The card stack and its action bar live in their own view so a
                 // drag frame re-renders only the deck, not this whole screen.
-                SwipeCardDeck(viewModel: viewModel, onUndoHint: {
-                    toast = ToastMessage(text: "Marked for deletion — tap Undo to restore", systemImage: "trash")
+                SwipeCardDeck(viewModel: viewModel, onUndoHint: { markedId in
+                    let text = undoHintCount < 3
+                        ? "Marked for deletion. Nothing is deleted until you confirm at the end."
+                        : "Marked for deletion"
+                    undoHintCount += 1
+                    toast = ToastMessage(text: text, systemImage: "trash", actionTitle: "Undo") {
+                        toast = nil
+                        // Undo only this photo's delete: after a later keep or
+                        // skip, the top undo entry belongs to another photo.
+                        guard let last = viewModel.undoStack.last,
+                              last.decision == .deleted, last.asset.id == markedId else { return }
+                        Task { await viewModel.undo() }
+                    }
+                }, onDeleteBlocked: {
+                    toast = ToastMessage(text: "Delete is off until the photo loads.", systemImage: "hourglass")
                 })
             }
         }
@@ -45,6 +66,19 @@ struct SwipeSessionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
+            // The count sits under the title, clear of the toast area.
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 0) {
+                    Text("Swipe Session")
+                        .font(.headline)
+                    if !viewModel.assets.isEmpty {
+                        Text("\(min(viewModel.currentIndex + 1, viewModel.assets.count)) of \(viewModel.assets.count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
             ToolbarItem(placement: .topBarLeading) {
                 Button {
                     if viewModel.hasPendingDeletions {
@@ -67,8 +101,8 @@ struct SwipeSessionView: View {
                 Button {
                     Task { await viewModel.endSession() }
                 } label: {
+                    // Neutral: ending reviews changes, it deletes nothing.
                     Text("End")
-                        .foregroundStyle(.red)
                 }
                 .accessibilityLabel("End session")
                 .accessibilityHint("Ends the session and reviews your changes")
@@ -79,7 +113,7 @@ struct SwipeSessionView: View {
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
                 }
-                .keyboardShortcut(.leftArrow, modifiers: [])
+                .keyboardShortcut("z", modifiers: .command)
                 // Undo is inert during the animation window (wrong-card
                 // attribution, B1) and mid-commit (would resurrect a card the
                 // batch is deleting right now, B2).
@@ -191,7 +225,7 @@ struct SwipeSessionView: View {
         VStack(spacing: Spacing.xl) {
             if viewModel.allPhotosAlreadySwiped {
                 Image(systemName: "checkmark.seal")
-                    .font(.system(size: 64))
+                    .scaledGlyph(ScaledSize.stateGlyph)
                     .foregroundStyle(.green)
 
                 Text("All Photos Reviewed!")
@@ -202,7 +236,6 @@ struct SwipeSessionView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.75)
                     .padding(.horizontal, Spacing.xxl)
 
                 Button {
@@ -227,7 +260,7 @@ struct SwipeSessionView: View {
                 let presentation = permissionHandler.permissionState.presentation
 
                 Image(systemName: "lock.shield")
-                    .font(.system(size: 64))
+                    .scaledGlyph(ScaledSize.stateGlyph)
                     .foregroundStyle(.orange)
 
                 Text(presentation.title)
@@ -237,7 +270,6 @@ struct SwipeSessionView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.75)
                     .padding(.horizontal, Spacing.xxl)
 
                 switch presentation.action {
@@ -262,7 +294,7 @@ struct SwipeSessionView: View {
                 }
             } else {
                 Image(systemName: "checkmark.circle")
-                    .font(.system(size: 64))
+                    .scaledGlyph(ScaledSize.stateGlyph)
                     .foregroundStyle(.green)
 
                 Text("All Caught Up!")

@@ -53,42 +53,36 @@ final class CleanupInteractionStateTests: XCTestCase {
         XCTAssertFalse(viewModel.selectedForDeletion.contains(second.id))
     }
 
-    /// The destructive confirm must count what `deleteSelected()` removes. Both
-    /// tools delete the union of every bucket's selection, so a photo selected on
-    /// two tabs (it can be blurry AND dark, or a screenshot AND a document) is one
-    /// deletion — summing the per-bucket counts would over-report it.
-    func testBlurryDeleteCountDeduplicatesAcrossTabs() {
+    /// One selection per photo, shared by all tabs: the bar, the confirm and
+    /// the delete count the same set, and a photo in two buckets carries one
+    /// check. Switching tabs keeps every pick.
+    func testBlurrySelectionIsPerPhotoAcrossTabs() {
         let viewModel = BlurryPhotosViewModel()
 
         viewModel.activeTab = .blurry
         viewModel.toggleSelection("both")
         viewModel.activeTab = .tooDark
-        viewModel.toggleSelection("both")
-        XCTAssertEqual(viewModel.totalSelectedCount, 1, "one photo selected on two tabs is one deletion")
+        XCTAssertTrue(viewModel.selectedIds.contains("both"), "the same photo shows as selected on the other tab")
+        XCTAssertEqual(viewModel.totalSelectedCount, 1)
 
         viewModel.activeTab = .overexposed
         viewModel.toggleSelection("overexposed-only")
         XCTAssertEqual(viewModel.totalSelectedCount, 2)
 
-        // Deselecting on one tab must not clear another tab's selection of the
-        // same photo — so the union still holds both ids here.
+        // Deselecting on any tab deselects the photo everywhere.
         viewModel.activeTab = .blurry
-        viewModel.toggleSelection("both")
-        XCTAssertEqual(viewModel.totalSelectedCount, 2, "the .tooDark tab keeps its selection")
-
-        viewModel.activeTab = .tooDark
         viewModel.toggleSelection("both")
         XCTAssertEqual(viewModel.totalSelectedCount, 1, "only the overexposed pick remains")
     }
 
-    func testSmartCategoriesDeleteCountDeduplicatesAcrossCategories() {
+    func testSmartCategoriesSelectionIsPerPhotoAcrossCategories() {
         let viewModel = SmartCategoriesViewModel()
 
         viewModel.activeCategory = .memes
         viewModel.toggleSelection("both")
         viewModel.activeCategory = .documents
-        viewModel.toggleSelection("both")
-        XCTAssertEqual(viewModel.totalSelectedCount, 1, "one photo selected on two tabs is one deletion")
+        XCTAssertTrue(viewModel.selectedIds.contains("both"))
+        XCTAssertEqual(viewModel.totalSelectedCount, 1)
 
         viewModel.activeCategory = .pets
         viewModel.toggleSelection("pets-only")

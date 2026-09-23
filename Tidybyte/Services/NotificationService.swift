@@ -1,24 +1,19 @@
 import UserNotifications
 
 enum NotificationService {
+    /// Reminders fire at 10:00 on the chosen weekday.
+    static let reminderHour = 10
 
     static func requestPermission() async -> Bool {
         do {
-            return try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+            return try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
         } catch {
             AppLog.notifications.error("Notification authorization request failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }
 
-    static func scheduleWeeklyReminder(
-        weekday: Int,
-        hour: Int = 10,
-        minute: Int = 0,
-        screenshotCount: Int? = nil,
-        largeFileCount: Int? = nil,
-        librarySize: String? = nil
-    ) async {
+    static func scheduleWeeklyReminder(weekday: Int, hour: Int = reminderHour, minute: Int = 0) async {
         let center = UNUserNotificationCenter.current()
 
         // Remove existing reminders
@@ -31,24 +26,13 @@ enum NotificationService {
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
 
+        // No counts in the text: a repeating reminder keeps the text it was
+        // scheduled with, so counts went stale for the users who open the app
+        // least, the people the reminder is for.
         let content = UNMutableNotificationContent()
         content.title = "Time for a Photo Cleanup"
+        content.body = "Screenshots and large videos add up. Take a few minutes to review them."
         content.sound = .default
-
-        // Dynamic body with real counts
-        if let screenshots = screenshotCount, let largeFiles = largeFileCount, let size = librarySize {
-            var parts: [String] = []
-            if screenshots > 0 { parts.append("\(screenshots) screenshots") }
-            if largeFiles > 0 { parts.append("\(largeFiles) large files") }
-
-            if parts.isEmpty {
-                content.body = "Your library is using \(size). Review your photos and free up space."
-            } else {
-                content.body = "You have \(parts.joined(separator: " and ")) to review. Your library is using \(size)."
-            }
-        } else {
-            content.body = "Review your photos and free up storage space."
-        }
 
         let request = UNNotificationRequest(
             identifier: "weekly-cleanup-reminder",
@@ -77,6 +61,28 @@ enum NotificationService {
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral: return true
         default: return false
+        }
+    }
+}
+
+/// Routes a reminder tap to the Cleanup tab and shows a reminder that arrives
+/// while the app is open. Set as the center's delegate at launch.
+final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate, Sendable {
+    static let shared = NotificationRouter()
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        await MainActor.run {
+            PendingRoute.shared.link = .cleanupHome
         }
     }
 }
