@@ -1,10 +1,8 @@
 import SwiftUI
-import StoreKit
 
 struct SessionCompletionView: View {
     @Bindable var viewModel: SwipeSessionViewModel
     @Environment(AppNavigation.self) private var appNavigation
-    @Environment(\.requestReview) private var requestReview
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var showCheckmark = false
@@ -14,6 +12,7 @@ struct SessionCompletionView: View {
     /// Success is recorded exactly once per session, either on appear (no
     /// batch deletions pending) or after the commit lands — never both.
     @State private var recordedSessionSuccess = false
+    @State private var isCelebrating = false
 
     private enum ExitDestination {
         case swipeHome
@@ -34,6 +33,7 @@ struct SessionCompletionView: View {
             }
         }
         .navigationBarBackButtonHidden()
+        .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
     }
 
     /// The deck ran out with nothing left pending, or the deletions were
@@ -87,13 +87,6 @@ struct SessionCompletionView: View {
             }
             .glassCard()
             .padding(.horizontal, Spacing.lg)
-
-            // Rate / Share only on a real finish, never next to an open
-            // delete decision.
-            if isFinished {
-                HappyPathPromptCard(statLine: celebrationStatLine)
-                    .padding(.horizontal, Spacing.lg)
-            }
 
             // One primary action; the second exit is a plain text button.
             VStack(spacing: Spacing.md) {
@@ -194,9 +187,12 @@ struct SessionCompletionView: View {
         guard !recordedSessionSuccess else { return }
         guard stats.deletedCount > 0 || stats.keptCount > 0 || stats.organizedCount > 0 else { return }
         recordedSessionSuccess = true
-        if AppPreferences.recordSuccessfulAction() {
-            requestReview()
-            AppPreferences.recordReviewPromptDate()
+        // Ask only on a real finish, never after an early exit. The success
+        // haptic already played on appear.
+        if isFinished {
+            HappyPathReporter.recordSuccess(presenting: $isCelebrating)
+        } else {
+            AppPreferences.recordSuccessfulAction()
         }
     }
 

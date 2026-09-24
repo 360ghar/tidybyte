@@ -1,95 +1,106 @@
 import SwiftUI
-import StoreKit
 
-/// Presents the happy-path rate/share card as a transient bottom banner for
-/// cleanup tools that have no completion screen (their only success signal
-/// today is a haptic). Non-blocking: never intercepts navigation, auto-
-/// dismisses after 6 seconds, and sits inside the safe area so it never
-/// collides with the home indicator.
+/// Presents the "Enjoying TidyByte?" prompt in a compact sheet after a
+/// milestone success. A sheet, not an overlay: its opaque surface and dimmed
+/// backdrop keep the grid below from showing through, and it brings
+/// swipe-to-dismiss and VoiceOver focus for free. No auto-dismiss — the
+/// prompt is a two-step question and the user decides when it goes.
 struct HappyPathCelebrationModifier: ViewModifier {
     @Binding var isPresented: Bool
     var statLine: String?
-    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private static let autoDismissSeconds: UInt64 = 6
+    @State private var showsPrompt = false
+    /// Measured from the content so the sheet hugs it at every Dynamic Type size.
+    @State private var promptHeight: CGFloat = 260
+
+    /// Lets the delete alert finish dismissing and the updated list settle
+    /// before the sheet rises over it.
+    private static let presentationDelay: Duration = .milliseconds(600)
 
     func body(content: Content) -> some View {
         content
-            .overlay(alignment: .bottom) {
-                if isPresented {
-                    HappyPathPromptCard(statLine: statLine)
-                        .overlay(alignment: .topTrailing) {
-                            // With VoiceOver the card stays until closed: six
-                            // seconds is not enough to reach its buttons.
-                            if voiceOverEnabled {
-                                Button {
-                                    isPresented = false
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.caption.bold())
-                                        .foregroundStyle(.secondary)
-                                        .frame(minWidth: 44, minHeight: 44)
-                                }
-                                .accessibilityLabel("Close")
-                            }
-                        }
-                        .readableWidth(560)
-                        .padding(.horizontal, Spacing.lg)
-                        .padding(.bottom, Spacing.xl)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        // Re-run when VoiceOver turns off, so the timer starts.
-                        .task(id: voiceOverEnabled) {
-                            // `.task` lives on the conditionally-inserted view,
-                            // so setting `isPresented = false` below removes
-                            // the view and cancels the sleep — no leak, and a
-                            // re-trigger restarts the timer.
-                            guard !voiceOverEnabled else { return }
-                            try? await Task.sleep(nanoseconds: Self.autoDismissSeconds * 1_000_000_000)
-                            guard !Task.isCancelled else { return }
-                            isPresented = false
-                        }
+            .task(id: isPresented) {
+                guard isPresented else { return }
+                try? await Task.sleep(for: Self.presentationDelay)
+                // Left the screen during the delay: drop the request so the
+                // next milestone can re-trigger it.
+                guard !Task.isCancelled else {
+                    isPresented = false
+                    return
                 }
+                showsPrompt = true
             }
-            .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: isPresented)
+            .sheet(isPresented: $showsPrompt, onDismiss: { isPresented = false }) {
+                // Scrolls only when the largest text sizes outgrow the screen.
+                ScrollView {
+                    HappyPathPromptCard(statLine: statLine) { showsPrompt = false }
+                        .padding(.horizontal, Spacing.xl)
+                        .padding(.top, Spacing.xxxl)
+                        .padding(.bottom, Spacing.lg)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { promptHeight = $0 }
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .presentationDetents([.height(promptHeight)])
+                .presentationDragIndicator(.visible)
+                // Opaque on purpose: iOS 26 renders a compact sheet as
+                // Liquid Glass, which lets the screen below bleed through.
+                .presentationBackground(Color(.systemBackground))
+                .fittedPresentationSizing()
+                // Recorded on presentation, not on the answer, so a
+                // swipe-down still consumes the cooldown.
+                .onAppear { AppPreferences.recordReviewPromptDate() }
+            }
+    }
+}
+
+private extension View {
+    /// iPad presents sheets as a large form sheet that ignores height detents;
+    /// `.fitted` sizes it to the content instead. iPhone is unaffected.
+    @ViewBuilder
+    func fittedPresentationSizing() -> some View {
+        if #available(iOS 18.0, *) {
+            presentationSizing(.fitted)
+        } else {
+            self
+        }
     }
 }
 
 extension View {
     /// - Parameter statLine: what the user accomplished, e.g. "removed 24
-    ///   duplicates"; feeds the card's share message. `nil` uses generic copy.
+    ///   duplicates"; shown in the prompt and fed to its share message.
     func happyPathCelebration(isPresented: Binding<Bool>, statLine: String? = nil) -> some View {
         modifier(HappyPathCelebrationModifier(isPresented: isPresented, statLine: statLine))
     }
 }
 
-/// One-line happy-path trigger shared by all cleanup tools: success haptic,
-/// celebration banner, and milestone-gated native review prompt.
+/// One-line happy-path trigger shared by all cleanup tools: success haptic on
+/// every success, and the rating prompt only when the milestone gate passes.
 @MainActor
 enum HappyPathReporter {
-    /// Fires haptic + banner + milestone review. Use when the banner's
+    /// Fires the haptic and, on a milestone, the prompt. Use when the prompt's
     /// `statLine` is computed live in the modifier (e.g. from `viewModel.deletedCount`).
-    static func fire(
-        isCelebrating: Binding<Bool>,
-        requestReview: RequestReviewAction
-    ) {
+    static func fire(isCelebrating: Binding<Bool>) {
         HapticHelper.notification(.success)
-        isCelebrating.wrappedValue = true
-        if AppPreferences.recordSuccessfulAction() {
-            requestReview()
-            AppPreferences.recordReviewPromptDate()
-        }
+        recordSuccess(presenting: isCelebrating)
     }
 
-    /// Fires haptic + banner + milestone review and sets the banner's stat
-    /// line. Use when the view holds a `celebrationStatLine` state var.
+    /// Fires the haptic and, on a milestone, the prompt with this stat line.
+    /// Use when the view holds a `celebrationStatLine` state var.
     static func fire(
         isCelebrating: Binding<Bool>,
         statLine: Binding<String?>,
-        line: String,
-        requestReview: RequestReviewAction
+        line: String
     ) {
         statLine.wrappedValue = line
-        fire(isCelebrating: isCelebrating, requestReview: requestReview)
+        fire(isCelebrating: isCelebrating)
+    }
+
+    /// Counts one success and presents the prompt when it is due. No haptic,
+    /// for screens that already played their own.
+    static func recordSuccess(presenting isCelebrating: Binding<Bool>) {
+        if AppPreferences.recordSuccessfulAction() {
+            isCelebrating.wrappedValue = true
+        }
     }
 }

@@ -1,12 +1,10 @@
 import SwiftUI
-import StoreKit
 
 struct SimilarPhotosView: View {
     @State private var viewModel = SimilarPhotosViewModel()
     @State private var showDeleteConfirm = false
     @State private var selectedGroup: SimilarGroup?
     @State private var preview: GroupPreviewContext?
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     // Shared with the Settings mirror on the same key — @AppStorage is the single
     // source of truth, so a change in either screen is observed by the other (the
@@ -99,7 +97,7 @@ struct SimilarPhotosView: View {
                     await viewModel.deleteSelected()
                     // DUP-04d: only celebrate an actual deletion.
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating)
                     }
                 }
             }

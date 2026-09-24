@@ -1,9 +1,9 @@
 import XCTest
 @testable import Tidybyte
 
-/// Pins the happy-path review-prompt policy: native `requestReview` only on
-/// milestones (3, 10, 25, then every 50th), throttled to once per 60 days, and
-/// never before the user has done anything.
+/// Pins the happy-path rating-prompt policy: only on milestones (3, 10, 25,
+/// then every 50th), throttled to once per 60 days, never before the user has
+/// done anything, and never again once the user has rated.
 final class ReviewPromptGateTests: XCTestCase {
     private var suiteName: String!
     private var defaults: UserDefaults!
@@ -100,6 +100,27 @@ final class ReviewPromptGateTests: XCTestCase {
             }
         }
         XCTAssertEqual(firedCounts, [25, 50])
+    }
+
+    func testRatedUserIsNeverPrompted() {
+        let now = Date()
+        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 3, lastPromptAt: nil, hasRated: true, now: now))
+        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 50, lastPromptAt: nil, hasRated: true, now: now))
+    }
+
+    func testRatedFlagSilencesEveryMilestoneButKeepsCounting() {
+        XCTAssertFalse(AppPreferences.hasRatedApp(in: defaults))
+        AppPreferences.saveHasRatedApp(in: defaults)
+        XCTAssertTrue(AppPreferences.hasRatedApp(in: defaults))
+
+        var fired: [Int] = []
+        for _ in 0..<60 {
+            if AppPreferences.recordSuccessfulAction(now: Date(), in: defaults) {
+                fired.append(AppPreferences.successfulActionCount(in: defaults))
+            }
+        }
+        XCTAssertEqual(fired, [])
+        XCTAssertEqual(AppPreferences.successfulActionCount(in: defaults), 60)
     }
 
     func testShareMessageBakesStatAndStoreLink() {

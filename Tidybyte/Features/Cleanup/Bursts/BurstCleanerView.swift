@@ -1,5 +1,4 @@
 import SwiftUI
-import StoreKit
 
 /// Identifies which burst group (and which frame) a full-screen preview was
 /// opened from. The preview resolves its assets *live* from the view model on
@@ -15,7 +14,6 @@ struct BurstCleanerView: View {
     @State private var showAutoCleanConfirm = false
     @State private var showDeleteConfirm = false
     @State private var preview: BurstPreviewContext?
-    @Environment(\.requestReview) private var requestReview
     // statLine is captured at success time: deletableCount/selectedCount are
     // pre-delete values that reset once the action lands.
     @State private var isCelebrating = false
@@ -64,8 +62,7 @@ struct BurstCleanerView: View {
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleaned \(removed) burst photos",
-                        requestReview: requestReview
+                        line: "cleaned \(removed) burst photos"
                     )
                 }
             }
@@ -85,8 +82,7 @@ struct BurstCleanerView: View {
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleared \(count) burst frames",
-                        requestReview: requestReview
+                        line: "cleared \(count) burst frames"
                     )
                 }
             }

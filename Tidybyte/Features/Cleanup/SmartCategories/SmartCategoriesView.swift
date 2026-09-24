@@ -49,7 +49,6 @@ struct SmartCategoriesView: View {
     @State private var viewModel = SmartCategoriesViewModel()
     @Environment(LibraryChangeMonitor.self) private var libraryMonitor
     @State private var showDeleteConfirm = false
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var selectedSwipeRoute: SwipeSessionRoute?
     @State private var previewPhoto: CategorizedPhoto?
@@ -153,7 +152,7 @@ struct SmartCategoriesView: View {
                     await viewModel.deleteSelected()
                     // C12: success feedback, gated on an actual deletion.
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating)
                     }
                 }
             }

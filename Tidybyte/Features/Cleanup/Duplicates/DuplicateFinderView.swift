@@ -1,12 +1,10 @@
 import SwiftUI
-import StoreKit
 
 struct DuplicateFinderView: View {
     @State private var viewModel = DuplicateFinderViewModel()
     @State private var showDeleteConfirm = false
     @State private var selectedGroup: DuplicateGroup?
     @State private var preview: GroupPreviewContext?
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     private let photoService = PhotoLibraryService.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -89,7 +87,7 @@ struct DuplicateFinderView: View {
                     // DUP-04d: only celebrate an actual deletion (the guard can
                     // still return early on an empty selection).
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating)
                     }
                 }
             }

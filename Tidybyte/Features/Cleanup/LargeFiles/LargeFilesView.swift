@@ -1,12 +1,10 @@
 import SwiftUI
-import StoreKit
 
 struct LargeFilesView: View {
     @State private var viewModel = LargeFilesViewModel()
     @State private var showDeleteConfirm = false
     @State private var previewStart: AssetSummary?
     @State private var rowToDelete: AssetSummary?
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var celebrationStatLine: String?
     /// Mirrors SettingsView's control so the threshold never diverges between
@@ -128,16 +126,15 @@ struct LargeFilesView: View {
                 Task {
                     await viewModel.deleteSelected()
                     // This tool fired no success feedback before; parity with
-                    // the other cleanup tools now that the happy path offers
-                    // Rate/Share (native review prompt only on milestones).
+                    // the other cleanup tools (haptic every time, rating
+                    // prompt only on milestones).
                     // Guard the count: the VM no-ops an empty selection
                     // without setting an error, and a no-op is not a success.
                     guard count > 0, viewModel.errorMessage == nil else { return }
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleared \(count) large files",
-                        requestReview: requestReview
+                        line: "cleared \(count) large files"
                     )
                 }
             }

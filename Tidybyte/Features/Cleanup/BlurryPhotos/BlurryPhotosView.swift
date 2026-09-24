@@ -1,13 +1,11 @@
 import SwiftUI
 import SwiftData
-import StoreKit
 
 struct BlurryPhotosView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = BlurryPhotosViewModel()
     @Environment(LibraryChangeMonitor.self) private var libraryMonitor
     @State private var showDeleteConfirm = false
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var selectedSwipeRoute: SwipeSessionRoute?
     @State private var previewPhoto: AnalyzedPhoto?
@@ -111,7 +109,7 @@ struct BlurryPhotosView: View {
                     await viewModel.deleteSelected()
                     // C12: success feedback, gated on an actual deletion.
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating)
                     }
                 }
             }

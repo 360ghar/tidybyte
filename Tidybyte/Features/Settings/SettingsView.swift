@@ -51,8 +51,6 @@ struct SettingsView: View {
     /// the tab gate in the same pass instead of on the next activation.
     @Environment(PhotoPermissionHandler.self) private var permissionHandler
 
-    private let feedbackEmail = "contact@sakshammittal.com"
-
     private let weekdays = [
         (1, "Sunday"), (2, "Monday"), (3, "Tuesday"), (4, "Wednesday"),
         (5, "Thursday"), (6, "Friday"), (7, "Saturday")
@@ -308,11 +306,13 @@ struct SettingsView: View {
                     Label("Request a Feature", systemImage: "lightbulb")
                 }
 
-                // Same guarantee as the happy-path card's Rate button: the
+                // Same guarantee as the happy-path prompt's fallback link: the
                 // write-review deep link can't be silently swallowed by the
-                // OS prompt quota the way `requestReview` can.
+                // OS prompt quota the way `requestReview` can. A tap also
+                // marks the user as rated, so the prompt stops asking.
                 Button {
                     HapticHelper.impact(.light)
+                    AppPreferences.saveHasRatedApp()
                     openURL(AppStoreLinks.writeReviewURL)
                 } label: {
                     Label("Rate TidyByte on the App Store", systemImage: "star.fill")
@@ -390,7 +390,7 @@ struct SettingsView: View {
         .alert("No Mail Account", isPresented: $showMailUnavailableAlert) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("No email account is set up on this device. Please email us at \(feedbackEmail).")
+            Text("No email account is set up on this device. Please email us at \(FeedbackMail.address).")
         }
         .alert("Reset Failed", isPresented: $showResetErrorAlert) {
             Button("OK", role: .cancel) { }
@@ -400,47 +400,13 @@ struct SettingsView: View {
     }
 
     private func sendFeedback(subject: String, isBug: Bool) {
-        var components = URLComponents()
-        components.scheme = "mailto"
-        components.path = feedbackEmail
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: subject),
-            URLQueryItem(name: "body", value: feedbackBody(isBug: isBug))
-        ]
-        guard let url = components.url else { return }
-        openURL(url) { accepted in
-            if !accepted { showMailUnavailableAlert = true }
-        }
-    }
-
-    private func feedbackBody(isBug: Bool) -> String {
         let prompt = isBug
             ? "Describe the bug:\n\nSteps to reproduce:\n\nWhat you expected:\n\nWhat happened instead:\n"
             : "Describe the feature you'd like:\n\nWhy it would help:\n"
-        return "\(prompt)\n\n---\nThe info below helps us debug — please keep it.\n\(diagnostics)"
-    }
-
-    private var diagnostics: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        let device = UIDevice.current
-        return """
-        App: TidyByte \(version) (\(build))
-        iOS: \(device.systemVersion)
-        Device: \(deviceModelIdentifier)
-        """
-    }
-
-    private var deviceModelIdentifier: String {
-        var systemInfo = utsname()
-        uname(&systemInfo)
-        let mirror = Mirror(reflecting: systemInfo.machine)
-        let id = mirror.children.reduce(into: "") { result, element in
-            if let value = element.value as? Int8, value != 0 {
-                result.append(Character(UnicodeScalar(UInt8(value))))
-            }
+        guard let url = FeedbackMail.url(subject: subject, prompt: prompt) else { return }
+        openURL(url) { accepted in
+            if !accepted { showMailUnavailableAlert = true }
         }
-        return id.isEmpty ? UIDevice.current.model : id
     }
 
     private func openSystemSettings() {

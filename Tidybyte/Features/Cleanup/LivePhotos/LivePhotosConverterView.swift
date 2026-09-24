@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import StoreKit
 
 struct LivePhotosConverterView: View {
     @Environment(\.modelContext) private var modelContext
@@ -10,7 +9,6 @@ struct LivePhotosConverterView: View {
     /// Set when a single Convert waits for the first-time explainer.
     @State private var explainerItemId: String?
     @AppStorage(LivePhotoConvertExplainer.storageKey) private var hasSeenExplainer = false
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var celebrationStatLine: String?
     private let photoService = PhotoLibraryService.shared
@@ -93,12 +91,14 @@ struct LivePhotosConverterView: View {
             guard was, !isNow, !viewModel.isCancelled,
                   viewModel.errorMessage == nil,
                   let batch = viewModel.lastBatch,
-                  batch.failed == 0, batch.converted > 0 else { return }
+                  batch.failed == 0, batch.converted > 0,
+                  // Kept originals leave the "Originals Kept" alert open: not
+                  // a clean success, and the rating sheet would collide with it.
+                  viewModel.keptOriginals.isEmpty else { return }
             HappyPathReporter.fire(
                 isCelebrating: $isCelebrating,
                 statLine: $celebrationStatLine,
-                line: "converted \(batch.converted) Live Photos",
-                requestReview: requestReview
+                line: "converted \(batch.converted) Live Photos"
             )
         }
         // Non-modal error surface. Also covers the batch summary

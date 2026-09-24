@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import StoreKit
 
 struct PhotoCompressionView: View {
     @State private var viewModel = PhotoCompressionViewModel()
@@ -8,7 +7,6 @@ struct PhotoCompressionView: View {
     @State private var previewStart: PhotoItem?
     @State private var rowToDelete: PhotoItem?
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var celebrationStatLine: String?
     private let photoService = PhotoLibraryService.shared
@@ -135,12 +133,15 @@ struct PhotoCompressionView: View {
             // Success haptic only when every attempted item succeeded and at
             // least one was compressed (COMP-09 pattern).
             guard let summary else { return }
-            if summary.failed == 0, summary.completed > 0, !summary.cancelled {
+            // Kept originals leave an open decision (the "Originals Kept"
+            // alert), so the batch is not a clean success, and the rating
+            // sheet must not collide with that alert.
+            if summary.failed == 0, summary.completed > 0, !summary.cancelled,
+               viewModel.keptOriginals.isEmpty {
                 HappyPathReporter.fire(
                     isCelebrating: $isCelebrating,
                     statLine: $celebrationStatLine,
-                    line: "compressed \(summary.completed) photos",
-                    requestReview: requestReview
+                    line: "compressed \(summary.completed) photos"
                 )
             }
         }
