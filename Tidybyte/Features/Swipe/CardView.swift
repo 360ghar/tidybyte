@@ -7,11 +7,10 @@ struct CardView: View {
     let photoService: PhotoLibraryService
     let isTopCard: Bool
 
-    var dragOffset: CGSize = .zero
-    /// True while the deck's swipe drag is active. Replaces a per-frame
-    /// `onChange(of: dragOffset)`, so the drag handler runs twice per gesture
-    /// instead of 60-120 times a second.
-    var isDragging: Bool = false
+    /// Drag position for the top card (the deck's live motion) or a departing
+    /// card (its fling target); nil for the cards behind. Read only by the
+    /// root offset and the stamp overlay, so a drag frame re-renders little.
+    var motion: CardMotion? = nil
     /// Incremented by SwipeSessionView's "Zoom" accessibility action; CardView
     /// toggles zoom on change (only the top card receives a non-zero value).
     var zoomToggleRequest: Int = 0
@@ -67,21 +66,6 @@ struct CardView: View {
     @State private var pinchStartScale: CGFloat?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var deleteOpacity: Double {
-        guard isTopCard else { return 0 }
-        return min(max(-Double(dragOffset.width) / 150.0, 0), 1.0)
-    }
-
-    private var keepOpacity: Double {
-        guard isTopCard else { return 0 }
-        return min(max(Double(dragOffset.width) / 150.0, 0), 1.0)
-    }
-
-    private var albumOpacity: Double {
-        guard isTopCard else { return 0 }
-        return min(max(-Double(dragOffset.height) / 150.0, 0), 1.0)
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -197,83 +181,19 @@ struct CardView: View {
                 }
 
                 // Swipe indicators
-                if isTopCard {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Label("DELETE", systemImage: "trash.fill")
-                                .font(.title.bold())
-                                .foregroundStyle(.red)
-                                .padding(.horizontal, Spacing.lg)
-                                .padding(.vertical, Spacing.sm)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: CornerRadius.small)
-                                        .stroke(.red, lineWidth: 3)
-                                )
-                                .rotationEffect(.degrees(15))
-                                .padding(.trailing, Spacing.xxl)
-                                .padding(.top, 40)
-                        }
-                        Spacer()
-                    }
-                    .opacity(deleteOpacity)
-
-                    VStack {
-                        HStack {
-                            Label("KEEP", systemImage: "checkmark")
-                                .font(.title.bold())
-                                .foregroundStyle(.green)
-                                .padding(.horizontal, Spacing.lg)
-                                .padding(.vertical, Spacing.sm)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: CornerRadius.small)
-                                        .stroke(.green, lineWidth: 3)
-                                )
-                                .rotationEffect(.degrees(-15))
-                                .padding(.leading, Spacing.xxl)
-                                .padding(.top, 40)
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-                    .opacity(keepOpacity)
-
-                    // Up-drag: file into an album (SwipeSessionView's up-swipe
-                    // gesture) — mirrors the DELETE/KEEP direction stamps.
-                    VStack {
-                        Label("ALBUM", systemImage: "folder.badge.plus")
-                            .font(.title3.bold())
-                            .foregroundStyle(.blue)
-                            .padding(.horizontal, Spacing.lg)
-                            .padding(.vertical, Spacing.sm)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: CornerRadius.small)
-                                    .stroke(.blue, lineWidth: 3)
-                            )
-                            .padding(.top, 40)
-                        Spacer()
-                    }
-                    .opacity(albumOpacity)
-
-                    Rectangle()
-                        .fill(.red.opacity(deleteOpacity * 0.15))
-                    Rectangle()
-                        .fill(.green.opacity(keepOpacity * 0.15))
+                if let motion {
+                    SwipeStampOverlay(motion: motion)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
-            // The top card carries the full card shadow; the two cards behind it
-            // get a lighter one. While a drag is live the top card drops to that
-            // same light shadow: an offscreen shadow pass on a rotating,
-            // translating layer is recomputed every frame, and this is the one
-            // view that moves during a drag. The look is unchanged at rest, and
-            // at full drag displacement the card is off-screen anyway.
-            .shadow(
-                color: .black.opacity(isDragging ? 0.10 : (isTopCard ? 0.2 : 0.10)),
-                radius: isDragging ? 3 : (isTopCard ? 8 : 3),
-                x: 0,
-                y: 4
-            )
+            // Shadow cast by a plain shape behind the card, not by the photo
+            // content: a content shadow needs an offscreen pass every frame
+            // the card moves. The top card gets the fuller shadow.
+            .background {
+                RoundedRectangle(cornerRadius: CornerRadius.large)
+                    .fill(Color.cardSurface)
+                    .shadow(color: .black.opacity(isTopCard ? 0.2 : 0.10), radius: isTopCard ? 8 : 3, x: 0, y: 4)
+            }
             // Inside the GeometryReader so the accessibility-initiated toggle
             // clamps against the real card frame, not a screen-size proxy.
             .onChange(of: retryRequest) { _, newValue in
@@ -318,11 +238,11 @@ struct CardView: View {
                 resetZoom()
             }
         }
-        .onChange(of: isDragging) { _, dragging in
+        .modifier(SwipeMotionEffect(motion: motion))
+        .onChange(of: motion?.isDragging ?? false) { _, dragging in
             // The user started dragging the card — stop playback so the video
             // doesn't keep playing under the swipe (SWIPE-07). Keyed on the
-            // gesture's own flag rather than on `dragOffset`, which changed on
-            // every frame of the drag and so ran this handler 60-120×/s.
+            // gesture's own flag, not the offset, which changes every frame.
             if dragging {
                 stopPlayback()
             }
@@ -374,14 +294,14 @@ struct CardView: View {
             .scaleEffect(zoomState.scale)
             .offset(zoomState.offset)
             .transition(.opacity)
+        // Only the leading card is interactive. The graph is masked off, not
+        // removed, on the other cards: swapping view branches on promotion
+        // cross-faded the image with itself.
+        let mask: GestureMask = isTopCard ? .all : .none
 
-        if !isTopCard {
-            // Only the leading card is interactive; the ones behind it are
-            // covered by `.allowsHitTesting(false)` and need no gesture graph.
-            base
-        } else if asset.mediaType == .video {
+        if asset.mediaType == .video {
             // Videos keep their inline play affordance and can still be swiped.
-            base.gesture(unifiedDrag(frame: frame))
+            base.gesture(unifiedDrag(frame: frame), including: mask)
         } else {
             // One graph for the swipe and the pinch, with the double-tap as a
             // separate simultaneous gesture. This is the shape verified end to
@@ -392,10 +312,12 @@ struct CardView: View {
             base
                 .gesture(
                     pinchGesture(frame: frame)
-                        .simultaneously(with: unifiedDrag(frame: frame))
+                        .simultaneously(with: unifiedDrag(frame: frame)),
+                    including: mask
                 )
                 .simultaneousGesture(
-                    TapGesture(count: 2).onEnded { toggleZoom(frame: frame) }
+                    TapGesture(count: 2).onEnded { toggleZoom(frame: frame) },
+                    including: mask
                 )
         }
     }
@@ -477,8 +399,11 @@ struct CardView: View {
     /// - unzoomed: relays the swipe to the deck, which owns the commit policy
     /// - zoomed: pans the zoomed photo
     /// Combined with the pinch on the same view so both can recognize.
+    /// Global space on purpose: the card moves and rotates under the finger
+    /// (and the zoomed image is scaled), so local translations shift every
+    /// frame and the card wobbles.
     private func unifiedDrag(frame: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 1, coordinateSpace: .global)
             .onChanged { value in
                 if zoomState.isZoomed {
                     if panStartOffset == nil { panStartOffset = zoomState.offset }
@@ -589,6 +514,96 @@ struct CardView: View {
         isLoadingPlayer = false
         player?.pause()
         player = nil
+    }
+}
+
+/// DELETE / KEEP / ALBUM stamps and tints, driven by the card's drag. Its own
+/// view so a drag frame re-evaluates only this and the root offset.
+private struct SwipeStampOverlay: View {
+    let motion: CardMotion
+
+    private var deleteOpacity: Double { min(max(-Double(motion.offset.width) / 150.0, 0), 1.0) }
+    private var keepOpacity: Double { min(max(Double(motion.offset.width) / 150.0, 0), 1.0) }
+    private var albumOpacity: Double { min(max(-Double(motion.offset.height) / 150.0, 0), 1.0) }
+
+    var body: some View {
+        ZStack {
+            VStack {
+                HStack {
+                    Spacer()
+                    Label("DELETE", systemImage: "trash.fill")
+                        .font(.title.bold())
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.vertical, Spacing.sm)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: CornerRadius.small)
+                                .stroke(.red, lineWidth: 3)
+                        )
+                        .rotationEffect(.degrees(15))
+                        .padding(.trailing, Spacing.xxl)
+                        .padding(.top, 40)
+                }
+                Spacer()
+            }
+            .opacity(deleteOpacity)
+
+            VStack {
+                HStack {
+                    Label("KEEP", systemImage: "checkmark")
+                        .font(.title.bold())
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.vertical, Spacing.sm)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: CornerRadius.small)
+                                .stroke(.green, lineWidth: 3)
+                        )
+                        .rotationEffect(.degrees(-15))
+                        .padding(.leading, Spacing.xxl)
+                        .padding(.top, 40)
+                    Spacer()
+                }
+                Spacer()
+            }
+            .opacity(keepOpacity)
+
+            // Up-drag: file into an album (SwipeSessionView's up-swipe
+            // gesture) — mirrors the DELETE/KEEP direction stamps.
+            VStack {
+                Label("ALBUM", systemImage: "folder.badge.plus")
+                    .font(.title3.bold())
+                    .foregroundStyle(.blue)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, Spacing.sm)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: CornerRadius.small)
+                            .stroke(.blue, lineWidth: 3)
+                    )
+                    .padding(.top, 40)
+                Spacer()
+            }
+            .opacity(albumOpacity)
+
+            Rectangle()
+                .fill(.red.opacity(deleteOpacity * 0.15))
+            Rectangle()
+                .fill(.green.opacity(keepOpacity * 0.15))
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Moves and tilts the card with its drag. A modifier so the per-frame read
+/// of `motion.offset` re-evaluates only this, not the card's body.
+private struct SwipeMotionEffect: ViewModifier {
+    let motion: CardMotion?
+
+    func body(content: Content) -> some View {
+        let offset = motion?.offset ?? .zero
+        content
+            .offset(offset)
+            .rotationEffect(.degrees(Double(offset.width / 20)))
     }
 }
 

@@ -58,10 +58,6 @@ final class SwipeSessionViewModel {
         !pendingDeletionIds.isEmpty && !deletionCommitted
     }
 
-    /// True while a swipe-card animation is in flight. The view uses this to
-    /// ignore a second gesture during the animation window (SWIPE-05).
-    private(set) var isSwiping = false
-
     /// Set when an external launch (deep link / widget / intent) asked for a new
     /// session while this one still held uncommitted deletions. SwipeSessionView
     /// observes it and pushes the completion review instead of tearing the
@@ -313,10 +309,7 @@ final class SwipeSessionViewModel {
     }
 
     func skip() {
-        // Skip and undo must respect the swipe-animation window just like a
-        // second gesture: advancing the deck mid-animation would attribute the
-        // queued decision to the wrong card (B1).
-        guard let asset = currentAsset, !isPerformingMutation, !isSwiping else { return }
+        guard let asset = currentAsset, !isPerformingMutation else { return }
         unmarkPendingDeletion(asset)
         sessionStats.skippedCount += 1
         undoStack.append(SwipeUndoEntry(asset: asset, decision: .skipped, albumId: nil))
@@ -329,12 +322,11 @@ final class SwipeSessionViewModel {
         // underneath the sheet would desync the card the user is choosing an
         // album for (SWIPE-06).
         //
-        // Undo is also blocked during the animation window (decision would be
-        // attributed to the wrong card) and while a commit is in flight —
-        // rewinding into the captured batch would show a "restored" card that
-        // is actually being deleted right now (B1/B2).
+        // Undo is also blocked while a commit is in flight — rewinding into
+        // the captured batch would show a "restored" card that is actually
+        // being deleted right now (B2).
         guard let entry = undoStack.last, !isPerformingMutation, !showAlbumPicker,
-              !isSwiping, !isDeletingBatch else { return }
+              !isDeletingBatch else { return }
 
         switch entry.decision {
         case .deleted:
@@ -477,21 +469,6 @@ final class SwipeSessionViewModel {
     func endSession() async {
         await stopAllCaching()
         showCompletion = true
-    }
-
-    /// Claims the swipe-animation slot. Returns false (and does nothing) when
-    /// an animation is already in flight — the duplicate gesture is dropped
-    /// instead of racing the in-flight task (SWIPE-05).
-    func beginSwipeAnimation() -> Bool {
-        guard !isSwiping else { return false }
-        isSwiping = true
-        return true
-    }
-
-    /// Releases the animation slot after the swipe action completes or the
-    /// animation task is cancelled.
-    func endSwipeAnimation() {
-        isSwiping = false
     }
 
     // MARK: - Private

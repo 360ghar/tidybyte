@@ -2,7 +2,7 @@ import XCTest
 import SwiftData
 @testable import Tidybyte
 
-/// Regression coverage for the swipe-flow audit fixes: animation serialization
+/// Regression coverage for the swipe-flow audit fixes: back-to-back swipes
 /// (SWIPE-05), picker-guarded undo (SWIPE-06), pending-deletion exposure
 /// (SWIPE-02), retry state reset (SWIPE-09), predicate-based swipe-record
 /// upsert (SWIPE-03), and the empty-commit no-op (SWIPE-08).
@@ -31,28 +31,42 @@ final class SwipeFlowRegressionTests: XCTestCase {
         return viewModel
     }
 
-    // MARK: - SWIPE-05: animation serialization
+    // MARK: - SWIPE-05: back-to-back swipes
 
-    func testSwipeAnimationSlotRejectsSecondSwipeWhileInFlight() throws {
+    /// A swipe applies its decision at commit time (the fling is only visual),
+    /// so two fast swipes must each land on their own card.
+    func testBackToBackSwipesAttributeToTheirOwnCards() throws {
         let vm = try makeViewModel()
 
-        XCTAssertTrue(vm.beginSwipeAnimation(), "First swipe claims the animation slot")
-        XCTAssertTrue(vm.isSwiping)
-        XCTAssertFalse(vm.beginSwipeAnimation(), "A second swipe during the animation window must be ignored")
-        XCTAssertTrue(vm.isSwiping, "The rejected swipe must not release the slot")
+        vm.swipeLeft()
+        vm.swipeRight()
 
-        vm.endSwipeAnimation()
-        XCTAssertFalse(vm.isSwiping)
-        XCTAssertTrue(vm.beginSwipeAnimation(), "A swipe after the animation completes is accepted")
-        vm.endSwipeAnimation()
+        XCTAssertEqual(vm.currentIndex, 2)
+        XCTAssertEqual(vm.pendingDeletionIds, ["asset-0"])
+        XCTAssertEqual(vm.undoStack.map(\.asset.id), ["asset-0", "asset-1"])
+        XCTAssertEqual(vm.undoStack.map(\.decision), [.deleted, .kept])
     }
 
-    func testEndSwipeAnimationIsIdempotent() throws {
-        let vm = try makeViewModel()
-        vm.endSwipeAnimation()
-        XCTAssertFalse(vm.isSwiping)
-        vm.endSwipeAnimation()
-        XCTAssertFalse(vm.isSwiping)
+    func testSwipeDirectionCommitPolicy() {
+        let width: CGFloat = 300 // commit threshold 120
+        func resolve(_ t: CGSize, _ p: CGSize = .zero) -> SwipeDirection? {
+            SwipeDirection.resolve(translation: t, predicted: p, cardWidth: width)
+        }
+        XCTAssertEqual(resolve(CGSize(width: 130, height: 0)), .keep)
+        XCTAssertEqual(resolve(CGSize(width: -130, height: 0)), .delete)
+        XCTAssertEqual(resolve(CGSize(width: 40, height: 0), CGSize(width: 600, height: 0)), .keep, "A fast flick commits")
+        XCTAssertEqual(resolve(CGSize(width: -130, height: -130)), .delete, "A diagonal drag resolves horizontally")
+        XCTAssertEqual(resolve(CGSize(width: 10, height: -130)), .album)
+        XCTAssertNil(resolve(CGSize(width: 60, height: -60)), "A short drag snaps back")
+    }
+
+    func testFlingVelocityIsRelativeAndClamped() {
+        let start = CGSize(width: 100, height: 0)
+        let target = SwipeDirection.keep.flingOffset(from: start, distance: 1000)
+        XCTAssertEqual(target, CGSize(width: 1000, height: 0))
+        XCTAssertEqual(SwipeDirection.relativeVelocity(CGSize(width: 1800, height: 0), from: start, to: target), 2, accuracy: 0.001)
+        XCTAssertEqual(SwipeDirection.relativeVelocity(CGSize(width: -500, height: 0), from: start, to: target), 0, "A throw against the direction starts from rest")
+        XCTAssertEqual(SwipeDirection.relativeVelocity(CGSize(width: 90_000, height: 0), from: start, to: target), 10)
     }
 
     // MARK: - SWIPE-06: undo blocked while album picker is presented

@@ -30,7 +30,9 @@ struct SwipeSessionView: View {
                 Spacer()
                 ProgressView("Loading photos...")
                 Spacer()
-            } else if viewModel.visibleCards.isEmpty {
+            } else if viewModel.visibleCards.isEmpty, !viewModel.showCompletion {
+                // While the completion screen pushes, the deck stays mounted
+                // so the last card's fling plays out instead of vanishing.
                 // Scrolls at large text sizes; centered when it fits.
                 GeometryReader { proxy in
                     ScrollView {
@@ -123,10 +125,9 @@ struct SwipeSessionView: View {
                     Image(systemName: "arrow.uturn.backward")
                 }
                 .keyboardShortcut("z", modifiers: .command)
-                // Undo is inert during the animation window (wrong-card
-                // attribution, B1) and mid-commit (would resurrect a card the
-                // batch is deleting right now, B2).
-                .disabled(viewModel.undoStack.isEmpty || viewModel.isSwiping || viewModel.isDeletingBatch)
+                // Undo is inert mid-commit (would resurrect a card the batch is
+                // deleting right now, B2).
+                .disabled(viewModel.undoStack.isEmpty || viewModel.isDeletingBatch)
                 .accessibilityLabel("Undo")
                 .accessibilityHint("Reverts your last swipe")
             }
@@ -223,6 +224,7 @@ struct SwipeSessionView: View {
             }
         }
         .frame(height: 3)
+        .animation(.smooth, value: viewModel.currentIndex)
         .accessibilityElement()
         .accessibilityLabel("Review progress")
         .accessibilityValue("\(min(viewModel.currentIndex, viewModel.assets.count)) of \(viewModel.assets.count) reviewed")
