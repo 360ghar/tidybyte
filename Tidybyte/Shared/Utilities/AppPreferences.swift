@@ -38,6 +38,7 @@ enum AppPreferences {
         static let lastStorageScanAt = "lastStorageScanAt"
         static let successfulActionCount = "successfulActionCount"
         static let lastReviewPromptAt = "lastReviewPromptAt"
+        static let reminderCopyMigratedV2 = "reminderCopyMigratedV2"
         static let hasRatedApp = "hasRatedApp"
         static let lifetimeFreedBytes = "lifetimeFreedBytes"
         static let lifetimeItemCount = "lifetimeItemCount"

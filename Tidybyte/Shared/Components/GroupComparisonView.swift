@@ -114,7 +114,7 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
     @State private var currentPage = 0
     @State private var albumNames: [String: [String]] = [:]
     /// Full-screen, full-resolution preview of the tapped photo.
-    @State private var fullScreenAssetId: String?
+    @State private var fullScreenPreview: GroupPreviewContext?
 
     private let photoService = PhotoLibraryService.shared
 
@@ -173,13 +173,10 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
                 }
             }
         }
-        .fullScreenCover(item: Binding(
-            get: { fullScreenAssetId.map(IdentifiedAssetId.init) },
-            set: { fullScreenAssetId = $0?.id }
-        )) { item in
+        .fullScreenCover(item: $fullScreenPreview) { preview in
             MediaPreviewView(
-                assets: group.assets,
-                startIndex: group.assets.firstIndex { $0.id == item.id } ?? 0,
+                assets: preview.assets,
+                startIndex: preview.startIndex,
                 photoService: photoService
             )
         }
@@ -195,12 +192,7 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
         let isMarked = selectedForDeletion.contains(current.id)
         Button {
             HapticHelper.selection()
-            let oldBest = group.bestAssetId
-            // Same rule as the list: the old keeper is marked only when the
-            // group was already selecting, and never when it is a favorite.
-            var state = SelectionState(ids: selectedForDeletion)
-            state.setBest(newBest: current.id, oldBest: oldBest, groupAssets: group.assets)
-            selectedForDeletion = state.ids
+            // The view model moves the selection (same rule as the list).
             group = group.withBest(current.id)
             onSetBest(current.id, group.id)
         } label: {
@@ -245,7 +237,12 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
             .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             .contentShape(Rectangle())
-            .onTapGesture { fullScreenAssetId = asset.id }
+            .onTapGesture {
+                fullScreenPreview = GroupPreviewContext(
+                    assets: group.assets,
+                    startIndex: group.assets.firstIndex { $0.id == asset.id } ?? 0
+                )
+            }
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel("Preview photo, \(asset.displaySize)")
             .accessibilityHint("Opens the photo full screen")
@@ -362,7 +359,3 @@ struct ComparisonQualitySection: View {
     }
 }
 
-/// `fullScreenCover(item:)` needs an Identifiable value.
-private struct IdentifiedAssetId: Identifiable {
-    let id: String
-}

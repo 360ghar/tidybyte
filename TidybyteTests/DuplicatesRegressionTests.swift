@@ -415,12 +415,13 @@ final class DuplicatesRegressionTests: XCTestCase {
     // MARK: DUP-10 / de-slop: shared selection semantics
 
     func testSelectionStateSetBestSwap() {
+        let group = [makeAsset(id: "new-best"), makeAsset(id: "old-best")]
         var state = SelectionState(ids: ["new-best"])
-        state.setBest(newBest: "new-best", oldBest: "old-best")
+        state.setBest(newBest: "new-best", oldBest: "old-best", groupAssets: group)
         XCTAssertEqual(state.ids, ["old-best"])
 
         // No-op when the best doesn't change.
-        state.setBest(newBest: "old-best", oldBest: "old-best")
+        state.setBest(newBest: "old-best", oldBest: "old-best", groupAssets: group)
         XCTAssertEqual(state.ids, ["old-best"])
     }
 

@@ -39,6 +39,16 @@ actor ImageCache {
         cache.object(forKey: key as NSString)
     }
 
+    /// Stores the image only when no eviction happened since `generation` was
+    /// read, so pre-edit bytes are never reinserted (E5). Returns whether it
+    /// stored.
+    @discardableResult
+    func setImage(_ image: UIImage, for key: String, ifGeneration expected: Int) -> Bool {
+        guard generation == expected else { return false }
+        setImage(image, for: key)
+        return true
+    }
+
     func setImage(_ image: UIImage, for key: String) {
         // Cost ≈ in-memory bytes so `totalCostLimit` binds real memory
         // (200 full 200px thumbnails otherwise pin ~30–60MB with no ceiling).

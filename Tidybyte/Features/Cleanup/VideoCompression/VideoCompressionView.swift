@@ -135,12 +135,8 @@ struct VideoCompressionView: View {
                 )
             }
         }
-        .onAppear { viewModel.isOnScreen = true }
         .onDisappear {
             // Don't orphan the mutation loop when the user leaves the screen.
-            // A full-screen preview also fires onDisappear; the user has not
-            // left then, and the preview shows the Originals Kept alert.
-            if previewStart == nil { viewModel.isOnScreen = false }
             viewModel.cancelCompression()
         }
         .task {
@@ -331,7 +327,7 @@ struct VideoCompressionView: View {
             if viewModel.isCompressing {
                 HStack(spacing: Spacing.md) {
                     ProgressView()
-                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase) ?? "Working…")
+                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)

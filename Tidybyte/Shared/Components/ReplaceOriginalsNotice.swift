@@ -20,11 +20,11 @@ enum ReplaceOriginalsNotice {
         """
     }
 
-    /// Bottom-bar status for the running step. `nil` when idle.
-    static func phaseText(_ phase: ReplacePhase) -> String? {
+    /// Bottom-bar status for the running step.
+    static func phaseText(_ phase: ReplacePhase) -> String {
         switch phase {
         case .idle:
-            nil
+            "Working…"
         case .savingCopies(let done, let total):
             "Step 1 of 2 · Saving copy \(min(done + 1, total)) of \(total)"
         case .removingOriginals:

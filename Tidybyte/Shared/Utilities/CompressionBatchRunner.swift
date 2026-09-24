@@ -173,12 +173,8 @@ final class CompressionSwap {
 @MainActor
 enum CompressionBatchRunner {
     struct Handlers: Sendable {
-        var setExporting: @MainActor @Sendable (Int, Float) -> Void
-        var setKeptOriginal: @MainActor @Sendable (Int, String) -> Void
-        var setCompleted: @MainActor @Sendable (Int, Int64) -> Void
-        var setFailed: @MainActor @Sendable (Int, String) -> Void
-        var setWaiting: @MainActor @Sendable (Int) -> Void
-        var setCopySaved: @MainActor @Sendable (Int) -> Void
+        /// Sets the row state at an index into the VM's list.
+        var setState: @MainActor @Sendable (Int, CompressionState) -> Void
         var setPhase: @MainActor @Sendable (ReplacePhase) -> Void
     }
 
@@ -214,32 +210,32 @@ enum CompressionBatchRunner {
             handlers.setPhase(.savingCopies(done: offset, total: orderedIds.count))
             guard let index = indexById[id] else { continue }
             if alreadyCompletedIds.contains(id) {
-                handlers.setKeptOriginal(index, "Already compressed")
+                handlers.setState(index, .keptOriginal(reason: "Already compressed"))
                 skipped += 1
                 continue
             }
-            handlers.setExporting(index, 0)
+            handlers.setState(index, .exporting(0))
             do {
-                let outcome = try await execute(id, index, { p in handlers.setExporting(index, p) })
+                let outcome = try await execute(id, index, { p in handlers.setState(index, .exporting(p)) })
                 switch outcome {
                 case .skipped:
                     skipped += 1
                 case .saved(let pending):
                     saved.append(pending)
-                    handlers.setCopySaved(index)
+                    handlers.setState(index, .copySaved)
                 }
             } catch {
                 if isCancelled() || error is CancellationError {
-                    handlers.setWaiting(index)
+                    handlers.setState(index, .waiting)
                     break
                 }
                 if isSizeUnknown(error) {
-                    handlers.setKeptOriginal(index, "Size unknown (iCloud-only) — skipped")
+                    handlers.setState(index, .keptOriginal(reason: "Size unknown (iCloud-only) — skipped"))
                     skipped += 1
                     continue
                 }
                 failed += 1
-                handlers.setFailed(index, error.localizedDescription)
+                handlers.setState(index, .failed(error.localizedDescription))
             }
         }
 
@@ -253,7 +249,7 @@ enum CompressionBatchRunner {
             for item in outcome.committed {
                 successfulIds.insert(item.assetId)
                 if let index = indexById[item.assetId] {
-                    handlers.setCompleted(index, max(0, item.originalSize - item.compressedSize))
+                    handlers.setState(index, .completed(savedBytes: max(0, item.originalSize - item.compressedSize)))
                 }
             }
             kept = outcome.kept
@@ -295,6 +291,20 @@ enum OriginalsCommit {
             if stillPresent.contains(id(item)) { kept.append(item) } else { committed.append(item) }
         }
         return (committed, kept)
+    }
+
+    /// Shown when the user also declines Remove Copies.
+    static let copiesKeptMessage = "Copies kept. Both versions are in your library; delete either one in Photos."
+
+    /// `commit`, with the bottom bar showing "removing originals" while it runs.
+    static func commit(
+        _ pending: [PendingOriginal],
+        setPhase: (ReplacePhase) -> Void
+    ) async -> Outcome {
+        setPhase(.removingOriginals(count: pending.count))
+        let outcome = await commit(pending)
+        setPhase(.idle)
+        return outcome
     }
 
     static func commit(

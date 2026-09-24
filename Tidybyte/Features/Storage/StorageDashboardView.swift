@@ -512,21 +512,20 @@ struct StorageDashboardView: View {
         }
     }
 
-    private static let tappableCategoryIds: Set<String> = ["screenshots", "videos", "livePhotos"]
+    /// The tool a legend row opens, if any.
+    private static func action(for categoryId: String) -> StorageAction? {
+        switch categoryId {
+        case "screenshots": .cleanup(.screenshots)
+        case "videos": .cleanup(.videoCompression)
+        case "livePhotos": .cleanup(.livePhotos)
+        default: nil  // Photos and Other have no direct cleanup tool
+        }
+    }
 
     /// Legend row that navigates to the appropriate tool when tapped.
     @ViewBuilder
     private func tappableLegendRow(category: StorageCategory) -> some View {
-        let action: StorageAction? = {
-            switch category.id {
-            case "screenshots": return .cleanup(.screenshots)
-            case "videos": return .cleanup(.videoCompression)
-            case "livePhotos": return .cleanup(.livePhotos)
-            default: return nil  // Photos and Other have no direct cleanup tool
-            }
-        }()
-
-        if let action {
+        if let action = Self.action(for: category.id) {
             Button {
                 handle(action)
             } label: {
@@ -555,7 +554,7 @@ struct StorageDashboardView: View {
                 .font(.subheadline.monospacedDigit().bold())
             // The slot is kept only when some row is tappable, so values
             // still line up; with no tappable row there is no gap.
-            if isTappable || viewModel.categories.contains(where: { Self.tappableCategoryIds.contains($0.id) }) {
+            if isTappable || viewModel.categories.contains(where: { Self.action(for: $0.id) != nil }) {
                 Image(systemName: "chevron.right")
                     .font(.caption.bold())
                     .foregroundStyle(.tertiary)
@@ -572,9 +571,9 @@ struct StorageDashboardView: View {
     /// "Zero KB used / Zero KB available".
     @ViewBuilder
     private var deviceStorageSection: some View {
-        let isAlmostFull = viewModel.deviceStorage.totalCapacity > 0
-            && Double(viewModel.deviceStorage.usedCapacity) / Double(viewModel.deviceStorage.totalCapacity) > 0.9
         if viewModel.deviceStorage.totalCapacity > 0 {
+        let usedRatio = CGFloat(viewModel.deviceStorage.usedCapacity) / CGFloat(viewModel.deviceStorage.totalCapacity)
+        let isAlmostFull = usedRatio > 0.9
         GlassCard {
             VStack(spacing: Spacing.md) {
                 HStack {
@@ -591,15 +590,11 @@ struct StorageDashboardView: View {
                 }
 
                 GeometryReader { geometry in
-                    let usedRatio = viewModel.deviceStorage.totalCapacity > 0
-                        ? CGFloat(viewModel.deviceStorage.usedCapacity) / CGFloat(viewModel.deviceStorage.totalCapacity)
-                        : 0
-
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: CornerRadius.small)
                             .fill(Color.cardSurface)
                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .fill(usedRatio > 0.9 ? Color.destructive : Color.accentColor)
+                            .fill(isAlmostFull ? Color.destructive : Color.accentColor)
                             .frame(width: geometry.size.width * usedRatio)
                     }
                 }

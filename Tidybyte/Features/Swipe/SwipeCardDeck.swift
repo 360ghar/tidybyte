@@ -77,11 +77,6 @@ struct SwipeCardDeck: View {
     /// Called when a delete is refused because the photo never showed.
     var onDeleteBlocked: () -> Void = {}
 
-    private struct DepartingCard {
-        let asset: AssetSummary
-        let motion: CardMotion
-    }
-
     /// One rendered card: `depth` 0 is the top card, nil a departing one.
     private struct DeckSlot: Identifiable {
         let asset: AssetSummary
@@ -91,7 +86,7 @@ struct SwipeCardDeck: View {
     }
 
     @State private var motion = CardMotion()
-    @State private var departing: [DepartingCard] = []
+    @State private var departing: [DeckSlot] = []
     @State private var deckSize: CGSize = .zero
     /// True while the top card is pinch-zoomed: the swipe drag yields so a
     /// one-finger drag pans the photo instead of committing a swipe.
@@ -123,10 +118,7 @@ struct SwipeCardDeck: View {
         let stack = visible.enumerated().reversed().map { index, asset in
             DeckSlot(asset: asset, depth: index, motion: index == 0 ? motion : nil)
         }
-        let flying = departing
-            .filter { !visibleIds.contains($0.asset.id) }
-            .map { DeckSlot(asset: $0.asset, depth: nil, motion: $0.motion) }
-        return stack + flying
+        return stack + departing.filter { !visibleIds.contains($0.id) }
     }
 
     var body: some View {
@@ -233,8 +225,7 @@ struct SwipeCardDeck: View {
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
-            .onAppear { deckSize = geometry.size }
-            .onChange(of: geometry.size) { deckSize = geometry.size }
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { deckSize = $0 }
         }
     }
 
@@ -304,8 +295,8 @@ struct SwipeCardDeck: View {
             initialVelocity: SwipeDirection.relativeVelocity(velocity, from: start, to: target)
         )
         withAnimation(.reduceMotionAware(fling, reduceMotion: reduceMotion), completionCriteria: .logicallyComplete) {
-            departing.removeAll { $0.asset.id == asset.id }
-            departing.append(DepartingCard(asset: asset, motion: flying))
+            departing.removeAll { $0.id == asset.id }
+            departing.append(DeckSlot(asset: asset, depth: nil, motion: flying))
             motion.offset = .zero
             switch direction {
             case .delete: viewModel.swipeLeft()

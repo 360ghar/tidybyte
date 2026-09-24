@@ -42,7 +42,9 @@ struct SimilarGroup: Identifiable, Hashable, Sendable {
 @Observable
 @MainActor
 final class SimilarPhotosViewModel {
-    var groups: [SimilarGroup] = []
+    var groups: [SimilarGroup] = [] {
+        didSet { updateSuggestedIds() }
+    }
     var scanState: ScanState = .idle
     var selectedForDeletion: Set<String> = []
     var errorMessage: String?
@@ -405,13 +407,16 @@ final class SimilarPhotosViewModel {
         selectedForDeletion = state.ids
     }
 
-    /// The suggested set: every non-keeper that is not a favorite.
-    private var suggestedIds: Set<String> {
+    /// The suggested set: every non-keeper that is not a favorite. Stored,
+    /// because the toolbar reads it on every render.
+    private var suggestedIds: Set<String> = []
+
+    private func updateSuggestedIds() {
         var state = SelectionState()
         for group in groups {
             state.selectNonBest(assets: group.assets, bestAssetId: group.bestAssetId)
         }
-        return state.ids
+        suggestedIds = state.ids
     }
 
     /// False when every extra is a favorite: "Select All" would do nothing.

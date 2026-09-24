@@ -211,21 +211,9 @@ struct ScreenshotCleanerView: View {
 
             // Always-visible selection checkbox. Tapping it (de)selects; tapping
             // anywhere else on the cell opens the preview.
-            Button {
-                HapticHelper.selection()
+            SelectToggle(isSelected: viewModel.selectedIds.contains(screenshot.id), itemName: "screenshot") {
                 viewModel.toggleSelection(screenshot.id)
-            } label: {
-                Image(systemName: viewModel.selectedIds.contains(screenshot.id) ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(viewModel.selectedIds.contains(screenshot.id) ? .blue : .white)
-                    .shadow(color: .black.opacity(0.4), radius: 3)
-                    .padding(Spacing.sm)
-                    .scaleEffect(viewModel.selectedIds.contains(screenshot.id) ? 1.0 : 0.9)
-                    .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(screenshot.id))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(viewModel.selectedIds.contains(screenshot.id) ? "Deselect screenshot" : "Select screenshot")
-            .accessibilityAddTraits(viewModel.selectedIds.contains(screenshot.id) ? [.isButton, .isSelected] : .isButton)
         }
         .overlay {
             if viewModel.selectedIds.contains(screenshot.id) {

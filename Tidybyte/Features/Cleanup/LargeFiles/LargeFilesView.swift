@@ -249,19 +249,9 @@ struct LargeFilesView: View {
         HStack(spacing: Spacing.md) {
             // Always-visible selection checkbox. Tapping it (de)selects the row;
             // tapping anywhere else on the row opens the preview.
-            Button {
-                HapticHelper.selection()
+            SelectToggle(isSelected: viewModel.selectedIds.contains(asset.id), itemName: "file", overPhoto: false) {
                 viewModel.toggleSelection(asset.id)
-            } label: {
-                Image(systemName: viewModel.selectedIds.contains(asset.id) ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(viewModel.selectedIds.contains(asset.id) ? .blue : .secondary)
-                    .scaleEffect(viewModel.selectedIds.contains(asset.id) ? 1.0 : 0.9)
-                    .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(asset.id))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(viewModel.selectedIds.contains(asset.id) ? "Deselect file" : "Select file")
-            .accessibilityAddTraits(viewModel.selectedIds.contains(asset.id) ? [.isButton, .isSelected] : .isButton)
 
             AsyncThumbnailView(assetId: asset.id, photoService: photoService)
                 .frame(width: 60, height: 60)

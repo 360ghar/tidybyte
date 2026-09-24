@@ -19,14 +19,12 @@ enum AssetOrigin: String, Sendable {
     case unknown
 }
 
-/// Burst keeper hint from PhotoKit's `burstSelectionTypes`. Higher raw
-/// value = stronger reason to keep the frame.
-enum BurstPick: Int, Sendable, Hashable, Comparable {
-    case none = 0
-    case iPhone = 1
-    case user = 2
-
-    static func < (lhs: BurstPick, rhs: BurstPick) -> Bool { lhs.rawValue < rhs.rawValue }
+/// Burst keeper hint from PhotoKit's `burstSelectionTypes`. Later cases are
+/// a stronger reason to keep the frame.
+enum BurstPick: Sendable, Hashable, Comparable {
+    case none
+    case iPhone
+    case user
 }
 
 struct AssetSummary: Identifiable, Sendable, Hashable {
@@ -52,8 +50,10 @@ struct AssetSummary: Identifiable, Sendable, Hashable {
 
     /// The original file is HEIC/HEIF (already an efficient format).
     var isHEIC: Bool {
-        guard let ext = filename?.split(separator: ".").last?.lowercased() else { return false }
-        return ext == "heic" || ext == "heif"
+        guard let filename else { return false }
+        return [".heic", ".heif"].contains {
+            filename.range(of: $0, options: [.caseInsensitive, .backwards, .anchored]) != nil
+        }
     }
 
     var resolution: String {

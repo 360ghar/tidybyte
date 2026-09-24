@@ -248,7 +248,7 @@ struct SessionCompletionView: View {
 
     private var pendingDeletionBlock: some View {
         VStack(spacing: Spacing.md) {
-            Text("\(pendingCount) item\(pendingCount == 1 ? "" : "s") marked for deletion · \(viewModel.pendingDeletionBytes.formattedFileSize)")
+            Text("\(Self.items(pendingCount)) marked for deletion · \(viewModel.pendingDeletionBytes.formattedFileSize)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

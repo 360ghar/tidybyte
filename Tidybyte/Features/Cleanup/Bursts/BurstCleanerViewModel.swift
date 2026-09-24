@@ -9,7 +9,9 @@ struct BurstGroup: Identifiable {
 @Observable
 @MainActor
 final class BurstCleanerViewModel {
-    var groups: [BurstGroup] = []
+    var groups: [BurstGroup] = [] {
+        didSet { updateDerivedTotals() }
+    }
     var isLoading = true
     private(set) var hasLoadedGroups = false
     var selectedForDeletion: Set<String> = []
@@ -37,14 +39,13 @@ final class BurstCleanerViewModel {
     var deletableCount: Int { autoCleanIds.count }
 
     var allNonBestSelected: Bool {
-        let ids = groups.reduce(into: Set<String>()) { $0.formUnion(Self.nonBestAssetIds(in: $1)) }
-        return !ids.isEmpty && ids.isSubset(of: selectedForDeletion)
+        !nonBestIds.isEmpty && nonBestIds.isSubset(of: selectedForDeletion)
     }
 
     /// Select All: every frame but the keepers (favorites included: this is an
     /// explicit choice). Counts as touching every group, so a refresh keeps it.
     func selectAllNonBest() {
-        for group in groups { selectedForDeletion.formUnion(Self.nonBestAssetIds(in: group)) }
+        selectedForDeletion.formUnion(nonBestIds)
         touchedGroups.formUnion(groups.map(\.id))
     }
 
@@ -53,12 +54,26 @@ final class BurstCleanerViewModel {
         touchedGroups.formUnion(groups.map(\.id))
     }
 
-    var savingsBytes: Int64 {
-        groups.reduce(Int64(0)) { total, group in
-            let suggested = Self.suggestedIds(in: group)
-            return group.assets.filter { suggested.contains($0.id) }
-                .reduce(total) { $0 + $1.fileSize }
+    /// Totals derived from `groups`. Stored, because the view reads them on
+    /// every render and `groups` changes far less often.
+    private(set) var savingsBytes: Int64 = 0
+    /// Exactly what Auto-Clean deletes: in every burst, all frames but the
+    /// starred keeper, never a favorite. The confirm count, the delete and the
+    /// celebration all use this one set, so they cannot disagree.
+    private(set) var autoCleanIds: Set<String> = []
+    private var nonBestIds: Set<String> = []
+
+    private func updateDerivedTotals() {
+        var suggested = Set<String>(), nonBest = Set<String>(), bytes: Int64 = 0
+        for group in groups {
+            let groupSuggested = Self.suggestedIds(in: group)
+            suggested.formUnion(groupSuggested)
+            nonBest.formUnion(Self.nonBestAssetIds(in: group))
+            bytes += group.assets.filter { groupSuggested.contains($0.id) }.reduce(0) { $0 + $1.fileSize }
         }
+        autoCleanIds = suggested
+        nonBestIds = nonBest
+        savingsBytes = bytes
     }
 
     var selectedSavingsBytes: Int64 {
@@ -215,13 +230,6 @@ final class BurstCleanerViewModel {
         )
     }
 
-    /// Exactly what Auto-Clean deletes: in every burst, all frames but the
-    /// starred keeper, never a favorite. The confirm count, the delete and the
-    /// celebration all use this one set, so they cannot disagree.
-    var autoCleanIds: Set<String> {
-        groups.reduce(into: Set<String>()) { $0.formUnion(Self.suggestedIds(in: $1)) }
-    }
-
     /// Exactly what Auto-Clean arms: untouched groups contribute their
     /// suggestions; touched groups contribute only the user's surviving picks,
     /// so a frame the user explicitly kept is never re-armed. Pure for tests.
@@ -362,7 +370,9 @@ final class BurstCleanerViewModel {
     /// What the tool arms by itself: every frame but the keeper, except
     /// favorites. A favorite is only deleted when the user marks it.
     static func suggestedIds(in group: BurstGroup) -> Set<String> {
-        Set(group.assets.compactMap { $0.id == group.bestAssetId || $0.isFavorite ? nil : $0.id })
+        var selection = SelectionState()
+        selection.selectNonBest(assets: group.assets, bestAssetId: group.bestAssetId)
+        return selection.ids
     }
 
     private static func nonBestAssetIds(in group: BurstGroup) -> Set<String> {

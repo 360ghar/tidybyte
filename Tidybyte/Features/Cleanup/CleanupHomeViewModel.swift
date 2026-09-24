@@ -50,11 +50,8 @@ struct CleanupLibraryRollup: Equatable {
                 rollup.livePhotos += 1
             } else if asset.mediaType == .photo {
                 rollup.compressiblePhotos += 1
-                // Mirrors PhotoCompressionViewModel.candidates(showAll: false):
-                // copies this tool already saved are never listed there, so
-                // the badge must not count them either.
-                if asset.fileSize >= photoCompressionMinBytes, !asset.isHEIC,
-                   !excludingCompressedCopies.contains(asset.id) {
+                // Same rule as the tool's list, so the badge matches it.
+                if PhotoCompressionViewModel.isCandidate(asset, excluding: excludingCompressedCopies, showAll: false) {
                     rollup.photoCompressionCandidates += 1
                 }
             }
@@ -119,7 +116,7 @@ final class CleanupHomeViewModel {
     /// loads on first call, refreshes when the library generation advances, and
     /// no-ops otherwise. Work survives `.task` cancellation when the user
     /// switches tabs mid-fetch.
-    func sync(to generation: Int, excludingCompressedCopies: Set<String> = []) async {
+    func sync(to generation: Int, excludingCompressedCopies: @escaping @MainActor () -> Set<String> = { [] }) async {
         guard !(hasLoadedCounts && generation == syncedGeneration) else { return }
         // The library changed under the last scan results: recorded counts
         // may include deleted assets, so expire them before re-badging
@@ -128,7 +125,7 @@ final class CleanupHomeViewModel {
         ScanResults.invalidate()
         syncedGeneration = generation
         await enqueue {
-            await self.loadCounts(excludingCompressedCopies: excludingCompressedCopies)
+            await self.loadCounts(excludingCompressedCopies: excludingCompressedCopies())
             self.hasLoadedCounts = true
         }
     }
@@ -142,9 +139,9 @@ final class CleanupHomeViewModel {
 
     private func loadCounts(excludingCompressedCopies: Set<String> = []) async {
         // ONE all-media pass feeds screenshots, live photos, videos, large
-        // files, and photo compression (E9: was five full enumerations, each
-        // materializing AssetSummary arrays with per-asset resource I/O just
-        // to call `.count`). Only bursts needs its own query.
+        // files, photo compression and bursts (E9: was five full enumerations,
+        // each materializing AssetSummary arrays with per-asset resource I/O
+        // just to call `.count`).
         let allAssets = await photoService.fetchAssets(filter: .allMedia)
 
         let threshold = AppPreferences.largeFileThresholdBytes()
@@ -159,9 +156,10 @@ final class CleanupHomeViewModel {
         updateTool(.largeFiles, count: rollup.largeFiles)
         updateTool(.photoCompression, count: rollup.photoCompressionCandidates)
 
-        // Bursts: grouped fetch — the one dedicated enumeration. The badge
+        // Bursts: `.allMedia` already includes every burst frame. The badge
         // counts removable frames (all but one per burst), like the tool.
-        let burstGroups = await photoService.fetchBurstPhotos()
+        let burstGroups = Dictionary(grouping: allAssets.filter { $0.burstIdentifier != nil }) { $0.burstIdentifier ?? "" }
+            .filter { $0.value.count > 1 }
         // Same set the tool's Auto-Clean uses: all but the keeper, never a
         // favorite.
         let removableFrames = BurstCleanerViewModel.rebuildGroups(from: burstGroups)

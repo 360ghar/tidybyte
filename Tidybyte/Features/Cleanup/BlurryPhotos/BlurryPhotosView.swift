@@ -291,21 +291,9 @@ struct BlurryPhotosView: View {
             VStack {
                 HStack {
                     Spacer()
-                    Button {
-                        HapticHelper.selection()
+                    SelectToggle(isSelected: viewModel.selectedIds.contains(photo.id), itemName: "photo") {
                         viewModel.toggleSelection(photo.id)
-                    } label: {
-                        Image(systemName: viewModel.selectedIds.contains(photo.id) ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(viewModel.selectedIds.contains(photo.id) ? .blue : .white)
-                            .shadow(color: .black.opacity(0.4), radius: 3)
-                            .padding(Spacing.sm)
-                            .scaleEffect(viewModel.selectedIds.contains(photo.id) ? 1.0 : 0.9)
-                            .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(photo.id))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(viewModel.selectedIds.contains(photo.id) ? "Deselect photo" : "Select photo")
-                    .accessibilityAddTraits(viewModel.selectedIds.contains(photo.id) ? [.isButton, .isSelected] : .isButton)
                 }
                 Spacer()
             }

@@ -245,6 +245,25 @@ enum CompressionJournal {
     /// method: the fetch below is pending-only, so a decline settled durably
     /// by `CompressionSwap.finalizeKeptBoth` can never resolve to
     /// `deleteOrphanThenFail` and lose the user's saved copy.
+    /// Assets that already have a usable copy (completed swaps, no-savings
+    /// skips, kept-both declines). Failed rows, and skips whose copies were
+    /// removed, stay eligible for another try.
+    static func alreadyCompressedIds(modelContext: ModelContext) -> Set<String> {
+        let records = (try? modelContext.fetch(FetchDescriptor<CompressionRecord>(
+            predicate: #Predicate { $0.outcome != "pending" && $0.outcome != "failed" }
+        ))) ?? []
+        return Set(records.filter { $0.replacementAssetLocalIdentifier != nil }.map(\.assetLocalIdentifier))
+    }
+
+    /// Copies this app made that are still named on a settled row: completed
+    /// swaps, and copies the user chose to keep next to the original.
+    static func savedCopyIds(modelContext: ModelContext) -> Set<String> {
+        let records = (try? modelContext.fetch(FetchDescriptor<CompressionRecord>(
+            predicate: #Predicate { $0.outcome != "pending" }
+        ))) ?? []
+        return Set(records.compactMap(\.replacementAssetLocalIdentifier))
+    }
+
     static func reconcile(modelContext: ModelContext) async {
         let descriptor = FetchDescriptor<CompressionRecord>(
             predicate: #Predicate { $0.outcome == "pending" }
@@ -254,15 +273,11 @@ enum CompressionJournal {
         var resolved: [(CompressionRecord, Resolution)] = []
         // Rows still owned by a live swap (a running batch, or saved copies
         // waiting on the Originals Kept choice) are not crash leftovers.
-        for (i, record) in pendings.enumerated() {
-            if i % 20 == 0 { await Task.yield() }
-            guard !CompressionSwap.isLive(assetId: record.assetLocalIdentifier) else { continue }
-            let originalExists = PHAsset.fetchAssets(
-                withLocalIdentifiers: [record.assetLocalIdentifier],
-                options: nil
-            ).firstObject != nil
+        let leftovers = pendings.filter { !CompressionSwap.isLive(assetId: $0.assetLocalIdentifier) }
+        let existingOriginals = await PhotoLibraryService.shared.existingIds(leftovers.map(\.assetLocalIdentifier))
+        for record in leftovers {
             resolved.append((record, Self.resolution(
-                originalExists: originalExists,
+                originalExists: existingOriginals.contains(record.assetLocalIdentifier),
                 replacementId: record.replacementAssetLocalIdentifier,
                 saveAttempted: record.saveAttempted
             )))

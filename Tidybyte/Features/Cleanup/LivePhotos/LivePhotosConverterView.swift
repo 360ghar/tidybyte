@@ -45,11 +45,7 @@ struct LivePhotosConverterView: View {
             }
         }
         .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
-        .onAppear { viewModel.isOnScreen = true }
         .onDisappear {
-            // A full-screen preview also fires onDisappear; the user has not
-            // left then, and the preview shows the Originals Kept alert.
-            if previewItem == nil { viewModel.isOnScreen = false }
             // D2: leaving the screen must stop Convert All — the loop deletes
             // originals and previously had no stop at all.
             viewModel.cancelConvertAll()
@@ -163,7 +159,7 @@ struct LivePhotosConverterView: View {
                 if viewModel.convertingAll || viewModel.phase != .idle {
                     ProgressView()
                         .padding(.trailing, Spacing.sm)
-                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase) ?? "Working…")
+                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)

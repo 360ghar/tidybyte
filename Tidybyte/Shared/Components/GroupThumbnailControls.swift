@@ -30,6 +30,36 @@ struct DeleteToggle: View {
     }
 }
 
+/// Selection circle for the list and grid tools (Large Files, Screenshots,
+/// Blurry, Smart Categories). `overPhoto` draws it white with a shadow, for a
+/// grid cell.
+struct SelectToggle: View {
+    let isSelected: Bool
+    /// Spoken noun, e.g. "photo" → "Select photo".
+    let itemName: String
+    var overPhoto = true
+    let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button {
+            HapticHelper.selection()
+            action()
+        } label: {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.title3)
+                .foregroundStyle(isSelected ? .blue : (overPhoto ? .white : .secondary))
+                .shadow(color: .black.opacity(overPhoto ? 0.4 : 0), radius: 3)
+                .padding(overPhoto ? Spacing.sm : 0)
+                .scaleEffect(isSelected ? 1.0 : 0.9)
+                .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isSelected ? "Deselect \(itemName)" : "Select \(itemName)")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
 /// Plain "Keep" line under the keeper. No pill behind it.
 struct KeeperMark: View {
     var reason: String?

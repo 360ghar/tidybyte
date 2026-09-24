@@ -25,19 +25,8 @@ final class VideoCompressionViewModel {
     private(set) var phase: ReplacePhase = .idle
     /// Saved copies whose originals are still in the library (the user tapped
     /// "Don't Allow"). The view offers Try Again / Remove Copies.
+    /// `OriginalsCommit.commit` already settles them as kept-both in the journal.
     var keptOriginals: [PendingOriginal] = []
-    /// False once the screen is gone. A decline then has no alert to show,
-    /// so the kept copies are settled as "both kept" instead of staying
-    /// pending (which made a later reconcile ask to delete them, unexplained).
-    var isOnScreen = true
-
-    private func storeKept(_ kept: [PendingOriginal]) {
-        if isOnScreen {
-            keptOriginals = kept
-        } else {
-            for item in kept { item.swap.finalizeKeptBoth() }
-        }
-    }
     /// The batch mutation loop, owned by the VM so leaving the screen can
     /// cancel it instead of orphaning the mutation loop (COMP-08).
     private var batchTask: Task<Void, Never>?
@@ -131,9 +120,9 @@ final class VideoCompressionViewModel {
 
     /// The shared preset of the selection, or nil when it is mixed.
     var selectedPreset: CompressionPreset? {
-        let ids = Set(videos.filter { selectedIds.contains($0.id) }.map(\.selectedPreset.id))
-        guard ids.count == 1, let id = ids.first else { return nil }
-        return CompressionPreset.presets.first { $0.id == id }
+        let presets = videos.filter { selectedIds.contains($0.id) }.map(\.selectedPreset)
+        guard let first = presets.first, presets.allSatisfy({ $0.id == first.id }) else { return nil }
+        return first
     }
 
     func setPreset(_ preset: CompressionPreset, for videoId: String) {
@@ -207,14 +196,12 @@ final class VideoCompressionViewModel {
         guard !items.isEmpty else { return }
         isCompressing = true
         Task {
-            phase = .removingOriginals(count: items.count)
-            let outcome = await OriginalsCommit.commit(items)
-            phase = .idle
+            let outcome = await OriginalsCommit.commit(items) { phase = $0 }
             let done = Set(outcome.committed.map(\.assetId))
             videos.removeAll { done.contains($0.id) }
             selectedIds.subtract(done)
             isCompressing = false
-            storeKept(outcome.kept)
+            keptOriginals = outcome.kept
         }
     }
 
@@ -228,7 +215,7 @@ final class VideoCompressionViewModel {
         Task {
             // A decline leaves both versions: say so instead of going quiet.
             if await !OriginalsCommit.removeCopies(items) {
-                errorMessage = "Copies kept. Both versions are in your library; delete either one in Photos."
+                errorMessage = OriginalsCommit.copiesKeptMessage
             }
             let ids = Set(items.map(\.assetId))
             // Declined rows stay non-eligible: their copies are still in the
@@ -274,11 +261,7 @@ final class VideoCompressionViewModel {
         // re-encoded (quality degradation, duplicate copies). Only rows that
         // still name a copy count: failed rows and skips whose copies were
         // removed (Remove Copies accepted) stay eligible for another try.
-        let previouslyCompletedIds: Set<String> = ((try? modelContext.fetch(
-            FetchDescriptor<CompressionRecord>(predicate: #Predicate { $0.outcome != "pending" && $0.outcome != "failed" })
-        )) ?? []).reduce(into: Set<String>()) {
-            if $1.replacementAssetLocalIdentifier != nil { $0.insert($1.assetLocalIdentifier) }
-        }
+        let previouslyCompletedIds = CompressionJournal.alreadyCompressedIds(modelContext: modelContext)
 
         // D1: resolve leftovers from any interrupted swap BEFORE the batch —
         // otherwise a stranded duplicate could be re-compressed or double-counted.
@@ -299,29 +282,8 @@ final class VideoCompressionViewModel {
         let indexById = Dictionary(uniqueKeysWithValues: videos.enumerated().map { ($1.id, $0) })
 
         let handlers = CompressionBatchRunner.Handlers(
-            setExporting: { [weak self] index, progress in
-                guard let self else { return }
-                self.videos[index].compressionState = .exporting(progress)
-            },
-            setKeptOriginal: { [weak self] index, reason in
-                guard let self else { return }
-                self.videos[index].compressionState = .keptOriginal(reason: reason)
-            },
-            setCompleted: { [weak self] index, saved in
-                guard let self else { return }
-                self.videos[index].compressionState = .completed(savedBytes: saved)
-            },
-            setFailed: { [weak self] index, message in
-                guard let self else { return }
-                self.videos[index].compressionState = .failed(message)
-            },
-            setWaiting: { [weak self] index in
-                guard let self else { return }
-                self.videos[index].compressionState = .waiting
-            },
-            setCopySaved: { [weak self] index in
-                guard let self else { return }
-                self.videos[index].compressionState = .copySaved
+            setState: { [weak self] index, state in
+                self?.videos[index].compressionState = state
             },
             setPhase: { [weak self] phase in
                 self?.phase = phase
@@ -431,7 +393,7 @@ final class VideoCompressionViewModel {
         // skipped ones stay so the user can see why they were left alone.
         videos.removeAll { successfulIds.contains($0.id) }
         selectedIds.subtract(successfulIds)
-        storeKept(result.kept)
+        keptOriginals = result.kept
         isCompressing = false
         batchSummary = CompressionBatchSummary(
             completed: completedCount,

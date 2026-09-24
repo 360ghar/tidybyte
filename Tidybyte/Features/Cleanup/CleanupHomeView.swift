@@ -10,11 +10,8 @@ struct CleanupHomeView: View {
     /// Replacement-copy ids persisted by the compression flows. The badge must
     /// exclude them exactly like `PhotoCompressionViewModel.candidates` does,
     /// or the home screen shows a stale nonzero badge after compression.
-    private var savedReplacementIds: Set<String> {
-        let records = (try? modelContext.fetch(FetchDescriptor<CompressionRecord>(
-            predicate: #Predicate { $0.outcome != "pending" }
-        ))) ?? []
-        return Set(records.compactMap(\.replacementAssetLocalIdentifier))
+    private func savedReplacementIds() -> Set<String> {
+        CompressionJournal.savedCopyIds(modelContext: modelContext)
     }
 
     private let columns = ResponsiveGrid.card()
@@ -56,7 +53,7 @@ struct CleanupHomeView: View {
         }
         .navigationTitle("Cleanup")
         .pullToRefresh {
-            await viewModel.refreshCounts(excludingCompressedCopies: savedReplacementIds)
+            await viewModel.refreshCounts(excludingCompressedCopies: savedReplacementIds())
         }
         .task(id: libraryMonitor.generation) {
             await viewModel.sync(to: libraryMonitor.generation, excludingCompressedCopies: savedReplacementIds)

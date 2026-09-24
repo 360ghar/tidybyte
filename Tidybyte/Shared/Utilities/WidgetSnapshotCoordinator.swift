@@ -185,7 +185,7 @@ final class WidgetSnapshotCoordinator {
     /// scheduled by older builds carry stale counts, so reschedule once with
     /// the count-free text.
     private func migrateReminderCopyIfNeeded() async {
-        let key = "reminderCopyMigratedV2"
+        let key = AppPreferences.Key.reminderCopyMigratedV2
         guard !UserDefaults.standard.bool(forKey: key) else { return }
         guard AppPreferences.remindersEnabled() else {
             UserDefaults.standard.set(true, forKey: key)

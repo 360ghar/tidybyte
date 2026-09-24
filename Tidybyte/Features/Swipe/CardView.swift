@@ -197,10 +197,7 @@ struct CardView: View {
             // Inside the GeometryReader so the accessibility-initiated toggle
             // clamps against the real card frame, not a screen-size proxy.
             .onChange(of: retryRequest) { _, newValue in
-                guard newValue > 0, image == nil, loadFailed, !isLoadingImage else { return }
-                loadFailed = false
-                imageLoadTask?.cancel()
-                imageLoadTask = Task { await loadImage() }
+                if newValue > 0 { retryLoad() }
             }
             .onChange(of: playRequest) { _, newValue in
                 guard newValue > 0, !loadFailed else { return }
@@ -334,17 +331,23 @@ struct CardView: View {
         // Full-screen pixel size matches the swipe session's prefetch target so the
         // cached image is reused instead of re-fetched. Avoids deprecated UIScreen.main.
         let loaded = await photoService.loadImage(for: asset.id, targetSize: ScreenMetrics.pixelSize)
+        // The card may have left the deck (or been cancelled) while loading —
+        // a late success must not show, or report the image as shown off-deck.
         guard !Task.isCancelled else { return }
         withAnimation(.easeIn(duration: 0.3)) {
             image = loaded
             loadFailed = loaded == nil
         }
-        // The card may have left the deck (or been cancelled) while loading —
-        // a late success must not report the image as shown off-deck.
-        guard !Task.isCancelled else { return }
         if loaded != nil {
             onImageShown?(asset.id)
         }
+    }
+
+    private func retryLoad() {
+        guard image == nil, loadFailed, !isLoadingImage else { return }
+        loadFailed = false
+        imageLoadTask?.cancel()
+        imageLoadTask = Task { await loadImage() }
     }
 
     private var loadFailedView: some View {
@@ -359,12 +362,7 @@ struct CardView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Try Again") {
-                guard loadFailed, !isLoadingImage else { return }
-                loadFailed = false
-                imageLoadTask?.cancel()
-                imageLoadTask = Task { await loadImage() }
-            }
+            Button("Try Again", action: retryLoad)
             .buttonStyle(.bordered)
         }
         .padding(Spacing.xl)
@@ -492,16 +490,15 @@ struct CardView: View {
         isLoadingPlayer = true
         loadTask = Task { @MainActor in
             let box = await photoService.loadPlayerItem(for: asset.id)
-            // A cancelled load must not hide the spinner of a newer one.
+            // A cancelled load must not hide the spinner of a newer one. The
+            // card may also have been swiped away while the item was loading;
+            // the isTopCard/drag/disappear teardowns above cancel this task,
+            // so no playing player is created off-screen.
             guard !Task.isCancelled else { return }
             isLoadingPlayer = false
             // A nil item (iCloud download failed) puts the Play button back
             // so the user can try again.
             guard let box else { return }
-            // The card may have been swiped away while the item was loading;
-            // the isTopCard/drag/disappear teardowns above cancel this task —
-            // respect that instead of creating a playing player off-screen.
-            guard !Task.isCancelled else { return }
             let newPlayer = AVPlayer(playerItem: box.value)
             player = newPlayer
             newPlayer.play()

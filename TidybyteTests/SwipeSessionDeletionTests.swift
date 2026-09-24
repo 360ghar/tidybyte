@@ -49,7 +49,7 @@ final class SwipeSessionDeletionTests: XCTestCase {
     func testKeepAfterMarkRemovesPendingDeletion() throws {
         let vm = try makeViewModel()
         vm.pendingDeletionIds = ["asset-0"]
-        vm.pendingDeletionBytes = 8_000_000
+        vm.pendingDeletionSizeById = ["asset-0": 8_000_000]
         vm.sessionStats.deletedCount = 1
 
         vm.swipeRight() // asset-0 is current: the user now keeps it

@@ -36,19 +36,8 @@ final class LivePhotosConverterViewModel {
     private(set) var phase: ReplacePhase = .idle
     /// Saved stills whose Live Photos are still in the library (the user
     /// tapped "Don't Allow"). The view offers Try Again / Remove Copies.
+    /// `OriginalsCommit.commit` already settles them as kept-both in the journal.
     var keptOriginals: [PendingOriginal] = []
-    /// False once the screen is gone. A decline then has no alert to show,
-    /// so the kept copies are settled as "both kept" instead of staying
-    /// pending (which made a later reconcile ask to delete them, unexplained).
-    var isOnScreen = true
-
-    private func storeKept(_ kept: [PendingOriginal]) {
-        if isOnScreen {
-            keptOriginals = kept
-        } else {
-            for item in kept { item.swap.finalizeKeptBoth() }
-        }
-    }
     /// True while a single conversion or a retry runs, so row buttons and
     /// Convert All stay disabled.
     private(set) var isBusy = false
@@ -177,16 +166,15 @@ final class LivePhotosConverterViewModel {
     @discardableResult
     private func commitOriginals(_ pending: [PendingOriginal]) async -> Int {
         guard !pending.isEmpty else { return 0 }
-        phase = .removingOriginals(count: pending.count)
-        let outcome = await OriginalsCommit.commit(pending)
-        phase = .idle
+        let outcome = await OriginalsCommit.commit(pending) { phase = $0 }
+        let indexById = Dictionary(items.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         for item in outcome.committed {
-            if let idx = items.firstIndex(where: { $0.id == item.assetId }) {
+            if let idx = indexById[item.assetId] {
                 items[idx].savedBytes = max(0, item.originalSize - item.compressedSize)
                 items[idx].conversionState = .completed
             }
         }
-        storeKept(outcome.kept)
+        keptOriginals = outcome.kept
         return outcome.committed.count
     }
 
@@ -213,7 +201,7 @@ final class LivePhotosConverterViewModel {
         Task {
             // A decline leaves both versions: say so instead of going quiet.
             if await !OriginalsCommit.removeCopies(pending) {
-                errorMessage = "Copies kept. Both versions are in your library; delete either one in Photos."
+                errorMessage = OriginalsCommit.copiesKeptMessage
             }
             for item in pending { setState(.idle, for: item.assetId) }
             isBusy = false

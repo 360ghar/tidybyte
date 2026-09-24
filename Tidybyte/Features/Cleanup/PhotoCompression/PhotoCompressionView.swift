@@ -17,20 +17,20 @@ struct PhotoCompressionView: View {
                 loadingView
             } else if viewModel.photos.isEmpty, viewModel.filterHidesPhotos {
                 EmptyStateView(
-                    icon: "photo.badge.arrow.down",
+                    icon: CleanupTool.photoCompression.icon,
                     title: "No Large Photos",
                     message: "No photos over 2 MB are left to compress. HEIC photos are already small.",
-                    iconColor: .mint,
+                    iconColor: CleanupTool.photoCompression.color,
                     actionTitle: "Show All Photos"
                 ) {
                     viewModel.showAllPhotos = true
                 }
             } else if viewModel.photos.isEmpty {
                 EmptyStateView(
-                    icon: "photo.badge.arrow.down",
+                    icon: CleanupTool.photoCompression.icon,
                     title: "No Photos",
                     message: "You don't have any photos to compress.",
-                    iconColor: .mint
+                    iconColor: CleanupTool.photoCompression.color
                 )
             } else {
                 contentView
@@ -145,12 +145,8 @@ struct PhotoCompressionView: View {
                 )
             }
         }
-        .onAppear { viewModel.isOnScreen = true }
         .onDisappear {
             // Don't orphan the mutation loop when the user leaves the screen.
-            // A full-screen preview also fires onDisappear; the user has not
-            // left then, and the preview shows the Originals Kept alert.
-            if previewStart == nil { viewModel.isOnScreen = false }
             viewModel.cancelCompression()
         }
         .task {
@@ -353,7 +349,7 @@ struct PhotoCompressionView: View {
             if viewModel.isCompressing {
                 HStack(spacing: Spacing.md) {
                     ProgressView()
-                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase) ?? "Working…")
+                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
