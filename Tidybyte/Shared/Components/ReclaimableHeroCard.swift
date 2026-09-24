@@ -28,7 +28,7 @@ struct ReclaimableHeroCard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
 
-            Text("On this iPhone, from \(itemLabel): screenshots, Live Photos, large videos, photos saved from apps and large files.")
+            Text("On this device, from \(itemLabel): screenshots, Live Photos, large videos, photos saved from apps and large files.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -43,6 +43,6 @@ struct ReclaimableHeroCard: View {
         // VoiceOver reading "2.4 GB" without context tells the user nothing, so
         // the card is one element with the whole sentence as its label.
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("You could free up to \(bytes.formattedFileSize) on this iPhone, from \(itemLabel)")
+        .accessibilityLabel("You could free up to \(bytes.formattedFileSize) on this device, from \(itemLabel)")
     }
 }

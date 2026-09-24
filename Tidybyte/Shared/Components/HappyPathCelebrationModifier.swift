@@ -46,6 +46,7 @@ struct HappyPathCelebrationModifier: ViewModifier {
                             // re-trigger restarts the timer.
                             guard !voiceOverEnabled else { return }
                             try? await Task.sleep(nanoseconds: Self.autoDismissSeconds * 1_000_000_000)
+                            guard !Task.isCancelled else { return }
                             isPresented = false
                         }
                 }

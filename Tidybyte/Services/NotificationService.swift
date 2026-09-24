@@ -13,7 +13,8 @@ enum NotificationService {
         }
     }
 
-    static func scheduleWeeklyReminder(weekday: Int, hour: Int = reminderHour, minute: Int = 0) async {
+    /// Returns true when the request was accepted by the notification center.
+    static func scheduleWeeklyReminder(weekday: Int, hour: Int = reminderHour, minute: Int = 0) async -> Bool {
         let center = UNUserNotificationCenter.current()
 
         // Remove existing reminders
@@ -31,7 +32,7 @@ enum NotificationService {
         // least, the people the reminder is for.
         let content = UNMutableNotificationContent()
         content.title = "Time for a Photo Cleanup"
-        content.body = "Screenshots and large videos add up. Take a few minutes to review them."
+        content.body = "Screenshots and large files add up. Take a few minutes to review them."
         content.sound = .default
 
         let request = UNNotificationRequest(
@@ -42,8 +43,10 @@ enum NotificationService {
 
         do {
             try await center.add(request)
+            return true
         } catch {
             AppLog.notifications.error("Failed to schedule weekly reminder: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 

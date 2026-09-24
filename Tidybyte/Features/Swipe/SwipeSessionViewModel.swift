@@ -38,6 +38,11 @@ final class SwipeSessionViewModel {
     var isPerformingMutation = false
     var pendingDeletionIds: [String] = []
     var pendingDeletionBytes: Int64 = 0
+    /// Per-id sizes for pending deletions, captured at swipe time. `assets`
+    /// excludes pending ids after a reload (`deckAssets`), so commit-time sizes
+    /// can't be rebuilt from `assets` alone — this map survives reloads and
+    /// fills the gap.
+    private var pendingDeletionSizeById: [String: Int64] = [:]
     var isDeletingBatch = false
     var deletionCommitted = false
     /// Session-scoped exact accounting of what the photo library confirmed as
@@ -137,7 +142,15 @@ final class SwipeSessionViewModel {
         switch filter {
         case .notSwipedYet:
             let allAssets = await photoService.fetchAssets(filter: .allMedia)
-            let filtered = allAssets.filter { !swipedIds.contains($0.id) }
+            // Collapse before the swipe filter: filtering first lets a reviewed
+            // keeper's unreviewed siblings win the next session's collapse and
+            // return. Burst-level exclusion covers a keeper that changed since
+            // the review — any burst with a recorded frame is done.
+            let collapsed = Self.collapsingBursts(allAssets)
+            let swipedBurstIds = Set(allAssets.filter { swipedIds.contains($0.id) }.compactMap(\.burstIdentifier))
+            let filtered = collapsed.filter {
+                !swipedIds.contains($0.id) && ($0.burstIdentifier.map { !swipedBurstIds.contains($0) } ?? true)
+            }
             if filtered.isEmpty && !allAssets.isEmpty {
                 allPhotosAlreadySwiped = true
             }
@@ -185,6 +198,7 @@ final class SwipeSessionViewModel {
     private func unmarkPendingDeletion(_ asset: AssetSummary) {
         guard let index = pendingDeletionIds.firstIndex(of: asset.id) else { return }
         pendingDeletionIds.remove(at: index)
+        pendingDeletionSizeById.removeValue(forKey: asset.id)
         pendingDeletionBytes = max(0, pendingDeletionBytes - asset.fileSize)
         sessionStats.deletedCount = max(0, sessionStats.deletedCount - 1)
         sessionStats.deletedBytes = max(0, sessionStats.deletedBytes - asset.fileSize)
@@ -214,6 +228,7 @@ final class SwipeSessionViewModel {
         if !pendingDeletionIds.contains(asset.id) {
             pendingDeletionIds.append(asset.id)
             pendingDeletionBytes += asset.fileSize
+            pendingDeletionSizeById[asset.id] = asset.fileSize
             sessionStats.deletedCount += 1
             sessionStats.deletedBytes += asset.fileSize
             undoStack.append(SwipeUndoEntry(asset: asset, decision: .deleted, albumId: nil))
@@ -328,6 +343,7 @@ final class SwipeSessionViewModel {
             // drop the stale entry without rewinding to a deleted photo.
             guard let index = pendingDeletionIds.lastIndex(of: entry.asset.id) else { return }
             pendingDeletionIds.remove(at: index)
+            pendingDeletionSizeById.removeValue(forKey: entry.asset.id)
             pendingDeletionBytes = max(0, pendingDeletionBytes - entry.asset.fileSize)
             sessionStats.deletedCount = max(0, sessionStats.deletedCount - 1)
             sessionStats.deletedBytes = max(0, sessionStats.deletedBytes - entry.asset.fileSize)
@@ -365,7 +381,11 @@ final class SwipeSessionViewModel {
         // Sizes come from the in-memory session assets (no re-fetch): only ids
         // the library confirms as deleted are counted, so assets that vanished
         // externally before commit can't overstate "Storage Freed" (SWIPE-08).
-        let sizeById = assets.reduce(into: [String: Int64]()) { $0[$1.id] = $1.fileSize }
+        // Merged with pre-exclusion pending sizes: after a reload `assets`
+        // drops pending ids (`deckAssets`), so rebuilding from `assets` alone
+        // reports zero freed bytes for them.
+        var sizeById = assets.reduce(into: [String: Int64]()) { $0[$1.id] = $1.fileSize }
+        sizeById.merge(pendingDeletionSizeById) { current, _ in current }
         // Fresh pre-delete existence check: deleteAssets' fast path returns
         // every requested id, including assets that vanished externally (iCloud
         // sync, the Photos app) between session load and commit. Only ids
@@ -390,6 +410,7 @@ final class SwipeSessionViewModel {
             sessionStats.deletedCount = committedDeletionCount
             sessionStats.deletedBytes = committedDeletionBytes
             pendingDeletionIds.removeAll()
+            pendingDeletionSizeById.removeAll()
             pendingDeletionBytes = 0
             HapticHelper.notification(.success)
         } catch let error as PhotoServiceError {
@@ -410,6 +431,7 @@ final class SwipeSessionViewModel {
                 committedDeletionBytes += succeededBytes
                 CleanupLedger.shared.record(kind: .swipe, deletedIds: confirmedSucceeded, sizeOf: { sizeById[$0] ?? 0 })
                 pendingDeletionIds.removeAll { succeededIds.contains($0) }
+                for id in succeededIds { pendingDeletionSizeById.removeValue(forKey: id) }
                 // Pending bytes track pending ids: every removed id releases
                 // its optimistic bytes — including vanished ones, which added
                 // nothing to the committed tally above but must not linger here.
@@ -440,6 +462,7 @@ final class SwipeSessionViewModel {
         sessionStats.deletedCount = committedDeletionCount
         sessionStats.deletedBytes = committedDeletionBytes
         pendingDeletionIds.removeAll()
+        pendingDeletionSizeById.removeAll()
         pendingDeletionBytes = 0
     }
 

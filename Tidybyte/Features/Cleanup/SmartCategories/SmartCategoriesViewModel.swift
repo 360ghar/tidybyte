@@ -137,6 +137,7 @@ final class SmartCategoriesViewModel {
         selectedIds.removeAll()
         deletedCount = 0
         analyzedPhotoCount = 0
+        pendingPrune = false
 
         let assets = await photoService.fetchAllPhotos()
         // C9: counted live so the "N sorted" indicator ticks during the scan.
@@ -163,6 +164,12 @@ final class SmartCategoriesViewModel {
             activeCategory = first
         }
         scanState = .completed
+        // A library change that landed mid-scan: prune now that publishing
+        // can't be overwritten by a later tick.
+        if pendingPrune {
+            pendingPrune = false
+            await pruneDeleted()
+        }
         ScanResults.record(.smartCategories, count: categorizedPhotos.count)
     }
 
@@ -180,9 +187,18 @@ final class SmartCategoriesViewModel {
     }
 
     /// Drops results deleted elsewhere (Swipe Review, the Photos app).
-    func pruneDeleted() {
+    /// A library change that lands mid-scan can't prune yet (results are
+    /// still landing), so it's remembered and applied when the scan
+    /// completes instead of being lost.
+    private var pendingPrune = false
+
+    func pruneDeleted() async {
+        if case .scanning = scanState {
+            pendingPrune = true
+            return
+        }
         guard scanState == .completed, !categorizedPhotos.isEmpty, !isDeleting else { return }
-        let present = PhotoLibraryService.existingIds(categorizedPhotos.map(\.id))
+        let present = await PhotoLibraryService.shared.existingIds(categorizedPhotos.map(\.id))
         guard present.count < categorizedPhotos.count else { return }
         categorizedPhotos.removeAll { !present.contains($0.id) }
         selectedIds.formIntersection(present)

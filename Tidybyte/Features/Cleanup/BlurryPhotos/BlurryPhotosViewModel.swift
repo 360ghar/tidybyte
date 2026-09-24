@@ -140,6 +140,7 @@ final class BlurryPhotosViewModel {
         selectedIds.removeAll()
         skippedScreenshotCount = 0
         deletedCount = 0
+        pendingPrune = false
 
         let allPhotos = await photoService.fetchAllPhotos()
         let total = allPhotos.count
@@ -223,13 +224,28 @@ final class BlurryPhotosViewModel {
 
         scanState = .scanning(1.0)
         scanState = .completed
+        // A library change that landed mid-scan: prune now that publishing
+        // can't be overwritten by a later tick.
+        if pendingPrune {
+            pendingPrune = false
+            await pruneDeleted()
+        }
         ScanResults.record(.blurry, count: analyzedPhotos.count)
     }
 
     /// Drops results deleted elsewhere (Swipe Review, the Photos app).
-    func pruneDeleted() {
+    /// A library change that lands mid-scan can't prune yet (results are
+    /// still landing), so it's remembered and applied when the scan
+    /// completes instead of being lost.
+    private var pendingPrune = false
+
+    func pruneDeleted() async {
+        if case .scanning = scanState {
+            pendingPrune = true
+            return
+        }
         guard scanState == .completed, !analyzedPhotos.isEmpty, !isDeleting else { return }
-        let present = PhotoLibraryService.existingIds(analyzedPhotos.map(\.id))
+        let present = await PhotoLibraryService.shared.existingIds(analyzedPhotos.map(\.id))
         guard present.count < analyzedPhotos.count else { return }
         analyzedPhotos.removeAll { !present.contains($0.id) }
         selectedIds.formIntersection(present)

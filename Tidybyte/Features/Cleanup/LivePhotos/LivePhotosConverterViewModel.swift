@@ -46,7 +46,7 @@ final class LivePhotosConverterViewModel {
         if isOnScreen {
             keptOriginals = kept
         } else {
-            for item in kept { item.swap.finalizeOriginalKept(copyRemoved: false) }
+            for item in kept { item.swap.finalizeKeptBoth() }
         }
     }
     /// True while a single conversion or a retry runs, so row buttons and
@@ -257,6 +257,12 @@ final class LivePhotosConverterViewModel {
                 saved.append(pending)
                 setState(.copySaved, for: itemId)
             } catch {
+                if isCancelled || error is CancellationError {
+                    // A cancel is not a failure: the row goes back to idle so
+                    // it stays eligible for a later run.
+                    setState(.idle, for: itemId)
+                    break
+                }
                 failed += 1
                 setState(.failed(error.localizedDescription), for: itemId)
             }
@@ -306,103 +312,108 @@ final class LivePhotosConverterViewModel {
             modelContext: modelContext
         )
 
-        // Read the still-image resource bytes directly. Writing these bytes back
-        // (rather than decoding to a UIImage and re-encoding) preserves the
-        // original quality and EXIF metadata.
-        let resourceManager = PHAssetResourceManager.default()
-        let imageData = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
-            let resumer = ThrowingContinuationResumer(continuation)
-            var data = Data()
-            let options = PHAssetResourceRequestOptions()
-            options.isNetworkAccessAllowed = true
+        do {
+            // Read the still-image resource bytes directly. Writing these bytes back
+            // (rather than decoding to a UIImage and re-encoding) preserves the
+            // original quality and EXIF metadata.
+            let resourceManager = PHAssetResourceManager.default()
+            let imageData = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+                let resumer = ThrowingContinuationResumer(continuation)
+                var data = Data()
+                let options = PHAssetResourceRequestOptions()
+                options.isNetworkAccessAllowed = true
 
-            // Network access is allowed, so a stalled iCloud download could leave
-            // the completion handler unfired forever. Bound it with a timeout +
-            // request cancellation, wired before the request so even a synchronous
-            // callback cancels the timer. Without this the item hangs in `.converting`.
-            var requestID: PHAssetResourceDataRequestID = 0
-            let timeoutTask = Task {
-                try? await Task.sleep(for: .seconds(30))
-                resumer.resume(throwing: LivePhotoError.conversionTimedOut)
-            }
-            resumer.onResume = {
-                resourceManager.cancelDataRequest(requestID)
-                timeoutTask.cancel()
-            }
+                // Network access is allowed, so a stalled iCloud download could leave
+                // the completion handler unfired forever. Bound it with a timeout +
+                // request cancellation, wired before the request so even a synchronous
+                // callback cancels the timer. Without this the item hangs in `.converting`.
+                var requestID: PHAssetResourceDataRequestID = 0
+                let timeoutTask = Task {
+                    try? await Task.sleep(for: .seconds(30))
+                    resumer.resume(throwing: LivePhotoError.conversionTimedOut)
+                }
+                resumer.onResume = {
+                    resourceManager.cancelDataRequest(requestID)
+                    timeoutTask.cancel()
+                }
 
-            requestID = resourceManager.requestData(
-                for: photoResource,
-                options: options
-            ) { chunk in
-                data.append(chunk)
-            } completionHandler: { error in
-                if let error {
-                    resumer.resume(throwing: error)
-                } else {
-                    resumer.resume(returning: data)
+                requestID = resourceManager.requestData(
+                    for: photoResource,
+                    options: options
+                ) { chunk in
+                    data.append(chunk)
+                } completionHandler: { error in
+                    if let error {
+                        resumer.resume(throwing: error)
+                    } else {
+                        resumer.resume(returning: data)
+                    }
                 }
             }
-        }
 
-        guard !imageData.isEmpty else {
-            throw LivePhotoError.invalidImageData
-        }
-
-        // Capture album membership for the new still (batch callers
-        // pass the precomputed map; single conversions look it up directly).
-        let resolvedAlbumIds: [String]
-        if let precomputed = albumIdentifiers {
-            resolvedAlbumIds = precomputed
-        } else {
-            resolvedAlbumIds = await photoService.userAlbumIdentifiers(containing: assetId)
-        }
-
-        // Save as a new still photo, preserving the original's metadata
-        // (including hidden state — COMP-17). Burst membership cannot be
-        // carried over: PHAssetCreationRequest has no burst-linkage API, so a
-        // converted still loses its burst grouping.
-        //
-        // D1: the still is about to be written to the library — from here a
-        // crash could strand a copy whose id the journal never learned.
-        swap.markSaveAttempted()
-        var placeholder: PHObjectPlaceholder?
-        try await PHPhotoLibrary.shared().performChanges {
-            let request = PHAssetCreationRequest.forAsset()
-            let resourceOptions = PHAssetResourceCreationOptions()
-            resourceOptions.originalFilename = photoResource.originalFilename
-            request.addResource(with: .photo, data: imageData, options: resourceOptions)
-            request.creationDate = phAsset.creationDate
-            request.location = phAsset.location
-            request.isFavorite = phAsset.isFavorite
-            request.isHidden = phAsset.isHidden
-            placeholder = request.placeholderForCreatedAsset
-        }
-
-        guard let replacementId = placeholder?.localIdentifier else {
-            await swap.markFailed(assetId: assetId)
-            throw LivePhotoError.invalidImageData
-        }
-        // D1: the durable new copy exists — record it in the journal at the
-        // earliest crash point that could strand a duplicate.
-        swap.recordReplacement(id: replacementId, size: Int64(imageData.count))
-
-        // Restore album membership on the replacement (best effort).
-        for albumId in resolvedAlbumIds {
-            do {
-                try await photoService.addToAlbum(assetIdentifiers: [replacementId], albumIdentifier: albumId)
-            } catch {
-                AppLog.photo.error("Failed to restore album \(albumId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            guard !imageData.isEmpty else {
+                throw LivePhotoError.invalidImageData
             }
-        }
 
-        // The Live Photo is NOT deleted here: the caller deletes all originals
-        // in one `OriginalsCommit.commit` call (one iOS prompt per batch).
-        return PendingOriginal(
-            assetId: assetId,
-            originalSize: originalSize,
-            compressedSize: Int64(imageData.count),
-            swap: swap
-        )
+            // Capture album membership for the new still (batch callers
+            // pass the precomputed map; single conversions look it up directly).
+            let resolvedAlbumIds: [String]
+            if let precomputed = albumIdentifiers {
+                resolvedAlbumIds = precomputed
+            } else {
+                resolvedAlbumIds = await photoService.userAlbumIdentifiers(containing: assetId)
+            }
+
+            // Save as a new still photo, preserving the original's metadata
+            // (including hidden state — COMP-17). Burst membership cannot be
+            // carried over: PHAssetCreationRequest has no burst-linkage API, so a
+            // converted still loses its burst grouping.
+            //
+            // D1: the still is about to be written to the library — from here a
+            // crash could strand a copy whose id the journal never learned.
+            swap.markSaveAttempted()
+            var placeholder: PHObjectPlaceholder?
+            try await PHPhotoLibrary.shared().performChanges {
+                let request = PHAssetCreationRequest.forAsset()
+                let resourceOptions = PHAssetResourceCreationOptions()
+                resourceOptions.originalFilename = photoResource.originalFilename
+                request.addResource(with: .photo, data: imageData, options: resourceOptions)
+                request.creationDate = phAsset.creationDate
+                request.location = phAsset.location
+                request.isFavorite = phAsset.isFavorite
+                request.isHidden = phAsset.isHidden
+                placeholder = request.placeholderForCreatedAsset
+            }
+
+            guard let replacementId = placeholder?.localIdentifier else {
+                await swap.markFailed(assetId: assetId)
+                throw LivePhotoError.invalidImageData
+            }
+            // D1: the durable new copy exists — record it in the journal at the
+            // earliest crash point that could strand a duplicate.
+            swap.recordReplacement(id: replacementId, size: Int64(imageData.count))
+
+            // Restore album membership on the replacement (best effort).
+            for albumId in resolvedAlbumIds {
+                do {
+                    try await photoService.addToAlbum(assetIdentifiers: [replacementId], albumIdentifier: albumId)
+                } catch {
+                    AppLog.photo.error("Failed to restore album \(albumId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
+            }
+
+            // The Live Photo is NOT deleted here: the caller deletes all originals
+            // in one `OriginalsCommit.commit` call (one iOS prompt per batch).
+            return PendingOriginal(
+                assetId: assetId,
+                originalSize: originalSize,
+                compressedSize: Int64(imageData.count),
+                swap: swap
+            )
+        } catch {
+            await swap.markFailed(assetId: assetId)
+            throw error
+        }
     }
 }
 

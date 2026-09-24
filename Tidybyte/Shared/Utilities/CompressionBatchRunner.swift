@@ -62,13 +62,26 @@ final class CompressionSwap {
 
     /// Marks the swap finished. Returns false when it already was.
     private func finish() -> Bool {
+        guard beginFinish() else { return false }
+        endFinish()
+        return true
+    }
+
+    /// Claims the finished flag without unregistering the live swap. The async
+    /// terminal paths (markFailed/markSkipped) use this plus `endFinish`, so
+    /// `reconcile` (which skips live rows) cannot grab the row while the
+    /// journal resolution is still in flight.
+    private func beginFinish() -> Bool {
         guard !finished else { return false }
         finished = true
+        return true
+    }
+
+    private func endFinish() {
         // Only clear our own entry: a newer swap for the same asset may own it.
         if Self.liveSwaps[assetId]?.swap === self {
             Self.liveSwaps[assetId] = nil
         }
-        return true
     }
 
     init(
@@ -95,15 +108,29 @@ final class CompressionSwap {
 
     /// Settles a row whose original was kept. The row stops being pending, so
     /// reconcile never deletes anything for it later. When both versions stay
-    /// (`copyRemoved == false`) the copy's id is kept on the row, so Photo
-    /// Compression knows it is a copy and never lists it for compression.
+    /// (`copyRemoved == false`) the row records the kept-both outcome and the
+    /// copy's id is kept on the row, so Photo Compression knows it is a copy
+    /// and never lists it for compression.
     func finalizeOriginalKept(copyRemoved: Bool) {
         guard finish() else { return }
         if copyRemoved {
             record.replacementAssetLocalIdentifier = nil
             record.compressedSizeBytes = 0
+            CompressionJournal.finalize(record, outcome: .skipped, modelContext: modelContext)
+        } else {
+            finalizeKeptBoth()
         }
-        CompressionJournal.finalize(record, outcome: .skipped, modelContext: modelContext)
+    }
+
+    /// Settles a decline durably the moment it happens: the row leaves
+    /// "pending" with the kept-both outcome, so killing the app with the
+    /// Originals Kept alert open can never turn into a reconcile
+    /// `deleteOrphanThenFail` that deletes the saved copy on next launch.
+    /// Deliberately does NOT consume `finish()`: a later Try Again promotes
+    /// kept → completed through `finalizeCompleted`, and Remove Copies
+    /// settles through `finalizeOriginalKept`.
+    func finalizeKeptBoth() {
+        CompressionJournal.finalize(record, outcome: .kept, modelContext: modelContext)
     }
 
     func markSaveAttempted() {
@@ -131,13 +158,15 @@ final class CompressionSwap {
     }
 
     func markFailed(assetId: String) async {
-        guard finish() else { return }
+        guard beginFinish() else { return }
         await CompressionJournal.markPendingFailed(assetId: assetId, modelContext: modelContext)
+        endFinish()
     }
 
     func markSkipped(assetId: String) async {
-        guard finish() else { return }
+        guard beginFinish() else { return }
         await CompressionJournal.markPendingSkipped(assetId: assetId, modelContext: modelContext)
+        endFinish()
     }
 }
 
@@ -180,6 +209,7 @@ enum CompressionBatchRunner {
         var saved: [PendingOriginal] = []
         var failed = 0, skipped = 0
         for (offset, id) in orderedIds.enumerated() {
+            if offset % 20 == 0 { await Task.yield() }
             if isCancelled() { break }
             handlers.setPhase(.savingCopies(done: offset, total: orderedIds.count))
             guard let index = indexById[id] else { continue }
@@ -272,13 +302,36 @@ enum OriginalsCommit {
         photoService: PhotoLibraryService = .shared
     ) async -> Outcome {
         guard !pending.isEmpty else { return Outcome(committed: [], kept: []) }
-        let ids = pending.map(\.assetId)
+        // Never delete an original whose copy is gone: verify replacements
+        // first and fail those items out without touching their originals.
+        let replacementIds = pending.compactMap(\.swap.replacementId)
+        let existingReplacements = await photoService.existingIds(replacementIds)
+        var viable: [PendingOriginal] = []
+        viable.reserveCapacity(pending.count)
+        for item in pending {
+            guard let replacementId = item.swap.replacementId,
+                  existingReplacements.contains(replacementId) else {
+                await item.swap.markFailed(assetId: item.assetId)
+                continue
+            }
+            viable.append(item)
+        }
+        guard !viable.isEmpty else { return Outcome(committed: [], kept: []) }
+        let ids = viable.map(\.assetId)
         // A decline or a partial failure throws; the presence check below
         // decides what happened either way.
         _ = try? await photoService.deleteAssets(identifiers: ids)
-        let split = partition(pending, id: \.assetId, stillPresent: PhotoLibraryService.existingIds(ids))
+        let split = partition(viable, id: \.assetId, stillPresent: await photoService.existingIds(ids))
         for item in split.committed {
             item.swap.finalizeCompleted(compressedSize: item.compressedSize)
+        }
+        // Decline path: settle every kept row durably NOW (kept-both outcome),
+        // not via the in-memory alert alone — otherwise killing the app before
+        // Try Again / Remove Copies leaves pending rows whose copies the next
+        // reconcile deletes as orphans. The swap stays promotable, so Try
+        // Again still finalizes these rows as completed on success.
+        for item in split.kept {
+            item.swap.finalizeKeptBoth()
         }
         return Outcome(committed: split.committed, kept: split.kept)
     }
@@ -292,12 +345,24 @@ enum OriginalsCommit {
         _ kept: [PendingOriginal],
         photoService: PhotoLibraryService = .shared
     ) async -> Bool {
-        let copyIds = kept.compactMap(\.swap.replacementId)
+        // An original that vanished outside the app is already replaced: the
+        // end state holds, so complete those rows and never touch their copies.
+        let existingOriginals = await photoService.existingIds(kept.map(\.assetId))
+        var active: [PendingOriginal] = []
+        active.reserveCapacity(kept.count)
+        for item in kept {
+            if existingOriginals.contains(item.assetId) {
+                active.append(item)
+            } else {
+                item.swap.finalizeCompleted(compressedSize: item.compressedSize)
+            }
+        }
+        let copyIds = active.compactMap(\.swap.replacementId)
         if !copyIds.isEmpty {
             _ = try? await photoService.deleteAssets(identifiers: copyIds)
         }
-        let stillPresent = PhotoLibraryService.existingIds(copyIds)
-        for item in kept {
+        let stillPresent = await photoService.existingIds(copyIds)
+        for item in active {
             let copyGone = item.swap.replacementId.map { !stillPresent.contains($0) } ?? true
             item.swap.finalizeOriginalKept(copyRemoved: copyGone)
         }

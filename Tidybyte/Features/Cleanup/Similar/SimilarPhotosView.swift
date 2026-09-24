@@ -188,7 +188,7 @@ struct SimilarPhotosView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     if viewModel.selectedForDeletion.isEmpty {
-                                        Text("Nothing is selected. Tap photos to pick, or tap Select All.")
+                                        Text(viewModel.hasSuggestions ? "Nothing is selected. Tap the circles to pick, or tap Select All." : "Nothing is selected. Tap the circles to pick.")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
@@ -327,6 +327,7 @@ struct SimilarPhotosView: View {
                                 .onTapGesture {
                                     preview = GroupPreviewContext(assets: group.assets, startIndex: index)
                                 }
+                                .accessibilityLabel(isKeeper ? "Preview photo, recommended to keep" : "Preview photo")
                                 .accessibilityAddTraits(.isButton)
                                 .overlay(alignment: .topTrailing) {
                                     if !isKeeper {

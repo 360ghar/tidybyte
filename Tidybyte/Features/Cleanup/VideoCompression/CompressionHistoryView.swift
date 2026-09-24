@@ -93,7 +93,7 @@ struct CompressionHistoryView: View {
                                 // The arrow only when a copy exists: a failed or
                                 // skipped row showing "12 MB → Zero KB" read as
                                 // a 100% saving.
-                                if record.succeeded {
+                                if record.succeeded || record.replacementAssetLocalIdentifier != nil {
                                     HStack(spacing: Spacing.xs) {
                                         Text(record.originalSizeBytes.formattedFileSize)
                                             .foregroundStyle(.secondary)

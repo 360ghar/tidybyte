@@ -67,11 +67,25 @@ final class ScreenshotCleanerViewModel {
         cachedSelectedSize
     }
 
+    /// A library change that lands while a fetch is in flight: pruning now
+    /// would be overwritten when the in-flight snapshot publishes, so it's
+    /// remembered and applied right after instead of being lost.
+    private var pendingPrune = false
+
     /// Loads on first appearance. No-op when already loaded or loading (D-01).
     /// Drops screenshots deleted elsewhere (Swipe Review, the Photos app).
-    func pruneDeleted() {
+    /// Defers while a fetch is in flight (see `fetchScreenshots`).
+    func pruneDeleted() async {
+        if scanRunner.isRunning {
+            pendingPrune = true
+            return
+        }
+        await pruneNow()
+    }
+
+    private func pruneNow() async {
         guard !screenshots.isEmpty, !isDeleting else { return }
-        let present = PhotoLibraryService.existingIds(screenshots.map(\.id))
+        let present = await PhotoLibraryService.shared.existingIds(screenshots.map(\.id))
         guard present.count < screenshots.count else { return }
         screenshots.removeAll { !present.contains($0.id) }
         selectedIds.formIntersection(present)
@@ -110,6 +124,13 @@ final class ScreenshotCleanerViewModel {
         guard !Task.isCancelled else { return }
         screenshots = fetched
         selectedIds.formIntersection(Set(fetched.map(\.id)))
+        // A library change that landed mid-fetch: the snapshot above
+        // predates it, so prune now that publishing can't overwrite it.
+        // (Bypasses the `isRunning` guard — this IS the in-flight fetch.)
+        if pendingPrune {
+            pendingPrune = false
+            await pruneNow()
+        }
         hasLoadedScreenshots = true
         if showsLoading { isLoading = false }
     }

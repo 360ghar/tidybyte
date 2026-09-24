@@ -247,6 +247,7 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
             .contentShape(Rectangle())
             .onTapGesture { fullScreenAssetId = asset.id }
             .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("Preview photo, \(asset.displaySize)")
             .accessibilityHint("Opens the photo full screen")
             .overlay(alignment: .topTrailing) {
                 if asset.id == group.bestAssetId {

@@ -260,10 +260,10 @@ struct ToolSkeletonList: View {
     }
 }
 
-/// The halo-plus-glyph motif shared by the idle and empty states.
+/// The bare-glyph motif shared by the idle and empty states.
 ///
-/// Its two halves are scaled separately: the halo is a background wash, while
-/// the glyph carries the meaning, so they must not grow at the same rate.
+/// A single SF Symbol with no halo or bloom, so the glyph alone carries the
+/// meaning at loading and empty sizes.
 struct ToolStateGlyph: View {
     let icon: String
     let tint: Color

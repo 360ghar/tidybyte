@@ -34,6 +34,14 @@ struct MediaPreviewView: View {
     /// preview only celebrates real deletions.
     var onDelete: (@MainActor (AssetSummary) async -> Bool)?
     var accessory: AccessoryAction?
+    /// Replace-flow Originals Kept alert (photo/video compression). Off by
+    /// default so non-replace callers are unaffected; a replace screen passes
+    /// `!viewModel.keptOriginals.isEmpty` plus its retry/remove handlers,
+    /// mirroring `LivePhotoPreviewView` (the list-level alert cannot present
+    /// over this cover).
+    var showOriginalsKept: Bool = false
+    var onRetryRemovingOriginals: (() -> Void)?
+    var onRemoveCopies: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     private let staticAssets: [AssetSummary]?
@@ -53,11 +61,17 @@ struct MediaPreviewView: View {
         startIndex: Int,
         photoService: PhotoLibraryService,
         onDelete: (@MainActor (AssetSummary) async -> Bool)? = nil,
-        accessory: AccessoryAction? = nil
+        accessory: AccessoryAction? = nil,
+        showOriginalsKept: Bool = false,
+        onRetryRemovingOriginals: (() -> Void)? = nil,
+        onRemoveCopies: (() -> Void)? = nil
     ) {
         self.photoService = photoService
         self.onDelete = onDelete
         self.accessory = accessory
+        self.showOriginalsKept = showOriginalsKept
+        self.onRetryRemovingOriginals = onRetryRemovingOriginals
+        self.onRemoveCopies = onRemoveCopies
         self.staticAssets = assets
         self.assetsProvider = nil
         let clamped = max(0, min(startIndex, max(0, assets.count - 1)))
@@ -69,11 +83,17 @@ struct MediaPreviewView: View {
         startIndex: Int,
         photoService: PhotoLibraryService,
         onDelete: (@MainActor (AssetSummary) async -> Bool)? = nil,
-        accessory: AccessoryAction? = nil
+        accessory: AccessoryAction? = nil,
+        showOriginalsKept: Bool = false,
+        onRetryRemovingOriginals: (() -> Void)? = nil,
+        onRemoveCopies: (() -> Void)? = nil
     ) {
         self.photoService = photoService
         self.onDelete = onDelete
         self.accessory = accessory
+        self.showOriginalsKept = showOriginalsKept
+        self.onRetryRemovingOriginals = onRetryRemovingOriginals
+        self.onRemoveCopies = onRemoveCopies
         self.staticAssets = nil
         self.assetsProvider = assetsProvider
         let initial = assetsProvider()
@@ -117,6 +137,15 @@ struct MediaPreviewView: View {
         } message: {
             Text("This deletes this item from your photo library. \(CleanupDeletion.recoverableNote)")
         }
+        // Replace flows only: the list-level alert cannot present over this
+        // cover, so the cover shows it (mirrors LivePhotoPreviewView).
+        // No settable state backs this condition — keptOriginals is VM-owned —
+        // so a constant binding.
+        .originalsKeptAlert(
+            isPresented: .constant(showOriginalsKept),
+            onTryAgain: { onRetryRemovingOriginals?() },
+            onRemoveCopies: { onRemoveCopies?() }
+        )
         .onChange(of: assets) { _, newAssets in
             if newAssets.isEmpty {
                 dismiss()

@@ -45,6 +45,13 @@ struct CardView: View {
     /// without cancellation, a load started on the top card would still create
     /// a playing player after the card was swiped away (SWIPE-07).
     @State private var loadTask: Task<Void, Never>?
+    /// In-flight card-image load (initial `.task` or retry). Stored so retry
+    /// can be serialized and teardown can cancel it; otherwise the initial
+    /// load and a retry complete unordered and both write image/loadFailed.
+    @State private var imageLoadTask: Task<Void, Never>?
+    /// True while loadImage is in flight. Retry is only accepted after failure
+    /// (loadFailed) and while not already loading.
+    @State private var isLoadingImage = false
 
     @State private var zoomState = ZoomState()
     /// Higher-resolution decode swapped in while zoomed so inspection stays
@@ -270,12 +277,13 @@ struct CardView: View {
             // Inside the GeometryReader so the accessibility-initiated toggle
             // clamps against the real card frame, not a screen-size proxy.
             .onChange(of: retryRequest) { _, newValue in
-                guard newValue > 0, image == nil else { return }
+                guard newValue > 0, image == nil, loadFailed, !isLoadingImage else { return }
                 loadFailed = false
-                Task { await loadImage() }
+                imageLoadTask?.cancel()
+                imageLoadTask = Task { await loadImage() }
             }
             .onChange(of: playRequest) { _, newValue in
-                guard newValue > 0 else { return }
+                guard newValue > 0, !loadFailed else { return }
                 startPlayback()
             }
             .onChange(of: zoomToggleRequest) { _, _ in
@@ -290,6 +298,10 @@ struct CardView: View {
             // The card left the deck — tear down playback so the player item
             // and its buffers aren't retained (SWIPE-07), and drop zoom state
             // plus the full-res decode so inspection memory is released.
+            // Also cancel any in-flight image load/retry so a late success
+            // can't report onImageShown for a card that left the deck.
+            imageLoadTask?.cancel()
+            imageLoadTask = nil
             stopPlayback()
             resetZoom()
         }
@@ -300,6 +312,8 @@ struct CardView: View {
             // card (SWIPE-07). Zoom resets for the same reason: an off-top
             // card must not come back zoomed or report stale zoom upward.
             if !newValue {
+                imageLoadTask?.cancel()
+                imageLoadTask = nil
                 stopPlayback()
                 resetZoom()
             }
@@ -387,6 +401,14 @@ struct CardView: View {
     }
 
     private func loadImage() async {
+        // Serialize: a retry while the initial load is still in flight is
+        // ignored instead of racing it with two unordered completions.
+        guard !isLoadingImage else { return }
+        isLoadingImage = true
+        defer {
+            isLoadingImage = false
+            imageLoadTask = nil
+        }
         // Full-screen pixel size matches the swipe session's prefetch target so the
         // cached image is reused instead of re-fetched. Avoids deprecated UIScreen.main.
         let loaded = await photoService.loadImage(for: asset.id, targetSize: ScreenMetrics.pixelSize)
@@ -395,6 +417,9 @@ struct CardView: View {
             image = loaded
             loadFailed = loaded == nil
         }
+        // The card may have left the deck (or been cancelled) while loading —
+        // a late success must not report the image as shown off-deck.
+        guard !Task.isCancelled else { return }
         if loaded != nil {
             onImageShown?(asset.id)
         }
@@ -413,8 +438,10 @@ struct CardView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button("Try Again") {
+                guard loadFailed, !isLoadingImage else { return }
                 loadFailed = false
-                Task { await loadImage() }
+                imageLoadTask?.cancel()
+                imageLoadTask = Task { await loadImage() }
             }
             .buttonStyle(.bordered)
         }
@@ -535,7 +562,7 @@ struct CardView: View {
     }
 
     private func startPlayback() {
-        guard player == nil, isTopCard else { return }
+        guard player == nil, isTopCard, !loadFailed else { return }
         loadTask?.cancel()
         isLoadingPlayer = true
         loadTask = Task { @MainActor in

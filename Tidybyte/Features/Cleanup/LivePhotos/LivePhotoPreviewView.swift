@@ -87,8 +87,10 @@ struct LivePhotoPreviewView: View {
             Text(LivePhotoConvertExplainer.message)
         }
         // The list's alert cannot present over this full-screen cover.
+        // No settable state backs this condition (keptOriginals is VM-owned),
+        // so a constant binding.
         .originalsKeptAlert(
-            isPresented: !viewModel.keptOriginals.isEmpty,
+            isPresented: .constant(!viewModel.keptOriginals.isEmpty),
             onTryAgain: { viewModel.retryRemovingOriginals() },
             onRemoveCopies: { viewModel.removeCopies() }
         )

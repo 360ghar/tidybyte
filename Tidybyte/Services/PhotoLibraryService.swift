@@ -100,7 +100,9 @@ actor PhotoLibraryService {
 
     /// The ids from `ids` that still exist in the library. Lists use it to drop
     /// items deleted elsewhere (Swipe Review, the Photos app) without a rescan.
-    nonisolated static func existingIds(_ ids: [String]) -> Set<String> {
+    /// Actor-isolated (not static): the PhotoKit fetch + enumeration runs on
+    /// this service's executor, never synchronously on the caller's (main) actor.
+    func existingIds(_ ids: [String]) -> Set<String> {
         guard !ids.isEmpty else { return [] }
         var present = Set<String>()
         PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
@@ -658,7 +660,18 @@ actor PhotoLibraryService {
                 // Serial by design (PhotoKit-safe); yield periodically so a
                 // long fallback retry stays cancellable and responsive.
                 if offset % 10 == 0 { await Task.yield() }
-                if Task.isCancelled { throw CancellationError() }
+                // Cancelled mid-loop: throw partialDeletion (not a bare
+                // CancellationError) so the ids deleted so far travel with the
+                // error via `succeededIds` instead of being discarded — journal
+                // reconciliation and the cleanup tools' delete paths recover
+                // the partial set from it. Everything not in `succeeded`
+                // counts as not-deleted.
+                if Task.isCancelled {
+                    throw PhotoServiceError.partialDeletion(
+                        succeededIds: succeeded,
+                        failedCount: identifiers.count - succeeded.count
+                    )
+                }
                 do {
                     guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
                         // The asset no longer exists in the library (deleted

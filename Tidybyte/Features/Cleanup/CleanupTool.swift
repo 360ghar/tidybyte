@@ -157,4 +157,13 @@ enum ScanResults {
     static func record(_ tool: CleanupTool, count: Int) {
         counts[tool] = count
     }
+
+    /// Expires cached counts when the library changes: a recorded count may
+    /// include assets deleted since the scan. The badges fall back to
+    /// "Not scanned" until the tool is scanned again. (Library changes are
+    /// observed via `LibraryChangeMonitor.generation` — see
+    /// `CleanupHomeViewModel.sync(to:)`.)
+    static func invalidate() {
+        counts.removeAll()
+    }
 }

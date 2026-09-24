@@ -180,15 +180,20 @@ final class BurstCleanerViewModel {
             let remaining = group.assets.filter { !removed.contains($0.id) }
             guard remaining.count > 1 else {
                 if remaining.count == 1 { collapsedToSingleFrame += 1 }
+                manuallySetBest.remove(group.id)
                 return nil
             }
             let bestAssetId: String
             if remaining.contains(where: { $0.id == group.bestAssetId }) {
                 bestAssetId = group.bestAssetId
-            } else if let newBest = BestAssetSelector.bestByMetadata(from: remaining) {
-                bestAssetId = newBest.id
             } else {
-                return nil
+                // The manually picked frame left the group: the fallback
+                // re-pick is automatic, so drop the "your choice" flag.
+                manuallySetBest.remove(group.id)
+                guard let newBest = BestAssetSelector.bestByMetadata(from: remaining) else {
+                    return nil
+                }
+                bestAssetId = newBest.id
             }
             return BurstGroup(id: group.id, assets: remaining, bestAssetId: bestAssetId)
         }
@@ -217,16 +222,42 @@ final class BurstCleanerViewModel {
         groups.reduce(into: Set<String>()) { $0.formUnion(Self.suggestedIds(in: $1)) }
     }
 
+    /// Exactly what Auto-Clean arms: untouched groups contribute their
+    /// suggestions; touched groups contribute only the user's surviving picks,
+    /// so a frame the user explicitly kept is never re-armed. Pure for tests.
+    static func autoCleanArmedIds(
+        groups: [BurstGroup],
+        touchedGroups: Set<String>,
+        selection: Set<String>
+    ) -> Set<String> {
+        groups.reduce(into: Set<String>()) { armed, group in
+            if touchedGroups.contains(group.id) {
+                armed.formUnion(selection.intersection(group.assets.map(\.id)))
+            } else {
+                armed.formUnion(Self.suggestedIds(in: group))
+            }
+        }
+    }
+
     /// Deletes `autoCleanIds` through the shared pipeline. Returns how many
     /// frames really left the library (0 on a decline or a failure).
     @discardableResult
     func autoCleanAll() async -> Int {
-        let armed = autoCleanIds
+        let previousSelection = selectedForDeletion
+        let armed = Self.autoCleanArmedIds(
+            groups: groups,
+            touchedGroups: touchedGroups,
+            selection: previousSelection
+        )
         guard !armed.isEmpty else { return 0 }
         selectedForDeletion = armed
         await deleteSelected()
         let survivors = Set(groups.flatMap { $0.assets.map(\.id) })
-        return armed.subtracting(survivors).count
+        let removed = armed.subtracting(survivors).count
+        if removed == 0 {
+            selectedForDeletion = previousSelection.intersection(survivors)
+        }
+        return removed
     }
 
     /// Deletes a single burst frame (used by the in-preview Delete action),
@@ -254,6 +285,9 @@ final class BurstCleanerViewModel {
                     if remaining.contains(where: { $0.id == groups[index].bestAssetId }) {
                         bestAssetId = groups[index].bestAssetId
                     } else if let newBest = BestAssetSelector.bestByMetadata(from: remaining) {
+                        // The manually picked frame was deleted: the fallback
+                        // re-pick is automatic, so drop the "your choice" flag.
+                        manuallySetBest.remove(groupId)
                         bestAssetId = newBest.id
                     } else {
                         return
@@ -262,6 +296,7 @@ final class BurstCleanerViewModel {
                 } else {
                     // No longer a burst once it's down to one frame — drop the group.
                     for asset in remaining { selectedForDeletion.remove(asset.id) }
+                    manuallySetBest.remove(groupId)
                     groups.remove(at: index)
                 }
             }

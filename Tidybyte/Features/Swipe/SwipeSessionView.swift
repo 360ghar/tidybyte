@@ -48,11 +48,20 @@ struct SwipeSessionView: View {
                         : "Marked for deletion"
                     undoHintCount += 1
                     toast = ToastMessage(text: text, systemImage: "trash", actionTitle: "Undo") {
-                        toast = nil
-                        // Undo only this photo's delete: after a later keep or
-                        // skip, the top undo entry belongs to another photo.
+                        // Verify before clearing: a stale tap must not silently
+                        // dismiss the hint while the photo stays pending-delete.
+                        // Matched by markedId anywhere in the stack, not just the
+                        // top entry — a later keep/skip may sit above it.
+                        guard viewModel.undoStack.contains(where: { $0.asset.id == markedId && $0.decision == .deleted }) else {
+                            toast = ToastMessage(text: "That photo can't be undone anymore.", systemImage: "info.circle")
+                            return
+                        }
                         guard let last = viewModel.undoStack.last,
-                              last.decision == .deleted, last.asset.id == markedId else { return }
+                              last.decision == .deleted, last.asset.id == markedId else {
+                            toast = ToastMessage(text: "Undo your newer actions first to reach that photo.", systemImage: "info.circle")
+                            return
+                        }
+                        toast = nil
                         Task { await viewModel.undo() }
                     }
                 }, onDeleteBlocked: {

@@ -50,8 +50,8 @@ struct SessionCompletionView: View {
 
     private var pendingCount: Int { viewModel.pendingDeletionIds.count }
 
-    static func photos(_ count: Int) -> String {
-        "\(count) photo\(count == 1 ? "" : "s")"
+    static func items(_ count: Int) -> String {
+        "\(count) item\(count == 1 ? "" : "s")"
     }
 
     private var completionContent: some View {
@@ -77,9 +77,9 @@ struct SessionCompletionView: View {
             // Stats card
             VStack(spacing: Spacing.lg) {
                 deletionStatRow
-                statRow(icon: "checkmark", color: Color.success, label: "Kept", value: Self.photos(stats.keptCount))
-                statRow(icon: "folder", color: .blue, label: "Added to albums", value: Self.photos(stats.organizedCount))
-                statRow(icon: "forward.fill", color: .gray, label: "Skipped", value: Self.photos(stats.skippedCount))
+                statRow(icon: "checkmark", color: Color.success, label: "Kept", value: Self.items(stats.keptCount))
+                statRow(icon: "folder", color: .blue, label: "Added to albums", value: Self.items(stats.organizedCount))
+                statRow(icon: "forward.fill", color: .gray, label: "Skipped", value: Self.items(stats.skippedCount))
                 if viewModel.deletionCommitted, stats.deletedBytes > 0 {
                     statRow(icon: "internaldrive", color: Color.success, label: "Moved to Recently Deleted",
                             value: stats.deletedBytes.formattedFileSize)
@@ -139,19 +139,19 @@ struct SessionCompletionView: View {
             }
         }
         .confirmationDialog(
-            "\(pendingCount) photo\(pendingCount == 1 ? " is" : "s are") marked for deletion",
+            "\(pendingCount) item\(pendingCount == 1 ? " is" : "s are") marked for deletion",
             isPresented: Binding(
                 get: { pendingExit != nil },
                 set: { if !$0 { pendingExit = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("Delete \(pendingCount) Photo\(pendingCount == 1 ? "" : "s")", role: .destructive) {
+            Button("Delete \(pendingCount) Item\(pendingCount == 1 ? "" : "s")", role: .destructive) {
                 if let destination = pendingExit {
                     commitAndExit(to: destination)
                 }
             }
-            Button("Keep All Photos") {
+            Button("Keep All Items") {
                 if let destination = pendingExit {
                     discardAndExit(to: destination)
                 }
@@ -163,7 +163,7 @@ struct SessionCompletionView: View {
                 viewModel.showCompletion = false
             }
         } message: {
-            Text("Deleted photos go to Recently Deleted in Photos, where you can restore them for 30 days.")
+            Text("Deleted items go to Recently Deleted in Photos, where you can restore them for 30 days.")
         }
         // Non-modal error surface. Retry is preserved from the alert it
         // replaces: a failed commit leaves the pending set intact, so
@@ -202,10 +202,10 @@ struct SessionCompletionView: View {
 
     private var celebrationStatLine: String? {
         if viewModel.deletionCommitted, stats.deletedCount > 0 {
-            return "cleared \(Self.photos(stats.deletedCount)) (\(stats.deletedBytes.formattedFileSize))"
+            return "cleared \(Self.items(stats.deletedCount)) (\(stats.deletedBytes.formattedFileSize))"
         }
         let reviewed = stats.keptCount + stats.organizedCount + stats.skippedCount
-        return reviewed > 0 ? "reviewed \(Self.photos(reviewed))" : nil
+        return reviewed > 0 ? "reviewed \(Self.items(reviewed))" : nil
     }
 
     // MARK: - Exit Flow (SWIPE-02)
@@ -252,7 +252,7 @@ struct SessionCompletionView: View {
 
     private var pendingDeletionBlock: some View {
         VStack(spacing: Spacing.md) {
-            Text("\(pendingCount) photo\(pendingCount == 1 ? "" : "s") marked for deletion · \(viewModel.pendingDeletionBytes.formattedFileSize)")
+            Text("\(pendingCount) item\(pendingCount == 1 ? "" : "s") marked for deletion · \(viewModel.pendingDeletionBytes.formattedFileSize)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -265,7 +265,7 @@ struct SessionCompletionView: View {
                         ProgressView()
                             .tint(.white)
                     }
-                    Text("Delete \(pendingCount) Photo\(pendingCount == 1 ? "" : "s")")
+                    Text("Delete \(pendingCount) Item\(pendingCount == 1 ? "" : "s")")
                         .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
@@ -277,14 +277,14 @@ struct SessionCompletionView: View {
             .disabled(viewModel.isDeletingBatch)
             .scaleOnPress()
 
-            Button("Keep All Photos") {
+            Button("Keep All Items") {
                 viewModel.discardPendingDeletions()
             }
             .font(.subheadline.weight(.semibold))
             .frame(minHeight: 44)
             .disabled(viewModel.isDeletingBatch)
 
-            Text("Deleted photos go to Recently Deleted in Photos for 30 days.")
+            Text("Deleted items go to Recently Deleted in Photos for 30 days.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -297,9 +297,9 @@ struct SessionCompletionView: View {
     @ViewBuilder
     private var deletionStatRow: some View {
         if viewModel.hasPendingDeletions {
-            statRow(icon: "trash", color: .orange, label: "Marked for deletion", value: Self.photos(pendingCount))
+            statRow(icon: "trash", color: .orange, label: "Marked for deletion", value: Self.items(pendingCount))
         } else {
-            statRow(icon: "trash", color: Color.destructive, label: "Deleted", value: Self.photos(stats.deletedCount))
+            statRow(icon: "trash", color: Color.destructive, label: "Deleted", value: Self.items(stats.deletedCount))
         }
     }
 

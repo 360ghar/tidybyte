@@ -129,6 +129,7 @@ struct AlbumPickerSheet: View {
                 .padding(.vertical, Spacing.sm)
             }
         }
+        .interactiveDismissDisabled(isAddingToAlbum || isCreatingAlbum)
     }
 
     // MARK: - New Album Section

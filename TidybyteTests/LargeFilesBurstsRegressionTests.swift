@@ -255,6 +255,40 @@ final class LargeFilesBurstsRegressionTests: XCTestCase {
         XCTAssertEqual(twoFrame.first?.assets.count, 2)
     }
 
+    // MARK: - Auto-Clean honors per-group curation (PR #2 finding 1)
+
+    func testAutoCleanArmedIdsArmSuggestionsForUntouchedGroups() {
+        let group = makeGroup(id: "g1", best: "a", others: ["b", "c"])
+        let armed = BurstCleanerViewModel.autoCleanArmedIds(
+            groups: [group],
+            touchedGroups: [],
+            selection: []
+        )
+        XCTAssertEqual(armed, ["b", "c"])
+    }
+
+    func testAutoCleanArmedIdsKeepUserDeselectionsInTouchedGroups() {
+        let group = makeGroup(id: "g1", best: "a", others: ["b", "c"])
+        // The user touched the group and kept "b": only "c" stays armed.
+        let armed = BurstCleanerViewModel.autoCleanArmedIds(
+            groups: [group],
+            touchedGroups: ["g1"],
+            selection: ["c"]
+        )
+        XCTAssertEqual(armed, ["c"], "a deselected frame must not be re-armed by Auto-Clean")
+    }
+
+    func testAutoCleanArmedIdsMixTouchedAndUntouchedGroups() {
+        let touched = makeGroup(id: "touched", best: "a", others: ["b", "c"])
+        let fresh = makeGroup(id: "fresh", best: "x", others: ["y", "z"])
+        let armed = BurstCleanerViewModel.autoCleanArmedIds(
+            groups: [touched, fresh],
+            touchedGroups: ["touched"],
+            selection: ["b"]
+        )
+        XCTAssertEqual(armed, ["b", "y", "z"])
+    }
+
     // MARK: - Helpers
 
     private func makeGroup(id: String, best: String, others: [String]) -> BurstGroup {

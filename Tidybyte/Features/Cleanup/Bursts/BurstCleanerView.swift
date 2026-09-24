@@ -246,8 +246,24 @@ struct BurstCleanerView: View {
         switch best.burstPick {
         case .user: return "Kept: your pick in Photos"
         case .iPhone: return "Kept: iPhone's pick"
-        case .none: return best.isFavorite ? "Kept: favorite" : "Kept: last frame"
+        case .none: return best.isFavorite ? "Kept: favorite" : automaticKeeperReason(best: best, in: group)
         }
+    }
+
+    /// Which `BestAssetSelector` ladder rung picked an automatic keeper, so the
+    /// label matches the actual reason (a resolution win is not "last frame").
+    /// Burst picks and favorites are handled above; by the time we get here
+    /// every frame is `.none` and unfavorited, leaving pixels → date → id.
+    private func automaticKeeperReason(best: AssetSummary, in group: BurstGroup) -> String {
+        let bestPixels = best.pixelWidth * best.pixelHeight
+        if group.assets.allSatisfy({ $0.id == best.id || $0.pixelWidth * $0.pixelHeight < bestPixels }) {
+            return "Kept: highest resolution"
+        }
+        let bestDate = best.creationDate ?? .distantPast
+        if group.assets.allSatisfy({ $0.id == best.id || ($0.creationDate ?? .distantPast) < bestDate }) {
+            return "Kept: last frame"
+        }
+        return "Kept: auto pick"
     }
 
     private func burstGroupRow(_ group: BurstGroup) -> some View {

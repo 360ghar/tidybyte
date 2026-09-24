@@ -241,6 +241,10 @@ enum CompressionJournal {
 
     /// Resolves every leftover pending row against the live library (see the
     /// type doc). Called on tool load; failures are logged, never fatal.
+    /// Rows with the kept-both outcome are terminal and never reach this
+    /// method: the fetch below is pending-only, so a decline settled durably
+    /// by `CompressionSwap.finalizeKeptBoth` can never resolve to
+    /// `deleteOrphanThenFail` and lose the user's saved copy.
     static func reconcile(modelContext: ModelContext) async {
         let descriptor = FetchDescriptor<CompressionRecord>(
             predicate: #Predicate { $0.outcome == "pending" }
@@ -250,7 +254,9 @@ enum CompressionJournal {
         var resolved: [(CompressionRecord, Resolution)] = []
         // Rows still owned by a live swap (a running batch, or saved copies
         // waiting on the Originals Kept choice) are not crash leftovers.
-        for record in pendings where !CompressionSwap.isLive(assetId: record.assetLocalIdentifier) {
+        for (i, record) in pendings.enumerated() {
+            if i % 20 == 0 { await Task.yield() }
+            guard !CompressionSwap.isLive(assetId: record.assetLocalIdentifier) else { continue }
             let originalExists = PHAsset.fetchAssets(
                 withLocalIdentifiers: [record.assetLocalIdentifier],
                 options: nil
@@ -315,8 +321,10 @@ extension PhotoLibraryService {
     /// no selection semantics — just remove the stranded copy). Returns whether
     /// the asset is really gone. Callers MUST check the result rather than
     /// assume success: `deleteAssets` reports success as a *subset* of the
-    /// identifiers it was given, and its per-identifier fallback returns a
-    /// partial (or empty) set without throwing when it is cancelled.
+    /// identifiers it was given, and its per-identifier fallback throws
+    /// `partialDeletion` carrying the ids that DID succeed when it is
+    /// cancelled (or partially fails) — `removeOrphanedAssets` recovers that
+    /// partial set from the error below instead of dropping it.
     fileprivate func removeOrphanedAsset(id: String) async -> Bool {
         await removeOrphanedAssets(ids: [id]).contains(id)
     }

@@ -40,7 +40,7 @@ struct CleanupLibraryRollup: Equatable {
     /// Item count that matches `reclaimableBytes`.
     var reclaimableItemCount = 0
 
-    static func compute(from assets: [AssetSummary], thresholdBytes: Int64) -> CleanupLibraryRollup {
+    static func compute(from assets: [AssetSummary], thresholdBytes: Int64, excludingCompressedCopies: Set<String> = []) -> CleanupLibraryRollup {
         var rollup = CleanupLibraryRollup()
 
         for asset in assets {
@@ -50,7 +50,11 @@ struct CleanupLibraryRollup: Equatable {
                 rollup.livePhotos += 1
             } else if asset.mediaType == .photo {
                 rollup.compressiblePhotos += 1
-                if asset.fileSize >= photoCompressionMinBytes, !asset.isHEIC {
+                // Mirrors PhotoCompressionViewModel.candidates(showAll: false):
+                // copies this tool already saved are never listed there, so
+                // the badge must not count them either.
+                if asset.fileSize >= photoCompressionMinBytes, !asset.isHEIC,
+                   !excludingCompressedCopies.contains(asset.id) {
                     rollup.photoCompressionCandidates += 1
                 }
             }
@@ -115,23 +119,28 @@ final class CleanupHomeViewModel {
     /// loads on first call, refreshes when the library generation advances, and
     /// no-ops otherwise. Work survives `.task` cancellation when the user
     /// switches tabs mid-fetch.
-    func sync(to generation: Int) async {
+    func sync(to generation: Int, excludingCompressedCopies: Set<String> = []) async {
         guard !(hasLoadedCounts && generation == syncedGeneration) else { return }
+        // The library changed under the last scan results: recorded counts
+        // may include deleted assets, so expire them before re-badging
+        // (loadCounts ends in applyScanResults, which falls back to
+        // "Not scanned").
+        ScanResults.invalidate()
         syncedGeneration = generation
         await enqueue {
-            await self.loadCounts()
+            await self.loadCounts(excludingCompressedCopies: excludingCompressedCopies)
             self.hasLoadedCounts = true
         }
     }
 
     /// Pull-to-refresh. Serialized through the same chain as `sync(to:)` (A4).
-    func refreshCounts() async {
+    func refreshCounts(excludingCompressedCopies: Set<String> = []) async {
         await enqueue {
-            await self.loadCounts()
+            await self.loadCounts(excludingCompressedCopies: excludingCompressedCopies)
         }
     }
 
-    private func loadCounts() async {
+    private func loadCounts(excludingCompressedCopies: Set<String> = []) async {
         // ONE all-media pass feeds screenshots, live photos, videos, large
         // files, and photo compression (E9: was five full enumerations, each
         // materializing AssetSummary arrays with per-asset resource I/O just
@@ -139,7 +148,7 @@ final class CleanupHomeViewModel {
         let allAssets = await photoService.fetchAssets(filter: .allMedia)
 
         let threshold = AppPreferences.largeFileThresholdBytes()
-        let rollup = CleanupLibraryRollup.compute(from: allAssets, thresholdBytes: threshold)
+        let rollup = CleanupLibraryRollup.compute(from: allAssets, thresholdBytes: threshold, excludingCompressedCopies: excludingCompressedCopies)
 
         reclaimableBytes = rollup.reclaimableBytes
         reclaimableItemCount = rollup.reclaimableItemCount

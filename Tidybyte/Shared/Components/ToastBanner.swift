@@ -95,7 +95,11 @@ private struct ToastPresenter: ViewModifier {
                         // action must stay reachable so it isn't hidden.
                         .accessibilityHidden(message.actionTitle == nil)
                         .transition(.move(edge: .top).combined(with: .opacity))
-                        .task(id: message.id) {
+                        // Keyed on both the message and VoiceOver state so a
+                        // mid-toast toggle restarts the timer with the
+                        // extended duration (same pattern as
+                        // HappyPathCelebrationModifier).
+                        .task(id: "\(message.id)\(voiceOverEnabled)") {
                             try? await Task.sleep(for: visibleDuration)
                             guard !Task.isCancelled else { return }
                             withAnimation(presentation) {

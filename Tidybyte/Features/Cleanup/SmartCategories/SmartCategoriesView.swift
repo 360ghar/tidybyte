@@ -96,7 +96,7 @@ struct SmartCategoriesView: View {
         // Items deleted elsewhere (Swipe Review, the Photos app) leave the
         // list when the library changes, instead of lingering as blanks.
         .task(id: libraryMonitor.generation) {
-            viewModel.pruneDeleted()
+            await viewModel.pruneDeleted()
         }
         .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) photos")
         .onDisappear {

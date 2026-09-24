@@ -22,7 +22,7 @@ struct StorageDashboardView: View {
                 dashboardSkeleton
             } else {
                 VStack(spacing: Spacing.xl) {
-                    LimitedLibraryBanner(note: "Figures on this screen cover only the photos you selected.")
+                    LimitedLibraryBanner(note: "Library figures below cover only the photos you selected; device totals cover the whole device.")
 
                     storageBreakdownSection
                         .fadeSlideIn(delay: 0.0)

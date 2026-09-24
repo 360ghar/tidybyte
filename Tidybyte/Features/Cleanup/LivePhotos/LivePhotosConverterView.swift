@@ -81,7 +81,9 @@ struct LivePhotosConverterView: View {
             Text(LivePhotoConvertExplainer.message)
         }
         .originalsKeptAlert(
-            isPresented: !viewModel.keptOriginals.isEmpty && previewItem == nil,
+            // No settable state backs this condition — keptOriginals is
+            // VM-owned and the preview gate is local — so a constant binding.
+            isPresented: .constant(!viewModel.keptOriginals.isEmpty && previewItem == nil),
             onTryAgain: { viewModel.retryRemovingOriginals() },
             onRemoveCopies: { viewModel.removeCopies() }
         )

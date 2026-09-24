@@ -200,8 +200,13 @@ final class LargeFilesViewModel {
     /// Shared load/refresh pipeline (de-slop D3).
     private func apply(_ newAssets: [AssetSummary]) {
         assets = newAssets.sorted { $0.fileSize > $1.fileSize }
-        // Drop picks for files that no longer exist; keep picks the filter hides.
-        selectedIds.formIntersection(assets.map(\.id))
+        // Drop picks for files that no longer exist AND for files the list
+        // can never show (below the size threshold, including zero-size
+        // unknowns): an undisplayable pick would hold the action bar open
+        // with nothing visible to act on. Picks hidden only by the media
+        // filter or sort order are kept.
+        let threshold = thresholdBytes
+        selectedIds.formIntersection(newAssets.lazy.filter { $0.fileSize >= threshold }.map(\.id))
         hasLoadedAssets = true
     }
 

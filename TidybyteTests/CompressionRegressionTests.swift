@@ -269,4 +269,61 @@ final class CompressionRegressionTests: XCTestCase {
         XCTAssertTrue(completedIds.contains("done"))
         XCTAssertFalse(completedIds.contains("failed-once"))
     }
+
+    // MARK: - Kept-both durability (PR #2: kill with the Originals Kept
+    // alert open must not delete the saved copy on next launch)
+
+    func testKeptBothDeclineLeavesDurableNonPendingRow() throws {
+        let schema = Schema([CompressionRecord.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+
+        let swap = try CompressionSwap(
+            mediaType: .video,
+            assetId: "kept-test",
+            originalSize: 100,
+            exportPreset: "720p",
+            modelContext: context
+        )
+        swap.recordReplacement(id: "copy-1", size: 50)
+        swap.finalizeKeptBoth()
+
+        let records = try context.fetch(FetchDescriptor<CompressionRecord>())
+        XCTAssertEqual(records.count, 1)
+        let row = try XCTUnwrap(records.first)
+        // Non-pending rows are invisible to reconcile, so a later launch can
+        // never resolve this row to deleteOrphanThenFail.
+        XCTAssertEqual(row.outcome, CompressionOutcome.kept.rawValue)
+        XCTAssertTrue(row.isKept)
+        XCTAssertFalse(row.succeeded)
+        XCTAssertFalse(row.isFailed)
+        XCTAssertEqual(row.savedBytes, 0)
+        XCTAssertEqual(row.replacementAssetLocalIdentifier, "copy-1")
+    }
+
+    func testKeptBothRowPromotesToCompletedOnTryAgain() throws {
+        let schema = Schema([CompressionRecord.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+
+        let swap = try CompressionSwap(
+            mediaType: .video,
+            assetId: "kept-promote-test",
+            originalSize: 100,
+            exportPreset: "720p",
+            modelContext: context
+        )
+        swap.recordReplacement(id: "copy-1", size: 50)
+        swap.finalizeKeptBoth()
+        // finalizeKeptBoth deliberately leaves the swap live so Try Again can
+        // still promote the row.
+        swap.finalizeCompleted(compressedSize: 50)
+
+        let records = try context.fetch(FetchDescriptor<CompressionRecord>())
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records.first?.outcome, CompressionOutcome.completed.rawValue)
+        XCTAssertTrue(records.first?.succeeded == true)
+    }
 }

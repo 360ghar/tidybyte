@@ -242,7 +242,7 @@ struct SettingsView: View {
                                     // Keep the committed mirror in sync so a later
                                     // revert lands on the day the user actually has.
                                     committedReminderWeekday = reminderWeekday
-                                    await NotificationService.scheduleWeeklyReminder(weekday: reminderWeekday)
+                                    _ = await NotificationService.scheduleWeeklyReminder(weekday: reminderWeekday)
                                 } else {
                                     remindersEnabled = false
                                     showNotificationDeniedAlert = true
@@ -273,7 +273,7 @@ struct SettingsView: View {
                                 return
                             }
                             committedReminderWeekday = newDay
-                            await NotificationService.scheduleWeeklyReminder(weekday: newDay)
+                            _ = await NotificationService.scheduleWeeklyReminder(weekday: newDay)
                         }
                     }
                 }

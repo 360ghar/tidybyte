@@ -100,7 +100,9 @@ struct VideoCompressionView: View {
         }
         .originalsKeptAlert(
             // Not over the preview cover: it would fail to present there.
-            isPresented: !viewModel.keptOriginals.isEmpty && previewStart == nil,
+            // No settable state backs this condition — keptOriginals is
+            // VM-owned and the preview gate is local — so a constant binding.
+            isPresented: .constant(!viewModel.keptOriginals.isEmpty && previewStart == nil),
             onTryAgain: { viewModel.retryRemovingOriginals() },
             onRemoveCopies: { viewModel.removeCopies() }
         )
@@ -113,7 +115,10 @@ struct VideoCompressionView: View {
                 assetsProvider: { viewModel.sortedVideos.map(\.asset) },
                 startIndex: viewModel.sortedVideos.firstIndex { $0.id == start.id } ?? 0,
                 photoService: photoService,
-                onDelete: { await viewModel.deleteVideo(id: $0.id) }
+                onDelete: { await viewModel.deleteVideo(id: $0.id) },
+                showOriginalsKept: !viewModel.keptOriginals.isEmpty,
+                onRetryRemovingOriginals: { viewModel.retryRemovingOriginals() },
+                onRemoveCopies: { viewModel.removeCopies() }
             )
         }
         .onChange(of: viewModel.batchSummary) { _, summary in

@@ -37,7 +37,7 @@ final class PhotoCompressionViewModel {
         if isOnScreen {
             keptOriginals = kept
         } else {
-            for item in kept { item.swap.finalizeOriginalKept(copyRemoved: false) }
+            for item in kept { item.swap.finalizeKeptBoth() }
         }
     }
     /// The batch mutation loop, owned by the VM so leaving the screen can
@@ -288,8 +288,17 @@ final class PhotoCompressionViewModel {
                 errorMessage = "Copies kept. Both versions are in your library; delete either one in Photos."
             }
             let ids = Set(items.map(\.assetId))
+            // Declined rows stay non-eligible: their copies are still in the
+            // library (journaled as kept), so offering Compress again would
+            // strand another duplicate. `replacementId` is nilled when the
+            // copy is removed, so rows whose copies are gone go back to waiting.
+            let keptIds = Set(items.filter { $0.swap.replacementId != nil }.map(\.assetId))
             for index in photos.indices where ids.contains(photos[index].id) {
-                photos[index].compressionState = .waiting
+                if keptIds.contains(photos[index].id) {
+                    photos[index].compressionState = .keptOriginal(reason: "Original kept — both versions in your library")
+                } else {
+                    photos[index].compressionState = .waiting
+                }
             }
             isCompressing = false
         }
@@ -315,11 +324,16 @@ final class PhotoCompressionViewModel {
         isCompressing = true
         isCancelled = false
 
-        // COMP-16: skip assets that already have a completed record so they are
-        // never re-encoded (quality degradation).
+        // COMP-16: skip assets that already have a usable copy — completed
+        // swaps, no-savings skips, and kept-both declines — so they are never
+        // re-encoded (quality degradation, duplicate copies). Only rows that
+        // still name a copy count: failed rows and skips whose copies were
+        // removed (Remove Copies accepted) stay eligible for another try.
         let previouslyCompletedIds: Set<String> = ((try? modelContext.fetch(
-            FetchDescriptor<CompressionRecord>(predicate: #Predicate { $0.outcome == "completed" })
-        )) ?? []).reduce(into: Set<String>()) { $0.insert($1.assetLocalIdentifier) }
+            FetchDescriptor<CompressionRecord>(predicate: #Predicate { $0.outcome != "pending" && $0.outcome != "failed" })
+        )) ?? []).reduce(into: Set<String>()) {
+            if $1.replacementAssetLocalIdentifier != nil { $0.insert($1.assetLocalIdentifier) }
+        }
 
         // D1: resolve leftovers from any interrupted swap BEFORE the batch.
         await CompressionJournal.reconcile(modelContext: modelContext)

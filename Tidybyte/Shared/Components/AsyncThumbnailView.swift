@@ -57,20 +57,30 @@ struct AsyncThumbnailView: View {
                 loadedAssetId = assetId
             }
 
+            let generation = await ImageCache.shared.currentGeneration()
             let (loaded, isDegraded) = await photoService.loadThumbnailWithQuality(for: assetId, size: targetSize)
             guard !Task.isCancelled else { return }
+            // E5: an edit evicted the cache mid-load, so `loaded` is pre-edit.
+            // Show it (better than a stuck skeleton) but don't reinsert the
+            // stale bytes into the cache.
+            let currentGeneration = await ImageCache.shared.currentGeneration()
+            let isStale = generation != currentGeneration
             if let loaded {
                 if isDegraded {
                     // File the soft placeholder under the degraded key; never
                     // overwrite something sharper we're already showing.
                     if !showingDegraded {
-                        await ImageCache.shared.setImage(loaded, for: degradedKey)
+                        if !isStale {
+                            await ImageCache.shared.setImage(loaded, for: degradedKey)
+                        }
                         withAnimation(.easeIn(duration: 0.2)) { image = loaded }
                     }
                 } else {
-                    await ImageCache.shared.setImage(loaded, for: sharpKey)
-                    // The soft placeholder is superseded.
-                    await ImageCache.shared.removeImage(for: degradedKey)
+                    if !isStale {
+                        await ImageCache.shared.setImage(loaded, for: sharpKey)
+                        // The soft placeholder is superseded.
+                        await ImageCache.shared.removeImage(for: degradedKey)
+                    }
                     withAnimation(.easeIn(duration: 0.2)) { image = loaded }
                 }
             }

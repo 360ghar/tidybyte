@@ -37,11 +37,11 @@ extension View {
     /// Shown when saved copies exist but their originals are still in the
     /// library (the user tapped "Don't Allow", or the delete failed).
     func originalsKeptAlert(
-        isPresented: Bool,
+        isPresented: Binding<Bool>,
         onTryAgain: @escaping () -> Void,
         onRemoveCopies: @escaping () -> Void
     ) -> some View {
-        alert("Originals Kept", isPresented: .constant(isPresented)) {
+        alert("Originals Kept", isPresented: isPresented) {
             Button("Try Again", action: onTryAgain)
             Button("Remove Copies", action: onRemoveCopies)
         } message: {

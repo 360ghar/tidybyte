@@ -138,7 +138,9 @@ final class WidgetSnapshotCoordinator {
            current.usedBytes == capacity.used,
            current.totalBytes == capacity.total,
            current.screenshotCount == stats.screenshotCount,
+           current.screenshotBytes == stats.screenshotBytes,
            current.largeFileCount == stats.largeFileCount,
+           current.largeFileBytes == stats.largeFileBytes,
            current.reclaimableBytes == stats.reclaimableBytes,
            current.lifetimeFreedBytes == lifetime.bytes,
            current.lifetimeItemCount == lifetime.items {
@@ -191,7 +193,7 @@ final class WidgetSnapshotCoordinator {
         }
         let weekday = AppPreferences.reminderWeekday()
         guard (1...7).contains(weekday), await NotificationService.isPermissionGranted() else { return }
-        await NotificationService.scheduleWeeklyReminder(weekday: weekday)
+        guard await NotificationService.scheduleWeeklyReminder(weekday: weekday) else { return }
         UserDefaults.standard.set(true, forKey: key)
     }
 
