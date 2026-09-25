@@ -35,8 +35,37 @@ final class BurstCleanerViewModel {
         groups.reduce(0) { $0 + $1.assets.count }
     }
 
-    /// Frames Auto-Clean would delete: all but the keeper, never a favorite.
+    /// Frames Auto-Clean would suggest: all but the keeper, never a favorite.
+    /// This is the passive "N removable" summary. It is NOT what Auto-Clean
+    /// deletes — use `autoCleanArmedCount` for the confirm and the enable check.
     var deletableCount: Int { autoCleanIds.count }
+
+    /// Exactly what Auto-Clean will really delete: untouched groups contribute
+    /// their suggestions, touched groups only the user's surviving picks. The
+    /// confirm count and the button's enable check must use this, or a touched
+    /// group makes the alert over-count and leaves the button live for a
+    /// zero-delete no-op.
+    var autoCleanArmedCount: Int {
+        Self.autoCleanArmedIds(
+            groups: groups,
+            touchedGroups: touchedGroups,
+            selection: selectedForDeletion
+        ).count
+    }
+
+    /// True when the armed set contains a favorite. Auto-Clean never suggests
+    /// one, but an explicit Select All (or a manual pick) arms it — and the
+    /// confirm must not then promise "Favorites are kept".
+    var autoCleanArmedIncludesFavorite: Bool {
+        let armed = Self.autoCleanArmedIds(
+            groups: groups,
+            touchedGroups: touchedGroups,
+            selection: selectedForDeletion
+        )
+        return groups.contains { group in
+            group.assets.contains { armed.contains($0.id) && $0.isFavorite }
+        }
+    }
 
     var allNonBestSelected: Bool {
         !nonBestIds.isEmpty && nonBestIds.isSubset(of: selectedForDeletion)
@@ -58,8 +87,9 @@ final class BurstCleanerViewModel {
     /// every render and `groups` changes far less often.
     private(set) var savingsBytes: Int64 = 0
     /// Exactly what Auto-Clean deletes: in every burst, all frames but the
-    /// starred keeper, never a favorite. The confirm count, the delete and the
-    /// celebration all use this one set, so they cannot disagree.
+    /// starred keeper, never a favorite. This is the SUGGESTION set — the
+    /// delete itself arms `autoCleanArmedIds` (see `autoCleanArmedCount`), which
+    /// differs for a touched group.
     private(set) var autoCleanIds: Set<String> = []
     private var nonBestIds: Set<String> = []
 
@@ -247,7 +277,7 @@ final class BurstCleanerViewModel {
         }
     }
 
-    /// Deletes `autoCleanIds` through the shared pipeline. Returns how many
+    /// Deletes the armed set through the shared pipeline. Returns how many
     /// frames really left the library (0 on a decline or a failure).
     @discardableResult
     func autoCleanAll() async -> Int {

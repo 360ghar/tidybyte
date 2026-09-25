@@ -31,6 +31,11 @@ final class LargeFilesViewModel {
         didSet { invalidateFilterCache() }
     }
     var errorMessage: String?
+    /// Set when a load/refresh had to drop picks that fell below the size
+    /// slider, so the selection does not disappear without explanation. Kept
+    /// separate from `errorMessage`, which is the failure channel and gates the
+    /// success celebration.
+    private(set) var droppedSelectionNotice: String?
     var isDeleting = false
 
     // Share/export state
@@ -200,13 +205,25 @@ final class LargeFilesViewModel {
     /// Shared load/refresh pipeline (de-slop D3).
     private func apply(_ newAssets: [AssetSummary]) {
         assets = newAssets.sorted { $0.fileSize > $1.fileSize }
-        // Drop picks for files that no longer exist AND for files the list
-        // can never show (below the size threshold, including zero-size
-        // unknowns): an undisplayable pick would hold the action bar open
-        // with nothing visible to act on. Picks hidden only by the media
-        // filter or sort order are kept.
+        // Drop picks for files that no longer exist AND for files this list can
+        // never show (below the size threshold, including zero-size unknowns):
+        // an undisplayable pick would hold the action bar open with nothing
+        // visible to act on. Picks hidden only by the media filter or the sort
+        // order are kept.
+        //
+        // This runs on every load and refresh, so raising the slider and then
+        // refreshing clears the now-below-threshold picks. That is deliberate —
+        // the notice below tells the user instead of dropping them silently.
         let threshold = thresholdBytes
-        selectedIds.formIntersection(newAssets.lazy.filter { $0.fileSize >= threshold }.map(\.id))
+        let displayableIds = Set(newAssets.lazy.filter { $0.fileSize >= threshold }.map(\.id))
+        let existingIds = Set(newAssets.lazy.map(\.id))
+        // Only below-threshold picks need explaining; a pick whose file is gone
+        // from the library is self-evident.
+        let clearedBelowThreshold = selectedIds.intersection(existingIds).subtracting(displayableIds).count
+        selectedIds.formIntersection(displayableIds)
+        droppedSelectionNotice = clearedBelowThreshold == 0
+            ? nil
+            : "\(clearedBelowThreshold) pick\(clearedBelowThreshold == 1 ? "" : "s") cleared: below the \(Int64(thresholdMB)) MB size limit."
         hasLoadedAssets = true
     }
 
@@ -214,9 +231,11 @@ final class LargeFilesViewModel {
         selectedIds.toggle(id)
     }
 
-    /// Select All / Deselect All act on the visible files. Picks hidden by
-    /// the filter or the size slider are kept, so peeking at another filter
-    /// never throws away a selection.
+    /// Select All / Deselect All act on the visible files. Picks hidden by the
+    /// media filter or the sort order are kept, so peeking at another filter
+    /// never throws away a selection. Picks that fall below the size slider are
+    /// dropped on the next load/refresh — see `apply`, which surfaces the loss
+    /// via `droppedSelectionNotice`.
     func selectAll() {
         selectedIds.formUnion(filteredAssets.map(\.id))
     }

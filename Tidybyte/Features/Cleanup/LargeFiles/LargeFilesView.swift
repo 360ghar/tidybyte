@@ -7,6 +7,7 @@ struct LargeFilesView: View {
     @State private var rowToDelete: AssetSummary?
     @State private var isCelebrating = false
     @State private var celebrationStatLine: String?
+    @State private var toast: ToastMessage?
     /// Mirrors SettingsView's control so the threshold never diverges between
     /// screens while the tool is open (LF-06).
     @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var thresholdMB: Double = 10.0
@@ -78,8 +79,11 @@ struct LargeFilesView: View {
                                 Spacer()
                                 Button("Cancel") { viewModel.cancelShare() }
                             } else {
-                                // Picks hidden by the filter are kept, but only
-                                // the visible ones are shared or deleted.
+                                // Picks hidden by the media filter or sort order
+                                // are kept, but only the visible ones are shared
+                                // or deleted. A pick that falls below the size
+                                // slider is cleared on the next refresh, which
+                                // raises a toast instead of dropping it quietly.
                                 let hidden = viewModel.selectedIds.count - viewModel.selectedVisibleCount
                                 Text(hidden > 0
                                      ? "\(viewModel.selectedVisibleCount) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize) (\(hidden) hidden by filter)"
@@ -153,6 +157,13 @@ struct LargeFilesView: View {
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, Spacing.sm)
             }
+        }
+        .toast($toast)
+        // A load/refresh that had to clear picks below the size slider says so,
+        // instead of the selection just disappearing.
+        .onChange(of: viewModel.droppedSelectionNotice) { _, notice in
+            guard let notice else { return }
+            toast = ToastMessage(text: notice, systemImage: "info.circle")
         }
         .alert("Delete File", isPresented: .init(
             get: { rowToDelete != nil },

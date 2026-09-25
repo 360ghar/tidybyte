@@ -21,6 +21,14 @@ struct BurstCleanerView: View {
     @State private var toast: ToastMessage?
     private let photoService = PhotoLibraryService.shared
 
+    /// The confirm copy must match what Auto-Clean really arms. It never
+    /// suggests a favorite, but an explicit Select All can arm one — promising
+    /// "Favorites are kept" then would be a lie the delete immediately breaks.
+    private var autoCleanMessage: String {
+        let favoritesKept = viewModel.autoCleanArmedIncludesFavorite ? "" : " Favorites are kept."
+        return "This keeps the starred frame of each burst and deletes the rest.\(favoritesKept) \(CleanupDeletion.recoverableNote)"
+    }
+
     var body: some View {
         Group {
             if viewModel.isLoading {
@@ -53,7 +61,7 @@ struct BurstCleanerView: View {
         .toast($toast)
         .alert("Auto-Clean All Bursts", isPresented: $showAutoCleanConfirm) {
             Button("Cancel", role: .cancel) { }
-            Button("Delete \(viewModel.deletableCount) Photos", role: .destructive) {
+            Button("Delete \(viewModel.autoCleanArmedCount) Photos", role: .destructive) {
                 Task {
                     // Celebrate only what really left the library: a declined
                     // iOS prompt or a failure deletes nothing.
@@ -67,7 +75,7 @@ struct BurstCleanerView: View {
                 }
             }
         } message: {
-            Text("This keeps the starred frame of each burst and deletes the rest. Favorites are kept. \(CleanupDeletion.recoverableNote)")
+            Text(autoCleanMessage)
         }
         .alert("Delete Selected Burst Photos", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
@@ -203,7 +211,7 @@ struct BurstCleanerView: View {
                             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
                     }
                     .scaleOnPress()
-                    .disabled(viewModel.deletableCount == 0)
+                    .disabled(viewModel.autoCleanArmedCount == 0)
                 }
             }
         }
