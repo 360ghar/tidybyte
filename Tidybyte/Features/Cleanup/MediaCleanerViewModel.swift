@@ -18,18 +18,22 @@ enum ChatAlbumSelection {
 @MainActor
 final class MediaCleanerViewModel {
     let tool: CleanupTool
-    var assets: [AssetSummary] = []
+    var assets: [AssetSummary] = [] { didSet { refreshFilter() } }
     var albums: [AlbumInfo] = []
     var albumIDs: Set<String> = []
-    var activeAlbumID: String?
-    var mediaFilter = LargeFileFilter.all
-    var sortOrder = LargeFileSortOrder.largest
-    var selectedIDs: Set<String> = []
+    var activeAlbumID: String? { didSet { refreshFilter() } }
+    var mediaFilter = LargeFileFilter.all { didSet { refreshFilter() } }
+    var sortOrder = LargeFileSortOrder.largest { didSet { refreshFilter() } }
+    var selectedIDs: Set<String> = [] { didSet { refreshSelection() } }
     var isLoading = false
     var isDeleting = false
     var errorMessage: String?
     private var loadGeneration = 0
-    private var membership: [String: Set<String>] = [:]
+    private var membership: [String: Set<String>] = [:] { didSet { refreshFilter() } }
+    private(set) var filteredAssets: [AssetSummary] = []
+    private var visibleIDs: Set<String> = []
+    private(set) var visibleSelectedIDs: Set<String> = []
+    private(set) var filteredSizeLabel = Int64(0).formattedFileSize
     private let photoService: PhotoLibraryService
 
     init(tool: CleanupTool, photoService: PhotoLibraryService = .shared) {
@@ -37,12 +41,15 @@ final class MediaCleanerViewModel {
         self.photoService = photoService
     }
 
-    var filteredAssets: [AssetSummary] {
+    private func refreshFilter() {
         let visible = activeAlbumID.map { id in assets.filter { membership[id, default: []].contains($0.id) } } ?? assets
-        return LargeFilesViewModel.computeFilteredAssets(from: visible, threshold: 0, mediaFilter: mediaFilter, sortOrder: sortOrder)
+        filteredAssets = LargeFilesViewModel.computeFilteredAssets(from: visible, threshold: 0, mediaFilter: mediaFilter, sortOrder: sortOrder)
+        visibleIDs = Set(filteredAssets.map(\.id))
+        filteredSizeLabel = Self.sizeLabel(filteredAssets)
+        refreshSelection()
     }
 
-    var visibleSelectedIDs: Set<String> { selectedIDs.intersection(filteredAssets.map(\.id)) }
+    private func refreshSelection() { visibleSelectedIDs = selectedIDs.intersection(visibleIDs) }
     var allVisibleSelected: Bool { !filteredAssets.isEmpty && visibleSelectedIDs.count == filteredAssets.count }
     var selectedAlbums: [AlbumInfo] { albums.filter { albumIDs.contains($0.id) } }
 

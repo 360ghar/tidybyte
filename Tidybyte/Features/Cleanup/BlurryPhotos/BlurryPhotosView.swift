@@ -246,8 +246,12 @@ struct BlurryPhotosView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            if viewModel.skippedAnalysisCount > 0 || viewModel.skippedSmudgeCount > 0 {
-                Text("\(viewModel.skippedAnalysisCount) photos had no local analysis image. Lens analysis skipped \(viewModel.skippedSmudgeCount) additional photos.")
+            if viewModel.skippedAnalysisCount > 0 {
+                Text("\(viewModel.skippedAnalysisCount) photo\(viewModel.skippedAnalysisCount == 1 ? "" : "s") had no local analysis image.")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
+            }
+            if viewModel.skippedSmudgeCount > 0 {
+                Text("Lens analysis skipped \(viewModel.skippedSmudgeCount) photo\(viewModel.skippedSmudgeCount == 1 ? "" : "s").")
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
             }
             if #available(iOS 26, *), !viewModel.supportsLensSmudge {

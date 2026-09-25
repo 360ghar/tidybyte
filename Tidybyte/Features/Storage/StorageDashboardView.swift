@@ -109,6 +109,19 @@ struct StorageDashboardView: View {
             recentlyDeletedSkeleton
                 .fadeSlideIn(delay: 0.2)
 
+            GlassCard {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    SkeletonBar(width: 140, height: 20)
+                    ForEach(0..<2, id: \.self) { _ in
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            SkeletonBar(width: 160, height: 16)
+                            SkeletonBar(width: 90, height: 12)
+                        }
+                    }
+                    ForEach(0..<3, id: \.self) { _ in SkeletonBar(height: 30) }
+                }
+            }
+
             whereStorageGoesSkeleton
                 .fadeSlideIn(delay: 0.25)
 

@@ -13,19 +13,22 @@ import Photos
 @MainActor
 @Observable
 final class WidgetSnapshotCoordinator {
-    private let photoService: PhotoLibraryService
     private var isScanning = false
     private var hasScannedThisLaunch = false
     private var lastScanPermission: PHAuthorizationStatus?
-    /// Generation the widget snapshot was last written for. In-memory (not
-    /// persisted) deliberately: the monitor's generation counter restarts at 0
-    /// each launch, so a persisted value would wrongly suppress the first
-    /// post-launch refresh.
-    private var lastWrittenGeneration: Int?
+    /// Scan epochs restart each launch. Keep this deduplication state in memory.
+    private var lastWrittenEpoch: Int?
+    private var lastWrittenThreshold: Int64?
     private var debounceTask: Task<Void, Never>?
+    private var snapshotTask: Task<NotificationService.Snapshot?, Never>?
+    private let statistics: @MainActor () async -> MediaLibraryStats
+    private let photoAuthorization: @MainActor () -> PHAuthorizationStatus
 
-    init(photoService: PhotoLibraryService = PhotoLibraryService.shared) {
-        self.photoService = photoService
+    init(photoService: PhotoLibraryService = PhotoLibraryService.shared,
+         statistics: (@MainActor () async -> MediaLibraryStats)? = nil,
+         photoAuthorization: @escaping @MainActor () -> PHAuthorizationStatus = { PHPhotoLibrary.authorizationStatus(for: .readWrite) }) {
+        self.statistics = statistics ?? { await Self.computeStats(photoService: photoService) }
+        self.photoAuthorization = photoAuthorization
     }
 
     // MARK: - Daily Scan
@@ -36,7 +39,7 @@ final class WidgetSnapshotCoordinator {
     func runDailyScanIfNeeded(modelContext: ModelContext) async {
         guard !isScanning else { return }
 
-        let permission = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        let permission = photoAuthorization()
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
         if hasScannedThisLaunch, lastScanPermission == permission, let lastScan = AppPreferences.lastStorageScanDate(),
@@ -67,6 +70,8 @@ final class WidgetSnapshotCoordinator {
         }
         hasScannedThisLaunch = true
         lastScanPermission = snapshot.isLimited ? .limited : .authorized
+        lastWrittenEpoch = ScanResults.epoch
+        lastWrittenThreshold = AppPreferences.largeFileThresholdBytes()
         // Reconcile the cached lifetime totals from the ledger BEFORE the
         // widget write, so the widget's "Cleaned up ..." figure can't drift from
         // the SwiftData history it's supposed to mirror.
@@ -83,25 +88,31 @@ final class WidgetSnapshotCoordinator {
     /// Debounced recompute of the widget snapshot after an in-library change
     /// (in-app deletion, compression, or edits made in the Photos app).
     /// Skips until the daily scan has established a baseline, and skips
-    /// rewrites when the generation hasn't advanced past the last write
-    /// (APP-03).
-    func refreshAfterLibraryChange(generation: Int, modelContext: ModelContext) async {
+    /// rewrites when neither the library epoch nor the size threshold changed.
+    func refreshAfterLibraryChange(modelContext: ModelContext) async {
         guard AppPreferences.lastStorageScanDate() != nil else { return }
-        guard generation != lastWrittenGeneration else { return }
+        let epoch = ScanResults.epoch
+        let threshold = AppPreferences.largeFileThresholdBytes()
+        guard epoch != lastWrittenEpoch || threshold != lastWrittenThreshold else { return }
 
         debounceTask?.cancel()
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(1500))
             guard !Task.isCancelled, let self else { return }
+            // A permission-triggered launch scan can finish during the debounce.
+            guard epoch != self.lastWrittenEpoch || threshold != self.lastWrittenThreshold else { return }
             // Compression and Live Photo conversion write `CompressionRecord`
             // rows directly (not through the ledger), so this is the point that
             // folds their savings into the cached lifetime total.
             CleanupLedger.shared.refreshCache(modelContext: modelContext)
             let snapshot = await self.currentSnapshot()
             guard !Task.isCancelled else { return }
-            self.writeWidgetSnapshot(stats: snapshot?.stats ?? MediaLibraryStats())
+            if let snapshot {
+                self.writeWidgetSnapshot(stats: snapshot.stats)
+                self.lastWrittenEpoch = ScanResults.epoch
+                self.lastWrittenThreshold = AppPreferences.largeFileThresholdBytes()
+            }
             await self.refreshReminder(snapshot: snapshot)
-            self.lastWrittenGeneration = generation
         }
     }
 
@@ -208,16 +219,27 @@ final class WidgetSnapshotCoordinator {
         _ = await NotificationService.scheduleWeeklyReminder(weekday: AppPreferences.reminderWeekday())
     }
 
-    private func currentSnapshot() async -> NotificationService.Snapshot? {
-        while !Task.isCancelled {
-            let permission = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    /// Concurrent launch, permission, and Settings refreshes share one bounded scan.
+    func currentSnapshot() async -> NotificationService.Snapshot? {
+        if let snapshotTask { return await snapshotTask.value }
+        let task = Task { await scanSnapshot() }
+        snapshotTask = task
+        defer { snapshotTask = nil }
+        return await task.value
+    }
+
+    private func scanSnapshot() async -> NotificationService.Snapshot? {
+        for _ in 0..<2 {
+            guard !Task.isCancelled else { return nil }
+            let permission = photoAuthorization()
             guard permission == .authorized || permission == .limited else { return nil }
             let epoch = ScanResults.epoch
-            let date = Date()
-            let stats = await Self.computeStats(photoService: photoService)
+            let threshold = AppPreferences.largeFileThresholdBytes()
+            let stats = await statistics()
             guard !Task.isCancelled else { return nil }
-            if permission != PHPhotoLibrary.authorizationStatus(for: .readWrite) || epoch != ScanResults.epoch { continue }
-            return NotificationService.Snapshot(stats: stats, date: date, isLimited: permission == .limited)
+            if permission != photoAuthorization() || epoch != ScanResults.epoch
+                || threshold != AppPreferences.largeFileThresholdBytes() { continue }
+            return NotificationService.Snapshot(stats: stats, date: .now, isLimited: permission == .limited)
         }
         return nil
     }

@@ -379,7 +379,6 @@ enum OriginalsCommit {
         let ids = viable.map(\.assetId)
         // A decline or a partial failure throws; the presence check below
         // decides what happened either way.
-        CleanupLedger.shared.dismissDeletionNotice()
         var deleted = Set<String>()
         do {
             deleted = try await photoService.deleteAssets(identifiers: ids).deletedIds

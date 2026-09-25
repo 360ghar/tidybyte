@@ -136,7 +136,7 @@ final class CompressionRegressionTests: XCTestCase {
         let declined = NSError(domain: PHPhotosErrorDomain, code: PHPhotosError.Code.userCancelled.rawValue)
         let other = NSError(domain: PHPhotosErrorDomain, code: PHPhotosError.Code.accessUserDenied.rawValue)
         XCTAssertTrue(PhotoServiceError.isUserDeclined(declined))
-        XCTAssertTrue(PhotoServiceError.isUserDeclined(PhotoServiceError.userDeclined))
+        XCTAssertTrue(PhotoServiceError.isUserDeclined(PhotoServiceError.userDeclined()))
         XCTAssertFalse(PhotoServiceError.isUserDeclined(other))
         XCTAssertFalse(PhotoServiceError.isUserDeclined(PhotoServiceError.albumNotFound))
     }

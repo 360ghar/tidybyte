@@ -122,25 +122,27 @@ final class CleanupFeaturesTests: XCTestCase {
         XCTAssertFalse(query.matches(labels: ["dog": 0.9]))
         XCTAssertFalse(query.matches(labels: ["dog": 0.9, "beach": 0.7, "cat": 0.8]))
         XCTAssertNil(PhotoSearchQuery(requiredGroups: [["dog"], ["unknown"]], excludedLabels: []).validated(vocabulary: vocabulary))
-        XCTAssertNil(PhotoSearchQuery(requiredGroups: [["dog"]], excludedLabels: ["unknown"]).validated(vocabulary: vocabulary))
+        XCTAssertNotNil(PhotoSearchQuery(requiredGroups: [["dog"]], excludedLabels: ["unknown"]).validated(vocabulary: vocabulary))
         XCTAssertNil(PhotoSearchQuery.keywords("", vocabulary: vocabulary))
         XCTAssertNotNil(PhotoSearchQuery.keywords("dog beach", vocabulary: vocabulary))
     }
 
     func testSearchRejectsLateResultsAfterTypingOrIndexChanges() async {
-        let finished = expectation(description: "old search finishes")
+        let started = expectation(description: "old search starts")
+        let (gate, continuation) = AsyncStream<Void>.makeStream()
         let vm = SmartCategoriesViewModel(search: { _, _ in
-            try? await Task.sleep(for: .milliseconds(100))
-            finished.fulfill()
+            started.fulfill()
+            for await _ in gate { break }
             return PhotoSearchResult(query: .init(requiredGroups: [["dog"]], excludedLabels: []), message: "old result")
         })
         vm.categorizedPhotos = [CategorizedPhoto(id: "a", asset: asset(), categories: [.other], contentLabels: ["dog": 0.9], wasAnalyzed: true)]
         vm.searchText = "dog"
-        vm.submitSearch()
-        await Task.yield()
+        let task = vm.submitSearch()
+        await fulfillment(of: [started], timeout: 2)
         vm.searchText = "beach"
         vm.categorizedPhotos = []
-        await fulfillment(of: [finished], timeout: 2)
+        continuation.finish()
+        await task?.value
         XCTAssertFalse(vm.isSearching)
         XCTAssertNil(vm.searchMessage)
         XCTAssertTrue(vm.filteredPhotos.isEmpty)
@@ -176,9 +178,10 @@ final class CleanupFeaturesTests: XCTestCase {
         ScanResults.resetForTesting()
         defer { ScanResults.resetForTesting() }
         let started = expectation(description: "search starts")
+        let (gate, continuation) = AsyncStream<Void>.makeStream()
         let vm = SmartCategoriesViewModel(search: { _, _ in
             started.fulfill()
-            try? await Task.sleep(for: .milliseconds(100))
+            for await _ in gate { break }
             return PhotoSearchResult(query: .init(requiredGroups: [["dog"]], excludedLabels: []), message: nil)
         })
         vm.categorizedPhotos = [CategorizedPhoto(id: "a", asset: asset(), categories: [.other], contentLabels: ["dog": 0.9], wasAnalyzed: true)]
@@ -186,7 +189,7 @@ final class CleanupFeaturesTests: XCTestCase {
         ScanResults.record(.blurry, count: 5, epoch: ScanResults.epoch)
         let oldEpoch = ScanResults.epoch
         vm.searchText = "dog"
-        vm.submitSearch()
+        let task = vm.submitSearch()
         await fulfillment(of: [started], timeout: 2)
 
         let monitor = LibraryChangeMonitor()
@@ -196,7 +199,8 @@ final class CleanupFeaturesTests: XCTestCase {
         XCTAssertTrue(ScanResults.counts.isEmpty)
         ScanResults.record(.blurry, count: 5, epoch: oldEpoch)
         XCTAssertTrue(ScanResults.counts.isEmpty)
-        for _ in 0..<100 where vm.isSearching { try? await Task.sleep(for: .milliseconds(10)) }
+        continuation.finish()
+        await task?.value
         XCTAssertFalse(vm.isSearching)
         XCTAssertTrue(vm.filteredPhotos.isEmpty)
         XCTAssertEqual(vm.searchMessage, "Your library changed. Scan again before searching.")
@@ -212,8 +216,7 @@ final class CleanupFeaturesTests: XCTestCase {
             CategorizedPhoto(id: "unknown", asset: asset("unknown"), categories: [.savedFromApps], contentLabels: [:], wasAnalyzed: false)
         ]
         vm.searchText = "without dogs"
-        vm.submitSearch()
-        for _ in 0..<100 where vm.isSearching { try? await Task.sleep(for: .milliseconds(10)) }
+        await vm.submitSearch()?.value
         XCTAssertFalse(vm.isSearching)
         XCTAssertEqual(vm.filteredPhotos.map(\.id), ["cat"])
     }
@@ -244,5 +247,122 @@ final class CleanupFeaturesTests: XCTestCase {
         XCTAssertTrue(WidgetSnapshotCoordinator.shouldRecordStorageSnapshot(lastRecordedAt: startedAt, completedAt: completedAt, calendar: calendar))
         XCTAssertFalse(WidgetSnapshotCoordinator.shouldRecordStorageSnapshot(lastRecordedAt: completedAt, completedAt: completedAt.addingTimeInterval(60), calendar: calendar))
         XCTAssertTrue(WidgetSnapshotCoordinator.shouldRecordStorageSnapshot(lastRecordedAt: completedAt, completedAt: completedAt.addingTimeInterval(86_400), calendar: calendar))
+    }
+
+    func testDeclinedAndCancelledCleanupPreservesNoticeAndReconcilesAbsentItems() async {
+        CleanupLedger.shared.detach()
+        defer { CleanupLedger.shared.detach() }
+        CleanupLedger.shared.publishDeletion(deletedIds: ["previous"], sizeOf: { _ in 2_000 })
+        let previous = CleanupLedger.shared.deletionNotice
+        var removed = Set<String>()
+        let declined = await CleanupDeletion.delete(requestedIds: ["gone", "kept"], kind: .chatMedia,
+            sizeById: ["gone": 1_000, "kept": 1_000], performDelete: { _ in
+                throw PhotoServiceError.userDeclined(alreadyAbsentIds: ["gone"])
+            }, apply: { removed = $0 })
+        XCTAssertEqual(removed, ["gone"])
+        XCTAssertEqual(declined.deletedCount, 0)
+        XCTAssertEqual(declined.errorMessage, "Nothing was deleted.")
+        XCTAssertEqual(CleanupLedger.shared.deletionNotice, previous)
+        _ = await CleanupDeletion.delete(requestedIds: ["kept"], kind: .chatMedia,
+            sizeById: [:], performDelete: { _ in throw CancellationError() }, apply: { _ in XCTFail("No removals on cancellation") })
+        XCTAssertEqual(CleanupLedger.shared.deletionNotice, previous)
+        _ = await CleanupDeletion.delete(requestedIds: ["kept", "failed"], kind: .chatMedia,
+            sizeById: ["kept": 3_000], performDelete: { _ in
+                throw PhotoServiceError.partialDeletion(succeededIds: ["kept"], failedCount: 1)
+            }, apply: { _ in })
+        XCTAssertEqual(CleanupLedger.shared.deletionNotice?.itemCount, 1)
+        XCTAssertEqual(CleanupLedger.shared.deletionNotice?.knownBytes, 3_000)
+    }
+
+    func testSearchSurvivesUnchangedAndReducedIndex() async {
+        defer { ScanResults.resetForTesting() }
+        let vm = SmartCategoriesViewModel(search: { _, _ in
+            PhotoSearchResult(query: .init(requiredGroups: [["dog"]], excludedLabels: []), message: "Search complete")
+        })
+        vm.categorizedPhotos = ["first", "second"].map {
+            CategorizedPhoto(id: $0, asset: asset($0), categories: [.other], contentLabels: ["dog": 0.9], wasAnalyzed: true)
+        }
+        vm.searchText = "dog"
+        await vm.submitSearch()?.value
+        vm.retainUnchangedPhotos(["first", "second"])
+        XCTAssertEqual(vm.filteredPhotos.count, 2)
+        XCTAssertEqual(vm.searchMessage, "Search complete")
+        vm.selectedIds = ["first", "second"]
+        vm.retainUnchangedPhotos(["second"])
+        XCTAssertEqual(vm.filteredPhotos.map(\.id), ["second"])
+        XCTAssertEqual(vm.selectedIds, ["second"])
+        XCTAssertEqual(vm.searchText, "dog")
+    }
+
+    func testDirectLabelSearchHandlesConnectorsButRejectsUnsupportedConditions() {
+        let vocabulary: Set<String> = ["dog", "beach"]
+        let query = PhotoSearchQuery.keywords("Show me a dog, on the beach!", vocabulary: vocabulary)
+        XCTAssertEqual(query?.requiredGroups, [["dog"], ["beach"]])
+        XCTAssertNil(PhotoSearchQuery.keywords("dog without cat", vocabulary: vocabulary))
+        XCTAssertNil(PhotoSearchQuery.keywords("dog -beach", vocabulary: vocabulary))
+        XCTAssertNil(PhotoSearchQuery.keywords("dog unknown", vocabulary: vocabulary))
+        let fallback = LocalPhotoIntelligence.labelSearch("dog unknown", vocabulary: vocabulary, reason: "Local AI is unavailable.")
+        XCTAssertNil(fallback.query)
+        XCTAssertFalse(fallback.message?.contains("Using label search") == true)
+        let exclusion = PhotoSearchQuery(requiredGroups: [], excludedLabels: ["cat"]).validated(vocabulary: vocabulary)
+        XCTAssertTrue(exclusion?.matches(labels: ["dog": 0.9]) == true)
+    }
+
+    func testReminderDoesNotUseCountsFromAnotherPermissionScope() {
+        let full = NotificationService.Snapshot(stats: MediaLibraryStats(), date: .now, isLimited: false)
+        let limited = NotificationService.Snapshot(stats: MediaLibraryStats(), date: .now, isLimited: true)
+        XCTAssertNotNil(NotificationService.authorizedSnapshot(full, permission: .authorized))
+        XCTAssertNil(NotificationService.authorizedSnapshot(full, permission: .limited))
+        XCTAssertNil(NotificationService.authorizedSnapshot(limited, permission: .authorized))
+        XCTAssertNotNil(NotificationService.authorizedSnapshot(limited, permission: .limited))
+        XCTAssertNil(NotificationService.authorizedSnapshot(full, permission: .denied))
+        XCTAssertNil(NotificationService.authorizedSnapshot(limited, permission: .restricted))
+    }
+
+    func testSnapshotRetriesAreBoundedAndDateFollowsStatistics() async {
+        defer { ScanResults.resetForTesting() }
+        var calls = 0
+        let changing = WidgetSnapshotCoordinator(statistics: {
+            calls += 1
+            ScanResults.invalidate()
+            return MediaLibraryStats()
+        }, photoAuthorization: { .authorized })
+        let unavailable = await changing.currentSnapshot()
+        XCTAssertNil(unavailable)
+        XCTAssertEqual(calls, 2)
+        var measuredAt = Date.distantFuture
+        let stable = WidgetSnapshotCoordinator(statistics: {
+            measuredAt = .now
+            return MediaLibraryStats()
+        }, photoAuthorization: { .limited })
+        let snapshot = await stable.currentSnapshot()
+        XCTAssertGreaterThanOrEqual(snapshot?.date ?? .distantPast, measuredAt)
+        XCTAssertTrue(snapshot?.isLimited == true)
+    }
+
+    func testConcurrentSnapshotRequestsShareEnumeration() async {
+        let started = expectation(description: "statistics start")
+        let joined = expectation(description: "second caller starts")
+        let (gate, continuation) = AsyncStream<Void>.makeStream()
+        var calls = 0
+        let coordinator = WidgetSnapshotCoordinator(statistics: {
+            calls += 1
+            started.fulfill()
+            for await _ in gate { break }
+            return MediaLibraryStats()
+        }, photoAuthorization: { .authorized })
+        let first = Task { await coordinator.currentSnapshot() }
+        await fulfillment(of: [started], timeout: 2)
+        let second = Task {
+            joined.fulfill()
+            return await coordinator.currentSnapshot()
+        }
+        await fulfillment(of: [joined], timeout: 2)
+        continuation.finish()
+        let firstSnapshot = await first.value
+        let secondSnapshot = await second.value
+        XCTAssertNotNil(firstSnapshot)
+        XCTAssertEqual(firstSnapshot?.date, secondSnapshot?.date)
+        XCTAssertEqual(calls, 1)
     }
 }

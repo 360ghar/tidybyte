@@ -22,14 +22,21 @@ struct PhotoSearchQuery: Sendable, Equatable {
             group.map(PhotoCategorizationService.normalizeTaxonomyLabel).filter { vocabulary.contains($0) }
         }
         let excluded = excludedLabels.map(PhotoCategorizationService.normalizeTaxonomyLabel)
-        // An unknown required concept or exclusion must not broaden the search.
-        guard groups.allSatisfy({ !$0.isEmpty }), excluded.allSatisfy(vocabulary.contains) else { return nil }
+        // Missing required concepts invalidate a query. Absent exclusions match
+        // nothing in this scan; retain them so exclusion-only queries remain valid.
+        guard groups.allSatisfy({ !$0.isEmpty }), excluded.allSatisfy({ !$0.isEmpty }) else { return nil }
         return PhotoSearchQuery(requiredGroups: groups, excludedLabels: excluded)
     }
 
     static func keywords(_ text: String, vocabulary: Set<String>) -> PhotoSearchQuery? {
-        let normalized = PhotoCategorizationService.normalizeTaxonomyLabel(text)
-        let terms = vocabulary.contains(normalized) ? [normalized] : normalized.split(separator: "_").map(String.init)
+        let words = text.lowercased().components(separatedBy: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-")).inverted)
+            .filter { !$0.isEmpty }
+        let unsupported: Set<String> = ["not", "no", "without", "excluding", "except", "or"]
+        guard !words.contains(where: { unsupported.contains($0) || $0.hasPrefix("-") }) else { return nil }
+        let normalized = PhotoCategorizationService.normalizeTaxonomyLabel(words.joined(separator: " "))
+        let connectors: Set<String> = ["a", "an", "the", "and", "with", "on", "in", "of", "photo", "photos", "picture", "pictures", "show", "me"]
+        let terms = vocabulary.contains(normalized) ? [normalized]
+            : normalized.split(separator: "_").map(String.init).filter { !connectors.contains($0) }
         return PhotoSearchQuery(requiredGroups: terms.map { [$0] }, excludedLabels: []).validated(vocabulary: vocabulary)
     }
 }
@@ -102,7 +109,9 @@ actor LocalPhotoIntelligence {
             if await vision.analyzeLensSmudge(image: image)?.isSmudged == true { reasons.append(.smudge) }
             guard !Task.isCancelled else { return nil }
             if await vision.analyzeBlurriness(image: image, assetId: asset.id).isBlurry { reasons.append(.blurry) }
+            guard !Task.isCancelled else { return nil }
             let exposure = await vision.analyzeExposure(image: image)
+            guard !Task.isCancelled else { return nil }
             if exposure.isTooDark { reasons.append(.dark) }
             if exposure.isOverexposed { reasons.append(.bright) }
             if await vision.analyzeAesthetics(image: image)?.isLowQuality == true { reasons.append(.aesthetics) }
@@ -128,13 +137,12 @@ actor LocalPhotoIntelligence {
         guard text.count <= 300 else {
             return PhotoSearchResult(query: nil, message: "Use 300 characters or fewer.")
         }
-        let fallback = PhotoSearchQuery.keywords(text, vocabulary: vocabulary)
         guard #available(iOS 26, *), isAvailable() else {
-            return PhotoSearchResult(query: fallback, message: "Using label search. Local AI is unavailable. Search for visible content such as dog or beach.")
+            return Self.labelSearch(text, vocabulary: vocabulary, reason: "Local AI is unavailable.")
         }
         if let language = NLLanguageRecognizer.dominantLanguage(for: text),
            !SystemLanguageModel.default.supportsLocale(Locale(identifier: language.rawValue)) {
-            return PhotoSearchResult(query: fallback, message: "This language is not supported by local AI. Using label search.")
+            return Self.labelSearch(text, vocabulary: vocabulary, reason: "This language is not supported by local AI.")
         }
         do {
             try Task.checkCancellation()
@@ -157,7 +165,15 @@ actor LocalPhotoIntelligence {
             }
             return PhotoSearchResult(query: validated, message: "Searching labels across all scanned categories.")
         } catch {
-            return PhotoSearchResult(query: fallback, message: "Local AI could not interpret this search. Using label search.")
+            return Self.labelSearch(text, vocabulary: vocabulary, reason: "Local AI could not interpret this search.")
         }
+    }
+
+    nonisolated static func labelSearch(_ text: String, vocabulary: Set<String>, reason: String) -> PhotoSearchResult {
+        let query = PhotoSearchQuery.keywords(text, vocabulary: vocabulary)
+        let explanation = query == nil
+            ? "These words do not form a supported label search. Try visible content such as dog or beach. Label search does not support dates, names, or exclusions."
+            : "Using label search across scanned photos."
+        return PhotoSearchResult(query: query, message: "\(reason) \(explanation)")
     }
 }

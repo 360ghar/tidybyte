@@ -6,6 +6,7 @@ struct RootView: View {
     @State private var permissionHandler = PhotoPermissionHandler()
     @State private var libraryMonitor = LibraryChangeMonitor()
     @AppStorage(AppPreferences.Key.hasCompletedOnboarding) private var hasCompletedOnboarding = false
+    @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var largeFileThreshold = 10.0
     #if DEBUG
     /// Set by the UI test launch argument. Evaluated once per view instance and
     /// kept in `@State` so it cannot change mid-session.
@@ -117,15 +118,18 @@ struct RootView: View {
                 Task { await widgetCoordinator.refreshReminder() }
             }
         }
-        .onChange(of: libraryMonitor.generation) { _, newGeneration in
+        .onChange(of: libraryMonitor.generation) { _, _ in
             // APP-03: in-app cleanups bump the generation — refresh the widget
             // snapshot (debounced + deduped inside the coordinator) and
             // reconcile the cached lifetime savings the widget reads.
             Task {
-                await widgetCoordinator.refreshAfterLibraryChange(
-                    generation: newGeneration,
-                    modelContext: modelContext
-                )
+                await widgetCoordinator.refreshAfterLibraryChange(modelContext: modelContext)
+            }
+        }
+        .onChange(of: largeFileThreshold) { _, _ in
+            // Covers the threshold controls in both Settings and Large Files.
+            Task {
+                await widgetCoordinator.refreshAfterLibraryChange(modelContext: modelContext)
             }
         }
         .onChange(of: PendingRoute.shared.link) { _, newLink in

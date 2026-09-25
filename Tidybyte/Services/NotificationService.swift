@@ -1,4 +1,5 @@
 import UserNotifications
+import Photos
 
 @MainActor
 enum NotificationService {
@@ -25,8 +26,15 @@ enum NotificationService {
     private static var schedulingTask: Task<Bool, Never>?
 
     static func updateSnapshot(_ snapshot: Snapshot?) {
+        let snapshot = authorizedSnapshot(snapshot, permission: PHPhotoLibrary.authorizationStatus(for: .readWrite))
         if let snapshot, let latestSnapshot, snapshot.date < latestSnapshot.date { return }
         latestSnapshot = snapshot
+    }
+
+    nonisolated static func authorizedSnapshot(_ snapshot: Snapshot?, permission: PHAuthorizationStatus) -> Snapshot? {
+        guard permission == .authorized || permission == .limited,
+              let snapshot, snapshot.isLimited == (permission == .limited) else { return nil }
+        return snapshot
     }
 
     nonisolated static func reminderBody(snapshot: Snapshot?) -> String {
@@ -42,7 +50,7 @@ enum NotificationService {
         }
         if stats.largeFileCount > 0 {
             var text = "\(stats.largeFileCount) large file\(stats.largeFileCount == 1 ? "" : "s")"
-            if stats.largeFileUnknownSizeCount == 0, stats.largeFileBytes > 0 {
+            if stats.largeFileBytes > 0 {
                 text += " (\(stats.largeFileBytes.formattedFileSize))"
             }
             parts.append(text)
@@ -61,18 +69,24 @@ enum NotificationService {
         let snapshot = latestSnapshot
         let task = Task { @MainActor in
             _ = await previous?.value
+            let center = UNUserNotificationCenter.current()
             guard token == revision, AppPreferences.remindersEnabled(),
                   AppPreferences.reminderWeekday() == weekday, (1...7).contains(weekday),
                   await isPermissionGranted(), token == revision,
-                  AppPreferences.remindersEnabled() else { return false }
-            let center = UNUserNotificationCenter.current()
+                  AppPreferences.remindersEnabled() else {
+                if token == revision {
+                    center.removePendingNotificationRequests(withIdentifiers: ["weekly-cleanup-reminder"])
+                }
+                return false
+            }
+            let photoPermission = PHPhotoLibrary.authorizationStatus(for: .readWrite)
             var components = DateComponents()
             components.weekday = weekday
             components.hour = hour
             components.minute = minute
             let content = UNMutableNotificationContent()
             content.title = "Time for a Photo Cleanup"
-            content.body = reminderBody(snapshot: snapshot)
+            content.body = reminderBody(snapshot: authorizedSnapshot(snapshot, permission: photoPermission))
             content.sound = .default
             let request = UNNotificationRequest(
                 identifier: "weekly-cleanup-reminder", content: content,
@@ -81,7 +95,8 @@ enum NotificationService {
             do {
                 try await center.add(request)
                 guard token == revision, AppPreferences.remindersEnabled(),
-                      AppPreferences.reminderWeekday() == weekday else {
+                      AppPreferences.reminderWeekday() == weekday,
+                      photoPermission == PHPhotoLibrary.authorizationStatus(for: .readWrite) else {
                     center.removePendingNotificationRequests(withIdentifiers: [request.identifier])
                     return false
                 }

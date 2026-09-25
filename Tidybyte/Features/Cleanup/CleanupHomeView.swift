@@ -92,7 +92,7 @@ struct CleanupHomeView: View {
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
                         .accessibilityAddTraits(.isButton)
-                        .accessibilityLabel("\(info.name), \(info.description)")
+                        .accessibilityLabel("\(info.tool == startHereTool ? "Start here. " : "")\(info.name), \(info.description)")
                         .accessibilityValue(info.isLoading ? "Loading" : info.count.map { "\($0) items" } ?? "Not scanned")
                         .accessibilityIdentifier("cleanup.\(info.tool.rawValue)")
                         .scaleOnPress()

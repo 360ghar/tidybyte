@@ -176,11 +176,13 @@ final class SwipeSessionViewModel {
             let all = await photoService.fetchAllPhotos()
             guard !Task.isCancelled, token == loadGeneration else { return }
             let candidates = Self.collapsingBursts(all).filter(Self.isWorstShotCandidate)
+            let phByID = photoService.phAssetsById(candidates.map(\.id))
             var scored: [(asset: AssetSummary, result: AestheticsResult)] = []
             for (index, asset) in candidates.enumerated() {
                 guard !Task.isCancelled, token == loadGeneration else { return }
                 if index % 20 == 0 { await Task.yield() }
-                if let image = await photoService.loadAnalysisImage(for: asset.id, targetSize: CGSize(width: 512, height: 512))?.cgImage,
+                if let phAsset = phByID[asset.id],
+                   let image = await photoService.loadAnalysisImage(for: phAsset, targetSize: CGSize(width: 512, height: 512))?.cgImage,
                    let result = await visionService.analyzeAesthetics(image: image) {
                     guard !Task.isCancelled, token == loadGeneration else { return }
                     if result.isLowQuality { scored.append((asset, result)) }
@@ -455,7 +457,6 @@ final class SwipeSessionViewModel {
     func commitDeletions() async {
         guard !pendingDeletionIds.isEmpty, !isDeletingBatch else { return }
         isDeletingBatch = true
-        CleanupLedger.shared.dismissDeletionNotice()
         // Sizes come from the in-memory session assets (no re-fetch): only ids
         // the library confirms as deleted are counted, so assets that vanished
         // externally before commit can't overstate "Storage Freed" (SWIPE-08).

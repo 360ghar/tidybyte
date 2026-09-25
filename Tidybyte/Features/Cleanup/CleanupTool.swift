@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Groups the ten tools by what the user is actually trying to achieve.
+/// Groups cleanup tools by what the user is trying to achieve.
 ///
 /// Grouping is by intent, not by which tools happen to free space: Live Photos
 /// sits with compression (it converts rather than deletes) and Screenshots sits

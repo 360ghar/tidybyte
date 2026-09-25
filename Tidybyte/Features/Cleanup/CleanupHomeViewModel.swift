@@ -155,8 +155,11 @@ final class CleanupHomeViewModel {
         ScanResults.record(.screenRecordings, count: allAssets.filter(\.isScreenRecording).count)
         let albums = await photoService.fetchUserAlbums().filter { $0.type == .userAlbum }
         let chatIDs = ChatAlbumSelection.selectedIDs(in: albums)
-        let chatAssets = await photoService.fetchChatMedia(albumIDs: chatIDs)
-        ScanResults.record(.chatMedia, count: chatAssets.count)
+        let chatMemberIDs = await photoService.assetIDs(inAlbums: chatIDs)
+        let chatCount = allAssets.filter {
+            ($0.mediaType == .photo || $0.mediaType == .video) && chatMemberIDs.contains($0.id)
+        }.count
+        ScanResults.record(.chatMedia, count: chatCount)
         updateTool(.livePhotos, count: rollup.livePhotos)
         updateTool(.videoCompression, count: rollup.largeVideos)
         updateTool(.largeFiles, count: rollup.largeFiles)

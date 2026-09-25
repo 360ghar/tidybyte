@@ -277,7 +277,9 @@ struct SmartCategoriesView: View {
                 }
                 if !viewModel.isSearchActive { categoryChips }
 
-                if viewModel.filteredPhotos.isEmpty {
+                if viewModel.isSearching {
+                    Spacer()
+                } else if viewModel.filteredPhotos.isEmpty {
                     Spacer()
                     EmptyStateView(
                         icon: "checkmark.circle",

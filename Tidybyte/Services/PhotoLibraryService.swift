@@ -243,14 +243,31 @@ actor PhotoLibraryService {
         return name.hasPrefix("RPREPLAY_FINAL") && name.hasSuffix(".MP4")
     }
 
-    func fetchChatMedia(albumIDs: Set<String>) -> [AssetSummary] {
-        var byID: [String: AssetSummary] = [:]
-        for albumID in albumIDs {
-            for asset in fetchAssets(filter: .specificAlbum(id: albumID)) where asset.mediaType == .photo || asset.mediaType == .video {
-                byID[asset.id] = asset
+    /// Album membership only: badge counts do not need resource sizes or filenames.
+    func assetIDs(inAlbums albumIDs: Set<String>) -> Set<String> {
+        guard !albumIDs.isEmpty else { return [] }
+        var ids = Set<String>()
+        let albums = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: Array(albumIDs), options: nil)
+        albums.enumerateObjects { album, _, _ in
+            PHAsset.fetchAssets(in: album, options: nil).enumerateObjects { asset, _, _ in
+                ids.insert(asset.localIdentifier)
             }
         }
-        return Array(byID.values)
+        return ids
+    }
+
+    /// Prune a scan using only identifiers and modification dates, without reading resources.
+    func unchangedAssetIDs(_ scanned: [AssetSummary]) -> Set<String> {
+        guard !scanned.isEmpty else { return [] }
+        let byID = Dictionary(scanned.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let current = PHAsset.fetchAssets(withLocalIdentifiers: Array(byID.keys), options: nil)
+        var unchanged = Set<String>()
+        current.enumerateObjects { asset, _, _ in
+            if let previous = byID[asset.localIdentifier], previous.modificationDate == asset.modificationDate {
+                unchanged.insert(asset.localIdentifier)
+            }
+        }
+        return unchanged
     }
 
     func fetchScreenshots() -> [AssetSummary] {
@@ -664,7 +681,7 @@ actor PhotoLibraryService {
             return PhotoDeletionOutcome(deletedIds: present, alreadyAbsentIds: absent)
         } catch {
             if error is CancellationError { throw error }
-            if PhotoServiceError.isUserDeclined(error) { throw PhotoServiceError.userDeclined }
+            if PhotoServiceError.isUserDeclined(error) { throw PhotoServiceError.userDeclined(alreadyAbsentIds: absent) }
             var deleted = Set<String>()
             var failed = 0
             for (offset, id) in present.sorted().enumerated() {
@@ -687,7 +704,7 @@ actor PhotoLibraryService {
                     deleted.insert(id)
                 } catch {
                     if PhotoServiceError.isUserDeclined(error) {
-                        guard !deleted.isEmpty else { throw PhotoServiceError.userDeclined }
+                        guard !deleted.isEmpty else { throw PhotoServiceError.userDeclined(alreadyAbsentIds: absent) }
                         throw PhotoServiceError.partialDeletion(
                             succeededIds: deleted, failedCount: requested.subtracting(deleted.union(absent)).count,
                             alreadyAbsentIds: absent
@@ -1135,7 +1152,7 @@ enum PhotoServiceError: LocalizedError {
     case albumChangeFailed
     case partialDeletion(succeededIds: Set<String>, failedCount: Int, alreadyAbsentIds: Set<String> = [])
     /// The user tapped "Don't Allow" on the iOS delete prompt.
-    case userDeclined
+    case userDeclined(alreadyAbsentIds: Set<String> = [])
 
     var errorDescription: String? {
         switch self {
@@ -1159,10 +1176,14 @@ enum PhotoServiceError: LocalizedError {
     }
 
     var deletionOutcome: PhotoDeletionOutcome? {
-        if case .partialDeletion(let deleted, _, let absent) = self {
+        switch self {
+        case .partialDeletion(let deleted, _, let absent):
             return PhotoDeletionOutcome(deletedIds: deleted, alreadyAbsentIds: absent)
+        case .userDeclined(let absent):
+            return PhotoDeletionOutcome(deletedIds: [], alreadyAbsentIds: absent)
+        default:
+            return nil
         }
-        return nil
     }
 
 }

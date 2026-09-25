@@ -31,7 +31,7 @@ struct SwipeSessionView: View {
             // Progress bar
             progressBar
             if viewModel.filter == .worstShots, viewModel.skippedAnalysisCount > 0 {
-                Text("\(viewModel.skippedAnalysisCount) photos could not be scored from a local image.")
+                Text("\(viewModel.skippedAnalysisCount) photo\(viewModel.skippedAnalysisCount == 1 ? "" : "s") could not be scored from a local image.")
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
             }
 

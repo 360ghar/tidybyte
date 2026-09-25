@@ -10,7 +10,7 @@ enum CleanupDeletion {
     static let recoverableNote = "iOS will ask you to confirm. Deleted items go to Recently Deleted in Photos, where you can restore them for 30 days."
 
     struct Outcome {
-        let removed: Set<String>       // confirmed deleted; empty on total failure
+        let removed: Set<String>       // confirmed deleted or already absent
         let errorMessage: String?      // nil on full success; set on partial + hard failure
         let deletedCount: Int?         // what deletedCount must be assigned; nil when guard rejected
     }
@@ -22,16 +22,17 @@ enum CleanupDeletion {
         requestedIds: Set<String>,
         kind: CleanupActivityKind,
         sizeById: [String: Int64],
-        photoService: PhotoLibraryService = .shared,
+        performDelete: @MainActor ([String]) async throws -> PhotoDeletionOutcome = {
+            try await PhotoLibraryService.shared.deleteAssets(identifiers: $0)
+        },
         apply: (Set<String>) -> Void,
         recordDeleted: ((Int) -> Void)? = nil
     ) async -> Outcome {
         guard !requestedIds.isEmpty else {
             return Outcome(removed: [], errorMessage: nil, deletedCount: nil)
         }
-        CleanupLedger.shared.dismissDeletionNotice()
         do {
-            let result = try await photoService.deleteAssets(identifiers: Array(requestedIds))
+            let result = try await performDelete(Array(requestedIds))
             let deletedIds = result.deletedIds
             recordDeleted?(deletedIds.count)
             CleanupLedger.shared.record(kind: kind, deletedIds: deletedIds, sizeOf: { sizeById[$0] ?? 0 })

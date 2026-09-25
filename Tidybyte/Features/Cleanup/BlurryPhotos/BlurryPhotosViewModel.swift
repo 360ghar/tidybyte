@@ -185,9 +185,12 @@ final class BlurryPhotosViewModel {
             let blurResult = await visionService.analyzeBlurriness(image: cgImage, assetId: photo.id, sensitivity: sensitivity)
             let exposureResult = await visionService.analyzeExposure(image: cgImage)
 
-            let smudgeResult = await visionService.analyzeLensSmudge(image: cgImage)
-            guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
-            supportsLensSmudge = await visionService.supportsLensSmudge()
+            var smudgeResult: LensSmudgeResult?
+            if supportsLensSmudge {
+                smudgeResult = await visionService.analyzeLensSmudge(image: cgImage)
+                guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
+                if smudgeResult == nil { supportsLensSmudge = await visionService.supportsLensSmudge() }
+            }
             guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
             if supportsLensSmudge && smudgeResult == nil { skippedSmudgeCount += 1 }
 

@@ -24,7 +24,6 @@ struct MediaLibraryStats: Sendable {
     var largeFileCount: Int = 0
     var largeFileBytes: Int64 = 0
     var screenshotUnknownSizeCount = 0
-    var largeFileUnknownSizeCount = 0
 
     /// Videos strictly over 100 MB — the honest "video compression"
     /// candidate set, matching what VideoCompression actually offers

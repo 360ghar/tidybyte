@@ -47,7 +47,7 @@ struct MediaCleanerView: View {
                         .accessibilityIdentifier("mediaSort")
                     }
                     .padding(.horizontal, Spacing.lg)
-                    Text("\(viewModel.filteredAssets.count) items · \(MediaCleanerViewModel.sizeLabel(viewModel.filteredAssets))")
+                    Text("\(viewModel.filteredAssets.count) items · \(viewModel.filteredSizeLabel)")
                         .font(.caption).foregroundStyle(.secondary)
                         .padding(.horizontal, Spacing.lg)
                     if let error = viewModel.errorMessage {

@@ -52,10 +52,11 @@ final class SmartCategoriesViewModel {
         isSearching = false
     }
 
-    func submitSearch() {
+    @discardableResult
+    func submitSearch() -> Task<Void, Never>? {
         cancelSearch()
         let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty else { return nil }
         appliedSearch = nil
         recomputeFiltered()
         isSearching = true
@@ -75,6 +76,7 @@ final class SmartCategoriesViewModel {
             isSearching = false
             recomputeFiltered()
         }
+        return searchTask
     }
     var isDeleting = false
     /// DUP-04/DUP-09 parity: how many items the last delete actually removed,
@@ -201,7 +203,6 @@ final class SmartCategoriesViewModel {
         selectedIds.removeAll()
         deletedCount = 0
         analyzedPhotoCount = 0
-        pendingPrune = false
 
         let assets = await photoService.fetchAllPhotos()
         // C9: counted live so the "N sorted" indicator ticks during the scan.
@@ -234,12 +235,6 @@ final class SmartCategoriesViewModel {
             activeCategory = first
         }
         scanState = .completed
-        // A library change that landed mid-scan: prune now that publishing
-        // can't be overwritten by a later tick.
-        if pendingPrune {
-            pendingPrune = false
-            await pruneDeleted()
-        }
         ScanResults.record(.smartCategories, count: categorizedPhotos.count, epoch: scanEpoch)
     }
 
@@ -257,31 +252,24 @@ final class SmartCategoriesViewModel {
     }
 
     /// Drops results deleted elsewhere (Swipe Review, the Photos app).
-    /// A library change that lands mid-scan can't prune yet (results are
-    /// still landing), so it's remembered and applied when the scan
-    /// completes instead of being lost.
-    private var pendingPrune = false
-
+    /// An in-flight scan rejects changed epochs before publishing instead.
     func pruneDeleted() async {
-        if case .scanning = scanState {
-            pendingPrune = true
-            return
-        }
         guard scanState == .completed, !categorizedPhotos.isEmpty, !isDeleting else { return }
         cancelSearch()
-        appliedSearch = nil
-        recomputeFiltered()
         let token = indexRevision
-        let current = await photoService.fetchAllPhotos()
-        guard scanState == .completed, !isDeleting, token == indexRevision else { return }
-        let byID = Dictionary(current.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        categorizedPhotos.removeAll { photo in
-            guard let asset = byID[photo.id] else { return true }
-            return asset.modificationDate != photo.asset.modificationDate
-        }
+        let epoch = ScanResults.epoch
+        let unchanged = await photoService.unchangedAssetIDs(categorizedPhotos.map(\.asset))
+        guard !Task.isCancelled, scanState == .completed, !isDeleting,
+              token == indexRevision, epoch == ScanResults.epoch else { return }
+        retainUnchangedPhotos(unchanged)
+    }
+
+    func retainUnchangedPhotos(_ unchanged: Set<String>) {
+        let remaining = categorizedPhotos.filter { unchanged.contains($0.id) }
+        guard remaining.count != categorizedPhotos.count else { return }
+        categorizedPhotos = remaining
         selectedIds.formIntersection(categorizedPhotos.map(\.id))
-        searchMessage = "Library checked. Scan again to include new or edited photos."
-        recomputeFiltered()
+        searchMessage = "Removed changed or unavailable photos. Scan again to include new or edited photos."
     }
 
     func toggleSelection(_ id: String) {
