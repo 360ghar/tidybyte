@@ -163,7 +163,7 @@ struct LargeFilesView: View {
         // instead of the selection just disappearing.
         .onChange(of: viewModel.droppedSelectionNotice) { _, notice in
             guard let notice else { return }
-            toast = ToastMessage(text: notice, systemImage: "info.circle")
+            toast = ToastMessage(text: notice.text, systemImage: "info.circle")
         }
         .alert("Delete File", isPresented: .init(
             get: { rowToDelete != nil },

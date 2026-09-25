@@ -170,4 +170,14 @@ enum HappyPathReporter {
             isCelebrating.wrappedValue = true
         }
     }
+
+    /// Consumes a milestone held back by an early exit and reports whether to
+    /// present it now. The milestone is cleared either way — it has nowhere
+    /// left to go — but a user who has rated the app since earning it must not
+    /// see the prompt again, matching the `hasRatedApp` gate in
+    /// `recordSuccessfulAction`.
+    static func consumePendingReviewMilestone(hasRated: Bool, in defaults: UserDefaults = .standard) -> Bool {
+        AppPreferences.savePendingReviewMilestone(false, in: defaults)
+        return !hasRated
+    }
 }

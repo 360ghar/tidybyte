@@ -35,7 +35,15 @@ final class LargeFilesViewModel {
     /// slider, so the selection does not disappear without explanation. Kept
     /// separate from `errorMessage`, which is the failure channel and gates the
     /// success celebration.
-    private(set) var droppedSelectionNotice: String?
+    ///
+    /// Carries an identity, not just text: two identical losses in a row would
+    /// otherwise produce an equal value, and the view's `onChange` would only
+    /// fire for the first.
+    struct DroppedSelectionNotice: Equatable {
+        let id = UUID()
+        let text: String
+    }
+    private(set) var droppedSelectionNotice: DroppedSelectionNotice?
     var isDeleting = false
 
     // Share/export state
@@ -223,7 +231,9 @@ final class LargeFilesViewModel {
         selectedIds.formIntersection(displayableIds)
         droppedSelectionNotice = clearedBelowThreshold == 0
             ? nil
-            : "\(clearedBelowThreshold) pick\(clearedBelowThreshold == 1 ? "" : "s") cleared: below the \(Int64(thresholdMB)) MB size limit."
+            : DroppedSelectionNotice(
+                text: "\(clearedBelowThreshold) pick\(clearedBelowThreshold == 1 ? "" : "s") cleared: below the \(Int64(thresholdMB)) MB size limit."
+            )
         hasLoadedAssets = true
     }
 

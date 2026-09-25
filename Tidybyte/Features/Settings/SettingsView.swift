@@ -400,7 +400,7 @@ struct SettingsView: View {
             Text("Could not clear swipe history. Please try again.")
         }
         .sheet(item: $mailDraft) { draft in
-            MailComposeView(subject: draft.subject, body: draft.body) {
+            MailComposeView(subject: draft.subject, body: draft.body) { _ in
                 mailDraft = nil
             }
         }

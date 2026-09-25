@@ -190,13 +190,15 @@ struct SessionCompletionView: View {
         // Ask only on a real finish, never after an early exit. The success
         // haptic already played on appear.
         if isFinished {
+            // A previous early exit earned this milestone. `recordSuccess` would
+            // count the action again and look for the NEXT milestone, so consume
+            // the held one directly. Held in UserDefaults, so a recreated
+            // completion view does not drop it. Consumed either way: someone who
+            // rated the app since earning it must not be prompted again.
             if AppPreferences.hasPendingReviewMilestone() {
-                // A previous early exit earned this milestone. `recordSuccess`
-                // would count the action again and look for the NEXT milestone,
-                // so present the held one directly. Held in UserDefaults, so a
-                // recreated completion view does not drop it.
-                AppPreferences.savePendingReviewMilestone(false)
-                isCelebrating = true
+                if HappyPathReporter.consumePendingReviewMilestone(hasRated: AppPreferences.hasRatedApp()) {
+                    isCelebrating = true
+                }
             } else {
                 HappyPathReporter.recordSuccess(presenting: $isCelebrating)
             }

@@ -287,6 +287,12 @@ struct SwipeCardDeck: View {
         guard !viewModel.isPerformingMutation,
               assetId == viewModel.currentAsset?.id else {
             motion.isDragging = false
+            // A mutation that starts mid-drag without changing the top card (a
+            // batch commit) freezes this drag: every frame after it began was
+            // ignored, so the offset is still mid-swipe and rotated. Snap it
+            // home. When the top card did change, the offset is already zero
+            // and the animation has nothing to do.
+            snapBack()
             return
         }
         guard !isTopCardZoomed,

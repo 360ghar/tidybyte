@@ -78,10 +78,12 @@ struct MailDraft: Identifiable {
 struct MailComposeView: UIViewControllerRepresentable {
     let subject: String
     let body: String
-    /// Called once the composer finishes, whatever the result. The owner clears
-    /// its presentation state here — SwiftUI owns the presentation, so the
-    /// controller is not dismissed directly.
-    let onFinish: () -> Void
+    /// Called once the composer finishes. SwiftUI owns the presentation, so the
+    /// controller is not dismissed directly — the owner clears its presentation
+    /// state here. The result is passed through: `.failed` means the message was
+    /// neither saved nor queued, so the caller must not treat the feedback as
+    /// sent.
+    let onFinish: (MFMailComposeResult) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
 
@@ -97,9 +99,9 @@ struct MailComposeView: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: MFMailComposeViewController, context: Context) {}
 
     final class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
-        private let onFinish: () -> Void
+        private let onFinish: (MFMailComposeResult) -> Void
 
-        init(onFinish: @escaping () -> Void) {
+        init(onFinish: @escaping (MFMailComposeResult) -> Void) {
             self.onFinish = onFinish
         }
 
@@ -108,7 +110,7 @@ struct MailComposeView: UIViewControllerRepresentable {
             didFinishWith result: MFMailComposeResult,
             error: Error?
         ) {
-            onFinish()
+            onFinish(error == nil ? result : .failed)
         }
     }
 }
@@ -127,6 +129,9 @@ struct HappyPathPromptCard: View {
 
     @State private var step: Step = .question
     @State private var mailUnavailable = false
+    /// The last composer attempt failed to hand the message to Mail, so the
+    /// feedback step shows a retry instead of acting as if it was sent.
+    @State private var mailSendFailed = false
     /// The in-app composer's payload, or nil when it is not presented.
     @State private var mailDraft: MailDraft?
     @Environment(\.requestReview) private var requestReview
@@ -144,9 +149,13 @@ struct HappyPathPromptCard: View {
         .frame(maxWidth: .infinity)
         .animation(.reduceMotionAware(.spring(response: 0.35, dampingFraction: 0.9), reduceMotion: reduceMotion), value: step)
         .sheet(item: $mailDraft) { draft in
-            MailComposeView(subject: draft.subject, body: draft.body) {
+            MailComposeView(subject: draft.subject, body: draft.body) { result in
                 mailDraft = nil
-                onClose()
+                // MessageUI's `.failed` means the message was neither saved nor
+                // queued, so the feedback never went out. Keep the prompt open
+                // with a retry instead of closing over the loss.
+                mailSendFailed = (result == .failed)
+                if result != .failed { onClose() }
             }
         }
     }
@@ -192,17 +201,24 @@ struct HappyPathPromptCard: View {
         .frame(minHeight: 44)
     }
 
+    /// What the feedback step explains: the failure from the last attempt wins,
+    /// then the no-account fallback, then the plain ask.
+    private var feedbackDetail: String {
+        if mailSendFailed {
+            return "The message couldn't be sent. Try again, or email us at \(FeedbackMail.address)."
+        }
+        if mailUnavailable {
+            return "No mail account is set up on this device. Email us at \(FeedbackMail.address)."
+        }
+        return "Tell us what got in the way."
+    }
+
     private var feedback: some View {
         Group {
-            heading(
-                "What should we fix?",
-                detail: mailUnavailable
-                    ? "No mail account is set up on this device. Email us at \(FeedbackMail.address)."
-                    : "Tell us what got in the way."
-            )
+            heading("What should we fix?", detail: feedbackDetail)
             choiceRow(
                 secondary: ("Not now", onClose),
-                primary: ("Send Feedback", sendFeedback)
+                primary: (mailSendFailed ? "Try Again" : "Send Feedback", sendFeedback)
             )
         }
     }
@@ -225,6 +241,7 @@ struct HappyPathPromptCard: View {
             mailUnavailable = true
             return
         }
+        mailSendFailed = false
         mailDraft = MailDraft(
             subject: "TidyByte Feedback",
             body: FeedbackMail.body(prompt: "What got in the way:\n\nWhat would make TidyByte better:\n")

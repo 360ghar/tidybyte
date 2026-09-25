@@ -64,4 +64,18 @@ final class AppPreferencesTests: XCTestCase {
         AppPreferences.savePendingReviewMilestone(false, in: defaults)
         XCTAssertFalse(AppPreferences.hasPendingReviewMilestone(in: defaults))
     }
+
+    /// PR #2 finding: a held milestone is consumed either way, but only
+    /// presents while the user has not rated the app — the same `hasRatedApp`
+    /// gate the normal success path applies.
+    @MainActor
+    func testHeldMilestoneConsumesAndOnlyPresentsWhenUnrated() {
+        AppPreferences.savePendingReviewMilestone(true, in: defaults)
+        XCTAssertTrue(HappyPathReporter.consumePendingReviewMilestone(hasRated: false, in: defaults))
+        XCTAssertFalse(AppPreferences.hasPendingReviewMilestone(in: defaults), "presenting consumes the hold")
+
+        AppPreferences.savePendingReviewMilestone(true, in: defaults)
+        XCTAssertFalse(HappyPathReporter.consumePendingReviewMilestone(hasRated: true, in: defaults))
+        XCTAssertFalse(AppPreferences.hasPendingReviewMilestone(in: defaults), "rating since does not keep the hold alive")
+    }
 }
