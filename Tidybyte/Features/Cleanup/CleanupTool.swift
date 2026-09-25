@@ -154,10 +154,14 @@ func cleanupDestinationView(for tool: CleanupTool) -> some View {
 enum ScanResults {
     private(set) static var counts: [CleanupTool: Int] = [:]
 
-    /// Bumped by `invalidate()` on every observed library change. A scan
-    /// captures it when it starts and passes it back to `record`, so a run
-    /// that finishes after a change cannot publish pre-change results.
+    /// Bumped on every observed library change. A scan captures it when it
+    /// starts and passes it back to `record`, so a run that finishes after a
+    /// change cannot publish pre-change results.
     private(set) static var epoch = 0
+
+    /// The generation `libraryChanged(to:)` last handled, so the epoch advances
+    /// exactly once per generation no matter how many screens observe it.
+    private static var lastHandledGeneration = 0
 
     /// Records a count derived from the CURRENT library state — a prune or a
     /// delete just updated the list, so the count is not stale.
@@ -173,11 +177,22 @@ enum ScanResults {
         counts[tool] = count
     }
 
+    /// The library changed. Expires cached counts and advances the epoch, so
+    /// every in-flight scan's captured epoch goes stale and its result is
+    /// dropped. Called from the change-observation path (`LibraryChangeMonitor`),
+    /// not from a screen: screen ownership would clear counts that are still
+    /// valid whenever SwiftUI recreates that screen's view model, and a scan
+    /// could publish a pre-change result if its screen never saw the change.
+    static func libraryChanged(to generation: Int) {
+        guard generation != lastHandledGeneration else { return }
+        lastHandledGeneration = generation
+        invalidate()
+    }
+
     /// Expires cached counts when the library changes: a recorded count may
     /// include assets deleted since the scan. The badges fall back to
-    /// "Not scanned" until the tool is scanned again. (Library changes are
-    /// observed via `LibraryChangeMonitor.generation` — see
-    /// `CleanupHomeViewModel.sync(to:)`.)
+    /// "Not scanned" until the tool is scanned again. Changes are observed via
+    /// `LibraryChangeMonitor`, which calls `libraryChanged(to:)`.
     static func invalidate() {
         epoch += 1
         counts.removeAll()

@@ -138,6 +138,16 @@ final class DuplicateFinderViewModel {
         // type's empty list.
         guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
+        // The library changed mid-scan: this run's count is dropped, so its
+        // groups would disagree with the badge it used to feed. Drop them too
+        // instead of listing duplicates that may no longer exist.
+        guard scanEpoch == ScanResults.epoch else {
+            exactGroups = []
+            visualGroups = []
+            scanState = .idle
+            return
+        }
+
         scanState = .completed
         ScanResults.record(.duplicates, count: totalDuplicateCount, epoch: scanEpoch)
 

@@ -165,6 +165,15 @@ final class SimilarPhotosViewModel {
         // stale, so `groups` would be paired with a newer scan's state).
         guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
+        // The library changed mid-scan: this run's count is dropped, so its
+        // groups would disagree with the badge it used to feed. Drop them too
+        // instead of showing shots that may no longer exist.
+        guard scanEpoch == ScanResults.epoch else {
+            groups = []
+            scanState = .idle
+            return
+        }
+
         groups = foundGroups
         scanState = .completed
         ScanResults.record(.similar, count: totalDuplicateCount, epoch: scanEpoch)

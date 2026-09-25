@@ -118,6 +118,41 @@ final class CleanupInteractionStateTests: XCTestCase {
         XCTAssertEqual(ScanResults.counts[.screenshots], 2)
     }
 
+    // MARK: - The change itself owns invalidation (PR #2 finding)
+
+    /// The epoch advances from the library-change path, exactly once per
+    /// generation. A screen can no longer clear counts on its first load — a
+    /// recreated home view model used to wipe counts that were still valid.
+    func testLibraryChangedAdvancesTheEpochOncePerGeneration() {
+        ScanResults.record(.screenshots, count: 3)
+
+        let generation = 70_001
+        ScanResults.libraryChanged(to: generation)
+        XCTAssertNil(ScanResults.counts[.screenshots])
+
+        // Re-observing the same generation must not clear anything new.
+        ScanResults.record(.screenshots, count: 3)
+        ScanResults.libraryChanged(to: generation)
+        XCTAssertEqual(ScanResults.counts[.screenshots], 3)
+
+        // A genuinely new generation expires again.
+        ScanResults.libraryChanged(to: generation + 1)
+        XCTAssertNil(ScanResults.counts[.screenshots])
+    }
+
+    /// A scan that started before the change and finished after it is dropped,
+    /// while a count derived from the current list — a tool's own delete or
+    /// prune — survives it.
+    func testCountDerivedAfterTheChangeSurvivesLibraryChanged() {
+        let staleEpoch = ScanResults.epoch
+        ScanResults.libraryChanged(to: 70_002)
+        ScanResults.record(.blurry, count: 12, epoch: staleEpoch)
+        XCTAssertNil(ScanResults.counts[.blurry], "a pre-change scan must not republish")
+
+        ScanResults.record(.blurry, count: 7)
+        XCTAssertEqual(ScanResults.counts[.blurry], 7)
+    }
+
     private func makeAsset(id: String) -> AssetSummary {
         AssetSummary(
             id: id,

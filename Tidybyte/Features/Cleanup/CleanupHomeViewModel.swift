@@ -94,9 +94,6 @@ final class CleanupHomeViewModel {
     }
 
     private var syncedGeneration = Int.min
-    /// The generation `ScanResults.invalidate()` last ran for, so invalidation
-    /// is tied to an actual library change instead of to a first load.
-    private var lastInvalidatedGeneration = Int.min
     /// Tail of a task chain. Every enumeration enqueues behind the previous
     /// one, so concurrent callers (pull-to-refresh + generation sync) can never
     /// enumerate the library simultaneously (A4). Finished handles are left in
@@ -121,19 +118,12 @@ final class CleanupHomeViewModel {
     /// switches tabs mid-fetch.
     func sync(to generation: Int, excludingCompressedCopies: @escaping @MainActor () -> Set<String> = { [] }) async {
         guard !(hasLoadedCounts && generation == syncedGeneration) else { return }
-        // Only a real library change expires recorded counts. Invalidating on
-        // every first load would wipe counts that are still valid whenever
-        // SwiftUI recreates this view model (e.g. a permission-state change
-        // swaps the view subtree), reverting every scan-only tool to
-        // "Not scanned" until it is scanned again.
-        if generation != lastInvalidatedGeneration {
-            lastInvalidatedGeneration = generation
-            ScanResults.invalidate()
-            // Clear the rendered badges now. `loadCounts` runs behind the
-            // serialized queue, so waiting for it would leave stale counts on
-            // screen for the whole fetch.
-            applyScanResults()
-        }
+        // The scan cache is expired where the change is observed
+        // (`ScanResults.libraryChanged`, driven by `LibraryChangeMonitor`), so
+        // by the time this runs for a new generation the counts have already
+        // been cleared. Re-applying here keeps stale badges off screen while
+        // `loadCounts` waits behind the serialized queue.
+        applyScanResults()
         syncedGeneration = generation
         await enqueue {
             await self.loadCounts(excludingCompressedCopies: excludingCompressedCopies())
