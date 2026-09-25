@@ -87,6 +87,11 @@ struct SwipeCardDeck: View {
 
     @State private var motion = CardMotion()
     @State private var departing: [DeckSlot] = []
+    /// The card parked on top while the album picker is open. Filing is an
+    /// explicit choice, so the card waits for the picker instead of flying off;
+    /// when the choice lands the deck flings it out like any other decision, so
+    /// its exit animates instead of vanishing.
+    @State private var albumCardPending: AssetSummary?
     @State private var deckSize: CGSize = .zero
     /// True while the top card is pinch-zoomed: the swipe drag yields so a
     /// one-finger drag pans the photo instead of committing a swipe.
@@ -152,8 +157,34 @@ struct SwipeCardDeck: View {
             zoomToggleRequest = 0
             playRequest = 0
             retryRequest = 0
-            if motion.offset != .zero { motion.offset = .zero }
             motion.isDragging = false
+            // The album picker resolved (or the user chose "Keep Without
+            // Album"): the parked card leaves `visibleCards` with no fling of
+            // its own, so give it a departing slot or it vanishes mid-deck.
+            // Guarded on `visibleCards` rather than the top card, so a cancelled
+            // picker (the card is still on screen) flings nothing.
+            if let parked = albumCardPending,
+               !viewModel.visibleCards.contains(where: { $0.id == parked.id }) {
+                albumCardPending = nil
+                flingOut(parked)
+            }
+            // Undo can land while the departing card is still flinging. That
+            // card is back on top, and `slots` now renders it from `motion`
+            // instead of its departing `flying` offset. Animating `motion.offset`
+            // home (even though it is already zero) lets SwiftUI interpolate
+            // from the on-screen fling position instead of teleporting the card
+            // to deck center.
+            if let returningId = viewModel.currentAsset?.id,
+               departing.contains(where: { $0.id == returningId }) {
+                withAnimation(.reduceMotionAware(
+                    .spring(response: 0.35, dampingFraction: 0.8),
+                    reduceMotion: reduceMotion
+                )) {
+                    motion.offset = .zero
+                }
+            } else if motion.offset != .zero {
+                motion.offset = .zero
+            }
         }
         .onChange(of: isTopCardZoomed) {
             // Zoom engaged mid-swipe-drag: the in-flight drag tears down
@@ -234,8 +265,12 @@ struct SwipeCardDeck: View {
     /// Relay for the top card's drag. The gesture itself lives on `CardView`
     /// (see `unifiedDrag`), because a drag attached anywhere above it is starved
     /// of every `onChanged` by the card's own pinch.
-    private func handleDragChanged(_ translation: CGSize) {
-        guard !viewModel.isPerformingMutation else { return }
+    private func handleDragChanged(_ assetId: String, _ translation: CGSize) {
+        // The card under the finger must still be the top card: an undo (or a
+        // skip) mid-drag re-points the deck at a different asset, and applying
+        // this gesture to it would move the wrong photo.
+        guard !viewModel.isPerformingMutation,
+              assetId == viewModel.currentAsset?.id else { return }
         if !motion.isDragging {
             motion.isDragging = true
             HapticHelper.impact(.light)
@@ -246,8 +281,14 @@ struct SwipeCardDeck: View {
     /// Relay for the top card's drag end. A pinch can zoom the card mid-drag
     /// (the drag was already in flight when the touch began) — snap back
     /// instead of committing a swipe the user replaced with an inspection.
-    private func handleDragEnded(_ value: DragGesture.Value, cardWidth: CGFloat) {
-        guard !viewModel.isPerformingMutation else { return }
+    private func handleDragEnded(_ assetId: String, _ value: DragGesture.Value, cardWidth: CGFloat) {
+        // An undo mid-drag puts a different card on top. Committing this gesture
+        // would apply the in-flight swipe to the previous card, so drop it.
+        guard !viewModel.isPerformingMutation,
+              assetId == viewModel.currentAsset?.id else {
+            motion.isDragging = false
+            return
+        }
         guard !isTopCardZoomed,
               let direction = SwipeDirection.resolve(
                 translation: value.translation,
@@ -261,6 +302,23 @@ struct SwipeCardDeck: View {
         commit(direction, velocity: value.velocity)
     }
 
+    /// Flings a card out of the deck without applying a decision. Used for the
+    /// album card once the picker's choice has already advanced the view model,
+    /// so its exit animates like every other decision instead of vanishing.
+    private func flingOut(_ asset: AssetSummary) {
+        let target = SwipeDirection.album.flingOffset(from: .zero, distance: flingDistance)
+        let flying = CardMotion(offset: target)
+        withAnimation(.reduceMotionAware(
+            Animation.interpolatingSpring(duration: 0.35, bounce: 0, initialVelocity: 0),
+            reduceMotion: reduceMotion
+        ), completionCriteria: .logicallyComplete) {
+            departing.removeAll { $0.id == asset.id }
+            departing.append(DeckSlot(asset: asset, depth: nil, motion: flying))
+        } completion: {
+            departing.removeAll { $0.motion === flying }
+        }
+    }
+
     // MARK: - Commit
 
     /// The one path for every swipe, button, arrow key and VoiceOver action.
@@ -268,6 +326,9 @@ struct SwipeCardDeck: View {
         guard viewModel.hasMoreCards, !viewModel.isPerformingMutation,
               let asset = viewModel.currentAsset else { return }
         motion.isDragging = false
+        // Any fresh decision supersedes a card parked for the album picker (the
+        // picker was dismissed without a choice), so it is not flung twice.
+        albumCardPending = nil
 
         if direction == .delete, !canDeleteTopCard {
             // The photo never showed: refuse the delete and snap back.
@@ -282,6 +343,7 @@ struct SwipeCardDeck: View {
             // Filing is an explicit choice: the card stays on top until the
             // picker resolves, and leaves (or stays) with the view model.
             snapBack()
+            albumCardPending = asset
             viewModel.keepWithAlbum()
             return
         }

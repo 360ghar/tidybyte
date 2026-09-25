@@ -27,8 +27,12 @@ struct CardView: View {
     /// descendant view blocks an ancestor's drag outright (measured — the card
     /// did not move a single pixel), and neither `.simultaneousGesture` nor
     /// `.highPriorityGesture` on the ancestor overrides that.
-    var onSwipeDragChanged: ((CGSize) -> Void)? = nil
-    var onSwipeDragEnded: ((DragGesture.Value, CGFloat) -> Void)? = nil
+    ///
+    /// Both relays carry this card's asset id: an undo can land mid-drag and
+    /// put a different card on top, and the deck must drop the gesture rather
+    /// than apply it to the wrong photo.
+    var onSwipeDragChanged: ((String, CGSize) -> Void)? = nil
+    var onSwipeDragEnded: ((String, DragGesture.Value, CGFloat) -> Void)? = nil
     /// Called with the asset id once the card image is on screen. The deck
     /// blocks Delete until then, so the user never deletes a photo they did
     /// not see.
@@ -412,14 +416,14 @@ struct CardView: View {
                         contentSize: renderedContentSize(for: frame)
                     )
                 } else {
-                    onSwipeDragChanged?(value.translation)
+                    onSwipeDragChanged?(asset.id, value.translation)
                 }
             }
             .onEnded { value in
                 if zoomState.isZoomed {
                     panStartOffset = nil
                 } else {
-                    onSwipeDragEnded?(value, frame.width)
+                    onSwipeDragEnded?(asset.id, value, frame.width)
                 }
             }
     }

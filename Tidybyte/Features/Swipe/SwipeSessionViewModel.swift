@@ -190,6 +190,15 @@ final class SwipeSessionViewModel {
         return fetched.filter { !pendingSet.contains($0.id) }
     }
 
+    /// True while this photo is still waiting on the batch commit, which is the
+    /// only state an undo can bring it back from. `undoStack` is not
+    /// authoritative on its own: a committed or discarded batch leaves its
+    /// `.deleted` entries on the stack, so a caller that trusts the stack alone
+    /// can accept an undo that does nothing.
+    func isPendingDeletion(_ assetId: String) -> Bool {
+        pendingDeletionSizeById[assetId] != nil
+    }
+
     /// A keep, file or skip always wins over an earlier delete mark for the
     /// same photo. Without this, a kept photo would still be deleted at commit.
     private func unmarkPendingDeletion(_ asset: AssetSummary) {
@@ -393,6 +402,10 @@ final class SwipeSessionViewModel {
             pendingDeletionIds.removeAll()
             pendingDeletionSizeById.removeAll()
             HapticHelper.notification(.success)
+        } catch is CancellationError {
+            // A cancel is not a failure: nothing was deleted, so stay quiet
+            // instead of reporting "Failed to delete N photos". The pending
+            // list stays, exactly as for "Don't Allow".
         } catch let error as PhotoServiceError {
             // Partial failure: some assets WERE deleted. Reconcile state to the
             // survivors first, then surface an honest retry message (B6).

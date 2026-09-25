@@ -38,7 +38,12 @@ enum AppPreferences {
         static let lastStorageScanAt = "lastStorageScanAt"
         static let successfulActionCount = "successfulActionCount"
         static let lastReviewPromptAt = "lastReviewPromptAt"
-        static let reminderCopyMigratedV2 = "reminderCopyMigratedV2"
+        static let pendingReviewMilestone = "pendingReviewMilestone"
+        /// Bumped from V2: the reminder body changed from "large videos" to
+        /// "large files", but V2 was already consumed on installs that ran the
+        /// previous build, so those users kept the old wording. A new key
+        /// re-runs the reschedule once and lets the current copy land.
+        static let reminderCopyMigratedV3 = "reminderCopyMigratedV3"
         static let hasRatedApp = "hasRatedApp"
         static let lifetimeFreedBytes = "lifetimeFreedBytes"
         static let lifetimeItemCount = "lifetimeItemCount"
@@ -266,5 +271,18 @@ enum AppPreferences {
     /// instead of retrying every milestone.
     static func recordReviewPromptDate(_ date: Date = .now, in defaults: UserDefaults = .standard) {
         defaults.set(date.timeIntervalSince1970, forKey: Key.lastReviewPromptAt)
+    }
+
+    /// True when a milestone was earned but not presented yet — the user exited
+    /// the session mid-deck, so the prompt would have interrupted them.
+    /// Persisted because the count has already consumed that milestone: dropping
+    /// it would lose the prompt decision for good.
+    static func hasPendingReviewMilestone(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: Key.pendingReviewMilestone)
+    }
+
+    /// Claims (false) or records (true) the held milestone.
+    static func savePendingReviewMilestone(_ pending: Bool, in defaults: UserDefaults = .standard) {
+        defaults.set(pending, forKey: Key.pendingReviewMilestone)
     }
 }

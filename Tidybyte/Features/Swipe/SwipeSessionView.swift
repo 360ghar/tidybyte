@@ -7,6 +7,10 @@ struct SwipeSessionView: View {
     /// The app-wide handler `RootView` injects, so the empty-state permission
     /// block offers the same ask the tab gate does.
     @Environment(PhotoPermissionHandler.self) private var permissionHandler
+    /// The progress bar is the one animation on this screen that ignored
+    /// Reduce Motion; read it here so the bar matches the deck and completion
+    /// animations.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Single transient-message channel. The undo hint and the one-time zoom
     /// hint both surface here so they can never stack or overlap.
@@ -52,9 +56,12 @@ struct SwipeSessionView: View {
                     toast = ToastMessage(text: text, systemImage: "trash", actionTitle: "Undo") {
                         // Verify before clearing: a stale tap must not silently
                         // dismiss the hint while the photo stays pending-delete.
-                        // Matched by markedId anywhere in the stack, not just the
-                        // top entry — a later keep/skip may sit above it.
-                        guard viewModel.undoStack.contains(where: { $0.asset.id == markedId && $0.decision == .deleted }) else {
+                        // The pending check comes first because `undoStack` is
+                        // not authoritative — a committed or discarded batch
+                        // leaves its `.deleted` entries behind, and undoing one
+                        // does nothing.
+                        guard viewModel.isPendingDeletion(markedId),
+                              viewModel.undoStack.contains(where: { $0.asset.id == markedId && $0.decision == .deleted }) else {
                             toast = ToastMessage(text: "That photo can't be undone anymore.", systemImage: "info.circle")
                             return
                         }
@@ -224,7 +231,7 @@ struct SwipeSessionView: View {
             }
         }
         .frame(height: 3)
-        .animation(.smooth, value: viewModel.currentIndex)
+        .animation(.reduceMotionAware(.smooth, reduceMotion: reduceMotion), value: viewModel.currentIndex)
         .accessibilityElement()
         .accessibilityLabel("Review progress")
         .accessibilityValue("\(min(viewModel.currentIndex, viewModel.assets.count)) of \(viewModel.assets.count) reviewed")
