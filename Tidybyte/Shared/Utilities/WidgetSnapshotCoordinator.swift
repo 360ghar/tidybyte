@@ -21,6 +21,7 @@ final class WidgetSnapshotCoordinator {
     private var lastWrittenThreshold: Int64?
     private var debounceTask: Task<Void, Never>?
     private var snapshotTask: Task<NotificationService.Snapshot?, Never>?
+    private var snapshotRequesters = Set<UUID>()
     private let statistics: @MainActor () async -> MediaLibraryStats
     private let photoAuthorization: @MainActor () -> PHAuthorizationStatus
 
@@ -100,7 +101,8 @@ final class WidgetSnapshotCoordinator {
             try? await Task.sleep(for: .milliseconds(1500))
             guard !Task.isCancelled, let self else { return }
             // A permission-triggered launch scan can finish during the debounce.
-            guard epoch != self.lastWrittenEpoch || threshold != self.lastWrittenThreshold else { return }
+            guard ScanResults.epoch != self.lastWrittenEpoch
+                || AppPreferences.largeFileThresholdBytes() != self.lastWrittenThreshold else { return }
             // Compression and Live Photo conversion write `CompressionRecord`
             // rows directly (not through the ledger), so this is the point that
             // folds their savings into the cached lifetime total.
@@ -221,11 +223,26 @@ final class WidgetSnapshotCoordinator {
 
     /// Concurrent launch, permission, and Settings refreshes share one bounded scan.
     func currentSnapshot() async -> NotificationService.Snapshot? {
-        if let snapshotTask { return await snapshotTask.value }
-        let task = Task { await scanSnapshot() }
+        guard !Task.isCancelled else { return nil }
+        let requester = UUID()
+        snapshotRequesters.insert(requester)
+        let task = snapshotTask ?? Task { await scanSnapshot() }
         snapshotTask = task
-        defer { snapshotTask = nil }
-        return await task.value
+        return await withTaskCancellationHandler {
+            let snapshot = await task.value
+            releaseSnapshotRequester(requester)
+            guard !Task.isCancelled else { return nil }
+            return NotificationService.authorizedSnapshot(snapshot, permission: photoAuthorization())
+        } onCancel: {
+            Task { @MainActor [weak self] in self?.releaseSnapshotRequester(requester) }
+        }
+    }
+
+    /// One cancelled caller must not cancel work another caller still needs.
+    private func releaseSnapshotRequester(_ id: UUID) {
+        guard snapshotRequesters.remove(id) != nil, snapshotRequesters.isEmpty else { return }
+        snapshotTask?.cancel()
+        snapshotTask = nil
     }
 
     private func scanSnapshot() async -> NotificationService.Snapshot? {
@@ -250,6 +267,7 @@ final class WidgetSnapshotCoordinator {
     /// and the post-change widget refresh.
     private static func computeStats(photoService: PhotoLibraryService) async -> MediaLibraryStats {
         let assets = await photoService.fetchAssets(filter: .allMedia)
+        guard !Task.isCancelled else { return MediaLibraryStats() }
         let threshold = AppPreferences.largeFileThresholdBytes()
         // APP-09: the per-asset classification pass is pure CPU — run it off the
         // main actor so the scan never blocks UI, then hop back to the main

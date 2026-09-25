@@ -1,6 +1,6 @@
 # PR #3 review validation
 
-Reviewed commit: `95294e8`. All 37 inline comments and both additional CodeRabbit notes were checked against their callers and the approved feature scope. Duplicate findings share fixes.
+Reviewed commits: `95294e8` and `59584ac`. All 42 inline comments and both additional CodeRabbit notes were checked against their callers and the approved feature scope: 40 fixed, four not applied. Duplicate findings share fixes.
 
 ## Inline comments
 
@@ -51,6 +51,18 @@ Reviewed commit: `95294e8`. All 37 inline comments and both additional CodeRabbi
 | [Worst Shots asset lookup](https://github.com/360ghar/tidybyte/pull/3#pullrequestreview-5315130966) | Fixed | Resolve candidate PHAssets in one batch, then use the asset overload for local analysis images. |
 | [Chat badge summary lookup](https://github.com/360ghar/tidybyte/pull/3#pullrequestreview-5315130966) | Fixed | The identifier-only album query replaces repeated AssetSummary and resource reads. |
 
+## Follow-up comments on `59584ac`
+
+| Review comment | Decision | Validation and change |
+| --- | --- | --- |
+| [4102698363](https://github.com/360ghar/tidybyte/pull/3#discussion_r4102698363) | Fixed | Track callers of the shared snapshot task. Cancelling its last caller cancels and releases the task; other active callers retain their shared scan. Reject cancelled results and skip the statistics pass after a cancelled fetch. Synchronous PhotoKit work already in progress finishes before the next cancellation check. |
+| [4102698369](https://github.com/360ghar/tidybyte/pull/3#discussion_r4102698369) | Fixed | Album identifier queries include all burst assets, matching the tool's album fetch. |
+| [4102698378](https://github.com/360ghar/tidybyte/pull/3#discussion_r4102698378) | Not applied | Requiring non-nil dates removes unchanged photos with missing dates every time results are pruned. Apple documents that Photos updates modificationDate after content or metadata changes. No case was established where an edited asset retains a nil date. Keep the identifier and optional-date comparison; verify edited assets on a physical device. |
+| [4102698398](https://github.com/360ghar/tidybyte/pull/3#discussion_r4102698398) | Fixed | Apply the matching staggered entrance to the Camera Formats skeleton. |
+| [4102698406](https://github.com/360ghar/tidybyte/pull/3#discussion_r4102698406) | Fixed | Re-read the current library epoch and threshold after the debounce, so a scan completed during the delay is not repeated. |
+
+The modification-date decision follows Apple's [PHAsset.modificationDate contract](https://developer.apple.com/documentation/photos/phasset/modificationdate). The proposed nil-date exclusion does not distinguish an edit from an unchanged asset with an unavailable date.
+
 ## General comments
 
 The notification security note is partly actionable. Scheduling now checks Photos authorization immediately before constructing the body and after adding the request. A changed or revoked scope cannot publish fresh counts from the previous scope. A local repeating notification cannot execute an authorization check at delivery while the app is inactive. Previously scheduled dated counts can remain until the app next runs; the request refreshes on activation and observed permission changes. This is a platform limitation of the requested count-bearing weekly reminder.
@@ -59,7 +71,8 @@ The docstring-coverage warning is a reviewer default, not a repository CI requir
 
 ## Validation
 
-- All 276 unit tests passed locally with Xcode 27, including six new regression tests. Existing asynchronous search tests now use explicit synchronization.
+- All 277 unit tests passed locally with Xcode 27, including seven new regression tests from these review fixes. Existing asynchronous search tests now use explicit synchronization.
 - The original CI failure was verified in its build log: Xcode 16.4 could not import FoundationModels. The workflow now selects Xcode 26.3, which is listed in the [macOS 15 runner image](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md).
-- iPhone/iPad UI verification and the updated CI run are checked after this commit.
+- All three feature UI tests passed on both iPhone and iPad; both iPad layout tests passed. The iPhone run skipped the two iPad-only layout tests as expected.
+- [GitHub CI for `59584ac`](https://github.com/360ghar/tidybyte/actions/runs/36112731748) passed with Xcode 26.3. The follow-up changes also passed all 277 local unit tests.
 - Physical-device checks remain in [cleanup-validation.md](cleanup-validation.md).

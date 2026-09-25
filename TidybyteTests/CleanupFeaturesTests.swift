@@ -365,4 +365,26 @@ final class CleanupFeaturesTests: XCTestCase {
         XCTAssertEqual(firstSnapshot?.date, secondSnapshot?.date)
         XCTAssertEqual(calls, 1)
     }
+
+    func testCancellingLastRequesterCancelsSharedScan() async {
+        let started = expectation(description: "scan starts")
+        let cancelled = expectation(description: "shared scan cancels")
+        let (gate, continuation) = AsyncStream<Void>.makeStream()
+        let coordinator = WidgetSnapshotCoordinator(statistics: {
+            started.fulfill()
+            return await withTaskCancellationHandler {
+                for await _ in gate { break }
+                return MediaLibraryStats()
+            } onCancel: {
+                cancelled.fulfill()
+            }
+        }, photoAuthorization: { .authorized })
+        let request = Task { await coordinator.currentSnapshot() }
+        await fulfillment(of: [started], timeout: 2)
+        request.cancel()
+        await fulfillment(of: [cancelled], timeout: 2)
+        continuation.finish()
+        let result = await request.value
+        XCTAssertNil(result)
+    }
 }

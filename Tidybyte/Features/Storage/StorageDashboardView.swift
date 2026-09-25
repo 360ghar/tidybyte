@@ -121,6 +121,7 @@ struct StorageDashboardView: View {
                     ForEach(0..<3, id: \.self) { _ in SkeletonBar(height: 30) }
                 }
             }
+            .fadeSlideIn(delay: 0.225)
 
             whereStorageGoesSkeleton
                 .fadeSlideIn(delay: 0.25)

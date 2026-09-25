@@ -6,7 +6,7 @@ Implementation uses Apple frameworks and retains the iOS 17 deployment target. N
 
 Validated with Xcode 27 and the iOS 27 simulator runtime:
 
-- 276 unit tests passed, including 22 new feature tests.
+- 277 unit tests passed, including 23 new feature tests.
 - All 3 new feature UI tests passed on iPhone 17e and iPad Pro 13-inch (M5) at Accessibility XXXL. The tests grant Photos access through the system prompt and do not delete media.
 - The existing 4 iPhone Dynamic Type tests passed.
 - The existing 6 iPad UI checks passed. The final targeted run passed all new feature tests without skips on both devices.
@@ -16,7 +16,7 @@ The review added regression checks for incomplete resource sizes, permission cha
 
 The review UI run exposed a delayed Photos permission prompt in test setup. The test now keeps invoking the interruption handler while waiting. The final rerun passed all three feature tests on both devices with no skips; the existing Dynamic Type and iPad layout checks also passed during the review.
 
-The [PR #3 review decisions](pr-3-review.md) record all 39 code-review findings, including duplicate reports and proposals that conflict with the selected feature scope. CI now selects Xcode 26.3 explicitly; local validation uses Xcode 27.
+The [PR #3 review decisions](pr-3-review.md) record all 44 code-review findings, including duplicate reports and proposals that conflict with the selected feature scope. CI now selects Xcode 26.3 explicitly; local validation uses Xcode 27.
 
 Generate the project with `xcodegen generate`. Run the full suite with an installed simulator destination:
 

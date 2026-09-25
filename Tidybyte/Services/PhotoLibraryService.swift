@@ -247,9 +247,10 @@ actor PhotoLibraryService {
     func assetIDs(inAlbums albumIDs: Set<String>) -> Set<String> {
         guard !albumIDs.isEmpty else { return [] }
         var ids = Set<String>()
+        let options = allAssetsFetchOptions()
         let albums = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: Array(albumIDs), options: nil)
         albums.enumerateObjects { album, _, _ in
-            PHAsset.fetchAssets(in: album, options: nil).enumerateObjects { asset, _, _ in
+            PHAsset.fetchAssets(in: album, options: options).enumerateObjects { asset, _, _ in
                 ids.insert(asset.localIdentifier)
             }
         }
