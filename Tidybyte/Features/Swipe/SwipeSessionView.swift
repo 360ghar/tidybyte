@@ -7,6 +7,10 @@ struct SwipeSessionView: View {
     /// The app-wide handler `RootView` injects, so the empty-state permission
     /// block offers the same ask the tab gate does.
     @Environment(PhotoPermissionHandler.self) private var permissionHandler
+    /// The progress bar is the one animation on this screen that ignored
+    /// Reduce Motion; read it here so the bar matches the deck and completion
+    /// animations.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Single transient-message channel. The undo hint and the one-time zoom
     /// hint both surface here so they can never stack or overlap.
@@ -15,6 +19,9 @@ struct SwipeSessionView: View {
     /// for access rather than hand the user off to Settings.
     @State private var showPermissionPrimer = false
     @AppStorage(AppPreferences.Key.hasSeenZoomHint) private var hasSeenZoomHint = false
+    /// The explanatory undo text shows the first few times only; after that
+    /// the toast is just "Marked for deletion" with its Undo button.
+    @AppStorage("swipeUndoHintCount") private var undoHintCount = 0
 
     var body: some View {
         let isBootstrapping = !viewModel.hasLoadedInitialAssets || viewModel.isLoading
@@ -27,15 +34,47 @@ struct SwipeSessionView: View {
                 Spacer()
                 ProgressView("Loading photos...")
                 Spacer()
-            } else if viewModel.visibleCards.isEmpty {
-                Spacer()
-                emptyState
-                Spacer()
+            } else if viewModel.visibleCards.isEmpty, !viewModel.showCompletion {
+                // While the completion screen pushes, the deck stays mounted
+                // so the last card's fling plays out instead of vanishing.
+                // Scrolls at large text sizes; centered when it fits.
+                GeometryReader { proxy in
+                    ScrollView {
+                        emptyState
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: proxy.size.height)
+                    }
+                }
             } else {
                 // The card stack and its action bar live in their own view so a
                 // drag frame re-renders only the deck, not this whole screen.
-                SwipeCardDeck(viewModel: viewModel, onUndoHint: {
-                    toast = ToastMessage(text: "Marked for deletion — tap Undo to restore", systemImage: "trash")
+                SwipeCardDeck(viewModel: viewModel, onUndoHint: { markedId in
+                    let text = undoHintCount < 3
+                        ? "Marked for deletion. Nothing is deleted until you confirm at the end."
+                        : "Marked for deletion"
+                    undoHintCount += 1
+                    toast = ToastMessage(text: text, systemImage: "trash", actionTitle: "Undo") {
+                        // Verify before clearing: a stale tap must not silently
+                        // dismiss the hint while the photo stays pending-delete.
+                        // The pending check comes first because `undoStack` is
+                        // not authoritative — a committed or discarded batch
+                        // leaves its `.deleted` entries behind, and undoing one
+                        // does nothing.
+                        guard viewModel.isPendingDeletion(markedId),
+                              viewModel.undoStack.contains(where: { $0.asset.id == markedId && $0.decision == .deleted }) else {
+                            toast = ToastMessage(text: "That photo can't be undone anymore.", systemImage: "info.circle")
+                            return
+                        }
+                        guard let last = viewModel.undoStack.last,
+                              last.decision == .deleted, last.asset.id == markedId else {
+                            toast = ToastMessage(text: "Undo your newer actions first to reach that photo.", systemImage: "info.circle")
+                            return
+                        }
+                        toast = nil
+                        Task { await viewModel.undo() }
+                    }
+                }, onDeleteBlocked: {
+                    toast = ToastMessage(text: "Delete is off until the photo loads.", systemImage: "hourglass")
                 })
             }
         }
@@ -45,6 +84,19 @@ struct SwipeSessionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
+            // The count sits under the title, clear of the toast area.
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 0) {
+                    Text("Swipe Session")
+                        .font(.headline)
+                    if !viewModel.assets.isEmpty {
+                        Text("\(min(viewModel.currentIndex + 1, viewModel.assets.count)) of \(viewModel.assets.count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
             ToolbarItem(placement: .topBarLeading) {
                 Button {
                     if viewModel.hasPendingDeletions {
@@ -67,8 +119,8 @@ struct SwipeSessionView: View {
                 Button {
                     Task { await viewModel.endSession() }
                 } label: {
+                    // Neutral: ending reviews changes, it deletes nothing.
                     Text("End")
-                        .foregroundStyle(.red)
                 }
                 .accessibilityLabel("End session")
                 .accessibilityHint("Ends the session and reviews your changes")
@@ -79,11 +131,10 @@ struct SwipeSessionView: View {
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
                 }
-                .keyboardShortcut(.leftArrow, modifiers: [])
-                // Undo is inert during the animation window (wrong-card
-                // attribution, B1) and mid-commit (would resurrect a card the
-                // batch is deleting right now, B2).
-                .disabled(viewModel.undoStack.isEmpty || viewModel.isSwiping || viewModel.isDeletingBatch)
+                .keyboardShortcut("z", modifiers: .command)
+                // Undo is inert mid-commit (would resurrect a card the batch is
+                // deleting right now, B2).
+                .disabled(viewModel.undoStack.isEmpty || viewModel.isDeletingBatch)
                 .accessibilityLabel("Undo")
                 .accessibilityHint("Reverts your last swipe")
             }
@@ -180,6 +231,7 @@ struct SwipeSessionView: View {
             }
         }
         .frame(height: 3)
+        .animation(.reduceMotionAware(.smooth, reduceMotion: reduceMotion), value: viewModel.currentIndex)
         .accessibilityElement()
         .accessibilityLabel("Review progress")
         .accessibilityValue("\(min(viewModel.currentIndex, viewModel.assets.count)) of \(viewModel.assets.count) reviewed")
@@ -191,7 +243,7 @@ struct SwipeSessionView: View {
         VStack(spacing: Spacing.xl) {
             if viewModel.allPhotosAlreadySwiped {
                 Image(systemName: "checkmark.seal")
-                    .font(.system(size: 64))
+                    .scaledGlyph(ScaledSize.stateGlyph)
                     .foregroundStyle(.green)
 
                 Text("All Photos Reviewed!")
@@ -202,7 +254,6 @@ struct SwipeSessionView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.75)
                     .padding(.horizontal, Spacing.xxl)
 
                 Button {
@@ -227,7 +278,7 @@ struct SwipeSessionView: View {
                 let presentation = permissionHandler.permissionState.presentation
 
                 Image(systemName: "lock.shield")
-                    .font(.system(size: 64))
+                    .scaledGlyph(ScaledSize.stateGlyph)
                     .foregroundStyle(.orange)
 
                 Text(presentation.title)
@@ -237,7 +288,6 @@ struct SwipeSessionView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.75)
                     .padding(.horizontal, Spacing.xxl)
 
                 switch presentation.action {
@@ -262,7 +312,7 @@ struct SwipeSessionView: View {
                 }
             } else {
                 Image(systemName: "checkmark.circle")
-                    .font(.system(size: 64))
+                    .scaledGlyph(ScaledSize.stateGlyph)
                     .foregroundStyle(.green)
 
                 Text("All Caught Up!")

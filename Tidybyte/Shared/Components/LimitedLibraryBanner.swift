@@ -11,6 +11,9 @@ import SwiftUI
 struct LimitedLibraryBanner: View {
     @Environment(PhotoPermissionHandler.self) private var permissionHandler
     @AppStorage(AppPreferences.Key.hasSeenLimitedLibraryNotice) private var hasSeenNotice = false
+    /// Screen-specific line, e.g. Storage: its figures cover only the
+    /// selected photos.
+    var note: String? = nil
 
     var body: some View {
         if permissionHandler.permissionState == .limited {
@@ -36,6 +39,13 @@ struct LimitedLibraryBanner: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
+                if let note {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 Button("Add More Photos") {
                     HapticHelper.impact(.light)
                     PhotoPermissionHandler.presentLimitedLibraryPicker()
@@ -56,9 +66,10 @@ struct LimitedLibraryBanner: View {
                 }
         }
         .accessibilityElement(children: .contain)
-        .onAppear {
-            // The fuller wording explains what limited access means; after the
-            // first sighting the compact reminder is enough.
+        .onDisappear {
+            // The fuller wording explains what limited access means. Marked
+            // seen when the banner leaves the screen, so the user can read it
+            // first; after that the compact reminder is enough.
             if !hasSeenNotice { hasSeenNotice = true }
         }
     }

@@ -12,8 +12,8 @@ settings:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
     # Single version source (A10): every target inherits these; bump once here.
-    CURRENT_PROJECT_VERSION: 3
-    MARKETING_VERSION: "1.0.2"
+    CURRENT_PROJECT_VERSION: 5
+    MARKETING_VERSION: "1.0.4"
     INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "TidyByte needs access to your photo library to help you organize and clean up photos and videos."
     INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "TidyByte needs write access to save compressed videos and converted photos."
     CODE_SIGN_STYLE: Automatic

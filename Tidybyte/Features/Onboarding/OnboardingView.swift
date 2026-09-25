@@ -82,6 +82,8 @@ struct OnboardingView: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityHint("Skips the introduction and asks for photo access later")
         }
         .padding(.horizontal, Spacing.lg)
@@ -91,26 +93,25 @@ struct OnboardingView: View {
     // MARK: - Page
 
     private func pageView(_ page: OnboardingPage) -> some View {
+        // Scrolls at large text sizes instead of pushing text off screen;
+        // centered when it fits.
+        GeometryReader { proxy in
+            ScrollView {
+                pageContent(page)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: proxy.size.height)
+            }
+        }
+    }
+
+    private func pageContent(_ page: OnboardingPage) -> some View {
         VStack(spacing: Spacing.xl) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [page.tint.opacity(0.18), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 90
-                        )
-                    )
-                    .scaledSquare(ScaledSize.stateHalo)
-
-                Image(systemName: page.systemImage)
-                    .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
-                    .foregroundStyle(page.tint)
-            }
-            .accessibilityHidden(true)
+            Image(systemName: page.systemImage)
+                .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
+                .foregroundStyle(page.tint)
+                .accessibilityHidden(true)
 
             VStack(spacing: Spacing.md) {
                 Text(page.title)
@@ -129,6 +130,7 @@ struct OnboardingView: View {
             Spacer()
         }
         .padding(.horizontal, Spacing.lg)
+        .readableWidth()
     }
 
     // MARK: - Footer
@@ -155,12 +157,16 @@ struct OnboardingView: View {
                     .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             }
             .scaleOnPress()
+            // The permission gate behind this cover renders its own
+            // "Allow Access" button, so UI tests scope to this one by id.
+            .accessibilityIdentifier("onboardingPrimaryButton")
             .accessibilityHint(isLastPage
                                ? "Opens the iOS permission prompt for your photo library"
                                : "Shows the next page")
         }
         .padding(.horizontal, Spacing.xxl)
         .padding(.bottom, Spacing.xxl)
+        .readableWidth(560)
     }
 
     private func advance() {

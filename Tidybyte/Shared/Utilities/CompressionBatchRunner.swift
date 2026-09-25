@@ -1,3 +1,4 @@
+import Photos
 import SwiftData
 
 /// Shared per-item loop for the photo + video batch compressions (COMP-12).
@@ -12,7 +13,25 @@ import SwiftData
 
 enum CompressionItemOutcome: Sendable {
     case skipped
-    case completed(originalSize: Int64, compressedSize: Int64)
+    /// The copy is saved; the original waits for the batch's one delete commit.
+    case saved(PendingOriginal)
+}
+
+/// A saved copy whose original is still in the library. The batch deletes all
+/// originals in one `OriginalsCommit.commit` call, so iOS shows one delete
+/// prompt per batch instead of one per item.
+struct PendingOriginal: Sendable {
+    let assetId: String
+    let originalSize: Int64
+    let compressedSize: Int64
+    let swap: CompressionSwap
+}
+
+/// Status text for the two steps of a replace batch.
+enum ReplacePhase: Equatable, Sendable {
+    case idle
+    case savingCopies(done: Int, total: Int)
+    case removingOriginals(count: Int)
 }
 
 /// Owns one journal row: begin → optional progress hooks → exactly one terminal.
@@ -26,7 +45,44 @@ enum CompressionItemOutcome: Sendable {
 final class CompressionSwap {
     private let record: CompressionRecord
     private let modelContext: ModelContext
+    private let assetId: String
     private var finished = false
+
+    /// Swaps that are still running or waiting for the delete-originals
+    /// commit. Weak, so a swap dropped with its view model stops counting.
+    private struct WeakSwap { weak var swap: CompressionSwap? }
+    private static var liveSwaps: [String: WeakSwap] = [:]
+
+    /// True while an in-memory swap still owns the pending row for this
+    /// asset. `reconcile` must skip such rows: they are not crash leftovers,
+    /// and deleting their copies would race the Originals Kept choice.
+    static func isLive(assetId: String) -> Bool {
+        liveSwaps[assetId]?.swap != nil
+    }
+
+    /// Marks the swap finished. Returns false when it already was.
+    private func finish() -> Bool {
+        guard beginFinish() else { return false }
+        endFinish()
+        return true
+    }
+
+    /// Claims the finished flag without unregistering the live swap. The async
+    /// terminal paths (markFailed/markSkipped) use this plus `endFinish`, so
+    /// `reconcile` (which skips live rows) cannot grab the row while the
+    /// journal resolution is still in flight.
+    private func beginFinish() -> Bool {
+        guard !finished else { return false }
+        finished = true
+        return true
+    }
+
+    private func endFinish() {
+        // Only clear our own entry: a newer swap for the same asset may own it.
+        if Self.liveSwaps[assetId]?.swap === self {
+            Self.liveSwaps[assetId] = nil
+        }
+    }
 
     init(
         mediaType: CompressionMediaType,
@@ -36,6 +92,7 @@ final class CompressionSwap {
         modelContext: ModelContext
     ) throws {
         self.modelContext = modelContext
+        self.assetId = assetId
         self.record = try CompressionJournal.beginPending(
             modelContext: modelContext,
             mediaType: mediaType,
@@ -44,6 +101,36 @@ final class CompressionSwap {
             compressedSize: 0,
             exportPreset: exportPreset
         )
+        Self.liveSwaps[assetId] = WeakSwap(swap: self)
+    }
+
+    var replacementId: String? { record.replacementAssetLocalIdentifier }
+
+    /// Settles a row whose original was kept. The row stops being pending, so
+    /// reconcile never deletes anything for it later. When both versions stay
+    /// (`copyRemoved == false`) the row records the kept-both outcome and the
+    /// copy's id is kept on the row, so Photo Compression knows it is a copy
+    /// and never lists it for compression.
+    func finalizeOriginalKept(copyRemoved: Bool) {
+        guard finish() else { return }
+        if copyRemoved {
+            record.replacementAssetLocalIdentifier = nil
+            record.compressedSizeBytes = 0
+            CompressionJournal.finalize(record, outcome: .skipped, modelContext: modelContext)
+        } else {
+            finalizeKeptBoth()
+        }
+    }
+
+    /// Settles a decline durably the moment it happens: the row leaves
+    /// "pending" with the kept-both outcome, so killing the app with the
+    /// Originals Kept alert open can never turn into a reconcile
+    /// `deleteOrphanThenFail` that deletes the saved copy on next launch.
+    /// Deliberately does NOT consume `finish()`: a later Try Again promotes
+    /// kept → completed through `finalizeCompleted`, and Remove Copies
+    /// settles through `finalizeOriginalKept`.
+    func finalizeKeptBoth() {
+        CompressionJournal.finalize(record, outcome: .kept, modelContext: modelContext)
     }
 
     func markSaveAttempted() {
@@ -60,44 +147,51 @@ final class CompressionSwap {
     }
 
     func finalizeCompleted(compressedSize: Int64) {
-        guard !finished else { return }
-        finished = true
+        guard finish() else { return }
         record.compressedSizeBytes = compressedSize
         CompressionJournal.finalize(record, outcome: .completed, modelContext: modelContext)
     }
 
     func finalizeSkipped() {
-        guard !finished else { return }
-        finished = true
+        guard finish() else { return }
         CompressionJournal.finalize(record, outcome: .skipped, modelContext: modelContext)
     }
 
-    func markFailed(assetId: String) async {
-        guard !finished else { return }
-        finished = true
-        await CompressionJournal.markPendingFailed(assetId: assetId, modelContext: modelContext)
+    /// Pass `replacementAbsent: true` when the caller already proved the
+    /// journaled copy is gone: the journal then settles the row instead of
+    /// asking PhotoKit to delete an asset it knows is absent.
+    func markFailed(assetId: String, replacementAbsent: Bool = false) async {
+        guard beginFinish() else { return }
+        await CompressionJournal.markPendingFailed(
+            assetId: assetId,
+            replacementAbsent: replacementAbsent,
+            modelContext: modelContext
+        )
+        endFinish()
     }
 
     func markSkipped(assetId: String) async {
-        guard !finished else { return }
-        finished = true
+        guard beginFinish() else { return }
         await CompressionJournal.markPendingSkipped(assetId: assetId, modelContext: modelContext)
+        endFinish()
     }
 }
 
 @MainActor
 enum CompressionBatchRunner {
     struct Handlers: Sendable {
-        var setExporting: @MainActor @Sendable (Int, Float) -> Void
-        var setKeptOriginal: @MainActor @Sendable (Int, String) -> Void
-        var setCompleted: @MainActor @Sendable (Int, Int64) -> Void
-        var setFailed: @MainActor @Sendable (Int, String) -> Void
-        var setWaiting: @MainActor @Sendable (Int) -> Void
+        /// Sets the row state at an index into the VM's list.
+        var setState: @MainActor @Sendable (Int, CompressionState) -> Void
+        var setPhase: @MainActor @Sendable (ReplacePhase) -> Void
     }
 
     struct Result: Sendable {
         var successfulIds: Set<String>
         var summary: CompressionBatchSummary
+        /// Saved copies whose originals are still in the library (the user
+        /// tapped "Don't Allow", or the delete failed). The view offers
+        /// Try Again / Remove Copies for these.
+        var kept: [PendingOriginal]
     }
 
     // Runs the per-item loop. `execute` creates its CompressionSwap (it alone
@@ -115,49 +209,232 @@ enum CompressionBatchRunner {
             -> CompressionItemOutcome
     ) async -> Result {
         let orderedIds = sortedBatchIds(selected: selected, fileSizes: fileSizes)
-        var successfulIds: Set<String> = []
-        var completed = 0, failed = 0, skipped = 0
-        for id in orderedIds {
+        var saved: [PendingOriginal] = []
+        var failed = 0, skipped = 0
+        for (offset, id) in orderedIds.enumerated() {
+            if offset % 20 == 0 { await Task.yield() }
             if isCancelled() { break }
+            handlers.setPhase(.savingCopies(done: offset, total: orderedIds.count))
             guard let index = indexById[id] else { continue }
             if alreadyCompletedIds.contains(id) {
-                handlers.setKeptOriginal(index, "Already compressed")
+                handlers.setState(index, .keptOriginal(reason: "Already compressed"))
                 skipped += 1
                 continue
             }
-            handlers.setExporting(index, 0)
+            handlers.setState(index, .exporting(0))
             do {
-                let outcome = try await execute(id, index, { p in handlers.setExporting(index, p) })
+                let outcome = try await execute(id, index, { p in handlers.setState(index, .exporting(p)) })
                 switch outcome {
                 case .skipped:
                     skipped += 1
-                case .completed(let orig, let comp):
-                    completed += 1
-                    successfulIds.insert(id)
-                    handlers.setCompleted(index, max(0, orig - comp))
+                case .saved(let pending):
+                    saved.append(pending)
+                    handlers.setState(index, .copySaved)
                 }
             } catch {
                 if isCancelled() || error is CancellationError {
-                    handlers.setWaiting(index)
+                    handlers.setState(index, .waiting)
                     break
                 }
                 if isSizeUnknown(error) {
-                    handlers.setKeptOriginal(index, "Size unknown (iCloud-only) — skipped")
+                    handlers.setState(index, .keptOriginal(reason: "Size unknown (iCloud-only) — skipped"))
                     skipped += 1
                     continue
                 }
                 failed += 1
-                handlers.setFailed(index, error.localizedDescription)
+                handlers.setState(index, .failed(error.localizedDescription))
             }
         }
+
+        // Step 2: every copy is saved. Delete all originals at once — one iOS
+        // prompt. This also runs after a cancel, so finished items finish.
+        var successfulIds: Set<String> = []
+        var kept: [PendingOriginal] = []
+        if !saved.isEmpty {
+            handlers.setPhase(.removingOriginals(count: saved.count))
+            let outcome = await OriginalsCommit.commit(saved)
+            for item in outcome.committed {
+                successfulIds.insert(item.assetId)
+                if let index = indexById[item.assetId] {
+                    handlers.setState(index, .completed(savedBytes: max(0, item.originalSize - item.compressedSize)))
+                }
+            }
+            // A vanished replacement fails the item during the commit phase.
+            // Those failures used to be dropped, so the batch could report
+            // `failed: 0` while journal rows were marked failed.
+            failed += outcome.failed.count
+            for item in outcome.failed {
+                if let index = indexById[item.assetId] {
+                    handlers.setState(index, .failed(OriginalsCommit.missingReplacementMessage))
+                }
+            }
+            kept = outcome.kept
+        }
+        handlers.setPhase(.idle)
         return Result(
             successfulIds: successfulIds,
             summary: CompressionBatchSummary(
-                completed: completed,
+                completed: successfulIds.count,
                 failed: failed,
                 skipped: skipped,
                 cancelled: isCancelled()
-            )
+            ),
+            kept: kept
+        )
+    }
+}
+
+/// Step 2 of every replace flow (video, photo, Live Photo): delete the
+/// originals of saved copies in ONE PhotoKit call, so the user sees one iOS
+/// prompt per batch.
+@MainActor
+enum OriginalsCommit {
+    /// What `OriginalsCommit` reports when an item's replacement copy is gone,
+    /// so every surface names the same failure.
+    static let missingReplacementMessage = "The compressed copy is missing from your library."
+
+    /// Same failure for Live Photo → still conversions: the saved replacement
+    /// is a still, not a compressed copy, so the shared wording would mislead.
+    static let missingStillMessage = "The converted still is missing from your library."
+
+    struct Outcome: Sendable {
+        var committed: [PendingOriginal]
+        var kept: [PendingOriginal]
+        /// Items whose replacement copy was already gone when the commit ran.
+        /// Their originals were never touched, so the caller must report these
+        /// as failures instead of producing a zero-failure summary.
+        var failed: [PendingOriginal] = []
+    }
+
+    /// What `removeCopies` did, so callers stop showing rows the library has
+    /// already settled. A plain `Bool` could not name the rows whose original
+    /// vanished externally, so those stayed on screen as "both versions in
+    /// your library" even though the swap was done.
+    struct CopiesOutcome: Sendable {
+        /// Original vanished outside the app: the swap is complete and the
+        /// saved copy is the library's surviving asset. Callers drop these rows.
+        var completed: [PendingOriginal] = []
+        /// Copies still in the library (the user declined). Both versions
+        /// remain, so the row stays a kept original.
+        var kept: [PendingOriginal] = []
+        /// True when every copy this call targeted is gone.
+        var allCopiesRemoved: Bool = false
+    }
+
+    /// Splits items by whether their original is still in the library. The
+    /// library is the truth, not `deleteAssets`' return set: an original that
+    /// vanished outside the app is also done.
+    nonisolated static func partition<T>(
+        _ items: [T],
+        id: (T) -> String,
+        stillPresent: Set<String>
+    ) -> (committed: [T], kept: [T]) {
+        var committed: [T] = [], kept: [T] = []
+        for item in items {
+            if stillPresent.contains(id(item)) { kept.append(item) } else { committed.append(item) }
+        }
+        return (committed, kept)
+    }
+
+    /// Shown when the user also declines Remove Copies.
+    static let copiesKeptMessage = "Copies kept. Both versions are in your library; delete either one in Photos."
+
+    /// `commit`, with the bottom bar showing "removing originals" while it runs.
+    static func commit(
+        _ pending: [PendingOriginal],
+        setPhase: (ReplacePhase) -> Void
+    ) async -> Outcome {
+        setPhase(.removingOriginals(count: pending.count))
+        let outcome = await commit(pending)
+        setPhase(.idle)
+        return outcome
+    }
+
+    static func commit(
+        _ pending: [PendingOriginal],
+        photoService: PhotoLibraryService = .shared
+    ) async -> Outcome {
+        guard !pending.isEmpty else { return Outcome(committed: [], kept: []) }
+        // Never delete an original whose copy is gone: verify replacements
+        // first and fail those items out without touching their originals.
+        let replacementIds = pending.compactMap(\.swap.replacementId)
+        let existingReplacements = await photoService.existingIds(replacementIds)
+        var viable: [PendingOriginal] = []
+        var failed: [PendingOriginal] = []
+        viable.reserveCapacity(pending.count)
+        for item in pending {
+            guard let replacementId = item.swap.replacementId,
+                  existingReplacements.contains(replacementId) else {
+                // The copy is already gone, so tell the journal that rather than
+                // asking it to delete an asset we just proved absent — that
+                // delete reports not-gone and would leave the row pending
+                // forever, retried by every later reconcile.
+                await item.swap.markFailed(assetId: item.assetId, replacementAbsent: true)
+                failed.append(item)
+                continue
+            }
+            viable.append(item)
+        }
+        guard !viable.isEmpty else { return Outcome(committed: [], kept: [], failed: failed) }
+        let ids = viable.map(\.assetId)
+        // A decline or a partial failure throws; the presence check below
+        // decides what happened either way.
+        _ = try? await photoService.deleteAssets(identifiers: ids)
+        let split = partition(viable, id: \.assetId, stillPresent: await photoService.existingIds(ids))
+        for item in split.committed {
+            item.swap.finalizeCompleted(compressedSize: item.compressedSize)
+        }
+        // Decline path: settle every kept row durably NOW (kept-both outcome),
+        // not via the in-memory alert alone — otherwise killing the app before
+        // Try Again / Remove Copies leaves pending rows whose copies the next
+        // reconcile deletes as orphans. The swap stays promotable, so Try
+        // Again still finalizes these rows as completed on success.
+        for item in split.kept {
+            item.swap.finalizeKeptBoth()
+        }
+        return Outcome(committed: split.committed, kept: split.kept, failed: failed)
+    }
+
+    /// The user kept the originals and chose "Remove Copies": delete the new
+    /// copies in one call (one iOS prompt). If they decline that too, both
+    /// versions stay and the journal stops tracking the copies.
+    ///
+    /// Reports which rows it settled, so callers can drop the ones whose
+    /// original had already vanished instead of continuing to show them as
+    /// "both versions in your library".
+    static func removeCopies(
+        _ kept: [PendingOriginal],
+        photoService: PhotoLibraryService = .shared
+    ) async -> CopiesOutcome {
+        // An original that vanished outside the app is already replaced: the
+        // end state holds, so complete those rows and never touch their copies.
+        let existingOriginals = await photoService.existingIds(kept.map(\.assetId))
+        var active: [PendingOriginal] = []
+        var completed: [PendingOriginal] = []
+        active.reserveCapacity(kept.count)
+        for item in kept {
+            if existingOriginals.contains(item.assetId) {
+                active.append(item)
+            } else {
+                item.swap.finalizeCompleted(compressedSize: item.compressedSize)
+                completed.append(item)
+            }
+        }
+        let copyIds = active.compactMap(\.swap.replacementId)
+        if !copyIds.isEmpty {
+            _ = try? await photoService.deleteAssets(identifiers: copyIds)
+        }
+        let stillPresent = await photoService.existingIds(copyIds)
+        var keptRows: [PendingOriginal] = []
+        for item in active {
+            let copyGone = item.swap.replacementId.map { !stillPresent.contains($0) } ?? true
+            item.swap.finalizeOriginalKept(copyRemoved: copyGone)
+            if !copyGone { keptRows.append(item) }
+        }
+        return CopiesOutcome(
+            completed: completed,
+            kept: keptRows,
+            allCopiesRemoved: stillPresent.isEmpty
         )
     }
 }

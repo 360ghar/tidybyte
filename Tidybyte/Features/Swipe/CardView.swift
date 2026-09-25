@@ -7,14 +7,18 @@ struct CardView: View {
     let photoService: PhotoLibraryService
     let isTopCard: Bool
 
-    var dragOffset: CGSize = .zero
-    /// True while the deck's swipe drag is active. Replaces a per-frame
-    /// `onChange(of: dragOffset)`, so the drag handler runs twice per gesture
-    /// instead of 60-120 times a second.
-    var isDragging: Bool = false
+    /// Drag position for the top card (the deck's live motion) or a departing
+    /// card (its fling target); nil for the cards behind. Read only by the
+    /// root offset and the stamp overlay, so a drag frame re-renders little.
+    var motion: CardMotion? = nil
     /// Incremented by SwipeSessionView's "Zoom" accessibility action; CardView
     /// toggles zoom on change (only the top card receives a non-zero value).
     var zoomToggleRequest: Int = 0
+    /// Incremented by the "Play Video" accessibility action: the card's own
+    /// Play button is hidden from VoiceOver with the rest of the card.
+    var playRequest: Int = 0
+    /// Incremented by the "Try Loading Again" accessibility action.
+    var retryRequest: Int = 0
     /// Reports whether this card is currently zoomed so the session can
     /// suspend its swipe drag while a pinch/pan is inspecting the photo.
     var onZoomChanged: ((Bool) -> Void)? = nil
@@ -23,15 +27,34 @@ struct CardView: View {
     /// descendant view blocks an ancestor's drag outright (measured — the card
     /// did not move a single pixel), and neither `.simultaneousGesture` nor
     /// `.highPriorityGesture` on the ancestor overrides that.
-    var onSwipeDragChanged: ((CGSize) -> Void)? = nil
-    var onSwipeDragEnded: ((DragGesture.Value, CGFloat) -> Void)? = nil
+    ///
+    /// Both relays carry this card's asset id: an undo can land mid-drag and
+    /// put a different card on top, and the deck must drop the gesture rather
+    /// than apply it to the wrong photo.
+    var onSwipeDragChanged: ((String, CGSize) -> Void)? = nil
+    var onSwipeDragEnded: ((String, DragGesture.Value, CGFloat) -> Void)? = nil
+    /// Called with the asset id once the card image is on screen. The deck
+    /// blocks Delete until then, so the user never deletes a photo they did
+    /// not see.
+    var onImageShown: ((String) -> Void)? = nil
 
     @State private var image: UIImage?
+    /// The image request returned nothing (an iCloud download failed or
+    /// timed out). Shows a retry state instead of an endless shimmer.
+    @State private var loadFailed = false
+    @State private var isLoadingPlayer = false
     @State private var player: AVPlayer?
     /// The in-flight player-item load, tracked so `stopPlayback` can cancel it:
     /// without cancellation, a load started on the top card would still create
     /// a playing player after the card was swiped away (SWIPE-07).
     @State private var loadTask: Task<Void, Never>?
+    /// In-flight card-image load (initial `.task` or retry). Stored so retry
+    /// can be serialized and teardown can cancel it; otherwise the initial
+    /// load and a retry complete unordered and both write image/loadFailed.
+    @State private var imageLoadTask: Task<Void, Never>?
+    /// True while loadImage is in flight. Retry is only accepted after failure
+    /// (loadFailed) and while not already loading.
+    @State private var isLoadingImage = false
 
     @State private var zoomState = ZoomState()
     /// Higher-resolution decode swapped in while zoomed so inspection stays
@@ -48,21 +71,6 @@ struct CardView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var deleteOpacity: Double {
-        guard isTopCard else { return 0 }
-        return min(max(-Double(dragOffset.width) / 150.0, 0), 1.0)
-    }
-
-    private var keepOpacity: Double {
-        guard isTopCard else { return 0 }
-        return min(max(Double(dragOffset.width) / 150.0, 0), 1.0)
-    }
-
-    private var albumOpacity: Double {
-        guard isTopCard else { return 0 }
-        return min(max(-Double(dragOffset.height) / 150.0, 0), 1.0)
-    }
-
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -71,6 +79,11 @@ struct CardView: View {
                 // loaded image's own graph below.
                 if let image {
                     zoomableImage(image, frame: geometry.size)
+                } else if loadFailed {
+                    loadFailedView
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .background(Color.cardSurface)
+                        .gesture(unifiedDrag(frame: geometry.size))
                 } else {
                     SkeletonView(cornerRadius: 0)
                         .frame(width: geometry.size.width, height: geometry.size.height)
@@ -80,8 +93,15 @@ struct CardView: View {
                 // Video playback (SWIPE-07): a play affordance on the top card
                 // loads the player item and plays inline; playback stops when the
                 // card is dragged or leaves the deck.
-                if asset.mediaType == .video, isTopCard {
-                    if let player {
+                // No Play button over the failed state: it would sit on top of
+                // the "Try Again" button.
+                if asset.mediaType == .video, isTopCard, !loadFailed {
+                    if isLoadingPlayer {
+                        ProgressView()
+                            .controlSize(.large)
+                            .tint(.white)
+                            .accessibilityLabel("Loading video")
+                    } else if let player {
                         VideoPlayer(player: player)
                             .accessibilityLabel("Video preview playing")
                             // The player layer sits above the gesture-bearing
@@ -125,6 +145,9 @@ struct CardView: View {
                             BadgeView(text: "iCloud", icon: "icloud.and.arrow.down", color: .blue)
                         }
                         Spacer()
+                        if asset.isFavorite {
+                            FavoriteMark(font: .title3)
+                        }
                     }
                     .padding(.top, Spacing.lg)
                     .padding(.horizontal, Spacing.lg)
@@ -162,85 +185,28 @@ struct CardView: View {
                 }
 
                 // Swipe indicators
-                if isTopCard {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Label("DELETE", systemImage: "trash.fill")
-                                .font(.title.bold())
-                                .foregroundStyle(.red)
-                                .padding(.horizontal, Spacing.lg)
-                                .padding(.vertical, Spacing.sm)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: CornerRadius.small)
-                                        .stroke(.red, lineWidth: 3)
-                                )
-                                .rotationEffect(.degrees(15))
-                                .padding(.trailing, Spacing.xxl)
-                                .padding(.top, 40)
-                        }
-                        Spacer()
-                    }
-                    .opacity(deleteOpacity)
-
-                    VStack {
-                        HStack {
-                            Label("KEEP", systemImage: "checkmark")
-                                .font(.title.bold())
-                                .foregroundStyle(.green)
-                                .padding(.horizontal, Spacing.lg)
-                                .padding(.vertical, Spacing.sm)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: CornerRadius.small)
-                                        .stroke(.green, lineWidth: 3)
-                                )
-                                .rotationEffect(.degrees(-15))
-                                .padding(.leading, Spacing.xxl)
-                                .padding(.top, 40)
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-                    .opacity(keepOpacity)
-
-                    // Up-drag: file into an album (SwipeSessionView's up-swipe
-                    // gesture) — mirrors the DELETE/KEEP direction stamps.
-                    VStack {
-                        Label("ALBUM", systemImage: "folder.badge.plus")
-                            .font(.title3.bold())
-                            .foregroundStyle(.blue)
-                            .padding(.horizontal, Spacing.lg)
-                            .padding(.vertical, Spacing.sm)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: CornerRadius.small)
-                                    .stroke(.blue, lineWidth: 3)
-                            )
-                            .padding(.top, 40)
-                        Spacer()
-                    }
-                    .opacity(albumOpacity)
-
-                    Rectangle()
-                        .fill(.red.opacity(deleteOpacity * 0.15))
-                    Rectangle()
-                        .fill(.green.opacity(keepOpacity * 0.15))
+                if let motion {
+                    SwipeStampOverlay(motion: motion)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
-            // The top card carries the full card shadow; the two cards behind it
-            // get a lighter one. While a drag is live the top card drops to that
-            // same light shadow: an offscreen shadow pass on a rotating,
-            // translating layer is recomputed every frame, and this is the one
-            // view that moves during a drag. The look is unchanged at rest, and
-            // at full drag displacement the card is off-screen anyway.
-            .shadow(
-                color: .black.opacity(isDragging ? 0.10 : (isTopCard ? 0.2 : 0.10)),
-                radius: isDragging ? 3 : (isTopCard ? 8 : 3),
-                x: 0,
-                y: 4
-            )
+            // Shadow cast by a plain shape behind the card, not by the photo
+            // content: a content shadow needs an offscreen pass every frame
+            // the card moves. The top card gets the fuller shadow.
+            .background {
+                RoundedRectangle(cornerRadius: CornerRadius.large)
+                    .fill(Color.cardSurface)
+                    .shadow(color: .black.opacity(isTopCard ? 0.2 : 0.10), radius: isTopCard ? 8 : 3, x: 0, y: 4)
+            }
             // Inside the GeometryReader so the accessibility-initiated toggle
             // clamps against the real card frame, not a screen-size proxy.
+            .onChange(of: retryRequest) { _, newValue in
+                if newValue > 0 { retryLoad() }
+            }
+            .onChange(of: playRequest) { _, newValue in
+                guard newValue > 0, !loadFailed else { return }
+                startPlayback()
+            }
             .onChange(of: zoomToggleRequest) { _, _ in
                 guard zoomToggleRequest > 0 else { return }
                 toggleZoom(frame: geometry.size)
@@ -253,6 +219,10 @@ struct CardView: View {
             // The card left the deck — tear down playback so the player item
             // and its buffers aren't retained (SWIPE-07), and drop zoom state
             // plus the full-res decode so inspection memory is released.
+            // Also cancel any in-flight image load/retry so a late success
+            // can't report onImageShown for a card that left the deck.
+            imageLoadTask?.cancel()
+            imageLoadTask = nil
             stopPlayback()
             resetZoom()
         }
@@ -263,15 +233,17 @@ struct CardView: View {
             // card (SWIPE-07). Zoom resets for the same reason: an off-top
             // card must not come back zoomed or report stale zoom upward.
             if !newValue {
+                imageLoadTask?.cancel()
+                imageLoadTask = nil
                 stopPlayback()
                 resetZoom()
             }
         }
-        .onChange(of: isDragging) { _, dragging in
+        .modifier(SwipeMotionEffect(motion: motion))
+        .onChange(of: motion?.isDragging ?? false) { _, dragging in
             // The user started dragging the card — stop playback so the video
             // doesn't keep playing under the swipe (SWIPE-07). Keyed on the
-            // gesture's own flag rather than on `dragOffset`, which changed on
-            // every frame of the drag and so ran this handler 60-120×/s.
+            // gesture's own flag, not the offset, which changes every frame.
             if dragging {
                 stopPlayback()
             }
@@ -323,14 +295,14 @@ struct CardView: View {
             .scaleEffect(zoomState.scale)
             .offset(zoomState.offset)
             .transition(.opacity)
+        // Only the leading card is interactive. The graph is masked off, not
+        // removed, on the other cards: swapping view branches on promotion
+        // cross-faded the image with itself.
+        let mask: GestureMask = isTopCard ? .all : .none
 
-        if !isTopCard {
-            // Only the leading card is interactive; the ones behind it are
-            // covered by `.allowsHitTesting(false)` and need no gesture graph.
-            base
-        } else if asset.mediaType == .video {
+        if asset.mediaType == .video {
             // Videos keep their inline play affordance and can still be swiped.
-            base.gesture(unifiedDrag(frame: frame))
+            base.gesture(unifiedDrag(frame: frame), including: mask)
         } else {
             // One graph for the swipe and the pinch, with the double-tap as a
             // separate simultaneous gesture. This is the shape verified end to
@@ -341,21 +313,63 @@ struct CardView: View {
             base
                 .gesture(
                     pinchGesture(frame: frame)
-                        .simultaneously(with: unifiedDrag(frame: frame))
+                        .simultaneously(with: unifiedDrag(frame: frame)),
+                    including: mask
                 )
                 .simultaneousGesture(
-                    TapGesture(count: 2).onEnded { toggleZoom(frame: frame) }
+                    TapGesture(count: 2).onEnded { toggleZoom(frame: frame) },
+                    including: mask
                 )
         }
     }
 
     private func loadImage() async {
+        // Serialize: a retry while the initial load is still in flight is
+        // ignored instead of racing it with two unordered completions.
+        guard !isLoadingImage else { return }
+        isLoadingImage = true
+        defer {
+            isLoadingImage = false
+            imageLoadTask = nil
+        }
         // Full-screen pixel size matches the swipe session's prefetch target so the
         // cached image is reused instead of re-fetched. Avoids deprecated UIScreen.main.
         let loaded = await photoService.loadImage(for: asset.id, targetSize: ScreenMetrics.pixelSize)
+        // The card may have left the deck (or been cancelled) while loading —
+        // a late success must not show, or report the image as shown off-deck.
+        guard !Task.isCancelled else { return }
         withAnimation(.easeIn(duration: 0.3)) {
             image = loaded
+            loadFailed = loaded == nil
         }
+        if loaded != nil {
+            onImageShown?(asset.id)
+        }
+    }
+
+    private func retryLoad() {
+        guard image == nil, loadFailed, !isLoadingImage else { return }
+        loadFailed = false
+        imageLoadTask?.cancel()
+        imageLoadTask = Task { await loadImage() }
+    }
+
+    private var loadFailedView: some View {
+        VStack(spacing: Spacing.md) {
+            Image(systemName: asset.isLocallyAvailable ? "exclamationmark.triangle" : "icloud.slash")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text("Couldn't \(asset.isLocallyAvailable ? "load" : "download") this \(asset.mediaType == .video ? "video" : "photo")\(asset.isLocallyAvailable ? "" : " from iCloud").")
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            Text("You can keep or skip it. Delete is off until it shows.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Try Again", action: retryLoad)
+            .buttonStyle(.bordered)
+        }
+        .padding(Spacing.xl)
     }
 
     // MARK: - Zoom Inspection
@@ -387,8 +401,11 @@ struct CardView: View {
     /// - unzoomed: relays the swipe to the deck, which owns the commit policy
     /// - zoomed: pans the zoomed photo
     /// Combined with the pinch on the same view so both can recognize.
+    /// Global space on purpose: the card moves and rotates under the finger
+    /// (and the zoomed image is scaled), so local translations shift every
+    /// frame and the card wobbles.
     private func unifiedDrag(frame: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 1, coordinateSpace: .global)
             .onChanged { value in
                 if zoomState.isZoomed {
                     if panStartOffset == nil { panStartOffset = zoomState.offset }
@@ -399,14 +416,14 @@ struct CardView: View {
                         contentSize: renderedContentSize(for: frame)
                     )
                 } else {
-                    onSwipeDragChanged?(value.translation)
+                    onSwipeDragChanged?(asset.id, value.translation)
                 }
             }
             .onEnded { value in
                 if zoomState.isZoomed {
                     panStartOffset = nil
                 } else {
-                    onSwipeDragEnded?(value, frame.width)
+                    onSwipeDragEnded?(asset.id, value, frame.width)
                 }
             }
     }
@@ -472,14 +489,20 @@ struct CardView: View {
     }
 
     private func startPlayback() {
-        guard player == nil, isTopCard else { return }
+        guard player == nil, isTopCard, !loadFailed else { return }
         loadTask?.cancel()
+        isLoadingPlayer = true
         loadTask = Task { @MainActor in
-            guard let box = await photoService.loadPlayerItem(for: asset.id) else { return }
-            // The card may have been swiped away while the item was loading;
-            // the isTopCard/drag/disappear teardowns above cancel this task —
-            // respect that instead of creating a playing player off-screen.
+            let box = await photoService.loadPlayerItem(for: asset.id)
+            // A cancelled load must not hide the spinner of a newer one. The
+            // card may also have been swiped away while the item was loading;
+            // the isTopCard/drag/disappear teardowns above cancel this task,
+            // so no playing player is created off-screen.
             guard !Task.isCancelled else { return }
+            isLoadingPlayer = false
+            // A nil item (iCloud download failed) puts the Play button back
+            // so the user can try again.
+            guard let box else { return }
             let newPlayer = AVPlayer(playerItem: box.value)
             player = newPlayer
             newPlayer.play()
@@ -489,8 +512,99 @@ struct CardView: View {
     private func stopPlayback() {
         loadTask?.cancel()
         loadTask = nil
+        isLoadingPlayer = false
         player?.pause()
         player = nil
+    }
+}
+
+/// DELETE / KEEP / ALBUM stamps and tints, driven by the card's drag. Its own
+/// view so a drag frame re-evaluates only this and the root offset.
+private struct SwipeStampOverlay: View {
+    let motion: CardMotion
+
+    private var deleteOpacity: Double { min(max(-Double(motion.offset.width) / 150.0, 0), 1.0) }
+    private var keepOpacity: Double { min(max(Double(motion.offset.width) / 150.0, 0), 1.0) }
+    private var albumOpacity: Double { min(max(-Double(motion.offset.height) / 150.0, 0), 1.0) }
+
+    var body: some View {
+        ZStack {
+            VStack {
+                HStack {
+                    Spacer()
+                    Label("DELETE", systemImage: "trash.fill")
+                        .font(.title.bold())
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.vertical, Spacing.sm)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: CornerRadius.small)
+                                .stroke(.red, lineWidth: 3)
+                        )
+                        .rotationEffect(.degrees(15))
+                        .padding(.trailing, Spacing.xxl)
+                        .padding(.top, 40)
+                }
+                Spacer()
+            }
+            .opacity(deleteOpacity)
+
+            VStack {
+                HStack {
+                    Label("KEEP", systemImage: "checkmark")
+                        .font(.title.bold())
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.vertical, Spacing.sm)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: CornerRadius.small)
+                                .stroke(.green, lineWidth: 3)
+                        )
+                        .rotationEffect(.degrees(-15))
+                        .padding(.leading, Spacing.xxl)
+                        .padding(.top, 40)
+                    Spacer()
+                }
+                Spacer()
+            }
+            .opacity(keepOpacity)
+
+            // Up-drag: file into an album (SwipeSessionView's up-swipe
+            // gesture) — mirrors the DELETE/KEEP direction stamps.
+            VStack {
+                Label("ALBUM", systemImage: "folder.badge.plus")
+                    .font(.title3.bold())
+                    .foregroundStyle(.blue)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, Spacing.sm)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: CornerRadius.small)
+                            .stroke(.blue, lineWidth: 3)
+                    )
+                    .padding(.top, 40)
+                Spacer()
+            }
+            .opacity(albumOpacity)
+
+            Rectangle()
+                .fill(.red.opacity(deleteOpacity * 0.15))
+            Rectangle()
+                .fill(.green.opacity(keepOpacity * 0.15))
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Moves and tilts the card with its drag. A modifier so the per-frame read
+/// of `motion.offset` re-evaluates only this, not the card's body.
+private struct SwipeMotionEffect: ViewModifier {
+    let motion: CardMotion?
+
+    func body(content: Content) -> some View {
+        let offset = motion?.offset ?? .zero
+        content
+            .offset(offset)
+            .rotationEffect(.degrees(Double(offset.width / 20)))
     }
 }
 

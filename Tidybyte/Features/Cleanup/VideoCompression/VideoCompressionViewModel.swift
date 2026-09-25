@@ -21,6 +21,12 @@ final class VideoCompressionViewModel {
     /// show a single summary / success haptic (COMP-09, COMP-11).
     var batchSummary: CompressionBatchSummary?
     private(set) var isCancelled = false
+    /// Which step of the replace batch is running, for the bottom bar.
+    private(set) var phase: ReplacePhase = .idle
+    /// Saved copies whose originals are still in the library (the user tapped
+    /// "Don't Allow"). The view offers Try Again / Remove Copies.
+    /// `OriginalsCommit.commit` already settles them as kept-both in the journal.
+    var keptOriginals: [PendingOriginal] = []
     /// The batch mutation loop, owned by the VM so leaving the screen can
     /// cancel it instead of orphaning the mutation loop (COMP-08).
     private var batchTask: Task<Void, Never>?
@@ -62,29 +68,44 @@ final class VideoCompressionViewModel {
         videos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
     }
 
-    func loadIfNeeded() async {
+    func loadIfNeeded(modelContext: ModelContext) async {
         guard !hasLoadedVideos else { return }
-        await load()
+        await load(modelContext: modelContext)
     }
 
-    func load() async {
+    func load(modelContext: ModelContext) async {
         isLoading = true
         errorMessage = nil
-        let videoAssets = await photoService.fetchAssetsByMediaType(.video)
-        videos = videoAssets.map { VideoItem(id: $0.id, asset: $0, selectedPreset: defaultPreset) }
+        videos = await candidateVideos(presets: [:], modelContext: modelContext)
         hasLoadedVideos = true
         isLoading = false
     }
 
     /// Re-fetch without flipping `isLoading`, so existing content stays under the pull-to-refresh spinner.
-    func refresh() async {
+    func refresh(modelContext: ModelContext) async {
         // Don't replace `videos` out from under an in-flight compression loop —
         // its per-id index lookups would miss and savings/records would be lost.
         guard !isCompressing else { return }
         errorMessage = nil
-        let videoAssets = await photoService.fetchAssetsByMediaType(.video)
-        videos = videoAssets.map { VideoItem(id: $0.id, asset: $0, selectedPreset: defaultPreset) }
+        // Per-row quality picks survive a refresh.
+        let presets = Dictionary(videos.map { ($0.id, $0.selectedPreset) }, uniquingKeysWith: { first, _ in first })
+        videos = await candidateVideos(presets: presets, modelContext: modelContext)
         hasLoadedVideos = true
+    }
+
+    /// The library's videos, minus the copies this app made. Without that
+    /// exclusion a saved copy (the replacement that survived a swap) is listed
+    /// as a candidate and can be re-encoded, stranding yet another duplicate —
+    /// the photo stack has always excluded them via `savedCopyIds`.
+    private func candidateVideos(
+        presets: [String: CompressionPreset],
+        modelContext: ModelContext
+    ) async -> [VideoItem] {
+        let savedCopyIds = CompressionJournal.savedCopyIds(modelContext: modelContext)
+        let videoAssets = await photoService.fetchAssetsByMediaType(.video)
+        return videoAssets
+            .filter { !savedCopyIds.contains($0.id) }
+            .map { VideoItem(id: $0.id, asset: $0, selectedPreset: presets[$0.id] ?? defaultPreset) }
     }
 
     func toggleSelection(_ id: String) {
@@ -101,6 +122,20 @@ final class VideoCompressionViewModel {
 
     func deselectAll() {
         selectedIds.removeAll()
+    }
+
+    /// The bottom-bar quality picker: one choice for every selected video.
+    func setPresetForSelected(_ preset: CompressionPreset) {
+        for index in videos.indices where selectedIds.contains(videos[index].id) {
+            videos[index].selectedPreset = preset
+        }
+    }
+
+    /// The shared preset of the selection, or nil when it is mixed.
+    var selectedPreset: CompressionPreset? {
+        let presets = videos.filter { selectedIds.contains($0.id) }.map(\.selectedPreset)
+        guard let first = presets.first, presets.allSatisfy({ $0.id == first.id }) else { return nil }
+        return first
     }
 
     func setPreset(_ preset: CompressionPreset, for videoId: String) {
@@ -159,10 +194,91 @@ final class VideoCompressionViewModel {
 
     /// Requests cancellation of the running batch: sets the flag the loop
     /// checks and cancels the VM-owned task (which also stops any in-flight
-    /// save+delete in the services).
+    /// save in the services). Copies already saved still go to the one
+    /// delete-originals commit.
     func cancelCompression() {
         isCancelled = true
         batchTask?.cancel()
+    }
+
+    /// "Try Again" on the Originals Kept alert: one more delete commit.
+    /// Clears `keptOriginals` synchronously so the alert does not re-present.
+    func retryRemovingOriginals() {
+        let items = keptOriginals
+        keptOriginals = []
+        guard !items.isEmpty else { return }
+        isCompressing = true
+        Task {
+            let outcome = await OriginalsCommit.commit(items) { phase = $0 }
+            let done = Set(outcome.committed.map(\.assetId))
+            videos.removeAll { done.contains($0.id) }
+            selectedIds.subtract(done)
+            // A copy that vanished since the decline leaves its item failed:
+            // the original was never deleted, so it goes back to waiting for
+            // another Compress instead of staying on a kept state that no
+            // alert offers to act on.
+            let missingIds = Set(outcome.failed.map(\.assetId))
+            for index in videos.indices where missingIds.contains(videos[index].id) {
+                videos[index].compressionState = .waiting
+            }
+            isCompressing = false
+            keptOriginals = outcome.kept
+            if !outcome.failed.isEmpty {
+                errorMessage = OriginalsCommit.missingReplacementMessage
+            } else if outcome.kept.isEmpty {
+                // A retry that finishes the delete clears a stale "Copies
+                // kept" banner left by a declined Remove Copies.
+                errorMessage = nil
+            }
+            // A retry that completes the delete IS a clean batch success, but
+            // `batchSummary` is unchanged so the view's `.onChange` never
+            // re-fires and the success haptic is lost. Play it here, matching
+            // the other cleanup tools.
+            if !done.isEmpty, outcome.failed.isEmpty, outcome.kept.isEmpty {
+                HapticHelper.notification(.success)
+            }
+        }
+    }
+
+    /// "Remove Copies" on the Originals Kept alert: the originals stay, the
+    /// new copies go.
+    func removeCopies() {
+        let items = keptOriginals
+        keptOriginals = []
+        guard !items.isEmpty else { return }
+        isCompressing = true
+        Task {
+            let outcome = await OriginalsCommit.removeCopies(items)
+            // A decline leaves both versions: say so instead of going quiet.
+            if !outcome.allCopiesRemoved {
+                errorMessage = OriginalsCommit.copiesKeptMessage
+            }
+            // An original that vanished outside the app is already replaced, so
+            // its saved copy is the library's asset now — stop listing the row
+            // instead of claiming both versions are present.
+            let doneIds = Set(outcome.completed.map(\.assetId))
+            videos.removeAll { doneIds.contains($0.id) }
+            selectedIds.subtract(doneIds)
+            // Declined rows stay non-eligible: their copies are still in the
+            // library (journaled as kept), so offering Compress again would
+            // strand another duplicate. Rows whose copies went back to waiting
+            // are the ones the journal nilled a `replacementId` for.
+            let keptIds = Set(outcome.kept.map(\.assetId))
+            let remaining = Set(items.map(\.assetId)).subtracting(doneIds)
+            for index in videos.indices where remaining.contains(videos[index].id) {
+                if keptIds.contains(videos[index].id) {
+                    videos[index].compressionState = .keptOriginal(reason: "Original kept — both versions in your library")
+                } else {
+                    videos[index].compressionState = .waiting
+                }
+            }
+            // A decline leaves the decision open, so the Originals Kept alert
+            // (and the preview cover, which reads the same state) keeps
+            // offering Try Again and Remove Copies for the rows whose copies
+            // are still in the library.
+            keptOriginals = outcome.kept
+            isCompressing = false
+        }
     }
 
     func compressSelected(modelContext: ModelContext) async {
@@ -187,11 +303,16 @@ final class VideoCompressionViewModel {
         isCompressing = true
         isCancelled = false
 
-        // COMP-16: skip assets that already have a completed record so they are
-        // never re-encoded (quality degradation).
-        let previouslyCompletedIds: Set<String> = ((try? modelContext.fetch(
-            FetchDescriptor<CompressionRecord>(predicate: #Predicate { $0.outcome == "completed" })
-        )) ?? []).reduce(into: Set<String>()) { $0.insert($1.assetLocalIdentifier) }
+        // COMP-16: skip assets that already have a usable copy — completed
+        // swaps, no-savings skips, and kept-both declines — so they are never
+        // re-encoded (quality degradation, duplicate copies).
+        //
+        // The copy must still be in the library: a kept-both row whose copy the
+        // user deleted in Photos would otherwise block its original from ever
+        // being compressed again ("Already compressed" forever).
+        let settled = CompressionJournal.settledReplacements(modelContext: modelContext)
+        let liveReplacements = await photoService.existingIds(Array(settled.values))
+        let previouslyCompletedIds = Set(settled.filter { liveReplacements.contains($0.value) }.keys)
 
         // D1: resolve leftovers from any interrupted swap BEFORE the batch —
         // otherwise a stranded duplicate could be re-compressed or double-counted.
@@ -212,25 +333,11 @@ final class VideoCompressionViewModel {
         let indexById = Dictionary(uniqueKeysWithValues: videos.enumerated().map { ($1.id, $0) })
 
         let handlers = CompressionBatchRunner.Handlers(
-            setExporting: { [weak self] index, progress in
-                guard let self else { return }
-                self.videos[index].compressionState = .exporting(progress)
+            setState: { [weak self] index, state in
+                self?.videos[index].compressionState = state
             },
-            setKeptOriginal: { [weak self] index, reason in
-                guard let self else { return }
-                self.videos[index].compressionState = .keptOriginal(reason: reason)
-            },
-            setCompleted: { [weak self] index, saved in
-                guard let self else { return }
-                self.videos[index].compressionState = .completed(savedBytes: saved)
-            },
-            setFailed: { [weak self] index, message in
-                guard let self else { return }
-                self.videos[index].compressionState = .failed(message)
-            },
-            setWaiting: { [weak self] index in
-                guard let self else { return }
-                self.videos[index].compressionState = .waiting
+            setPhase: { [weak self] phase in
+                self?.phase = phase
             }
         )
 
@@ -300,15 +407,14 @@ final class VideoCompressionViewModel {
                         return .skipped
                     }
 
-                    // The original was already deleted inside compressVideo; the
-                    // journal row (written before the swap) now becomes the history
-                    // record. Even if `videos` was mutated during the await, the
-                    // record + savings are already durable.
-                    swap.finalizeCompleted(compressedSize: compressResult.compressedSize)
-                    return .completed(
+                    // Step 1 done. The original stays until the runner's single
+                    // delete commit, which finalizes this journal row.
+                    return .saved(PendingOriginal(
+                        assetId: id,
                         originalSize: compressResult.originalSize,
-                        compressedSize: compressResult.compressedSize
-                    )
+                        compressedSize: compressResult.compressedSize,
+                        swap: swap
+                    ))
                 } catch {
                     if self.isCancelled || error is CancellationError {
                         // User cancelled mid-item: reset the row and stop the loop. A
@@ -338,6 +444,7 @@ final class VideoCompressionViewModel {
         // skipped ones stay so the user can see why they were left alone.
         videos.removeAll { successfulIds.contains($0.id) }
         selectedIds.subtract(successfulIds)
+        keptOriginals = result.kept
         isCompressing = false
         batchSummary = CompressionBatchSummary(
             completed: completedCount,

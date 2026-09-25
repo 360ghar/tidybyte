@@ -53,17 +53,17 @@ final class WidgetSnapshotCoordinator {
         // enumeration started (A2).
         let measuredAt = Date()
 
-        // A single enumeration feeds the storage snapshot, the reminder copy,
-        // and the widget snapshot.
+        // A single enumeration feeds the storage snapshot and the widget
+        // snapshot.
         let stats = await Self.computeStats(photoService: photoService)
 
         recordStorageSnapshot(stats: stats, modelContext: modelContext)
-        await refreshReminderIfNeeded(stats: stats)
         // Reconcile the cached lifetime totals from the ledger BEFORE the
-        // widget write, so the widget's "Freed ..." figure can't drift from
+        // widget write, so the widget's "Cleaned up ..." figure can't drift from
         // the SwiftData history it's supposed to mirror.
         CleanupLedger.shared.refreshCache(modelContext: modelContext)
         writeWidgetSnapshot(stats: stats)
+        await migrateReminderCopyIfNeeded()
         // Record that the heavy scan ran today regardless of the SwiftData save
         // result above, so a persistent save failure can't re-trigger it on
         // every foreground.
@@ -138,10 +138,18 @@ final class WidgetSnapshotCoordinator {
            current.usedBytes == capacity.used,
            current.totalBytes == capacity.total,
            current.screenshotCount == stats.screenshotCount,
+           current.screenshotBytes == stats.screenshotBytes,
            current.largeFileCount == stats.largeFileCount,
+           current.largeFileBytes == stats.largeFileBytes,
            current.reclaimableBytes == stats.reclaimableBytes,
            current.lifetimeFreedBytes == lifetime.bytes,
            current.lifetimeItemCount == lifetime.items {
+            // Same figures: record the scan time only, so the widget's
+            // "Updated 3d ago" reflects the last scan, not the last change.
+            // No timeline reload: the hourly refresh picks it up.
+            var refreshed = current
+            refreshed.capturedAt = .now
+            AppGroupStore.save(refreshed)
             return
         }
         let snapshot = WidgetSnapshot(
@@ -173,21 +181,24 @@ final class WidgetSnapshotCoordinator {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    private func refreshReminderIfNeeded(stats: MediaLibraryStats) async {
-        guard AppPreferences.remindersEnabled() else { return }
-
+    /// A repeating reminder keeps the text it was scheduled with. Reminders
+    /// scheduled by older builds carry stale counts, so reschedule once with
+    /// the count-free text.
+    ///
+    /// Gated on V3, not V2: V2 was already consumed by the build that shipped
+    /// "large videos" in the body, so those users kept the old wording. A fresh
+    /// key re-runs the reschedule once and lets the current copy land.
+    private func migrateReminderCopyIfNeeded() async {
+        let key = AppPreferences.Key.reminderCopyMigratedV3
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        guard AppPreferences.remindersEnabled() else {
+            UserDefaults.standard.set(true, forKey: key)
+            return
+        }
         let weekday = AppPreferences.reminderWeekday()
-        guard (1...7).contains(weekday) else { return }
-
-        // Don't attempt to (re)schedule if notification permission was revoked.
-        guard await NotificationService.isPermissionGranted() else { return }
-
-        await NotificationService.scheduleWeeklyReminder(
-            weekday: weekday,
-            screenshotCount: stats.screenshotCount,
-            largeFileCount: stats.largeFileCount,
-            librarySize: stats.totalBytes.formattedFileSize
-        )
+        guard (1...7).contains(weekday), await NotificationService.isPermissionGranted() else { return }
+        guard await NotificationService.scheduleWeeklyReminder(weekday: weekday) else { return }
+        UserDefaults.standard.set(true, forKey: key)
     }
 
     // MARK: - Shared Helpers

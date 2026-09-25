@@ -23,6 +23,8 @@ struct LivePhotoPreviewView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var currentIndex: Int
     @State private var showDeleteConfirm = false
+    @State private var showConvertExplainer = false
+    @AppStorage(LivePhotoConvertExplainer.storageKey) private var hasSeenExplainer = false
 
     private let photoService = PhotoLibraryService.shared
 
@@ -73,8 +75,25 @@ struct LivePhotoPreviewView: View {
                 Task { await performDelete() }
             }
         } message: {
-            Text("This permanently removes both the still image and the motion component. This action cannot be undone.")
+            Text("This removes both the still image and the motion. \(CleanupDeletion.recoverableNote)")
         }
+        .alert("Convert Live Photo", isPresented: $showConvertExplainer) {
+            Button("Cancel", role: .cancel) { }
+            Button("Convert") {
+                hasSeenExplainer = true
+                Task { await performConvert() }
+            }
+        } message: {
+            Text(LivePhotoConvertExplainer.message)
+        }
+        // The list's alert cannot present over this full-screen cover.
+        // No settable state backs this condition (keptOriginals is VM-owned),
+        // so a constant binding.
+        .originalsKeptAlert(
+            isPresented: .constant(!viewModel.keptOriginals.isEmpty),
+            onTryAgain: { viewModel.retryRemovingOriginals() },
+            onRemoveCopies: { viewModel.removeCopies() }
+        )
     }
 
     private var topBar: some View {
@@ -130,7 +149,7 @@ struct LivePhotoPreviewView: View {
 
     private func shouldShowPlayer(for item: LivePhotoItem) -> Bool {
         switch item.conversionState {
-        case .idle, .converting, .failed:
+        case .idle, .converting, .copySaved, .failed:
             return true
         case .completed:
             return false
@@ -140,12 +159,12 @@ struct LivePhotoPreviewView: View {
     @ViewBuilder
     private func conversionStateOverlay(for item: LivePhotoItem) -> some View {
         switch item.conversionState {
-        case .idle, .converting:
+        case .idle, .converting, .copySaved:
             EmptyView()
         case .completed:
             VStack(spacing: Spacing.md) {
                 Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 64))
+                    .scaledGlyph(64)
                     .foregroundStyle(.green)
                 Text("Converted to Still")
                     .font(.headline)
@@ -161,7 +180,7 @@ struct LivePhotoPreviewView: View {
         case .failed(let message):
             VStack(spacing: Spacing.md) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 56))
+                    .scaledGlyph(56)
                     .foregroundStyle(.red)
                 Text("Conversion Failed")
                     .font(.headline)
@@ -251,11 +270,15 @@ struct LivePhotoPreviewView: View {
             .accessibilityLabel("Delete Live Photo")
             // COMP-18 parity with Convert: no outright delete while Convert All
             // is running (the batch may own this item).
-            .disabled(currentItem == nil || viewModel.convertingAll)
+            .disabled(currentItem == nil || viewModel.convertingAll || viewModel.isBusy)
 
             Button {
                 HapticHelper.impact(.medium)
-                Task { await performConvert() }
+                if hasSeenExplainer {
+                    Task { await performConvert() }
+                } else {
+                    showConvertExplainer = true
+                }
             } label: {
                 Group {
                     if isCurrentConverting {
@@ -275,7 +298,7 @@ struct LivePhotoPreviewView: View {
             }
             .scaleOnPress()
             // COMP-18: no single-item Convert while Convert All is running.
-            .disabled(currentItem == nil || isCurrentConverting || isCurrentConverted || viewModel.convertingAll)
+            .disabled(currentItem == nil || isCurrentConverting || isCurrentConverted || viewModel.convertingAll || viewModel.isBusy)
             .accessibilityLabel("Convert Live Photo to Still")
         }
     }
@@ -289,7 +312,10 @@ struct LivePhotoPreviewView: View {
 
     private var isCurrentConverting: Bool {
         guard let item = currentItem else { return false }
-        if case .converting = item.conversionState { return true }
+        switch item.conversionState {
+        case .converting, .copySaved: return true
+        default: break
+        }
         return false
     }
 

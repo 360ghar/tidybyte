@@ -79,8 +79,7 @@ actor PhotoLibraryService {
             let removedIds = details.removedObjects.map(\.localIdentifier)
             let changedIds = details.changedObjects.map(\.localIdentifier)
             for id in removedIds + changedIds {
-                await ImageCache.shared.removeImage(for: id)
-                await ImageCache.shared.removeImage(for: "\(id)#degraded")
+                await ImageCache.shared.removeAllVariants(of: id)
             }
         } else {
             await ImageCache.shared.removeAll()
@@ -99,9 +98,24 @@ actor PhotoLibraryService {
         changeBaselineFetch = fetchResult
     }
 
+    /// The ids from `ids` that still exist in the library. Lists use it to drop
+    /// items deleted elsewhere (Swipe Review, the Photos app) without a rescan.
+    /// Actor-isolated (not static): the PhotoKit fetch + enumeration runs on
+    /// this service's executor, never synchronously on the caller's (main) actor.
+    func existingIds(_ ids: [String]) -> Set<String> {
+        guard !ids.isEmpty else { return [] }
+        var present = Set<String>()
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+            .enumerateObjects { asset, _, _ in present.insert(asset.localIdentifier) }
+        return present
+    }
+
     // MARK: - Album Fetching
 
-    func fetchUserAlbums() -> [AlbumInfo] {
+    /// - Parameter editableOnly: true for "Add to Album". System smart albums
+    ///   (Favorites, Recents, Screenshots…) and shared or synced albums
+    ///   cannot take new photos, so listing them only produced errors.
+    func fetchUserAlbums(editableOnly: Bool = false) -> [AlbumInfo] {
         var albums: [AlbumInfo] = []
 
         // Smart albums (Favorites, Recents, etc.)
@@ -110,7 +124,7 @@ actor PhotoLibraryService {
             subtype: .any,
             options: nil
         )
-        for index in 0..<smartAlbums.count {
+        for index in 0..<(editableOnly ? 0 : smartAlbums.count) {
             let collection = smartAlbums.object(at: index)
             // Single fetch per album: newest-first ordering gives both the
             // count and the thumbnail id (previously two fetches per album).
@@ -137,6 +151,7 @@ actor PhotoLibraryService {
         )
         for index in 0..<userAlbums.count {
             let collection = userAlbums.object(at: index)
+            if editableOnly, !collection.canPerform(.addContent) { continue }
             let (count, thumbnailId) = Self.countAndNewestId(in: collection)
             albums.append(AlbumInfo(
                 id: collection.localIdentifier,
@@ -634,13 +649,31 @@ actor PhotoLibraryService {
             }
             return Set(identifiers).intersection(fetchedIds)
         } catch {
+            // "Don't Allow" on the iOS prompt: stop here. The per-id retry
+            // below would show the same prompt again, once per item.
+            if PhotoServiceError.isUserDeclined(error) {
+                throw PhotoServiceError.userDeclined
+            }
             var succeeded = Set<String>()
             var failed = 0
             for (offset, id) in identifiers.enumerated() {
                 // Serial by design (PhotoKit-safe); yield periodically so a
                 // long fallback retry stays cancellable and responsive.
                 if offset % 10 == 0 { await Task.yield() }
-                if Task.isCancelled { throw CancellationError() }
+                // Cancelled mid-loop. When nothing has been deleted yet a plain
+                // cancel must stay a cancel — reporting "Deleted 0 of N items"
+                // (or Swipe's "Failed to delete N photos") nudges the user into
+                // re-confirming an iOS prompt for a deletion they never asked
+                // to retry. Only once some ids have actually gone do we throw
+                // `partialDeletion`, so the ids deleted so far travel with the
+                // error via `succeededIds` instead of being discarded.
+                if Task.isCancelled {
+                    guard !succeeded.isEmpty else { throw CancellationError() }
+                    throw PhotoServiceError.partialDeletion(
+                        succeededIds: succeeded,
+                        failedCount: identifiers.count - succeeded.count
+                    )
+                }
                 do {
                     guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
                         // The asset no longer exists in the library (deleted
@@ -993,7 +1026,9 @@ actor PhotoLibraryService {
             isLivePhoto: asset.mediaSubtypes.contains(.photoLive),
             isScreenshot: asset.mediaSubtypes.contains(.photoScreenshot),
             isLocallyAvailable: isLocal,
-            assetOrigin: Self.detectOrigin(for: asset, filename: resources.first?.originalFilename)
+            assetOrigin: Self.detectOrigin(for: asset, filename: resources.first?.originalFilename),
+            burstPick: asset.burstSelectionTypes.contains(.userPick) ? .user
+                : asset.burstSelectionTypes.contains(.autoPick) ? .iPhone : .none
         )
     }
 
@@ -1085,6 +1120,8 @@ enum PhotoServiceError: LocalizedError {
     case albumCreationFailed
     case albumChangeFailed
     case partialDeletion(succeededIds: Set<String>, failedCount: Int)
+    /// The user tapped "Don't Allow" on the iOS delete prompt.
+    case userDeclined
 
     var errorDescription: String? {
         switch self {
@@ -1094,7 +1131,17 @@ enum PhotoServiceError: LocalizedError {
         case .partialDeletion(let succeededIds, let failedCount):
             let total = succeededIds.count + failedCount
             return "Deleted \(succeededIds.count) of \(total) items. \(failedCount) couldn't be deleted. Try again."
+        case .userDeclined: return "Nothing was deleted."
         }
+    }
+
+    /// True for the PhotoKit error thrown when the user declines the iOS
+    /// delete prompt, and for this enum's own `userDeclined`.
+    static func isUserDeclined(_ error: Error) -> Bool {
+        if case .userDeclined? = error as? PhotoServiceError { return true }
+        let nsError = error as NSError
+        return nsError.domain == PHPhotosErrorDomain
+            && nsError.code == PHPhotosError.Code.userCancelled.rawValue
     }
 
     /// Ids that were deleted before a partial failure. `nil` for non-partial

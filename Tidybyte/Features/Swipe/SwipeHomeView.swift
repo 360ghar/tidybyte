@@ -109,8 +109,8 @@ struct SwipeHomeView: View {
                     .fadeSlideIn(delay: 0.1)
 
                     filterCard(
-                        title: "All Media from a Date",
-                        description: "Review everything up to a date you pick",
+                        title: "Photos Before a Date",
+                        description: "Review photos and videos taken on or before a date",
                         icon: "calendar",
                         color: .indigo,
                         filter: nil,
@@ -140,6 +140,8 @@ struct SwipeHomeView: View {
                 .padding(.horizontal, Spacing.lg)
             }
             .padding(.bottom, Spacing.xxl)
+            // Cards stop stretching across a landscape iPad.
+            .readableWidth()
         }
     }
 
@@ -148,18 +150,6 @@ struct SwipeHomeView: View {
     private var heroHeader: some View {
         VStack(spacing: Spacing.md) {
             ZStack {
-                // Glow behind icon
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [.blue.opacity(0.2), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 60
-                        )
-                    )
-                    .frame(width: 120, height: 120)
-
                 // Stacked card icons
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
@@ -230,15 +220,12 @@ struct SwipeHomeView: View {
             }
         } label: {
             HStack(spacing: Spacing.lg) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .fill(color.gradient)
-                        .scaledSquare(ScaledSize.toolIconTile)
-
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundStyle(.white)
-                }
+                // Bare glyph in the filter's color: no tile behind it.
+                // Fixed-width slot, so every title starts on the same line.
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(color)
+                    .scaledSquare(40)
 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     HStack(spacing: Spacing.sm) {
@@ -247,12 +234,8 @@ struct SwipeHomeView: View {
                             .foregroundStyle(.primary)
                         if isDefault {
                             Text("Default")
-                                .font(.caption2.bold())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, Spacing.sm)
-                                .padding(.vertical, Spacing.xs)
-                                .background(color)
-                                .clipShape(Capsule())
+                                .font(.caption.bold())
+                                .foregroundStyle(.secondary)
                         }
                     }
                     Text(description)
@@ -302,7 +285,7 @@ struct SwipeHomeView: View {
     }
 }
 
-/// Date-cutoff picker for the "All Media from a Date" swipe filter. The session
+/// Date picker for the "Photos Before a Date" swipe filter. The session
 /// starts on sheet dismissal (same pattern as the album picker) so the
 /// navigation push isn't dropped while the sheet is still up.
 ///
@@ -317,21 +300,25 @@ struct SwipeDateCutoffSheet: View {
 
     var body: some View {
         NavigationStack {
+            // Scrolls, so the note under the calendar is never clipped on a
+            // small phone or at large text sizes.
+            ScrollView {
             VStack(spacing: Spacing.xl) {
                 DatePicker(
-                    "Cutoff date",
+                    "Date",
                     selection: $cutoff,
                     displayedComponents: [.date]
                 )
                 .datePickerStyle(.graphical)
 
-                Text("Your session will include every photo and video taken on or before this date.")
+                Text("The session includes every photo and video taken on or before this date.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             .padding()
-            .navigationTitle("Start From a Date")
+            }
+            .navigationTitle("Photos Before a Date")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -346,6 +333,6 @@ struct SwipeDateCutoffSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
     }
 }

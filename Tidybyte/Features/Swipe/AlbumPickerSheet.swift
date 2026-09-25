@@ -86,24 +86,33 @@ struct AlbumPickerSheet: View {
                         .padding(.vertical)
                     }
                     .pullToRefresh {
-                        albums = await photoService.fetchUserAlbums()
+                        albums = await photoService.fetchUserAlbums(editableOnly: true)
                     }
                 }
             }
             .navigationTitle("Add to Album")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Cancel puts the card back on the deck (the sheet's onDismiss
+                // cancels the pending keep).
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    // A running add would still file the photo after Cancel.
+                    .disabled(isAddingToAlbum || isCreatingAlbum)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Skip") {
+                    Button("Keep Without Album") {
                         onSkip()
                         dismiss()
                     }
-                    .foregroundStyle(.secondary)
+                    .disabled(isAddingToAlbum || isCreatingAlbum)
                 }
             }
         }
         .task {
-            albums = await photoService.fetchUserAlbums()
+            albums = await photoService.fetchUserAlbums(editableOnly: true)
             isLoading = false
         }
         // Non-modal error surface inside the sheet (B4): the session view sits
@@ -120,6 +129,7 @@ struct AlbumPickerSheet: View {
                 .padding(.vertical, Spacing.sm)
             }
         }
+        .interactiveDismissDisabled(isAddingToAlbum || isCreatingAlbum)
     }
 
     // MARK: - New Album Section
@@ -147,7 +157,10 @@ struct AlbumPickerSheet: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.secondary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("Cancel new album")
         }
         .padding(.horizontal)
     }

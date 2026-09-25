@@ -53,4 +53,29 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(AppPreferences.reminderWeekday(in: defaults), 4)
         XCTAssertEqual(AppPreferences.recentAlbumIds(in: defaults), ["one", "two"])
     }
+
+    /// PR #2 finding: an early session exit counts the action but cannot present
+    /// the milestone it earned, so the decision is held instead of dropped.
+    func testPendingReviewMilestoneRoundTrip() {
+        XCTAssertFalse(AppPreferences.hasPendingReviewMilestone(in: defaults))
+        AppPreferences.savePendingReviewMilestone(true, in: defaults)
+        XCTAssertTrue(AppPreferences.hasPendingReviewMilestone(in: defaults))
+        // Claiming it (presenting the held prompt) clears the flag.
+        AppPreferences.savePendingReviewMilestone(false, in: defaults)
+        XCTAssertFalse(AppPreferences.hasPendingReviewMilestone(in: defaults))
+    }
+
+    /// PR #2 finding: a held milestone is consumed either way, but only
+    /// presents while the user has not rated the app — the same `hasRatedApp`
+    /// gate the normal success path applies.
+    @MainActor
+    func testHeldMilestoneConsumesAndOnlyPresentsWhenUnrated() {
+        AppPreferences.savePendingReviewMilestone(true, in: defaults)
+        XCTAssertTrue(HappyPathReporter.consumePendingReviewMilestone(hasRated: false, in: defaults))
+        XCTAssertFalse(AppPreferences.hasPendingReviewMilestone(in: defaults), "presenting consumes the hold")
+
+        AppPreferences.savePendingReviewMilestone(true, in: defaults)
+        XCTAssertFalse(HappyPathReporter.consumePendingReviewMilestone(hasRated: true, in: defaults))
+        XCTAssertFalse(AppPreferences.hasPendingReviewMilestone(in: defaults), "rating since does not keep the hold alive")
+    }
 }

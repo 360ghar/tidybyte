@@ -16,6 +16,11 @@ enum CompressionOutcome: String, Sendable {
     case completed
     case skipped
     case failed
+    /// Both versions stay: the user declined the delete-originals prompt, so
+    /// the original and the saved copy are both in the library. Terminal like
+    /// completed/skipped/failed — reconcile never touches these rows — but a
+    /// later Try Again may still promote kept → completed.
+    case kept
 }
 
 @Model
@@ -76,6 +81,11 @@ final class CompressionRecord {
     /// by a crash (D1). Reconciliation resolves these on tool load; they must
     /// never render as savings.
     var isPending: Bool { outcome == CompressionOutcome.pending.rawValue }
+
+    /// True when the user kept both versions (declined the delete-originals
+    /// prompt). Terminal: reconcile ignores these rows, History shows no
+    /// savings and no failure badge for them.
+    var isKept: Bool { outcome == CompressionOutcome.kept.rawValue }
 
     /// Space reclaimed by this record. Failed records contribute zero.
     var savedBytes: Int64 {

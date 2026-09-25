@@ -26,7 +26,8 @@ struct PhotoCompressionPreset: Identifiable, Sendable {
 /// replaces the original in the library. Mirrors `VideoCompressionService`:
 /// reuses its media-agnostic `CompressionResult`/`CompressionState`, writes to a
 /// temp file with guaranteed cleanup, skips when no space is saved, preserves
-/// date/location/favorite/hidden + album membership, and deletes the original last.
+/// date/location/favorite/hidden + album membership. It never deletes the
+/// original: the batch does that for all items at once (`OriginalsCommit`).
 actor PhotoCompressionService {
     private let photoService: PhotoLibraryService
 
@@ -143,39 +144,8 @@ actor PhotoCompressionService {
             }
         }
 
-        // Delete the original only after confirming the replacement exists. If
-        // deletion fails, roll the replacement back so we don't leave a
-        // duplicate behind (COMP-02).
-        var originalDeleteUnconfirmed = false
-        do {
-            let deleted = try await photoService.deleteAssets(identifiers: [assetId])
-            // SHARED-01: deleteAssets reports success as a SUBSET of its input —
-            // the per-identifier fallback returns a partial (or empty) set
-            // without throwing when it is cancelled mid-retry. An unconfirmed
-            // delete means the original is still in the library, so the swap
-            // must not be reported as done (that would credit savings for a
-            // duplicate and hide the leftover from the journal).
-            originalDeleteUnconfirmed = !deleted.contains(assetId)
-        } catch {
-            originalDeleteUnconfirmed = true
-        }
-        if originalDeleteUnconfirmed {
-            var rollbackSucceeded = false
-            do {
-                let rolledBack = try await photoService.deleteAssets(identifiers: [replacementId])
-                rollbackSucceeded = rolledBack.contains(replacementId)
-            } catch {
-                rollbackSucceeded = false
-            }
-            // A cancelled delete left the library as we found it — report a
-            // cancellation so the batch loop can reset the row instead of
-            // claiming a failure the user did not cause.
-            if Task.isCancelled {
-                throw PhotoCompressionError.cancelled
-            }
-            throw PhotoCompressionError.originalDeletionFailed(rollbackSucceeded: rollbackSucceeded)
-        }
-
+        // The original is NOT deleted here: see VideoCompressionService — the
+        // batch deletes all originals in one commit (one iOS prompt).
         return CompressionResult(
             originalSize: originalSize,
             compressedSize: compressedSize,
@@ -280,7 +250,6 @@ enum PhotoCompressionError: LocalizedError {
     case encodeFailed
     case fileSizeReadFailed
     case saveFailed(String)
-    case originalDeletionFailed(rollbackSucceeded: Bool)
 
     var errorDescription: String? {
         switch self {
@@ -292,12 +261,6 @@ enum PhotoCompressionError: LocalizedError {
         case .encodeFailed: "Failed to re-encode the photo."
         case .fileSizeReadFailed: "Failed to read file size."
         case .saveFailed(let msg): "Save failed: \(msg)"
-        case .originalDeletionFailed(let rollbackSucceeded):
-            if rollbackSucceeded {
-                "Compressed copy saved, but the original couldn't be deleted. We removed the new copy to avoid a duplicate."
-            } else {
-                "Compressed copy saved, but the original couldn't be deleted, and the new copy couldn't be removed either. Check your library for a duplicate."
-            }
         }
     }
 }

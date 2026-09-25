@@ -16,6 +16,22 @@ struct CompressionHistoryView: View {
         records.filter(\.succeeded).count
     }
 
+    static func icon(for mediaType: String) -> String {
+        switch mediaType {
+        case "photo": "photo"
+        case "livePhoto": "livephoto"
+        default: "video"
+        }
+    }
+
+    /// Readable preset names instead of raw ids ("balanced", "still").
+    static func presetLabel(_ id: String) -> String {
+        if id == "still" { return "Still image" }
+        if let video = CompressionPreset.presets.first(where: { $0.id == id }) { return video.label }
+        if let photo = PhotoCompressionPreset.presets.first(where: { $0.id == id }) { return photo.label }
+        return id
+    }
+
     var body: some View {
         Group {
             if records.isEmpty {
@@ -51,7 +67,7 @@ struct CompressionHistoryView: View {
                     // Records
                     ForEach(records) { record in
                         HStack(spacing: Spacing.md) {
-                            Image(systemName: record.mediaType == "photo" ? "photo" : "video")
+                            Image(systemName: Self.icon(for: record.mediaType))
                                 .font(.body)
                                 .foregroundStyle(.secondary)
                                 .frame(width: 24)
@@ -60,16 +76,9 @@ struct CompressionHistoryView: View {
                                 Text(record.compressedAt.formatted(date: .abbreviated, time: .shortened))
                                     .font(.subheadline)
 
-                                Text(record.exportPreset)
+                                Text(Self.presetLabel(record.exportPreset))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-
-                                Text(record.outcome.capitalized)
-                                    .font(.caption2.bold())
-                                    // Three-state, matching the savings badge:
-                                    // completed → green, failed → red, skipped
-                                    // (intentional) → neutral.
-                                    .foregroundStyle(record.isFailed ? .red : record.succeeded ? .green : .secondary)
 
                                 if record.replacementAssetLocalIdentifier != nil {
                                     Text("Replacement saved to library")
@@ -81,16 +90,26 @@ struct CompressionHistoryView: View {
                             Spacer()
 
                             VStack(alignment: .trailing, spacing: Spacing.xs) {
-                                HStack(spacing: Spacing.xs) {
+                                // The arrow only when a copy exists: a failed or
+                                // skipped row showing "12 MB → Zero KB" read as
+                                // a 100% saving.
+                                if record.succeeded || record.replacementAssetLocalIdentifier != nil {
+                                    HStack(spacing: Spacing.xs) {
+                                        Text(record.originalSizeBytes.formattedFileSize)
+                                            .foregroundStyle(.secondary)
+                                        Image(systemName: "arrow.right")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .accessibilityLabel("to")
+                                        Text(record.compressedSizeBytes.formattedFileSize)
+                                            .foregroundStyle(.primary)
+                                    }
+                                    .font(.caption.monospacedDigit())
+                                } else {
                                     Text(record.originalSizeBytes.formattedFileSize)
+                                        .font(.caption.monospacedDigit())
                                         .foregroundStyle(.secondary)
-                                    Image(systemName: "arrow.right")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                    Text(record.compressedSizeBytes.formattedFileSize)
-                                        .foregroundStyle(.primary)
                                 }
-                                .font(.caption.monospacedDigit())
 
                                 // COMP-01: failed rows show a "Failed" badge with
                                 // zero savings instead of a misleading green

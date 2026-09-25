@@ -4,7 +4,11 @@ import SwiftUI
 @MainActor
 final class SmartCategoriesViewModel {
     var categorizedPhotos: [CategorizedPhoto] = [] {
-        didSet { recomputeCategoryCounts(); recomputeFiltered() }
+        didSet {
+            recomputeCategoryCounts()
+            recomputeFiltered()
+            if scanState == .completed { ScanResults.record(.smartCategories, count: categorizedPhotos.count) }
+        }
     }
     /// Per-category counts, recomputed only when `categorizedPhotos` changes so the
     /// chip row doesn't run an O(categories × photos) pass on every view update.
@@ -32,25 +36,16 @@ final class SmartCategoriesViewModel {
     /// C1/C2: owns the cancellable scan task + generation token.
     private let scanRunner = ScanRunner()
 
-    /// Selections kept PER CATEGORY (C11): switching categories no longer
-    /// destroys the selection made on another category.
-    private var selectionsByCategory: [PhotoCategory: Set<String>] = [:]
+    /// One selection per photo, shared by all categories (a screenshot that
+    /// is also a document shows the same check in both). The action bar, the
+    /// confirm and the delete all count this one set (C11).
+    var selectedIds: Set<String> = []
 
-    var selectedIds: Set<String> {
-        get { selectionsByCategory[activeCategory] ?? [] }
-        set { selectionsByCategory[activeCategory] = newValue }
-    }
+    var totalSelectedCount: Int { selectedIds.count }
 
-    /// Every selected id across all categories — what `deleteSelected()`
-    /// actually removes. The confirm dialog must use this, not `selectedIds`,
-    /// or it announces fewer photos than it deletes.
-    ///
-    /// Deduplicated through a Set, like `deleteSelected()` does: one photo can
-    /// carry several categories (e.g. a screenshot that is also a document), and
-    /// selecting it on both tabs would otherwise report two deletions for a
-    /// single asset.
-    var totalSelectedCount: Int {
-        Set(selectionsByCategory.values.flatMap { $0 }).count
+    /// Selected photos not shown in the active category.
+    var selectedInOtherCategories: Int {
+        selectedIds.subtracting(filteredPhotos.map(\.id)).count
     }
 
     var sensitivity: CategorySensitivity {
@@ -93,7 +88,7 @@ final class SmartCategoriesViewModel {
     }
 
     var selectedSize: Int64 {
-        cachedFilteredPhotos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
+        categorizedPhotos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
     }
 
     /// Combined size of every photo in the active category (the whole list, not
@@ -137,11 +132,16 @@ final class SmartCategoriesViewModel {
         // turn on the main actor) must not touch shared state: `cancelScan()`
         // already moved the UI to `.idle`.
         guard scanRunner.isCurrent(token) else { return }
+        // Captured before any await: a library change during the scan bumps the
+        // epoch, and this run's result must then be dropped rather than
+        // published as a pre-change count.
+        let scanEpoch = ScanResults.epoch
         scanState = .scanning(0)
         categorizedPhotos = []
-        selectionsByCategory.removeAll()
+        selectedIds.removeAll()
         deletedCount = 0
         analyzedPhotoCount = 0
+        pendingPrune = false
 
         let assets = await photoService.fetchAllPhotos()
         // C9: counted live so the "N sorted" indicator ticks during the scan.
@@ -168,6 +168,13 @@ final class SmartCategoriesViewModel {
             activeCategory = first
         }
         scanState = .completed
+        // A library change that landed mid-scan: prune now that publishing
+        // can't be overwritten by a later tick.
+        if pendingPrune {
+            pendingPrune = false
+            await pruneDeleted()
+        }
+        ScanResults.record(.smartCategories, count: categorizedPhotos.count, epoch: scanEpoch)
     }
 
     /// D-06: the "Saved from Apps" bucket is recall-heavy by design (filename
@@ -183,28 +190,51 @@ final class SmartCategoriesViewModel {
         return nil
     }
 
+    /// Drops results deleted elsewhere (Swipe Review, the Photos app).
+    /// A library change that lands mid-scan can't prune yet (results are
+    /// still landing), so it's remembered and applied when the scan
+    /// completes instead of being lost.
+    private var pendingPrune = false
+
+    func pruneDeleted() async {
+        if case .scanning = scanState {
+            pendingPrune = true
+            return
+        }
+        guard scanState == .completed, !categorizedPhotos.isEmpty, !isDeleting else { return }
+        // Snapshot before the await: a cancel+restart can replace
+        // `categorizedPhotos` while we suspend, and applying the previous
+        // scan's membership set to the new results would drop them.
+        let scannedIds = categorizedPhotos.map(\.id)
+        let present = await PhotoLibraryService.shared.existingIds(scannedIds)
+        guard present.count < scannedIds.count else { return }
+        guard scanState == .completed, !isDeleting else { return }
+        let goneIds = Set(scannedIds.filter { !present.contains($0) })
+        categorizedPhotos.removeAll { goneIds.contains($0.id) }
+        selectedIds.subtract(goneIds)
+    }
+
     func toggleSelection(_ id: String) {
         selectedIds.toggle(id)
     }
 
+    /// Select All / Deselect All act on the visible category only.
     func selectAll() {
-        selectedIds = Set(filteredPhotos.map(\.id))
+        selectedIds.formUnion(filteredPhotos.map(\.id))
     }
 
     func deselectAll() {
-        selectedIds.removeAll()
+        selectedIds.subtract(filteredPhotos.map(\.id))
     }
 
     private func removeIds(_ ids: Set<String>) {
         categorizedPhotos.removeAll { ids.contains($0.id) }
-        for category in PhotoCategory.allCases {
-            selectionsByCategory[category]?.subtract(ids)
-        }
+        selectedIds.subtract(ids)
     }
 
     func deleteSelected() async {
         // C11: delete across ALL categories' selections.
-        let allSelected = Set(selectionsByCategory.values.flatMap { $0 })
+        let allSelected = selectedIds
         guard !allSelected.isEmpty, !isDeleting else { return }
         errorMessage = nil
         isDeleting = true

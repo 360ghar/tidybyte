@@ -40,14 +40,15 @@ struct AsyncThumbnailView: View {
             // soft placeholder no longer blocks a sharp re-fetch for the whole
             // session (residual SHARED-05).
             var showingDegraded = false
-            if let cached = await ImageCache.shared.image(for: assetId) {
+            let sharpKey = ImageCache.key(for: assetId, size: targetSize)
+            if let cached = await ImageCache.shared.image(for: sharpKey) {
                 guard !Task.isCancelled else { return }
                 image = cached
                 hasLoaded = true
                 loadedAssetId = assetId
                 return
             }
-            let degradedKey = "\(assetId)#degraded"
+            let degradedKey = "\(sharpKey)#degraded"
             if let cached = await ImageCache.shared.image(for: degradedKey) {
                 guard !Task.isCancelled else { return }
                 image = cached
@@ -56,25 +57,59 @@ struct AsyncThumbnailView: View {
                 loadedAssetId = assetId
             }
 
-            let (loaded, isDegraded) = await photoService.loadThumbnailWithQuality(for: assetId, size: targetSize)
-            guard !Task.isCancelled else { return }
-            if let loaded {
+            // E5: an edit of THIS asset can land while the load is in flight,
+            // which moves its cache stamp. Those bytes are pre-edit, so the
+            // store refuses them — and showing them while pinning
+            // `loadedAssetId` would leave the edited image unseen for as long
+            // as this view lives. Retry with a fresh stamp instead. The stamp is
+            // per-asset, so an edit of a different asset neither refuses this
+            // store nor costs a retry.
+            let maxAttempts = 3
+            for _ in 1...maxAttempts {
+                let stamp = await ImageCache.shared.stamp(for: assetId)
+                let (loaded, isDegraded) = await photoService.loadThumbnailWithQuality(for: assetId, size: targetSize)
+                guard !Task.isCancelled else { return }
+                guard let loaded else { break }
                 if isDegraded {
                     // File the soft placeholder under the degraded key; never
-                    // overwrite something sharper we're already showing.
+                    // overwrite something sharper we're already showing. A soft
+                    // preview is shown even if its store is refused: the sharp
+                    // pass below supersedes it either way.
                     if !showingDegraded {
-                        await ImageCache.shared.setImage(loaded, for: degradedKey)
+                        await ImageCache.shared.setImage(loaded, for: degradedKey, assetId: assetId, ifStamp: stamp)
                         withAnimation(.easeIn(duration: 0.2)) { image = loaded }
+                        showingDegraded = true
                     }
-                } else {
-                    await ImageCache.shared.setImage(loaded, for: assetId)
+                    break
+                }
+                if await ImageCache.shared.setImage(loaded, for: sharpKey, assetId: assetId, ifStamp: stamp) {
                     // The soft placeholder is superseded.
                     await ImageCache.shared.removeImage(for: degradedKey)
                     withAnimation(.easeIn(duration: 0.2)) { image = loaded }
+                    break
                 }
+                // Refused: edited (or the cache flushed) mid-load, so these
+                // bytes are stale. Loop and reload rather than displaying them,
+                // unless this was the last attempt — a bound keeps a library
+                // that is changing under us from spinning here.
             }
             hasLoaded = true
             loadedAssetId = assetId
         }
+    }
+}
+
+/// Bare heart drawn on a photo that is a favorite, so it is never deleted by
+/// accident. No tile or pill behind it: a tight dark shadow keeps it legible
+/// on light photos.
+struct FavoriteMark: View {
+    var font: Font = .caption
+
+    var body: some View {
+        Image(systemName: "heart.fill")
+            .font(font)
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
+            .accessibilityLabel("Favorite")
     }
 }

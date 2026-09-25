@@ -146,8 +146,23 @@ enum CompressionJournal {
     /// replacement that attempt stranded. No-op when no pending row exists.
     /// Shared by the photo/video batch loops (previously verbatim private copies
     /// in both view models).
-    static func markPendingFailed(assetId: String, modelContext: ModelContext) async {
-        await resolvePending(assetId: assetId, outcome: .failed, modelContext: modelContext)
+    /// Pass `replacementAbsent: true` when the caller has already proven the
+    /// journaled copy is gone (the batch commit verifies replacements against
+    /// the library before touching originals). Asking PhotoKit to delete an
+    /// asset we know is absent reports not-gone, which would leave the row
+    /// PENDING forever — every later `reconcile` would retry the same
+    /// impossible delete. With the flag set the row settles immediately.
+    static func markPendingFailed(
+        assetId: String,
+        replacementAbsent: Bool = false,
+        modelContext: ModelContext
+    ) async {
+        await resolvePending(
+            assetId: assetId,
+            outcome: .failed,
+            replacementAbsent: replacementAbsent,
+            modelContext: modelContext
+        )
     }
 
     /// Marks a still-pending row for an attempt that legitimately did not swap:
@@ -155,20 +170,52 @@ enum CompressionJournal {
     /// or a user cancel. `CompressionRecord.isFailed` renders a red badge, so
     /// these must not be recorded as failures.
     static func markPendingSkipped(assetId: String, modelContext: ModelContext) async {
-        await resolvePending(assetId: assetId, outcome: .skipped, modelContext: modelContext)
+        await resolvePending(
+            assetId: assetId,
+            outcome: .skipped,
+            replacementAbsent: false,
+            modelContext: modelContext
+        )
     }
 
     private static func resolvePending(
         assetId: String,
         outcome: CompressionOutcome,
+        replacementAbsent: Bool,
         modelContext: ModelContext
     ) async {
         var descriptor = FetchDescriptor<CompressionRecord>(
             predicate: #Predicate { $0.outcome == "pending" && $0.assetLocalIdentifier == assetId }
         )
         descriptor.fetchLimit = 1
-        guard let record = try? modelContext.fetch(descriptor).first else { return }
-        await resolveStrandedReplacement(of: record, outcome: outcome, modelContext: modelContext)
+        if let record = try? modelContext.fetch(descriptor).first {
+            await resolveStrandedReplacement(
+                of: record,
+                outcome: outcome,
+                replacementAbsent: replacementAbsent,
+                modelContext: modelContext
+            )
+            return
+        }
+        // A row this swap already settled as kept-both can still reach a
+        // failure: the user taps Try Again, and the copy they once declined to
+        // remove has since been deleted in Photos. The pending-only fetch above
+        // misses it, and without this fallback the row would keep naming an
+        // absent copy in `savedCopyIds` forever while the UI reports the item
+        // as failed.
+        guard replacementAbsent, outcome == .failed,
+              let kept = try? modelContext.fetch(FetchDescriptor<CompressionRecord>(
+                  predicate: #Predicate { $0.outcome == "kept" && $0.assetLocalIdentifier == assetId }
+              )).first else { return }
+        AppLog.compression.info(
+            "Settling a kept-both row whose copy is gone (\(assetId, privacy: .public))"
+        )
+        await resolveStrandedReplacement(
+            of: kept,
+            outcome: .failed,
+            replacementAbsent: true,
+            modelContext: modelContext
+        )
     }
 
     /// Finalizes a pending row for an attempt that ended without a swap, first
@@ -179,6 +226,7 @@ enum CompressionJournal {
     private static func resolveStrandedReplacement(
         of record: CompressionRecord,
         outcome: CompressionOutcome,
+        replacementAbsent: Bool,
         modelContext: ModelContext
     ) async {
         guard let orphanId = record.replacementAssetLocalIdentifier else {
@@ -186,11 +234,15 @@ enum CompressionJournal {
             finalize(record, outcome: outcome, modelContext: modelContext)
             return
         }
-        guard await PhotoLibraryService.shared.removeOrphanedAsset(id: orphanId) else {
-            AppLog.compression.error(
-                "Could not remove stranded replacement \(orphanId, privacy: .public); leaving the journal row pending so the next reconcile retries"
-            )
-            return
+        // The caller already verified this copy is absent. Deleting it again
+        // would report not-gone and strand the row pending, so settle it now.
+        if !replacementAbsent {
+            guard await PhotoLibraryService.shared.removeOrphanedAsset(id: orphanId) else {
+                AppLog.compression.error(
+                    "Could not remove stranded replacement \(orphanId, privacy: .public); leaving the journal row pending so the next reconcile retries"
+                )
+                return
+            }
         }
         // The copy this row described is gone — zero its size so History doesn't
         // advertise a compression that no longer exists (the same invariant
@@ -241,23 +293,65 @@ enum CompressionJournal {
 
     /// Resolves every leftover pending row against the live library (see the
     /// type doc). Called on tool load; failures are logged, never fatal.
+    /// Rows with the kept-both outcome are terminal and never reach this
+    /// method: the fetch below is pending-only, so a decline settled durably
+    /// by `CompressionSwap.finalizeKeptBoth` can never resolve to
+    /// `deleteOrphanThenFail` and lose the user's saved copy.
+    /// Original id → the replacement copy that row settled on. Rows that never
+    /// journaled a copy (failures, copy-removed skips) are absent.
+    ///
+    /// Callers verify the replacement is still in the library before treating
+    /// the original as done: a kept-both row whose copy the user later deleted
+    /// must become compressible again, and this mapping is what makes that
+    /// check possible.
+    static func settledReplacements(modelContext: ModelContext) -> [String: String] {
+        let records = (try? modelContext.fetch(FetchDescriptor<CompressionRecord>(
+            predicate: #Predicate { $0.outcome != "pending" && $0.outcome != "failed" }
+        ))) ?? []
+        return records.reduce(into: [String: String]()) { result, record in
+            if let replacement = record.replacementAssetLocalIdentifier {
+                result[record.assetLocalIdentifier] = replacement
+            }
+        }
+    }
+
+    /// Copies this app made that are still named on a settled row: completed
+    /// swaps, and copies the user chose to keep next to the original.
+    static func savedCopyIds(modelContext: ModelContext) -> Set<String> {
+        let records = (try? modelContext.fetch(FetchDescriptor<CompressionRecord>(
+            predicate: #Predicate { $0.outcome != "pending" }
+        ))) ?? []
+        return Set(records.compactMap(\.replacementAssetLocalIdentifier))
+    }
+
     static func reconcile(modelContext: ModelContext) async {
         let descriptor = FetchDescriptor<CompressionRecord>(
             predicate: #Predicate { $0.outcome == "pending" }
         )
         guard let pendings = try? modelContext.fetch(descriptor), !pendings.isEmpty else { return }
         AppLog.compression.info("Reconciling \(pendings.count, privacy: .public) pending compression record(s)")
-        for record in pendings {
-            let originalExists = PHAsset.fetchAssets(
-                withLocalIdentifiers: [record.assetLocalIdentifier],
-                options: nil
-            ).firstObject != nil
-            let resolution = Self.resolution(
-                originalExists: originalExists,
+        var resolved: [(CompressionRecord, Resolution)] = []
+        // Rows still owned by a live swap (a running batch, or saved copies
+        // waiting on the Originals Kept choice) are not crash leftovers.
+        let leftovers = pendings.filter { !CompressionSwap.isLive(assetId: $0.assetLocalIdentifier) }
+        let existingOriginals = await PhotoLibraryService.shared.existingIds(leftovers.map(\.assetLocalIdentifier))
+        for record in leftovers {
+            resolved.append((record, Self.resolution(
+                originalExists: existingOriginals.contains(record.assetLocalIdentifier),
                 replacementId: record.replacementAssetLocalIdentifier,
                 saveAttempted: record.saveAttempted
-            )
+            )))
+        }
 
+        // Remove every stranded replacement in ONE call, so the user sees one
+        // iOS delete prompt instead of one per row.
+        let orphanIds = resolved.compactMap { _, resolution -> String? in
+            if case .deleteOrphanThenFail(let id) = resolution { return id }
+            return nil
+        }
+        let removedOrphans = await PhotoLibraryService.shared.removeOrphanedAssets(ids: orphanIds)
+
+        for (record, resolution) in resolved {
             switch resolution {
             case .completed:
                 // Original gone and a replacement was journaled: the swap
@@ -274,7 +368,7 @@ enum CompressionJournal {
                 // the item again. If the removal fails the row stays PENDING so
                 // the next reconcile retries instead of hiding the duplicate
                 // for good.
-                guard await PhotoLibraryService.shared.removeOrphanedAsset(id: orphanId) else {
+                guard removedOrphans.contains(orphanId) else {
                     AppLog.compression.error(
                         "Reconcile could not remove stranded replacement \(orphanId, privacy: .public); will retry on the next load"
                     )
@@ -302,10 +396,22 @@ extension PhotoLibraryService {
     /// no selection semantics — just remove the stranded copy). Returns whether
     /// the asset is really gone. Callers MUST check the result rather than
     /// assume success: `deleteAssets` reports success as a *subset* of the
-    /// identifiers it was given, and its per-identifier fallback returns a
-    /// partial (or empty) set without throwing when it is cancelled.
+    /// identifiers it was given, and its per-identifier fallback throws
+    /// `partialDeletion` carrying the ids that DID succeed when it is
+    /// cancelled (or partially fails) — `removeOrphanedAssets` recovers that
+    /// partial set from the error below instead of dropping it.
     fileprivate func removeOrphanedAsset(id: String) async -> Bool {
-        let deleted = (try? await deleteAssets(identifiers: [id])) ?? []
-        return deleted.contains(id)
+        await removeOrphanedAssets(ids: [id]).contains(id)
+    }
+
+    /// Batch form: one `deleteAssets` call (one iOS prompt). Returns the ids
+    /// that are really gone, including those removed by a partial failure.
+    fileprivate func removeOrphanedAssets(ids: [String]) async -> Set<String> {
+        guard !ids.isEmpty else { return [] }
+        do {
+            return try await deleteAssets(identifiers: ids)
+        } catch {
+            return (error as? PhotoServiceError)?.succeededIds ?? []
+        }
     }
 }

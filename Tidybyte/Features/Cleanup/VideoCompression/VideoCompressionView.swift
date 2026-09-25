@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import StoreKit
 
 struct VideoCompressionView: View {
     @State private var viewModel = VideoCompressionViewModel()
@@ -8,7 +7,6 @@ struct VideoCompressionView: View {
     @State private var previewStart: VideoItem?
     @State private var rowToDelete: VideoItem?
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var celebrationStatLine: String?
     private let photoService = PhotoLibraryService.shared
@@ -22,7 +20,7 @@ struct VideoCompressionView: View {
                     icon: "video.badge.waveform",
                     title: "No Videos",
                     message: "You don't have any videos in your library.",
-                    iconColor: .purple
+                    iconColor: CleanupTool.videoCompression.color
                 )
             } else {
                 contentView
@@ -46,18 +44,18 @@ struct VideoCompressionView: View {
                     NavigationLink {
                         CompressionHistoryView()
                     } label: {
-                        Image(systemName: "clock.arrow.circlepath")
+                        Label("Compression History", systemImage: "clock.arrow.circlepath")
                     }
                 }
             }
         }
         .alert("Compress Videos", isPresented: $showCompressConfirm) {
             Button("Cancel", role: .cancel) { }
-            Button("Compress \(viewModel.selectedIds.count) Videos", role: .destructive) {
+            Button("Compress \(viewModel.selectedIds.count) Videos") {
                 viewModel.startBatchCompression(modelContext: modelContext)
             }
         } message: {
-            Text("This replaces the original videos with compressed copies. Some video metadata may not be preserved. This cannot be undone.")
+            Text(ReplaceOriginalsNotice.explainer(copies: "a new, smaller copy of each video", originals: "the original videos"))
         }
         // Non-modal error surface. Also covers the batch summary
         // ("Compressed 8 of 10. 2 failed."), which is a report rather than a
@@ -96,8 +94,16 @@ struct VideoCompressionView: View {
                 Task { await viewModel.deleteVideo(id: id) }
             }
         } message: { video in
-            Text("This will delete \(video.asset.displaySize). This action cannot be undone.")
+            Text("This will delete \(video.asset.displaySize). \(CleanupDeletion.recoverableNote)")
         }
+        .originalsKeptAlert(
+            // Not over the preview cover: it would fail to present there.
+            // No settable state backs this condition — keptOriginals is
+            // VM-owned and the preview gate is local — so a constant binding.
+            isPresented: .constant(!viewModel.keptOriginals.isEmpty && previewStart == nil),
+            onTryAgain: { viewModel.retryRemovingOriginals() },
+            onRemoveCopies: { viewModel.removeCopies() }
+        )
         .fullScreenCover(item: $previewStart) { start in
             // COMP-05: resolve the pager's assets live from the VM (via the
             // provider closure) instead of a snapshot taken at presentation, so
@@ -107,19 +113,25 @@ struct VideoCompressionView: View {
                 assetsProvider: { viewModel.sortedVideos.map(\.asset) },
                 startIndex: viewModel.sortedVideos.firstIndex { $0.id == start.id } ?? 0,
                 photoService: photoService,
-                onDelete: { await viewModel.deleteVideo(id: $0.id) }
+                onDelete: { await viewModel.deleteVideo(id: $0.id) },
+                showOriginalsKept: { !viewModel.keptOriginals.isEmpty },
+                onRetryRemovingOriginals: { viewModel.retryRemovingOriginals() },
+                onRemoveCopies: { viewModel.removeCopies() }
             )
         }
         .onChange(of: viewModel.batchSummary) { _, summary in
             // Success haptic only when every attempted item succeeded and at
             // least one was compressed (COMP-09 pattern).
             guard let summary else { return }
-            if summary.failed == 0, summary.completed > 0, !summary.cancelled {
+            // Kept originals leave an open decision (the "Originals Kept"
+            // alert), so the batch is not a clean success, and the rating
+            // sheet must not collide with that alert.
+            if summary.failed == 0, summary.completed > 0, !summary.cancelled,
+               viewModel.keptOriginals.isEmpty {
                 HappyPathReporter.fire(
                     isCelebrating: $isCelebrating,
                     statLine: $celebrationStatLine,
-                    line: "compressed \(summary.completed) videos",
-                    requestReview: requestReview
+                    line: "compressed \(summary.completed) videos"
                 )
             }
         }
@@ -132,7 +144,7 @@ struct VideoCompressionView: View {
             // delete orphaned replacements from the library, so the list loaded
             // after it never shows just-deleted orphans.
             await CompressionJournal.reconcile(modelContext: modelContext)
-            await viewModel.loadIfNeeded()
+            await viewModel.loadIfNeeded(modelContext: modelContext)
         }
     }
 
@@ -153,7 +165,7 @@ struct VideoCompressionView: View {
                 }
             }
             .listStyle(.plain)
-            .pullToRefresh { await viewModel.refresh() }
+            .pullToRefresh { await viewModel.refresh(modelContext: modelContext) }
 
             if !viewModel.selectedIds.isEmpty {
                 bottomBar
@@ -173,6 +185,8 @@ struct VideoCompressionView: View {
             } label: {
                 Image(systemName: viewModel.selectedIds.contains(video.id) ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(viewModel.selectedIds.contains(video.id) ? .blue : .secondary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(viewModel.selectedIds.contains(video.id) ? "Deselect video" : "Select video")
@@ -223,10 +237,11 @@ struct VideoCompressionView: View {
                     .font(.headline.monospacedDigit())
 
                 let estimated = viewModel.estimateSize(for: video)
+                // A bitrate-based guess, so grey and labelled.
                 if estimated < video.asset.fileSize {
-                    Text("\u{2192} ~\(estimated.formattedFileSize)")
+                    Text("est. ~\(estimated.formattedFileSize)")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -237,7 +252,8 @@ struct VideoCompressionView: View {
                     Image(systemName: "trash")
                         .font(.body)
                         .foregroundStyle(.red)
-                        .padding(.leading, Spacing.xs)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete video")
@@ -258,6 +274,10 @@ struct VideoCompressionView: View {
             ProgressView(value: progress)
                 .tint(.blue)
                 .frame(width: 80)
+        case .copySaved:
+            Label("Copy saved", systemImage: "checkmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         case .completed(let saved):
             Text(saved > 0 ? "Saved \(saved.formattedFileSize)" : "No savings")
                 .font(.caption)
@@ -268,10 +288,12 @@ struct VideoCompressionView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         case .failed(let msg):
+            // Room for the whole reason instead of "The operation cou…".
             Text(msg)
                 .font(.caption2)
-                .foregroundStyle(.red)
-                .lineLimit(1)
+                .foregroundStyle(Color.destructive)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -285,6 +307,19 @@ struct VideoCompressionView: View {
                 Text(viewModel.selectedSize.formattedFileSize)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                // One quality choice for the whole selection.
+                if !viewModel.isCompressing {
+                    Menu {
+                        ForEach(CompressionPreset.presets) { preset in
+                            Button(preset.label) { viewModel.setPresetForSelected(preset) }
+                        }
+                    } label: {
+                        Text("Quality: \(viewModel.selectedPreset?.label ?? "Mixed")")
+                            .font(.caption.bold())
+                            .frame(minHeight: 32)
+                    }
+                    .accessibilityLabel("Quality for selected items")
+                }
             }
 
             Spacer()
@@ -292,19 +327,23 @@ struct VideoCompressionView: View {
             if viewModel.isCompressing {
                 HStack(spacing: Spacing.md) {
                     ProgressView()
-                    Text("Compressing...")
-                        .font(.subheadline)
+                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                    Button {
-                        HapticHelper.impact(.light)
-                        viewModel.cancelCompression()
-                    } label: {
-                        Text("Cancel")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.red)
+                        .lineLimit(2)
+                    // Step 2 is one iOS alert; there is nothing left to cancel.
+                    if case .savingCopies = viewModel.phase {
+                        Button {
+                            HapticHelper.impact(.light)
+                            viewModel.cancelCompression()
+                        } label: {
+                            Text("Cancel")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Cancel compression")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Cancel compression")
                 }
             } else {
                 Button {

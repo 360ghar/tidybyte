@@ -415,13 +415,51 @@ final class DuplicatesRegressionTests: XCTestCase {
     // MARK: DUP-10 / de-slop: shared selection semantics
 
     func testSelectionStateSetBestSwap() {
+        let group = [makeAsset(id: "new-best"), makeAsset(id: "old-best")]
         var state = SelectionState(ids: ["new-best"])
-        state.setBest(newBest: "new-best", oldBest: "old-best")
+        state.setBest(newBest: "new-best", oldBest: "old-best", groupAssets: group)
         XCTAssertEqual(state.ids, ["old-best"])
 
         // No-op when the best doesn't change.
-        state.setBest(newBest: "old-best", oldBest: "old-best")
+        state.setBest(newBest: "old-best", oldBest: "old-best", groupAssets: group)
         XCTAssertEqual(state.ids, ["old-best"])
+    }
+
+    func testSetBestDoesNotMarkOldKeeperInUnselectedGroupOrFavorite() {
+        let plain = makeAsset(id: "plain")
+        let other = makeAsset(id: "other")
+        let favorite = AssetSummary(
+            id: "fav", mediaType: .photo, creationDate: nil, modificationDate: nil,
+            pixelWidth: 100, pixelHeight: 100, duration: 0, fileSize: 1_000,
+            filename: nil, isFavorite: true, isBurst: false, burstIdentifier: nil,
+            isLivePhoto: false, isScreenshot: false, isLocallyAvailable: true
+        )
+        // Nothing checked in the group: changing the keeper marks nothing.
+        var empty = SelectionState()
+        empty.setBest(newBest: "other", oldBest: "plain", groupAssets: [plain, other])
+        XCTAssertTrue(empty.ids.isEmpty)
+
+        // Group selecting, but the old keeper is a favorite: not marked.
+        var withFavorite = SelectionState(ids: ["other"])
+        withFavorite.setBest(newBest: "other", oldBest: "fav", groupAssets: [favorite, other])
+        XCTAssertTrue(withFavorite.ids.isEmpty)
+
+        // Group selecting, plain old keeper: marked, as before.
+        var selecting = SelectionState(ids: ["other"])
+        selecting.setBest(newBest: "other", oldBest: "plain", groupAssets: [plain, other])
+        XCTAssertEqual(selecting.ids, ["plain"])
+    }
+
+    func testSelectionStateSelectNonBestSkipsFavorites() {
+        let favorite = AssetSummary(
+            id: "fav", mediaType: .photo, creationDate: nil, modificationDate: nil,
+            pixelWidth: 100, pixelHeight: 100, duration: 0, fileSize: 1_000,
+            filename: nil, isFavorite: true, isBurst: false, burstIdentifier: nil,
+            isLivePhoto: false, isScreenshot: false, isLocallyAvailable: true
+        )
+        var state = SelectionState()
+        state.selectNonBest(assets: [makeAsset(id: "best"), favorite, makeAsset(id: "x")], bestAssetId: "best")
+        XCTAssertEqual(state.ids, ["x"])
     }
 
     func testSelectionStateSelectNonBest() {

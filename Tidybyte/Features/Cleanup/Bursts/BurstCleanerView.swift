@@ -1,5 +1,4 @@
 import SwiftUI
-import StoreKit
 
 /// Identifies which burst group (and which frame) a full-screen preview was
 /// opened from. The preview resolves its assets *live* from the view model on
@@ -15,13 +14,20 @@ struct BurstCleanerView: View {
     @State private var showAutoCleanConfirm = false
     @State private var showDeleteConfirm = false
     @State private var preview: BurstPreviewContext?
-    @Environment(\.requestReview) private var requestReview
     // statLine is captured at success time: deletableCount/selectedCount are
     // pre-delete values that reset once the action lands.
     @State private var isCelebrating = false
     @State private var celebrationStatLine: String?
     @State private var toast: ToastMessage?
     private let photoService = PhotoLibraryService.shared
+
+    /// The confirm copy must match what Auto-Clean really arms. It never
+    /// suggests a favorite, but an explicit Select All can arm one — promising
+    /// "Favorites are kept" then would be a lie the delete immediately breaks.
+    private var autoCleanMessage: String {
+        let favoritesKept = viewModel.autoCleanArmedIncludesFavorite ? "" : " Favorites are kept."
+        return "This keeps the starred frame of each burst and deletes the rest.\(favoritesKept) \(CleanupDeletion.recoverableNote)"
+    }
 
     var body: some View {
         Group {
@@ -40,28 +46,36 @@ struct BurstCleanerView: View {
             }
         }
         .navigationTitle("Burst Photos")
+        .toolbar {
+            if !viewModel.groups.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.allNonBestSelected,
+                        selectAll: { viewModel.selectAllNonBest() },
+                        deselectAll: { viewModel.deselectAll() }
+                    )
+                }
+            }
+        }
         .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
         .toast($toast)
         .alert("Auto-Clean All Bursts", isPresented: $showAutoCleanConfirm) {
             Button("Cancel", role: .cancel) { }
-            Button("Delete \(viewModel.deletableCount) Photos", role: .destructive) {
-                let count = viewModel.deletableCount
+            Button("Delete \(viewModel.autoCleanArmedCount) Photos", role: .destructive) {
                 Task {
-                    await viewModel.autoCleanAll()
-                    // The Auto-Clean trigger has no disabled-at-zero guard, so
-                    // a 0-removable confirm lands here as an error-free no-op
-                    // — never celebrate or count that as a happy path.
-                    guard count > 0, viewModel.errorMessage == nil else { return }
+                    // Celebrate only what really left the library: a declined
+                    // iOS prompt or a failure deletes nothing.
+                    let removed = await viewModel.autoCleanAll()
+                    guard removed > 0, viewModel.errorMessage == nil else { return }
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleaned \(count) burst photos",
-                        requestReview: requestReview
+                        line: "cleaned \(removed) burst photos"
                     )
                 }
             }
         } message: {
-            Text("This will keep only the best photo from each burst group and delete all others. This action cannot be undone.")
+            Text(autoCleanMessage)
         }
         .alert("Delete Selected Burst Photos", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
@@ -76,13 +90,12 @@ struct BurstCleanerView: View {
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleared \(count) burst frames",
-                        requestReview: requestReview
+                        line: "cleared \(count) burst frames"
                     )
                 }
             }
         } message: {
-            Text("This will delete the currently selected burst frames and keep your chosen best photos.")
+            Text("This will delete the selected burst frames and keep your chosen best photos. \(CleanupDeletion.recoverableNote)")
         }
         // Non-modal error surface. The retry is preserved from the alert it
         // replaces: a failed burst delete leaves the selection intact, so
@@ -91,7 +104,7 @@ struct BurstCleanerView: View {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
                     message: message,
-                    title: "Bursts",
+                    title: CleanupTool.bursts.name,
                     onRetry: {
                         viewModel.errorMessage = nil
                         Task { await viewModel.deleteSelected() }
@@ -198,6 +211,7 @@ struct BurstCleanerView: View {
                             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
                     }
                     .scaleOnPress()
+                    .disabled(viewModel.autoCleanArmedCount == 0)
                 }
             }
         }
@@ -219,7 +233,7 @@ struct BurstCleanerView: View {
 
             Image(systemName: "square.stack.3d.up")
                 .font(.title2)
-                .foregroundStyle(.blue.opacity(0.7))
+                .foregroundStyle(CleanupTool.bursts.color)
         }
         .glassCard()
         .padding(.horizontal, Spacing.lg)
@@ -228,11 +242,42 @@ struct BurstCleanerView: View {
 
     // MARK: - Burst Group Row
 
+    /// Why the starred frame is the one kept. Plain text, so the user can
+    /// check the choice before Auto-Clean.
+    private func keeperReason(for group: BurstGroup) -> String {
+        if viewModel.manuallySetBest.contains(group.id) { return "Kept: your choice" }
+        guard let best = group.assets.first(where: { $0.id == group.bestAssetId }) else { return "" }
+        switch best.burstPick {
+        case .user: return "Kept: your pick in Photos"
+        case .iPhone: return "Kept: iPhone's pick"
+        case .none: return best.isFavorite ? "Kept: favorite" : automaticKeeperReason(best: best, in: group)
+        }
+    }
+
+    /// Which `BestAssetSelector` ladder rung picked an automatic keeper, so the
+    /// label matches the actual reason (a resolution win is not "last frame").
+    /// Burst picks and favorites are handled above; by the time we get here
+    /// every frame is `.none` and unfavorited, leaving pixels → date → id.
+    private func automaticKeeperReason(best: AssetSummary, in group: BurstGroup) -> String {
+        let bestPixels = best.pixelWidth * best.pixelHeight
+        if group.assets.allSatisfy({ $0.id == best.id || $0.pixelWidth * $0.pixelHeight < bestPixels }) {
+            return "Kept: highest resolution"
+        }
+        let bestDate = best.creationDate ?? .distantPast
+        if group.assets.allSatisfy({ $0.id == best.id || ($0.creationDate ?? .distantPast) < bestDate }) {
+            return "Kept: last frame"
+        }
+        return "Kept: auto pick"
+    }
+
     private func burstGroupRow(_ group: BurstGroup) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 Text("\(group.assets.count) frames")
                     .font(.subheadline.bold())
+                Text(keeperReason(for: group))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 if let date = group.assets.first?.creationDate {
                     Text(date, style: .date)
@@ -244,63 +289,45 @@ struct BurstCleanerView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Spacing.sm) {
                     ForEach(group.assets) { asset in
+                        let isKeeper = asset.id == group.bestAssetId
                         VStack(spacing: Spacing.xs) {
-                            ZStack(alignment: .topTrailing) {
-                                Button {
-                                    preview = BurstPreviewContext(
-                                        id: asset.id,
-                                        groupId: group.id
-                                    )
-                                } label: {
-                                    AsyncThumbnailView(assetId: asset.id, photoService: photoService)
-                                        .frame(width: 80, height: 80)
-                                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: CornerRadius.small)
-                                                .stroke(asset.id == group.bestAssetId ? Color.green : Color.clear, lineWidth: 2)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Preview burst frame")
-
-                                if asset.id == group.bestAssetId {
-                                    Image(systemName: "star.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(.yellow)
-                                        .padding(Spacing.xs)
-                                } else {
-                                    Button {
-                                        HapticHelper.selection()
-                                        viewModel.toggleSelection(asset.id)
-                                    } label: {
-                                        Image(systemName: viewModel.selectedForDeletion.contains(asset.id) ? "checkmark.circle.fill" : "circle")
-                                            .font(.caption)
-                                            .foregroundStyle(viewModel.selectedForDeletion.contains(asset.id) ? .red : .white)
-                                            .padding(Spacing.xs)
+                            AsyncThumbnailView(assetId: asset.id, photoService: photoService)
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                                        .stroke(isKeeper ? Color.success : Color.clear, lineWidth: 2)
+                                )
+                                .overlay(alignment: .bottomLeading) {
+                                    if asset.isFavorite {
+                                        FavoriteMark().padding(Spacing.xs)
                                     }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel(viewModel.selectedForDeletion.contains(asset.id) ? "Keep burst frame" : "Select burst frame for deletion")
-                                    .accessibilityAddTraits(viewModel.selectedForDeletion.contains(asset.id) ? [.isButton, .isSelected] : .isButton)
                                 }
-                            }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    preview = BurstPreviewContext(id: asset.id, groupId: group.id)
+                                }
+                                .accessibilityAddTraits(.isButton)
+                                .accessibilityLabel("Preview burst frame")
+                                .overlay(alignment: .topTrailing) {
+                                    if !isKeeper {
+                                        DeleteToggle(isMarked: viewModel.selectedForDeletion.contains(asset.id)) {
+                                            viewModel.toggleSelection(asset.id)
+                                        }
+                                        .offset(x: Spacing.xs, y: -Spacing.xs)
+                                    }
+                                }
 
-                            Button {
-                                HapticHelper.selection()
-                                viewModel.setBest(assetId: asset.id, in: group.id)
-                            } label: {
-                                Text(asset.id == group.bestAssetId ? "Best" : "Keep Best")
-                                    .font(.caption2.bold())
-                                    .foregroundStyle(asset.id == group.bestAssetId ? .green : .blue)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(asset.id == group.bestAssetId ? "Best frame" : "Keep this frame as best")
-
-                            if asset.isFavorite {
-                                Image(systemName: "heart.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(.red)
+                            if isKeeper {
+                                KeeperMark()
+                                    .frame(minHeight: 44)
+                            } else {
+                                MakeKeeperButton {
+                                    viewModel.setBest(assetId: asset.id, in: group.id)
+                                }
                             }
                         }
+                        .frame(width: 80)
                     }
                 }
             }

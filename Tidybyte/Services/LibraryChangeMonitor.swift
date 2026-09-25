@@ -51,6 +51,12 @@ final class LibraryChangeMonitor {
             guard let self else { return }
             self.generation += 1
             self.debounceTask = nil
+            // Expire the scan cache here, where the change is observed, rather
+            // than in a screen: the epoch advances once per generation no
+            // matter which screens are alive, so a scan that started before
+            // the change can never publish a pre-change result, and counts a
+            // tool records after its own delete survive the next screen load.
+            ScanResults.libraryChanged(to: self.generation)
             // Thumbnail coherence is owned by PhotoLibraryService (selective
             // id eviction alongside the change, SHARED-08) — the bump here
             // only refreshes the lists.

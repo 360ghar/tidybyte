@@ -1,9 +1,18 @@
 import SwiftUI
+import SwiftData
 
 struct CleanupHomeView: View {
     @Environment(AppNavigation.self) private var appNavigation
     @Environment(LibraryChangeMonitor.self) private var libraryMonitor
+    @Environment(\.modelContext) private var modelContext
     @State private var viewModel = CleanupHomeViewModel()
+
+    /// Replacement-copy ids persisted by the compression flows. The badge must
+    /// exclude them exactly like `PhotoCompressionViewModel.candidates` does,
+    /// or the home screen shows a stale nonzero badge after compression.
+    private func savedReplacementIds() -> Set<String> {
+        CompressionJournal.savedCopyIds(modelContext: modelContext)
+    }
 
     private let columns = ResponsiveGrid.card()
 
@@ -31,8 +40,7 @@ struct CleanupHomeView: View {
                 if viewModel.hasLoadedCounts, viewModel.reclaimableBytes > 0 {
                     ReclaimableHeroCard(
                         bytes: viewModel.reclaimableBytes,
-                        itemCount: viewModel.reclaimableItemCount,
-                        thresholdLabel: viewModel.largeFileThresholdLabel
+                        itemCount: viewModel.reclaimableItemCount
                     )
                     .fadeSlideIn()
                 }
@@ -45,10 +53,14 @@ struct CleanupHomeView: View {
         }
         .navigationTitle("Cleanup")
         .pullToRefresh {
-            await viewModel.refreshCounts()
+            await viewModel.refreshCounts(excludingCompressedCopies: savedReplacementIds())
         }
         .task(id: libraryMonitor.generation) {
-            await viewModel.sync(to: libraryMonitor.generation)
+            await viewModel.sync(to: libraryMonitor.generation, excludingCompressedCopies: savedReplacementIds)
+        }
+        .onAppear {
+            // Back from a scan tool: show its fresh result.
+            if viewModel.hasLoadedCounts { viewModel.applyScanResults() }
         }
     }
 
@@ -88,40 +100,46 @@ struct CleanupHomeView: View {
     private func cleanupToolCard(_ tool: CleanupToolInfo, isStartHere: Bool) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
-                ZStack {
-                    RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .fill(tool.color.gradient)
-                        .scaledSquare(ScaledSize.toolCardIcon)
-
-                    Image(systemName: tool.icon)
-                        .font(.title3)
-                        .foregroundStyle(.white)
-                }
+                // Bare glyph in the tool's color: no tile behind it.
+                // Fixed box: SF Symbols differ in height, and a taller glyph
+                // pushed one card's text below its neighbour's.
+                Image(systemName: tool.icon)
+                    .font(.title2)
+                    .foregroundStyle(tool.color)
+                    .scaledSquare(32)
+                    .accessibilityHidden(true)
 
                 Spacer()
 
                 badgeView(for: tool)
             }
 
+            // Pushes the text block to the bottom, so cards stretched to the
+            // row height keep their chevrons on one line.
+            Spacer(minLength: 0)
+
             HStack(alignment: .bottom, spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(tool.name)
                         .font(.subheadline.bold())
                         .foregroundStyle(.primary)
+                        .lineLimit(2)
                         .minimumScaleFactor(0.8)
 
                     Text(tool.description)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(2, reservesSpace: true)
                         .minimumScaleFactor(0.8)
 
-                    if isStartHere {
-                        Label("Start here", systemImage: "arrow.right.circle.fill")
-                            .font(.caption2.bold())
-                            .foregroundStyle(.blue)
-                            .padding(.top, 2)
-                    }
+                    // Always laid out, shown on one card only, so that card is
+                    // not taller than its neighbour.
+                    Label("Start here", systemImage: "arrow.right.circle.fill")
+                        .font(.caption2.bold())
+                        .foregroundStyle(Color.accentColor)
+                        .padding(.top, 2)
+                        .opacity(isStartHere ? 1 : 0)
+                        .accessibilityHidden(!isStartHere)
                 }
 
                 Spacer(minLength: 0)
@@ -135,7 +153,9 @@ struct CleanupHomeView: View {
                     .accessibilityHidden(true)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // Every card fills its grid row, so neighbours share top and bottom
+        // edges even when one title wraps.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .glassCard()
         // One element per card: VoiceOver otherwise reads the icon, the count
         // badge, the title, the description, and "Start here" as five separate
@@ -143,31 +163,29 @@ struct CleanupHomeView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// Plain text, not a colored pill: the number in the primary ink, the
+    /// "nothing yet" states in secondary.
     @ViewBuilder
     private func badgeView(for tool: CleanupToolInfo) -> some View {
         if tool.isLoading {
-            SkeletonView(cornerRadius: CornerRadius.full)
+            SkeletonView(cornerRadius: CornerRadius.small)
                 .frame(width: 36, height: 20)
-        } else if let count = tool.count {
+        } else if let count = tool.count, count > 0 {
             Text("\(count)")
+                .font(.headline.monospacedDigit())
+                .foregroundStyle(.primary)
+        } else if tool.count == 0 {
+            Text("None")
                 .font(.caption.bold())
-                .foregroundStyle(.white)
-                .padding(.horizontal, Spacing.sm)
-                .padding(.vertical, Spacing.xs)
-                .background(count > 0 ? tool.color : Color.gray)
-                .clipShape(Capsule())
+                .foregroundStyle(.secondary)
         } else {
             // These four tools cost a full scan to count, so the badge promises
             // a scan instead of implying the library contains none.
             Text("Not scanned")
-                .font(.caption2.bold())
+                .font(.caption.bold())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-                .padding(.horizontal, Spacing.sm)
-                .padding(.vertical, Spacing.xs)
-                .background(Color.cardSurface)
-                .clipShape(Capsule())
         }
     }
 }

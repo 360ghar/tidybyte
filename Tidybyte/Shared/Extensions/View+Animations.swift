@@ -2,21 +2,28 @@ import SwiftUI
 
 // MARK: - Fade Slide In
 
+/// Entrance motion for rows and cards. Content is ALWAYS fully visible: only
+/// the vertical offset animates, so a row whose animation never runs (a
+/// backgrounded tab, a screenshot pass, a lazy row scrolled into view late)
+/// still shows. The delay is capped: callers pass `index * 0.03`, and an
+/// uncapped delay left row 500 of a long list waiting 15 s.
 struct FadeSlideInModifier: ViewModifier {
     let delay: Double
-    @State private var isVisible = false
+    @State private var isSettled = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    static let maxDelay: Double = 0.3
 
     func body(content: Content) -> some View {
         content
-            .opacity(isVisible ? 1 : 0)
-            .offset(y: isVisible ? 0 : 20)
+            .offset(y: isSettled || reduceMotion ? 0 : 12)
             .onAppear {
+                guard !isSettled else { return }
                 if reduceMotion {
-                    isVisible = true
+                    isSettled = true
                 } else {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(delay)) {
-                        isVisible = true
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85).delay(min(delay, Self.maxDelay))) {
+                        isSettled = true
                     }
                 }
             }

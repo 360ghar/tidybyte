@@ -27,20 +27,19 @@ struct StorageWidgetView: View {
     // MARK: - Small
 
     private func smallView(_ snapshot: WidgetSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             storageRing(snapshot, size: 70, lineWidth: 8)
             Spacer(minLength: 0)
-            if let freed = snapshot.lifetimeFreedBytes, freed > 0 {
-                Label("Freed \(fmt(freed))", systemImage: "arrow.down.circle.fill")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.green)
+            Text(headline(snapshot))
+                .font(.caption2.bold())
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            if let age = ageLabel(snapshot) {
+                Text(age)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            Label("\(snapshot.screenshotCount + snapshot.largeFileCount) to clean",
-                  systemImage: "sparkles")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .widgetURL(URL(string: "tidybyte://storage"))
@@ -53,8 +52,10 @@ struct StorageWidgetView: View {
             storageRing(snapshot, size: 84, lineWidth: 9)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("TidyByte")
+                Text(headline(snapshot))
                     .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 Link(destination: URL(string: "tidybyte://cleanup/screenshots")!) {
                     statRow(icon: "camera.viewfinder",
@@ -69,21 +70,20 @@ struct StorageWidgetView: View {
                 }
 
                 if let freed = snapshot.lifetimeFreedBytes, freed > 0 {
-                    // Tappable: same destination as the Activity & Savings
-                    // screen, without spending any extra height in the widget.
+                    // Tappable: opens Activity & Savings.
                     Button(intent: ShowSavingsWidgetIntent()) {
-                        Label("Freed \(fmt(freed)) so far", systemImage: "arrow.down.circle.fill")
-                            .font(.caption.bold())
-                            .foregroundStyle(.green)
+                        Text("Cleaned up \(fmt(freed)) so far")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                } else {
-                    Label("Reclaim ~\(fmt(snapshot.reclaimableBytes))", systemImage: "arrow.down.circle")
-                        .font(.caption.bold())
-                        .foregroundStyle(.green)
                 }
 
-                quickActions
+                if let age = ageLabel(snapshot) {
+                    Text(age)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -91,30 +91,21 @@ struct StorageWidgetView: View {
         .widgetURL(URL(string: "tidybyte://storage"))
     }
 
-    /// Interactive row: each button runs an intent in the app's process and
-    /// hands the destination over through the App Group (`WidgetRoute`).
-    /// `.mini` control size keeps the row inside the medium widget's height
-    /// budget alongside the ring and the stat rows.
-    private var quickActions: some View {
-        HStack(spacing: 8) {
-            Button(intent: StartSwipeWidgetIntent()) {
-                Label("Swipe", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
-                    .font(.caption2.bold())
-                    .lineLimit(1)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .tint(.blue)
+    /// The total counts only items on this iPhone; the rows below count the
+    /// whole library (what the tools list), so the headline says so.
+    private func headline(_ snapshot: WidgetSnapshot) -> String {
+        snapshot.reclaimableBytes > 0
+            ? "Up to \(fmt(snapshot.reclaimableBytes)) to free on iPhone"
+            : "Nothing to free on iPhone"
+    }
 
-            Button(intent: CleanScreenshotsWidgetIntent()) {
-                Label("Screenshots", systemImage: "camera.viewfinder")
-                    .font(.caption2.bold())
-                    .lineLimit(1)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .tint(.orange)
-        }
+    /// "Updated 3d ago" once the snapshot is a day old (the app rescans only
+    /// when it opens), and a nudge to open the app after a week.
+    private func ageLabel(_ snapshot: WidgetSnapshot) -> String? {
+        let age = entry.date.timeIntervalSince(snapshot.capturedAt)
+        guard age >= 86_400 else { return nil }
+        let days = Int(age / 86_400)
+        return days >= 7 ? "Open TidyByte to refresh" : "Updated \(days)d ago"
     }
 
     // MARK: - Pieces
@@ -139,6 +130,8 @@ struct StorageWidgetView: View {
             }
         }
         .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Storage \(Int(fraction * 100)) percent used")
     }
 
     private func statRow(icon: String, text: String, detail: String) -> some View {

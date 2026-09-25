@@ -19,6 +19,14 @@ enum AssetOrigin: String, Sendable {
     case unknown
 }
 
+/// Burst keeper hint from PhotoKit's `burstSelectionTypes`. Later cases are
+/// a stronger reason to keep the frame.
+enum BurstPick: Sendable, Hashable, Comparable {
+    case none
+    case iPhone
+    case user
+}
+
 struct AssetSummary: Identifiable, Sendable, Hashable {
     let id: String
     let mediaType: MediaType
@@ -36,6 +44,17 @@ struct AssetSummary: Identifiable, Sendable, Hashable {
     let isScreenshot: Bool
     let isLocallyAvailable: Bool
     var assetOrigin: AssetOrigin = .unknown
+    /// The frame the user or the camera picked inside a burst. `.none` for
+    /// every asset that is not a burst frame.
+    var burstPick: BurstPick = .none
+
+    /// The original file is HEIC/HEIF (already an efficient format).
+    var isHEIC: Bool {
+        guard let filename else { return false }
+        return [".heic", ".heif"].contains {
+            filename.range(of: $0, options: [.caseInsensitive, .backwards, .anchored]) != nil
+        }
+    }
 
     var resolution: String {
         "\(pixelWidth) × \(pixelHeight)"

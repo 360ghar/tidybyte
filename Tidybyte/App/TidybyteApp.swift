@@ -1,3 +1,4 @@
+import UserNotifications
 import SwiftUI
 import SwiftData
 import Photos
@@ -14,6 +15,9 @@ struct TidybyteApp: App {
 
     init() {
         modelContainer = Self.makeModelContainer()
+        // Set before launch finishes, so a tap that cold-launches the app is
+        // still routed.
+        UNUserNotificationCenter.current().delegate = NotificationRouter.shared
     }
 
     /// Builds the SwiftData container, degrading instead of trapping.

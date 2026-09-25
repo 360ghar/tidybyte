@@ -1,11 +1,10 @@
 import SwiftUI
-import StoreKit
 
 struct SimilarPhotosView: View {
     @State private var viewModel = SimilarPhotosViewModel()
     @State private var showDeleteConfirm = false
     @State private var selectedGroup: SimilarGroup?
-    @Environment(\.requestReview) private var requestReview
+    @State private var preview: GroupPreviewContext?
     @State private var isCelebrating = false
     // Shared with the Settings mirror on the same key — @AppStorage is the single
     // source of truth, so a change in either screen is observed by the other (the
@@ -58,16 +57,21 @@ struct SimilarPhotosView: View {
                         Label("New Scan", systemImage: "arrow.counterclockwise")
                     }
                 }
+                // Delete lives in the bottom bar only. Select All applies the
+                // suggestion: every non-keeper except favorites.
+                if viewModel.hasSuggestions {
                 ToolbarItem(placement: .topBarTrailing) {
-                    // C8: deletes the current selection (keepers excluded).
-                    Button("Delete Selected") {
-                        HapticHelper.impact(.light)
-                        showDeleteConfirm = true
-                    }
-                    .foregroundStyle(.red)
-                    .disabled(viewModel.isDeleting || viewModel.selectedForDeletion.isEmpty)
+                    SelectAllToolbarButton(
+                        allSelected: viewModel.allSuggestedSelected,
+                        selectAll: { viewModel.selectSuggested() },
+                        deselectAll: { viewModel.deselectAll() }
+                    )
+                }
                 }
             }
+        }
+        .fullScreenCover(item: $preview) { context in
+            MediaPreviewView(assets: context.assets, startIndex: context.startIndex, photoService: photoService)
         }
         .navigationDestination(item: $selectedGroup) { group in
             GroupComparisonView(
@@ -93,7 +97,7 @@ struct SimilarPhotosView: View {
                     await viewModel.deleteSelected()
                     // DUP-04d: only celebrate an actual deletion.
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating)
                     }
                 }
             }
@@ -111,7 +115,7 @@ struct SimilarPhotosView: View {
     private var idleView: some View {
         ToolIdleView(
             icon: "square.on.square",
-            tint: .blue,
+            tint: CleanupTool.similar.color,
             title: "Find Similar Photos",
             message: "Groups photos taken within \(Int(timeWindow)) seconds of each other.",
             primaryTitle: "Start Scan",
@@ -143,7 +147,7 @@ struct SimilarPhotosView: View {
     private func scanningView(progress: Float) -> some View {
         ToolScanningView(
             icon: "magnifyingglass",
-            tint: .blue,
+            tint: CleanupTool.similar.color,
             title: "Grouping similar photos...",
             progress: progress,
             onCancel: {
@@ -181,11 +185,16 @@ struct SimilarPhotosView: View {
                                     Text("\(viewModel.totalDuplicateCount) extras · \(viewModel.selectedSavingsBytes.formattedFileSize) selected")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    if viewModel.selectedForDeletion.isEmpty {
+                                        Text(viewModel.hasSuggestions ? "Nothing is selected. Tap the circles to pick, or tap Select All." : "Nothing is selected. Tap the circles to pick.")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                                 Spacer()
                                 Image(systemName: "square.on.square")
                                     .font(.title2)
-                                    .foregroundStyle(.blue.opacity(0.7))
+                                    .foregroundStyle(CleanupTool.similar.color)
                             }
                             .glassCard()
                             .listRowInsets(EdgeInsets(top: Spacing.sm, leading: Spacing.lg, bottom: Spacing.sm, trailing: Spacing.lg))
@@ -201,7 +210,6 @@ struct SimilarPhotosView: View {
                         }
                     }
                     .listStyle(.plain)
-                    .pullToRefresh { viewModel.startScan(timeWindow: timeWindow) }
 
                     // Bottom action bar
                     if !viewModel.selectedForDeletion.isEmpty {
@@ -268,88 +276,74 @@ struct SimilarPhotosView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Spacing.sm) {
-                    ForEach(group.assets) { asset in
+                    ForEach(Array(group.assets.enumerated()), id: \.element.id) { index, asset in
                         let quality = group.qualityScores[asset.id]
+                        let isKeeper = asset.id == group.bestAssetId
                         VStack(spacing: Spacing.xs) {
-                            ZStack(alignment: .topTrailing) {
-                                AsyncThumbnailView(assetId: asset.id, photoService: photoService)
-                                    .frame(width: 80, height: 80)
-                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: CornerRadius.small)
-                                            .stroke(asset.id == group.bestAssetId ? Color.green : Color.clear, lineWidth: 2)
-                                    )
-                                    .overlay(alignment: .bottom) {
-                                        if let quality {
-                                            sharpnessBar(quality.sharpness)
-                                                .padding(.horizontal, Spacing.xs)
-                                                .padding(.bottom, Spacing.xs)
-                                                .accessibilityLabel("Sharpness \(Int((quality.sharpness * 100).rounded())) percent")
-                                        }
+                            AsyncThumbnailView(assetId: asset.id, photoService: photoService)
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                                        .stroke(isKeeper ? Color.success : Color.clear, lineWidth: 2)
+                                )
+                                .overlay(alignment: .bottom) {
+                                    if let quality {
+                                        sharpnessBar(quality.sharpness)
+                                            .padding(.horizontal, Spacing.xs)
+                                            .padding(.bottom, Spacing.xs)
+                                            .accessibilityLabel("Sharpness \(Int((quality.sharpness * 100).rounded())) percent")
                                     }
-                                    .overlay(alignment: .topLeading) {
+                                }
+                                .overlay(alignment: .bottomTrailing) {
+                                    // Above the sharpness bar.
+                                    if asset.isFavorite {
+                                        FavoriteMark()
+                                            .padding(.trailing, Spacing.xs)
+                                            .padding(.bottom, Spacing.md)
+                                    }
+                                }
+                                .overlay(alignment: .topLeading) {
+                                    HStack(spacing: 2) {
                                         if let icon = exposureIcon(quality) {
                                             Image(systemName: icon)
-                                                .font(.system(size: 9, weight: .bold))
-                                                .foregroundStyle(.white)
-                                                .padding(3)
-                                                .background(Color.black.opacity(0.5), in: Circle())
-                                                .padding(Spacing.xs)
+                                                .accessibilityLabel(icon == "sun.max.fill" ? "Too bright" : "Too dark")
                                         }
-                                        // C10: warn that this photo's quality was
-                                        // scored from a low-res iCloud copy.
+                                        // C10: quality was scored from a low-res
+                                        // iCloud copy.
                                         if quality?.usedFallback == true {
                                             Image(systemName: "icloud.and.arrow.down")
-                                                .font(.system(size: 9, weight: .bold))
-                                                .foregroundStyle(.white)
-                                                .padding(3)
-                                                .background(Color.orange.opacity(0.8), in: Circle())
-                                                .padding(Spacing.xs)
-                                                .offset(x: 22)
                                                 .accessibilityLabel("Quality analyzed from a low-resolution copy")
                                         }
                                     }
-
-                                if asset.id == group.bestAssetId {
-                                    Image(systemName: "star.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(.yellow)
-                                        .padding(Spacing.xs)
-                                } else {
-                                    Button {
-                                        HapticHelper.selection()
-                                        viewModel.toggleSelection(asset.id)
-                                    } label: {
-                                        Image(systemName: viewModel.selectedForDeletion.contains(asset.id) ? "checkmark.circle.fill" : "circle")
-                                            .foregroundStyle(viewModel.selectedForDeletion.contains(asset.id) ? .red : .white)
-                                            .padding(Spacing.xs)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel(viewModel.selectedForDeletion.contains(asset.id) ? "Keep photo" : "Select photo for deletion")
-                                    .accessibilityAddTraits(viewModel.selectedForDeletion.contains(asset.id) ? [.isButton, .isSelected] : .isButton)
-                                }
-                            }
-
-                            if asset.id == group.bestAssetId {
-                                Label(group.bestReason.rawValue, systemImage: "star.fill")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.caption2.bold())
                                     .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                    .padding(.horizontal, Spacing.xs)
-                                    .padding(.vertical, 2)
-                                    .background(Color.success, in: Capsule())
+                                    .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
+                                    .padding(Spacing.xs)
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    preview = GroupPreviewContext(assets: group.assets, startIndex: index)
+                                }
+                                .accessibilityLabel(isKeeper ? "Preview photo, recommended to keep" : "Preview photo")
+                                .accessibilityAddTraits(.isButton)
+                                .overlay(alignment: .topTrailing) {
+                                    if !isKeeper {
+                                        DeleteToggle(isMarked: viewModel.selectedForDeletion.contains(asset.id)) {
+                                            viewModel.toggleSelection(asset.id)
+                                        }
+                                        .offset(x: Spacing.xs, y: -Spacing.xs)
+                                    }
+                                }
+
+                            if isKeeper {
+                                KeeperMark(reason: group.bestReason.rawValue)
+                                    .frame(minHeight: 44)
                                     .accessibilityLabel("Recommended to keep: \(group.bestReason.rawValue)")
                             } else {
-                                Button {
-                                    HapticHelper.selection()
+                                MakeKeeperButton {
                                     viewModel.setBest(assetId: asset.id, in: group.id)
-                                } label: {
-                                    Text("Keep This")
-                                        .font(.caption2.bold())
-                                        .foregroundStyle(.blue)
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Keep this photo as best")
                             }
                         }
                         .frame(width: 80)

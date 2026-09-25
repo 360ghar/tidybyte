@@ -1,5 +1,6 @@
 import XCTest
 import SwiftUI
+import UIKit
 @testable import Tidybyte
 
 final class UtilityAndStorageTests: XCTestCase {
@@ -61,5 +62,44 @@ final class UtilityAndStorageTests: XCTestCase {
         vm.deviceStorage = DeviceStorageInfo(totalCapacity: 100, availableCapacity: 0) // used = 100
         // on-device media (200) > used (100) → clamp to 0 rather than render negative.
         XCTAssertEqual(vm.appsAndOtherSize, 0)
+    }
+
+    // MARK: - Thumbnail cache staleness is scoped per asset (PR #2 finding)
+
+    /// The eviction counter used to be global, so editing asset B discarded a
+    /// perfectly fresh in-flight load of unrelated asset A — and the next scroll
+    /// re-fetched from disk for no reason.
+    func testImageCacheStampIsScopedPerAsset() async {
+        let cache = ImageCache(countLimit: 10, totalCostLimit: 1_000_000)
+        let image = makeTestImage()
+        let stampA = await cache.stamp(for: "a")
+        let stampB = await cache.stamp(for: "b")
+
+        await cache.removeAllVariants(of: "b")
+
+        let storedA = await cache.setImage(image, for: "a", assetId: "a", ifStamp: stampA)
+        XCTAssertTrue(storedA, "an edit of another asset must not invalidate this load")
+
+        let storedB = await cache.setImage(image, for: "b", assetId: "b", ifStamp: stampB)
+        XCTAssertFalse(storedB, "this asset's own eviction must refuse the stale store")
+    }
+
+    /// A global flush (`removeAll`) invalidates every in-flight load, including
+    /// ones whose per-asset version did not move.
+    func testImageCacheStampRejectsAfterGlobalFlush() async {
+        let cache = ImageCache(countLimit: 10, totalCostLimit: 1_000_000)
+        let stamp = await cache.stamp(for: "a")
+
+        await cache.removeAll()
+
+        let stored = await cache.setImage(makeTestImage(), for: "a", assetId: "a", ifStamp: stamp)
+        XCTAssertFalse(stored)
+    }
+
+    private func makeTestImage() -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
     }
 }

@@ -1,12 +1,11 @@
 import SwiftUI
 import SwiftData
-import StoreKit
 
 struct BlurryPhotosView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = BlurryPhotosViewModel()
+    @Environment(LibraryChangeMonitor.self) private var libraryMonitor
     @State private var showDeleteConfirm = false
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var selectedSwipeRoute: SwipeSessionRoute?
     @State private var previewPhoto: AnalyzedPhoto?
@@ -49,7 +48,12 @@ struct BlurryPhotosView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
-        .navigationTitle("Photo Quality")
+        .navigationTitle(CleanupTool.blurry.name)
+        // Items deleted elsewhere (Swipe Review, the Photos app) leave the
+        // list when the library changes, instead of lingering as blanks.
+        .task(id: libraryMonitor.generation) {
+            await viewModel.pruneDeleted()
+        }
         .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) blurry photos")
         .onDisappear {
             // D-01: a scan left running after the user leaves the screen would
@@ -57,24 +61,37 @@ struct BlurryPhotosView: View {
             viewModel.cancelScan()
         }
         .toolbar {
-            if viewModel.scanState == .completed && !viewModel.filteredPhotos.isEmpty {
-                ToolbarItem(placement: .topBarLeading) {
-                    SelectAllToolbarButton(
-                        allSelected: viewModel.allVisibleSelected,
-                        selectAll: { viewModel.selectAll() },
-                        deselectAll: { viewModel.deselectAll() }
-                    )
+            if viewModel.scanState == .completed {
+                if !viewModel.filteredPhotos.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) {
+                        SelectAllToolbarButton(
+                            allSelected: viewModel.allVisibleSelected,
+                            selectAll: { viewModel.selectAll() },
+                            deselectAll: { viewModel.deselectAll() }
+                        )
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: Spacing.md) {
+                    Menu {
+                        if !viewModel.filteredPhotos.isEmpty {
+                            Button {
+                                HapticHelper.impact(.light)
+                                let ids = Set(viewModel.filteredPhotos.map(\.id))
+                                startSwipeReview(with: .customAssetIds(ids))
+                            } label: {
+                                Label("Review with Swipe", systemImage: "hand.draw")
+                            }
+                        }
                         Button {
                             HapticHelper.impact(.light)
-                            let ids = Set(viewModel.filteredPhotos.map(\.id))
-                            startSwipeReview(with: .customAssetIds(ids))
+                            viewModel.scanState = .idle
                         } label: {
-                            Image(systemName: "hand.draw")
+                            Label("New Scan", systemImage: "arrow.counterclockwise")
                         }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel("More actions")
                 }
             }
         }
@@ -92,12 +109,12 @@ struct BlurryPhotosView: View {
                     await viewModel.deleteSelected()
                     // C12: success feedback, gated on an actual deletion.
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating)
                     }
                 }
             }
         } message: {
-            Text("This action cannot be undone.")
+            Text(CleanupDeletion.recoverableNote)
         }
         .alert("Delete Photo", isPresented: .init(
             get: { cellToDelete != nil },
@@ -110,7 +127,7 @@ struct BlurryPhotosView: View {
                 Task { await viewModel.delete(assetId: id) }
             }
         } message: { _ in
-            Text("This action cannot be undone.")
+            Text(CleanupDeletion.recoverableNote)
         }
         .fullScreenCover(item: $previewPhoto, onDismiss: {
             if pendingSwipeReview {
@@ -140,7 +157,7 @@ struct BlurryPhotosView: View {
     private var idleView: some View {
         ToolIdleView(
             icon: "camera.metering.unknown",
-            tint: .orange,
+            tint: CleanupTool.blurry.color,
             title: "Detect Low-Quality Photos",
             message: "Find blurry, too dark, and overexposed photos.",
             primaryTitle: "Start Analysis",
@@ -158,7 +175,7 @@ struct BlurryPhotosView: View {
     private func scanningView(progress: Float) -> some View {
         ToolScanningView(
             icon: "magnifyingglass",
-            tint: .orange,
+            tint: CleanupTool.blurry.color,
             title: "Analyzing photos...",
             progress: progress,
             detail: "\(viewModel.analyzedPhotos.count) issues found",
@@ -190,8 +207,11 @@ struct BlurryPhotosView: View {
                     icon: "checkmark.circle",
                     title: "All Clear",
                     message: "No issues found in this category.",
-                    iconColor: .green
-                )
+                    iconColor: .green,
+                    actionTitle: "Scan Again"
+                ) {
+                    viewModel.startScan()
+                }
                 Spacer()
             } else {
                 ScrollView {
@@ -201,25 +221,26 @@ struct BlurryPhotosView: View {
                         }
                     }
                 }
-                .pullToRefresh { viewModel.startScan() }
+            }
 
-                if !viewModel.selectedIds.isEmpty {
-                    ActionBarView {
-                        Text("\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
-                            .font(.caption)
-                        if viewModel.isDeleting {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                        Spacer()
-                        Button(role: .destructive) { showDeleteConfirm = true } label: {
-                            Label("Delete", systemImage: "trash")
-                                .font(.headline)
-                        }
-                        .disabled(viewModel.isDeleting)
+            // Outside the list branch: picks on other tabs stay reachable
+            // even when this tab is empty.
+            if !viewModel.selectedIds.isEmpty {
+                ActionBarView {
+                    Text(viewModel.selectedOnOtherTabs > 0 ? "\(viewModel.selectedIds.count) selected (\(viewModel.selectedOnOtherTabs) on other tabs) \u{00B7} \(viewModel.selectedSize.formattedFileSize)" : "\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
+                        .font(.caption)
+                    if viewModel.isDeleting {
+                        ProgressView()
+                            .controlSize(.small)
                     }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    Spacer()
+                    Button(role: .destructive) { showDeleteConfirm = true } label: {
+                        Label("Delete", systemImage: "trash")
+                            .font(.headline)
+                    }
+                    .disabled(viewModel.isDeleting)
                 }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             // D-04: tell the user why their library may look smaller than the
@@ -261,27 +282,18 @@ struct BlurryPhotosView: View {
                 .clipShape(Capsule())
             }
             .padding(Spacing.sm)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(scoreLabel(for: viewModel.activeTab))
+            .accessibilityValue("\(Int((scoreValue(for: photo, tab: viewModel.activeTab) * 100).rounded())) percent")
 
             // Always-visible selection checkbox. Tapping it (de)selects; tapping
             // anywhere else on the cell opens the preview.
             VStack {
                 HStack {
                     Spacer()
-                    Button {
-                        HapticHelper.selection()
+                    SelectToggle(isSelected: viewModel.selectedIds.contains(photo.id), itemName: "photo") {
                         viewModel.toggleSelection(photo.id)
-                    } label: {
-                        Image(systemName: viewModel.selectedIds.contains(photo.id) ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(viewModel.selectedIds.contains(photo.id) ? .blue : .white)
-                            .shadow(color: .black.opacity(0.4), radius: 3)
-                            .padding(Spacing.sm)
-                            .scaleEffect(viewModel.selectedIds.contains(photo.id) ? 1.0 : 0.9)
-                            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(photo.id))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(viewModel.selectedIds.contains(photo.id) ? "Deselect photo" : "Select photo")
-                    .accessibilityAddTraits(viewModel.selectedIds.contains(photo.id) ? [.isButton, .isSelected] : .isButton)
                 }
                 Spacer()
             }
@@ -321,6 +333,14 @@ struct BlurryPhotosView: View {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+        }
+    }
+
+    private func scoreLabel(for tab: BlurryTab) -> String {
+        switch tab {
+        case .blurry: "Blur"
+        case .tooDark: "Darkness"
+        case .overexposed: "Brightness"
         }
     }
 

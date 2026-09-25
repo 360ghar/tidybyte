@@ -9,7 +9,9 @@ struct BurstGroup: Identifiable {
 @Observable
 @MainActor
 final class BurstCleanerViewModel {
-    var groups: [BurstGroup] = []
+    var groups: [BurstGroup] = [] {
+        didSet { updateDerivedTotals() }
+    }
     var isLoading = true
     private(set) var hasLoadedGroups = false
     var selectedForDeletion: Set<String> = []
@@ -33,15 +35,75 @@ final class BurstCleanerViewModel {
         groups.reduce(0) { $0 + $1.assets.count }
     }
 
-    var deletableCount: Int {
-        groups.reduce(0) { $0 + $1.assets.count - 1 }
+    /// Frames Auto-Clean would suggest: all but the keeper, never a favorite.
+    /// This is the passive "N removable" summary. It is NOT what Auto-Clean
+    /// deletes — use `autoCleanArmedCount` for the confirm and the enable check.
+    var deletableCount: Int { autoCleanIds.count }
+
+    /// Exactly what Auto-Clean will really delete: untouched groups contribute
+    /// their suggestions, touched groups only the user's surviving picks. The
+    /// confirm count and the button's enable check must use this, or a touched
+    /// group makes the alert over-count and leaves the button live for a
+    /// zero-delete no-op.
+    var autoCleanArmedCount: Int {
+        Self.autoCleanArmedIds(
+            groups: groups,
+            touchedGroups: touchedGroups,
+            selection: selectedForDeletion
+        ).count
     }
 
-    var savingsBytes: Int64 {
-        groups.reduce(Int64(0)) { total, group in
-            group.assets.filter { $0.id != group.bestAssetId }
-                .reduce(total) { $0 + $1.fileSize }
+    /// True when the armed set contains a favorite. Auto-Clean never suggests
+    /// one, but an explicit Select All (or a manual pick) arms it — and the
+    /// confirm must not then promise "Favorites are kept".
+    var autoCleanArmedIncludesFavorite: Bool {
+        let armed = Self.autoCleanArmedIds(
+            groups: groups,
+            touchedGroups: touchedGroups,
+            selection: selectedForDeletion
+        )
+        return groups.contains { group in
+            group.assets.contains { armed.contains($0.id) && $0.isFavorite }
         }
+    }
+
+    var allNonBestSelected: Bool {
+        !nonBestIds.isEmpty && nonBestIds.isSubset(of: selectedForDeletion)
+    }
+
+    /// Select All: every frame but the keepers (favorites included: this is an
+    /// explicit choice). Counts as touching every group, so a refresh keeps it.
+    func selectAllNonBest() {
+        selectedForDeletion.formUnion(nonBestIds)
+        touchedGroups.formUnion(groups.map(\.id))
+    }
+
+    func deselectAll() {
+        selectedForDeletion.removeAll()
+        touchedGroups.formUnion(groups.map(\.id))
+    }
+
+    /// Totals derived from `groups`. Stored, because the view reads them on
+    /// every render and `groups` changes far less often.
+    private(set) var savingsBytes: Int64 = 0
+    /// Exactly what Auto-Clean deletes: in every burst, all frames but the
+    /// starred keeper, never a favorite. This is the SUGGESTION set — the
+    /// delete itself arms `autoCleanArmedIds` (see `autoCleanArmedCount`), which
+    /// differs for a touched group.
+    private(set) var autoCleanIds: Set<String> = []
+    private var nonBestIds: Set<String> = []
+
+    private func updateDerivedTotals() {
+        var suggested = Set<String>(), nonBest = Set<String>(), bytes: Int64 = 0
+        for group in groups {
+            let groupSuggested = Self.suggestedIds(in: group)
+            suggested.formUnion(groupSuggested)
+            nonBest.formUnion(Self.nonBestAssetIds(in: group))
+            bytes += group.assets.filter { groupSuggested.contains($0.id) }.reduce(0) { $0 + $1.fileSize }
+        }
+        autoCleanIds = suggested
+        nonBestIds = nonBest
+        savingsBytes = bytes
     }
 
     var selectedSavingsBytes: Int64 {
@@ -163,15 +225,20 @@ final class BurstCleanerViewModel {
             let remaining = group.assets.filter { !removed.contains($0.id) }
             guard remaining.count > 1 else {
                 if remaining.count == 1 { collapsedToSingleFrame += 1 }
+                manuallySetBest.remove(group.id)
                 return nil
             }
             let bestAssetId: String
             if remaining.contains(where: { $0.id == group.bestAssetId }) {
                 bestAssetId = group.bestAssetId
-            } else if let newBest = BestAssetSelector.bestByMetadata(from: remaining) {
-                bestAssetId = newBest.id
             } else {
-                return nil
+                // The manually picked frame left the group: the fallback
+                // re-pick is automatic, so drop the "your choice" flag.
+                manuallySetBest.remove(group.id)
+                guard let newBest = BestAssetSelector.bestByMetadata(from: remaining) else {
+                    return nil
+                }
+                bestAssetId = newBest.id
             }
             return BurstGroup(id: group.id, assets: remaining, bestAssetId: bestAssetId)
         }
@@ -193,26 +260,42 @@ final class BurstCleanerViewModel {
         )
     }
 
-    /// D11: auto-clean arms every non-best frame EXCEPT in groups the user
-    /// explicitly curated (touched) — their surviving selection is preserved
-    /// instead of being silently overridden. Then deletes through the shared
-    /// pipeline.
-    func autoCleanAll() async {
-        var armed: Set<String> = []
-        for group in groups {
+    /// Exactly what Auto-Clean arms: untouched groups contribute their
+    /// suggestions; touched groups contribute only the user's surviving picks,
+    /// so a frame the user explicitly kept is never re-armed. Pure for tests.
+    static func autoCleanArmedIds(
+        groups: [BurstGroup],
+        touchedGroups: Set<String>,
+        selection: Set<String>
+    ) -> Set<String> {
+        groups.reduce(into: Set<String>()) { armed, group in
             if touchedGroups.contains(group.id) {
-                // Keep exactly what the user chose for this group.
-                armed.formUnion(selectedForDeletion.intersection(Self.nonBestAssetIds(in: group)))
-                if !group.assets.contains(where: { $0.id == group.bestAssetId }) {
-                    // Keeper was deleted earlier; arm all survivors.
-                    armed.formUnion(group.assets.map(\.id))
-                }
+                armed.formUnion(selection.intersection(group.assets.map(\.id)))
             } else {
-                armed.formUnion(Self.nonBestAssetIds(in: group))
+                armed.formUnion(Self.suggestedIds(in: group))
             }
         }
+    }
+
+    /// Deletes the armed set through the shared pipeline. Returns how many
+    /// frames really left the library (0 on a decline or a failure).
+    @discardableResult
+    func autoCleanAll() async -> Int {
+        let previousSelection = selectedForDeletion
+        let armed = Self.autoCleanArmedIds(
+            groups: groups,
+            touchedGroups: touchedGroups,
+            selection: previousSelection
+        )
+        guard !armed.isEmpty else { return 0 }
         selectedForDeletion = armed
         await deleteSelected()
+        let survivors = Set(groups.flatMap { $0.assets.map(\.id) })
+        let removed = armed.subtracting(survivors).count
+        if removed == 0 {
+            selectedForDeletion = previousSelection.intersection(survivors)
+        }
+        return removed
     }
 
     /// Deletes a single burst frame (used by the in-preview Delete action),
@@ -240,6 +323,9 @@ final class BurstCleanerViewModel {
                     if remaining.contains(where: { $0.id == groups[index].bestAssetId }) {
                         bestAssetId = groups[index].bestAssetId
                     } else if let newBest = BestAssetSelector.bestByMetadata(from: remaining) {
+                        // The manually picked frame was deleted: the fallback
+                        // re-pick is automatic, so drop the "your choice" flag.
+                        manuallySetBest.remove(groupId)
                         bestAssetId = newBest.id
                     } else {
                         return
@@ -248,6 +334,7 @@ final class BurstCleanerViewModel {
                 } else {
                     // No longer a burst once it's down to one frame — drop the group.
                     for asset in remaining { selectedForDeletion.remove(asset.id) }
+                    manuallySetBest.remove(groupId)
                     groups.remove(at: index)
                 }
             }
@@ -260,7 +347,7 @@ final class BurstCleanerViewModel {
 
     private func selectNonBestFrames() {
         selectedForDeletion = groups.reduce(into: Set<String>()) { result, group in
-            result.formUnion(Self.nonBestAssetIds(in: group))
+            result.formUnion(Self.suggestedIds(in: group))
         }
     }
 
@@ -275,7 +362,7 @@ final class BurstCleanerViewModel {
     ) -> Set<String> {
         var merged = oldSelection.intersection(survivingIds)
         for group in groups where !touchedGroups.contains(group.id) {
-            merged.formUnion(nonBestAssetIds(in: group))
+            merged.formUnion(suggestedIds(in: group))
         }
         return merged
     }
@@ -308,6 +395,14 @@ final class BurstCleanerViewModel {
             result.append(BurstGroup(id: burstId, assets: sorted, bestAssetId: best.id))
         }
         return result.sorted { $0.assets.count > $1.assets.count }
+    }
+
+    /// What the tool arms by itself: every frame but the keeper, except
+    /// favorites. A favorite is only deleted when the user marks it.
+    static func suggestedIds(in group: BurstGroup) -> Set<String> {
+        var selection = SelectionState()
+        selection.selectNonBest(assets: group.assets, bestAssetId: group.bestAssetId)
+        return selection.ids
     }
 
     private static func nonBestAssetIds(in group: BurstGroup) -> Set<String> {

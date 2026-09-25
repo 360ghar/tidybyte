@@ -42,7 +42,9 @@ struct SimilarGroup: Identifiable, Hashable, Sendable {
 @Observable
 @MainActor
 final class SimilarPhotosViewModel {
-    var groups: [SimilarGroup] = []
+    var groups: [SimilarGroup] = [] {
+        didSet { updateSuggestedIds() }
+    }
     var scanState: ScanState = .idle
     var selectedForDeletion: Set<String> = []
     var errorMessage: String?
@@ -87,6 +89,10 @@ final class SimilarPhotosViewModel {
         // turn on the main actor) must not touch shared state: `cancelScan()`
         // already moved the UI to `.idle`.
         guard scanRunner.isCurrent(token) else { return }
+        // Captured before any await: a library change during the scan bumps the
+        // epoch, and this run's result must then be dropped rather than
+        // published as a pre-change count.
+        let scanEpoch = ScanResults.epoch
         scanState = .scanning(0)
         selectedForDeletion.removeAll()
         errorMessage = nil
@@ -159,10 +165,23 @@ final class SimilarPhotosViewModel {
         // stale, so `groups` would be paired with a newer scan's state).
         guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
+        // The library changed mid-scan: this run's count is dropped, so its
+        // groups would disagree with the badge it used to feed. Drop them too
+        // instead of showing shots that may no longer exist.
+        guard scanEpoch == ScanResults.epoch else {
+            groups = []
+            scanState = .idle
+            return
+        }
+
         groups = foundGroups
         scanState = .completed
+        ScanResults.record(.similar, count: totalDuplicateCount, epoch: scanEpoch)
 
-        selectNonBestAssets()
+        // Similar shots are different photos: start with nothing selected.
+        // "Select All" applies the suggestion (all but each keeper, never a
+        // favorite).
+        selectedForDeletion.removeAll()
     }
 
     // MARK: - Scan lifecycle (DUP-02/C1)
@@ -382,6 +401,7 @@ final class SimilarPhotosViewModel {
             )
         }
         selectedForDeletion.formIntersection(Set(groups.flatMap { $0.assets.map(\.id) }))
+        ScanResults.record(.similar, count: totalDuplicateCount)
     }
 
     func toggleSelection(_ assetId: String) {
@@ -396,16 +416,36 @@ final class SimilarPhotosViewModel {
         groups[index].bestAssetId = assetId
         groups[index].bestReason = .userChosen
         var state = SelectionState(ids: selectedForDeletion)
-        state.setBest(newBest: assetId, oldBest: oldBest)
+        state.setBest(newBest: assetId, oldBest: oldBest, groupAssets: groups[index].assets)
         selectedForDeletion = state.ids
     }
 
-    private func selectNonBestAssets() {
+    /// The suggested set: every non-keeper that is not a favorite. Stored,
+    /// because the toolbar reads it on every render.
+    private var suggestedIds: Set<String> = []
+
+    private func updateSuggestedIds() {
         var state = SelectionState()
         for group in groups {
             state.selectNonBest(assets: group.assets, bestAssetId: group.bestAssetId)
         }
-        selectedForDeletion = state.ids
+        suggestedIds = state.ids
+    }
+
+    /// False when every extra is a favorite: "Select All" would do nothing.
+    var hasSuggestions: Bool { !suggestedIds.isEmpty }
+
+    var allSuggestedSelected: Bool {
+        let suggested = suggestedIds
+        return !suggested.isEmpty && suggested.isSubset(of: selectedForDeletion)
+    }
+
+    func selectSuggested() {
+        selectedForDeletion.formUnion(suggestedIds)
+    }
+
+    func deselectAll() {
+        selectedForDeletion.removeAll()
     }
 
     /// Quality-first keeper selection. Combines sharpness, exposure, resolution,

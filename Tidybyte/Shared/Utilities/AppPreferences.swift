@@ -38,6 +38,13 @@ enum AppPreferences {
         static let lastStorageScanAt = "lastStorageScanAt"
         static let successfulActionCount = "successfulActionCount"
         static let lastReviewPromptAt = "lastReviewPromptAt"
+        static let pendingReviewMilestone = "pendingReviewMilestone"
+        /// Bumped from V2: the reminder body changed from "large videos" to
+        /// "large files", but V2 was already consumed on installs that ran the
+        /// previous build, so those users kept the old wording. A new key
+        /// re-runs the reschedule once and lets the current copy land.
+        static let reminderCopyMigratedV3 = "reminderCopyMigratedV3"
+        static let hasRatedApp = "hasRatedApp"
         static let lifetimeFreedBytes = "lifetimeFreedBytes"
         static let lifetimeItemCount = "lifetimeItemCount"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
@@ -202,24 +209,38 @@ enum AppPreferences {
 
     // MARK: - Happy-Path Review Prompt Gating
 
-    /// Success counts at which the native in-context review prompt may fire:
+    /// Success counts at which the "Enjoying TidyByte?" prompt may appear:
     /// early delight at 3, then rarer; `% 50` keeps long-term users asked
     /// roughly twice a year at their current cleanup cadence.
     private static let reviewMilestones: Set<Int> = [3, 10, 25]
 
-    /// Local cooldown between native review prompts. Apple already caps the
-    /// OS prompt at 3 per 365 days and suppresses extras *silently*, so the
-    /// app must pace itself — otherwise real milestones get burned on nothing.
+    /// Local cooldown between prompts. The prompt interrupts the user, and
+    /// its "Yes" path calls `requestReview`, which Apple caps at 3 per 365
+    /// days and suppresses *silently* — so the app must pace itself.
     private static let reviewPromptCooldownDays = 60
 
     static func successfulActionCount(in defaults: UserDefaults = .standard) -> Int {
         defaults.integer(forKey: Key.successfulActionCount)
     }
 
+    /// True once the user said they like the app (and got the rating ask) or
+    /// tapped any App Store rate link. iOS never reports whether a review was
+    /// submitted, so this records intent — and a user who showed it is never
+    /// asked again.
+    static func hasRatedApp(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: Key.hasRatedApp)
+    }
+
+    static func saveHasRatedApp(in defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: Key.hasRatedApp)
+    }
+
     /// Pure decision so tests can pin the policy without UserDefaults.
-    /// Returns true when `successCount` hits a milestone AND the cooldown has
-    /// elapsed (a never-prompted install has no cooldown).
-    static func shouldRequestReview(successCount: Int, lastPromptAt: Date?, now: Date = .now) -> Bool {
+    /// Returns true when the user has not rated, `successCount` hits a
+    /// milestone, AND the cooldown has elapsed (a never-prompted install has
+    /// no cooldown).
+    static func shouldRequestReview(successCount: Int, lastPromptAt: Date?, hasRated: Bool = false, now: Date = .now) -> Bool {
+        guard !hasRated else { return false }
         let isMilestone = reviewMilestones.contains(successCount)
             || (successCount > 0 && successCount % 50 == 0)
         guard isMilestone else { return false }
@@ -230,20 +251,38 @@ enum AppPreferences {
     /// Records one fully-successful happy-path action. Callers must only invoke
     /// this when nothing failed, nothing was cancelled, and at least one item
     /// was affected — a "success" on a no-op would cheapen the milestone.
-    /// Returns true when the caller should fire the native `requestReview` prompt.
+    /// Returns true when the caller should present the "Enjoying TidyByte?" prompt.
     @discardableResult
     static func recordSuccessfulAction(now: Date = .now, in defaults: UserDefaults = .standard) -> Bool {
         let count = successfulActionCount(in: defaults) + 1
         defaults.set(count, forKey: Key.successfulActionCount)
         let interval = defaults.double(forKey: Key.lastReviewPromptAt)
         let lastPromptAt: Date? = interval == 0 ? nil : Date(timeIntervalSince1970: interval)
-        return shouldRequestReview(successCount: count, lastPromptAt: lastPromptAt, now: now)
+        return shouldRequestReview(
+            successCount: count,
+            lastPromptAt: lastPromptAt,
+            hasRated: hasRatedApp(in: defaults),
+            now: now
+        )
     }
 
-    /// Call immediately after firing `requestReview`. Recorded unconditionally
-    /// (whether or not the OS actually displayed the prompt) so a suppressed
-    /// attempt still consumes the cooldown instead of retrying every milestone.
+    /// Call when the prompt is presented. Recorded on presentation, not on the
+    /// answer, so "Not really" or a swipe-down still consumes the cooldown
+    /// instead of retrying every milestone.
     static func recordReviewPromptDate(_ date: Date = .now, in defaults: UserDefaults = .standard) {
         defaults.set(date.timeIntervalSince1970, forKey: Key.lastReviewPromptAt)
+    }
+
+    /// True when a milestone was earned but not presented yet — the user exited
+    /// the session mid-deck, so the prompt would have interrupted them.
+    /// Persisted because the count has already consumed that milestone: dropping
+    /// it would lose the prompt decision for good.
+    static func hasPendingReviewMilestone(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: Key.pendingReviewMilestone)
+    }
+
+    /// Claims (false) or records (true) the held milestone.
+    static func savePendingReviewMilestone(_ pending: Bool, in defaults: UserDefaults = .standard) {
+        defaults.set(pending, forKey: Key.pendingReviewMilestone)
     }
 }

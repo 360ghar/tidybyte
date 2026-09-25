@@ -68,22 +68,31 @@ struct ActivityView: View {
                     // be both ugly and misleading — the items WERE cleaned, the
                     // sizes just weren't readable on this device.
                     Text(heroValue)
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .font(.largeTitle.bold())
+                        .fontDesign(.rounded)
                         .monospacedDigit()
                     Text(heroCaption)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                    if viewModel.summary.lifetimeFreedBytes > 0 {
+                        // Deleted items sit in Recently Deleted for 30 days, so
+                        // iPhone Storage in Settings does not drop right away.
+                        Text("Space comes back after Photos empties Recently Deleted (up to 30 days).")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
 
                 HStack(spacing: Spacing.xl) {
                     statPill(
                         value: "\(viewModel.summary.lifetimeItemCount)",
-                        label: "items cleaned"
+                        label: "items, all time"
                     )
                     statPill(
                         value: "\(viewModel.summary.activeDayCount)",
-                        label: viewModel.summary.activeDayCount == 1 ? "day active" : "days active"
+                        label: viewModel.summary.activeDayCount == 1 ? "active day, 30 days" : "active days, 30 days"
                     )
                     statPill(
                         value: bytesLabel(viewModel.summary.monthFreedBytes),
@@ -97,13 +106,13 @@ struct ActivityView: View {
     private var heroValue: String {
         viewModel.summary.lifetimeFreedBytes > 0
             ? viewModel.summary.lifetimeFreedBytes.formattedFileSize
-            : "—"
+            : "Size unknown"
     }
 
     private var heroCaption: String {
         viewModel.summary.lifetimeFreedBytes > 0
-            ? "freed since you started using TidyByte"
-            : "Nothing measurable yet — items stored only in iCloud don't report a size"
+            ? "cleaned up since you started using TidyByte"
+            : "Nothing measurable yet. Items stored only in iCloud don't report a size."
     }
 
     /// Byte label that never renders a bare "Zero KB" for a real cleanup.
@@ -159,14 +168,14 @@ struct ActivityView: View {
                 // VoiceOver user hears "chart" and nothing else. Summarize the
                 // data instead.
                 .accessibilityElement()
-                .accessibilityLabel("Space freed per day over the last 30 days")
+                .accessibilityLabel("Space cleaned up per day over the last 30 days")
                 .accessibilityValue(
                     viewModel.summary.daily.isEmpty
                     ? "No activity"
-                    : "\(bytesLabel(viewModel.summary.last30DaysFreedBytes)) freed in the last 30 days"
+                    : "\(bytesLabel(viewModel.summary.last30DaysFreedBytes)) cleaned up in the last 30 days"
                 )
 
-                Text("\(bytesLabel(viewModel.summary.last30DaysFreedBytes)) freed in the last 30 days")
+                Text("\(bytesLabel(viewModel.summary.last30DaysFreedBytes)) cleaned up in the last 30 days")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

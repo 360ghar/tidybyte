@@ -1,12 +1,11 @@
 import SwiftUI
 import SwiftData
-import StoreKit
 
 struct ScreenshotCleanerView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = ScreenshotCleanerViewModel()
+    @Environment(LibraryChangeMonitor.self) private var libraryMonitor
     @State private var showDeleteConfirm = false
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var selectedSwipeRoute: SwipeSessionRoute?
     @State private var previewAsset: AssetSummary?
@@ -58,6 +57,7 @@ struct ScreenshotCleanerView: View {
                             startSwipeReview(with: .screenshots)
                         }
                         .font(.caption.bold())
+                        .frame(minHeight: 44)
 
                         Picker("Sort", selection: $viewModel.sortOrder) {
                             ForEach(ScreenshotSortOrder.allCases, id: \.self) { order in
@@ -105,24 +105,18 @@ struct ScreenshotCleanerView: View {
         }
         .animation(.reduceMotionAware(.spring(response: 0.35, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.isLoading)
         .navigationTitle("Screenshots")
+        // Items deleted elsewhere (Swipe Review, the Photos app) leave the
+        // list when the library changes, instead of lingering as blanks.
+        .task(id: libraryMonitor.generation) {
+            await viewModel.pruneDeleted()
+        }
         .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) screenshots")
         .onDisappear {
             // D-01: stop an in-flight fetch when the user leaves the screen.
             viewModel.cancelScan()
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                if !viewModel.screenshots.isEmpty {
-                    HStack(spacing: Spacing.md) {
-                        Button {
-                            HapticHelper.impact(.light)
-                            startSwipeReview(with: .screenshots)
-                        } label: {
-                            Image(systemName: "hand.draw")
-                        }
-                    }
-                }
-            }
+            // "Review with Swipe" lives in the header row only.
             if !viewModel.screenshots.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
                     SelectAllToolbarButton(
@@ -147,12 +141,12 @@ struct ScreenshotCleanerView: View {
                     await viewModel.deleteSelected()
                     // C12: success feedback, gated on an actual deletion.
                     if viewModel.errorMessage == nil && viewModel.deletedCount > 0 {
-                        HappyPathReporter.fire(isCelebrating: $isCelebrating, requestReview: requestReview)
+                        HappyPathReporter.fire(isCelebrating: $isCelebrating)
                     }
                 }
             }
         } message: {
-            Text("This action cannot be undone.")
+            Text(CleanupDeletion.recoverableNote)
         }
         // Non-modal error surface. `safeAreaInset` pushes the grid down rather
         // than floating the banner over its first row.
@@ -178,7 +172,7 @@ struct ScreenshotCleanerView: View {
                 Task { await viewModel.delete(assetId: id) }
             }
         } message: { _ in
-            Text("This action cannot be undone.")
+            Text(CleanupDeletion.recoverableNote)
         }
         .fullScreenCover(item: $previewAsset, onDismiss: {
             if pendingSwipeReview {
@@ -217,21 +211,9 @@ struct ScreenshotCleanerView: View {
 
             // Always-visible selection checkbox. Tapping it (de)selects; tapping
             // anywhere else on the cell opens the preview.
-            Button {
-                HapticHelper.selection()
+            SelectToggle(isSelected: viewModel.selectedIds.contains(screenshot.id), itemName: "screenshot") {
                 viewModel.toggleSelection(screenshot.id)
-            } label: {
-                Image(systemName: viewModel.selectedIds.contains(screenshot.id) ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(viewModel.selectedIds.contains(screenshot.id) ? .blue : .white)
-                    .shadow(color: .black.opacity(0.4), radius: 3)
-                    .padding(Spacing.sm)
-                    .scaleEffect(viewModel.selectedIds.contains(screenshot.id) ? 1.0 : 0.9)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(screenshot.id))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(viewModel.selectedIds.contains(screenshot.id) ? "Deselect screenshot" : "Select screenshot")
-            .accessibilityAddTraits(viewModel.selectedIds.contains(screenshot.id) ? [.isButton, .isSelected] : .isButton)
         }
         .overlay {
             if viewModel.selectedIds.contains(screenshot.id) {

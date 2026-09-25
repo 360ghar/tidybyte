@@ -43,7 +43,8 @@ struct ToolErrorBanner: View {
                     Image(systemName: "xmark")
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
-                        .padding(Spacing.xs)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Dismiss error")
             }

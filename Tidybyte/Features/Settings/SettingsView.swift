@@ -30,6 +30,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.Key.reminderWeekday) private var reminderWeekday: Int = 1 // Sunday
 
     @State private var showResetConfirm = false
+    @State private var toast: ToastMessage?
     @State private var showResetErrorAlert = false
     @State private var photoPermissionStatus: PHAuthorizationStatus = .notDetermined
     /// Drives the shared pre-prompt explainer for the "Allow Access to Photos"
@@ -38,6 +39,11 @@ struct SettingsView: View {
     @State private var isRequestingNotificationPermission = false
     @State private var showNotificationDeniedAlert = false
     @State private var showMailUnavailableAlert = false
+    /// The last composer attempt failed to hand the message to Mail, so
+    /// Settings says so instead of closing as if the feedback went out.
+    @State private var showMailSendFailedAlert = false
+    /// The in-app composer's payload, or nil when it is not presented.
+    @State private var mailDraft: MailDraft?
     /// The last weekday we actually committed to the scheduler. The Reminder Day
     /// picker reverts to this when permission was revoked, and the revert must
     /// not be mistaken for a fresh user pick (that would loop forever: each
@@ -50,8 +56,6 @@ struct SettingsView: View {
     /// the tab gate in the same pass instead of on the next activation.
     @Environment(PhotoPermissionHandler.self) private var permissionHandler
 
-    private let feedbackEmail = "contact@sakshammittal.com"
-
     private let weekdays = [
         (1, "Sunday"), (2, "Monday"), (3, "Tuesday"), (4, "Wednesday"),
         (5, "Thursday"), (6, "Friday"), (7, "Saturday")
@@ -59,7 +63,7 @@ struct SettingsView: View {
 
     private var photoPermissionLabel: String {
         switch photoPermissionStatus {
-        case .notDetermined: return "Not Determined"
+        case .notDetermined: return "Not Asked Yet"
         case .restricted: return "Restricted"
         case .denied: return "Denied"
         case .authorized: return "Full Access"
@@ -78,7 +82,9 @@ struct SettingsView: View {
 
     private var photoPermissionColor: Color {
         switch photoPermissionStatus {
-        case .authorized, .limited: return .green
+        case .authorized: return .green
+        // Limited works, but TidyByte sees only some photos: not a full green.
+        case .limited: return .orange
         case .denied, .restricted: return .red
         default: return .orange
         }
@@ -86,191 +92,6 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            // MARK: - Swipe Settings
-            Section("Swipe") {
-                Picker("Default Filter", selection: $defaultSwipeFilter) {
-                    ForEach(DefaultSwipeFilterPreference.allCases, id: \.self) { filter in
-                        Text(filter.title).tag(filter.rawValue)
-                    }
-                }
-            }
-
-            // MARK: - Cleanup Settings
-            Section("Cleanup") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Similar Photo Time Window")
-                    HStack {
-                        Slider(value: $timeWindow, in: 1...60, step: 1)
-                        Text("\(Int(timeWindow))s")
-                            .monospacedDigit()
-                            .frame(width: 36)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Blur Detection Sensitivity")
-                    Picker("Blur Detection Sensitivity", selection: $blurSensitivity) {
-                        ForEach(BlurSensitivity.allCases, id: \.self) { level in
-                            Text(level.rawValue).tag(level.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Smart Category Sensitivity")
-                    Picker("Smart Category Sensitivity", selection: $smartCategorySensitivity) {
-                        ForEach(CategorySensitivity.allCases, id: \.self) { level in
-                            Text(level.rawValue).tag(level.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Large File Threshold")
-                    HStack {
-                        Slider(value: $largeFileThreshold, in: 5...500, step: 5)
-                        Text("\(Int(largeFileThreshold)) MB")
-                            .monospacedDigit()
-                            .frame(width: 60)
-                    }
-                }
-            }
-
-            // MARK: - Video Compression
-            Section("Video Compression") {
-                Picker("Default Preset", selection: $compressionPreset) {
-                    ForEach(CompressionPreset.presets) { preset in
-                        Text(preset.label).tag(preset.id)
-                    }
-                }
-            }
-
-            // MARK: - Photo Compression
-            Section("Photo Compression") {
-                Picker("Default Preset", selection: $photoCompressionPreset) {
-                    ForEach(PhotoCompressionPreset.presets) { preset in
-                        Text(preset.label).tag(preset.id)
-                    }
-                }
-            }
-
-            // MARK: - Notifications
-            Section("Reminders") {
-                Toggle("Cleanup Reminders", isOn: $remindersEnabled)
-                    .disabled(isRequestingNotificationPermission)
-                    .onChange(of: remindersEnabled) { _, enabled in
-                        if enabled {
-                            isRequestingNotificationPermission = true
-                            Task {
-                                let granted = await NotificationService.requestPermission()
-                                isRequestingNotificationPermission = false
-                                if granted {
-                                    // Keep the committed mirror in sync so a later
-                                    // revert lands on the day the user actually has.
-                                    committedReminderWeekday = reminderWeekday
-                                    await NotificationService.scheduleWeeklyReminder(weekday: reminderWeekday)
-                                } else {
-                                    remindersEnabled = false
-                                    showNotificationDeniedAlert = true
-                                }
-                            }
-                        } else {
-                            NotificationService.cancelAllReminders()
-                        }
-                    }
-
-                if remindersEnabled {
-                    Picker("Reminder Day", selection: $reminderWeekday) {
-                        ForEach(weekdays, id: \.0) { day in
-                            Text(day.1).tag(day.0)
-                        }
-                    }
-                    .onChange(of: reminderWeekday) { _, newDay in
-                        // Ignore our own revert below — treating it as a user
-                        // pick would flip the value back and forth forever.
-                        guard newDay != committedReminderWeekday else { return }
-                        Task {
-                            // APP-14: if notification permission was revoked, the
-                            // reschedule would silently no-op — revert the picker
-                            // and surface the same alert as the toggle's deny path.
-                            guard await NotificationService.isPermissionGranted() else {
-                                reminderWeekday = committedReminderWeekday
-                                showNotificationDeniedAlert = true
-                                return
-                            }
-                            committedReminderWeekday = newDay
-                            await NotificationService.scheduleWeeklyReminder(weekday: newDay)
-                        }
-                    }
-                }
-            }
-
-            // MARK: - Data
-            Section("Data") {
-                Button(role: .destructive) {
-                    showResetConfirm = true
-                } label: {
-                    Text("Reset Swipe History")
-                }
-            }
-
-            // MARK: - Feedback
-            Section("Feedback") {
-                Button {
-                    sendFeedback(subject: "TidyByte Bug Report", isBug: true)
-                } label: {
-                    Label("Report a Bug", systemImage: "ladybug")
-                }
-
-                Button {
-                    sendFeedback(subject: "TidyByte Feature Request", isBug: false)
-                } label: {
-                    Label("Request a Feature", systemImage: "lightbulb")
-                }
-
-                // Same guarantee as the happy-path card's Rate button: the
-                // write-review deep link can't be silently swallowed by the
-                // OS prompt quota the way `requestReview` can.
-                Button {
-                    HapticHelper.impact(.light)
-                    openURL(AppStoreLinks.writeReviewURL)
-                } label: {
-                    Label("Rate TidyByte on the App Store", systemImage: "star.fill")
-                }
-
-                ShareLink(item: AppStoreLinks.shareMessage(statLine: nil)) {
-                    Label("Share with Friends", systemImage: "square.and.arrow.up")
-                }
-            }
-
-            // MARK: - About
-            Section("About") {
-                HStack {
-                    Text("App")
-                    Spacer()
-                    Text("TidyByte")
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack {
-                    Text("Version")
-                    Spacer()
-                    Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack {
-                    Text("Build")
-                    Spacer()
-                    Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             // MARK: - Privacy
             Section("Permissions") {
                 HStack {
@@ -327,8 +148,220 @@ struct SettingsView: View {
             } footer: {
                 Text("TidyByte has no account and no servers. Your photos and activity never leave your device.")
             }
+
+            // MARK: - Swipe Settings
+            Section("Swipe") {
+                Picker("Default Filter", selection: $defaultSwipeFilter) {
+                    ForEach(DefaultSwipeFilterPreference.allCases, id: \.self) { filter in
+                        Text(filter.title).tag(filter.rawValue)
+                    }
+                }
+            }
+
+            // MARK: - Cleanup Settings
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Similar Photo Time Window")
+                    HStack {
+                        Slider(value: $timeWindow, in: 1...60, step: 1)
+                            .accessibilityLabel("Similar Photo Time Window")
+                            .accessibilityValue("\(Int(timeWindow)) seconds")
+                        Text("\(Int(timeWindow))s")
+                            .monospacedDigit()
+                            .fixedSize()
+                            .accessibilityHidden(true)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Blur Detection Sensitivity")
+                    Picker("Blur Detection Sensitivity", selection: $blurSensitivity) {
+                        ForEach(BlurSensitivity.allCases, id: \.self) { level in
+                            Text(level.rawValue).tag(level.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Smart Category Sensitivity")
+                    Picker("Smart Category Sensitivity", selection: $smartCategorySensitivity) {
+                        ForEach(CategorySensitivity.allCases, id: \.self) { level in
+                            Text(level.rawValue).tag(level.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Large File Threshold")
+                    HStack {
+                        Slider(value: $largeFileThreshold, in: 5...500, step: 5)
+                            .accessibilityLabel("Large File Threshold")
+                            .accessibilityValue("\(Int(largeFileThreshold)) megabytes")
+                        Text("\(Int(largeFileThreshold)) MB")
+                            .monospacedDigit()
+                            .fixedSize()
+                            .accessibilityHidden(true)
+                    }
+                }
+            } header: {
+                Text("Cleanup")
+            } footer: {
+                Text("Time window: photos taken this close together count as similar. Higher blur sensitivity flags more photos. Broad sorting puts more photos in categories, with more mistakes.")
+            }
+
+            // MARK: - Video Compression
+            Section("Video Compression") {
+                Picker("Default Preset", selection: $compressionPreset) {
+                    ForEach(CompressionPreset.presets) { preset in
+                        Text(preset.label).tag(preset.id)
+                    }
+                }
+            }
+
+            // MARK: - Photo Compression
+            Section("Photo Compression") {
+                Picker("Default Preset", selection: $photoCompressionPreset) {
+                    ForEach(PhotoCompressionPreset.presets) { preset in
+                        Text(preset.label).tag(preset.id)
+                    }
+                }
+            }
+
+            // MARK: - Notifications
+            Section {
+                Toggle("Cleanup Reminders", isOn: $remindersEnabled)
+                    .disabled(isRequestingNotificationPermission)
+                    .onChange(of: remindersEnabled) { _, enabled in
+                        if enabled {
+                            isRequestingNotificationPermission = true
+                            Task {
+                                let granted = await NotificationService.requestPermission()
+                                isRequestingNotificationPermission = false
+                                if granted {
+                                    // Keep the committed mirror in sync so a later
+                                    // revert lands on the day the user actually has.
+                                    committedReminderWeekday = reminderWeekday
+                                    _ = await NotificationService.scheduleWeeklyReminder(weekday: reminderWeekday)
+                                } else {
+                                    remindersEnabled = false
+                                    showNotificationDeniedAlert = true
+                                }
+                            }
+                        } else {
+                            NotificationService.cancelAllReminders()
+                        }
+                    }
+
+                if remindersEnabled {
+                    Picker("Reminder Day", selection: $reminderWeekday) {
+                        ForEach(weekdays, id: \.0) { day in
+                            Text(day.1).tag(day.0)
+                        }
+                    }
+                    .onChange(of: reminderWeekday) { _, newDay in
+                        // Ignore our own revert below — treating it as a user
+                        // pick would flip the value back and forth forever.
+                        guard newDay != committedReminderWeekday else { return }
+                        Task {
+                            // APP-14: if notification permission was revoked, the
+                            // reschedule would silently no-op — revert the picker
+                            // and surface the same alert as the toggle's deny path.
+                            guard await NotificationService.isPermissionGranted() else {
+                                reminderWeekday = committedReminderWeekday
+                                showNotificationDeniedAlert = true
+                                return
+                            }
+                            committedReminderWeekday = newDay
+                            _ = await NotificationService.scheduleWeeklyReminder(weekday: newDay)
+                        }
+                    }
+                }
+            } header: {
+                Text("Reminders")
+            } footer: {
+                if remindersEnabled {
+                    Text("Sent every week at 10 AM on the day you pick. Tapping it opens Cleanup.")
+                }
+            }
+
+            // MARK: - Data
+            Section("Data") {
+                Button(role: .destructive) {
+                    showResetConfirm = true
+                } label: {
+                    Text("Reset Swipe History")
+                }
+            }
+
+            // MARK: - Feedback
+            Section("Feedback") {
+                Button {
+                    sendFeedback(subject: "TidyByte Bug Report", isBug: true)
+                } label: {
+                    Label("Report a Bug", systemImage: "ladybug")
+                }
+
+                Button {
+                    sendFeedback(subject: "TidyByte Feature Request", isBug: false)
+                } label: {
+                    Label("Request a Feature", systemImage: "lightbulb")
+                }
+
+                // Same guarantee as the happy-path prompt's fallback link: the
+                // write-review deep link can't be silently swallowed by the
+                // OS prompt quota the way `requestReview` can. A tap also
+                // marks the user as rated, so the prompt stops asking.
+                Button {
+                    HapticHelper.impact(.light)
+                    AppPreferences.saveHasRatedApp()
+                    openURL(AppStoreLinks.writeReviewURL)
+                } label: {
+                    Label("Rate TidyByte on the App Store", systemImage: "star.fill")
+                }
+
+                ShareLink(item: AppStoreLinks.shareMessage(statLine: nil)) {
+                    Label("Share with Friends", systemImage: "square.and.arrow.up")
+                }
+            }
+
+            // MARK: - About
+            Section("About") {
+                HStack {
+                    Text("App")
+                    Spacer()
+                    Text("TidyByte")
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Version")
+                    Spacer()
+                    Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Build")
+                    Spacer()
+                    Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1")
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Acknowledgements")
+                    Text("TidyByte is built only with Apple frameworks. It includes no third-party code.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
         }
         .navigationTitle("Settings")
+        .toast($toast)
         .photoPermissionPrimer(
             isPresented: $showPhotoPermissionPrimer,
             permissionHandler: permissionHandler,
@@ -362,57 +395,41 @@ struct SettingsView: View {
         .alert("No Mail Account", isPresented: $showMailUnavailableAlert) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("No email account is set up on this device. Please email us at \(feedbackEmail).")
+            Text("No email account is set up on this device. Please email us at \(FeedbackMail.address).")
         }
         .alert("Reset Failed", isPresented: $showResetErrorAlert) {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Could not clear swipe history. Please try again.")
         }
+        .alert("Couldn't Send Feedback", isPresented: $showMailSendFailedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("The message couldn't be sent. Please try again or email us at \(FeedbackMail.address).")
+        }
+        .sheet(item: $mailDraft) { draft in
+            MailComposeView(subject: draft.subject, body: draft.body) { result in
+                mailDraft = nil
+                // MessageUI's `.failed` means the message was neither saved
+                // nor queued — surface it instead of dismissing silently.
+                showMailSendFailedAlert = (result == .failed)
+            }
+        }
     }
 
     private func sendFeedback(subject: String, isBug: Bool) {
-        var components = URLComponents()
-        components.scheme = "mailto"
-        components.path = feedbackEmail
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: subject),
-            URLQueryItem(name: "body", value: feedbackBody(isBug: isBug))
-        ]
-        guard let url = components.url else { return }
-        openURL(url) { accepted in
-            if !accepted { showMailUnavailableAlert = true }
-        }
-    }
-
-    private func feedbackBody(isBug: Bool) -> String {
         let prompt = isBug
             ? "Describe the bug:\n\nSteps to reproduce:\n\nWhat you expected:\n\nWhat happened instead:\n"
             : "Describe the feature you'd like:\n\nWhy it would help:\n"
-        return "\(prompt)\n\n---\nThe info below helps us debug — please keep it.\n\(diagnostics)"
-    }
-
-    private var diagnostics: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        let device = UIDevice.current
-        return """
-        App: TidyByte \(version) (\(build))
-        iOS: \(device.systemVersion)
-        Device: \(deviceModelIdentifier)
-        """
-    }
-
-    private var deviceModelIdentifier: String {
-        var systemInfo = utsname()
-        uname(&systemInfo)
-        let mirror = Mirror(reflecting: systemInfo.machine)
-        let id = mirror.children.reduce(into: "") { result, element in
-            if let value = element.value as? Int8, value != 0 {
-                result.append(Character(UnicodeScalar(UInt8(value))))
-            }
+        // Same gate as the prompt card: `openURL(mailto:)` reports success
+        // whenever Mail is installed, so ask MessageUI instead and show the
+        // plain-text address when it genuinely cannot send.
+        guard FeedbackMail.canSend else {
+            showMailUnavailableAlert = true
+            return
         }
-        return id.isEmpty ? UIDevice.current.model : id
+        showMailSendFailedAlert = false
+        mailDraft = MailDraft(subject: subject, body: FeedbackMail.body(prompt: prompt))
     }
 
     private func openSystemSettings() {
@@ -428,6 +445,7 @@ struct SettingsView: View {
         do {
             try modelContext.delete(model: SwipeRecord.self)
             try modelContext.save()
+            toast = ToastMessage(text: "Swipe history cleared", systemImage: "checkmark.circle")
         } catch {
             AppLog.data.error("Failed to reset swipe history: \(error.localizedDescription, privacy: .public)")
             showResetErrorAlert = true

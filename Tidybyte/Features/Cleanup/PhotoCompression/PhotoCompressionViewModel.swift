@@ -23,6 +23,12 @@ final class PhotoCompressionViewModel {
     /// show a single summary / success haptic (COMP-09, COMP-11).
     var batchSummary: CompressionBatchSummary?
     private(set) var isCancelled = false
+    /// Which step of the replace batch is running, for the bottom bar.
+    private(set) var phase: ReplacePhase = .idle
+    /// Saved copies whose originals are still in the library (the user tapped
+    /// "Don't Allow"). The view offers Try Again / Remove Copies.
+    /// `OriginalsCommit.commit` already settles them as kept-both in the journal.
+    var keptOriginals: [PendingOriginal] = []
     /// The batch mutation loop, owned by the VM so leaving the screen can
     /// cancel it instead of orphaning the mutation loop (COMP-08).
     private var batchTask: Task<Void, Never>?
@@ -66,31 +72,97 @@ final class PhotoCompressionViewModel {
         photos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
     }
 
-    func loadIfNeeded() async {
-        guard !hasLoadedPhotos else { return }
-        await load()
+    /// Every eligible photo from the last fetch; `photos` is this list after
+    /// the candidate filter.
+    private var allPhotoAssets: [AssetSummary] = []
+    /// New copies this tool (or video / Live Photo conversion) already made.
+    /// Compressing a copy again only loses quality, so they are never listed.
+    private var compressedCopyIds: Set<String> = []
+
+    /// Off: only photos over 2 MB that are not HEIC (the ones that shrink).
+    var showAllPhotos = false {
+        didSet { applyFilter() }
     }
 
-    func load() async {
+    /// True when the candidate filter hides photos that exist. Set in
+    /// `applyFilter`, so a render never re-scans the whole library.
+    private(set) var filterHidesPhotos = false
+    /// How many photos the "show all" list would hold. Counted once per fetch,
+    /// then kept current by `removePhotos`.
+    private var eligibleCount = 0
+
+    nonisolated static func candidates(
+        from assets: [AssetSummary],
+        excluding compressedCopies: Set<String>,
+        showAll: Bool
+    ) -> [AssetSummary] {
+        assets.filter { isCandidate($0, excluding: compressedCopies, showAll: showAll) }
+    }
+
+    /// The list rule, shared with the Cleanup home badge.
+    nonisolated static func isCandidate(_ asset: AssetSummary, excluding compressedCopies: Set<String>, showAll: Bool) -> Bool {
+        // Live Photos have their own tool; re-encoding only their still
+        // would silently drop the motion.
+        guard !asset.isLivePhoto, !compressedCopies.contains(asset.id) else { return false }
+        return showAll
+            || (asset.fileSize >= CleanupLibraryRollup.photoCompressionMinBytes && !asset.isHEIC)
+    }
+
+    func loadIfNeeded(modelContext: ModelContext) async {
+        guard !hasLoadedPhotos else { return }
         isLoading = true
         errorMessage = nil
-        // Live Photos have their own tool; re-encoding only their still would
-        // silently drop the motion component, so exclude them here.
-        let photoAssets = await photoService.fetchAllPhotos().filter { !$0.isLivePhoto }
-        photos = photoAssets.map { PhotoItem(id: $0.id, asset: $0, selectedPreset: defaultPreset) }
-        hasLoadedPhotos = true
+        await fetch(modelContext: modelContext)
         isLoading = false
     }
 
     /// Re-fetch without flipping `isLoading`, so existing content stays under the pull-to-refresh spinner.
-    func refresh() async {
+    func refresh(modelContext: ModelContext) async {
         // Don't replace `photos` out from under an in-flight compression loop —
         // its per-id index lookups would miss and savings/records would be lost.
         guard !isCompressing else { return }
         errorMessage = nil
-        let photoAssets = await photoService.fetchAllPhotos().filter { !$0.isLivePhoto }
-        photos = photoAssets.map { PhotoItem(id: $0.id, asset: $0, selectedPreset: defaultPreset) }
+        await fetch(modelContext: modelContext)
+    }
+
+    private func fetch(modelContext: ModelContext) async {
+        compressedCopyIds = CompressionJournal.savedCopyIds(modelContext: modelContext)
+        allPhotoAssets = await photoService.fetchAllPhotos()
+        eligibleCount = Self.candidates(from: allPhotoAssets, excluding: compressedCopyIds, showAll: true).count
+        applyFilter()
         hasLoadedPhotos = true
+    }
+
+    /// Drops photos that left the library (deleted, or replaced by a copy)
+    /// from the list AND from the last fetch, so toggling the filter can
+    /// never bring a deleted original back.
+    private func removePhotos(_ ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+        photos.removeAll { ids.contains($0.id) }
+        eligibleCount -= allPhotoAssets
+            .filter { ids.contains($0.id) && Self.isCandidate($0, excluding: compressedCopyIds, showAll: true) }
+            .count
+        allPhotoAssets.removeAll { ids.contains($0.id) }
+        updateFilterHidesPhotos()
+    }
+
+    private func updateFilterHidesPhotos() {
+        filterHidesPhotos = !showAllPhotos && photos.count < eligibleCount
+    }
+
+    /// Rebuilds `photos` from the last fetch. Per-row quality picks and row
+    /// states ("Already compressed", failure reasons) survive.
+    private func applyFilter() {
+        guard !isCompressing else { return }
+        let previous = Dictionary(photos.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        photos = Self.candidates(from: allPhotoAssets, excluding: compressedCopyIds, showAll: showAllPhotos)
+            .map { asset in
+                var item = PhotoItem(id: asset.id, asset: asset, selectedPreset: previous[asset.id]?.selectedPreset ?? defaultPreset)
+                if let state = previous[asset.id]?.compressionState { item.compressionState = state }
+                return item
+            }
+        selectedIds.formIntersection(photos.map(\.id))
+        updateFilterHidesPhotos()
     }
 
     func toggleSelection(_ id: String) {
@@ -107,6 +179,20 @@ final class PhotoCompressionViewModel {
 
     func deselectAll() {
         selectedIds.removeAll()
+    }
+
+    /// The bottom-bar quality picker: one choice for every selected photo.
+    func setPresetForSelected(_ preset: PhotoCompressionPreset) {
+        for index in photos.indices where selectedIds.contains(photos[index].id) {
+            photos[index].selectedPreset = preset
+        }
+    }
+
+    /// The shared preset of the selection, or nil when it is mixed.
+    var selectedPreset: PhotoCompressionPreset? {
+        let presets = photos.filter { selectedIds.contains($0.id) }.map(\.selectedPreset)
+        guard let first = presets.first, presets.allSatisfy({ $0.id == first.id }) else { return nil }
+        return first
     }
 
     func setPreset(_ preset: PhotoCompressionPreset, for photoId: String) {
@@ -136,7 +222,7 @@ final class PhotoCompressionViewModel {
         defer { isDeleting = false }
         do {
             try await photoService.deleteAssets(identifiers: [id])
-            photos.removeAll { $0.id == id }
+            removePhotos([id])
             selectedIds.remove(id)
         } catch {
             errorMessage = error.localizedDescription
@@ -156,10 +242,87 @@ final class PhotoCompressionViewModel {
 
     /// Requests cancellation of the running batch: sets the flag the loop
     /// checks and cancels the VM-owned task (which also stops any in-flight
-    /// save+delete in the services).
+    /// save in the services). Copies already saved still go to the one
+    /// delete-originals commit.
     func cancelCompression() {
         isCancelled = true
         batchTask?.cancel()
+    }
+
+    /// "Try Again" on the Originals Kept alert: one more delete commit.
+    /// Clears `keptOriginals` synchronously so the alert does not re-present.
+    func retryRemovingOriginals() {
+        let items = keptOriginals
+        keptOriginals = []
+        guard !items.isEmpty else { return }
+        isCompressing = true
+        Task {
+            let outcome = await OriginalsCommit.commit(items) { phase = $0 }
+            let done = Set(outcome.committed.map(\.assetId))
+            removePhotos(done)
+            selectedIds.subtract(done)
+            // A copy that vanished since the decline leaves its item failed:
+            // the original was never deleted, so it goes back to waiting for
+            // another Compress instead of staying on a kept state that no
+            // alert offers to act on.
+            let missingIds = Set(outcome.failed.map(\.assetId))
+            for index in photos.indices where missingIds.contains(photos[index].id) {
+                photos[index].compressionState = .waiting
+            }
+            isCompressing = false
+            keptOriginals = outcome.kept
+            if !outcome.failed.isEmpty {
+                errorMessage = OriginalsCommit.missingReplacementMessage
+            }
+            // A retry that completes the delete IS a clean batch success, but
+            // `batchSummary` is unchanged so the view's `.onChange` never
+            // re-fires and the success haptic is lost. Play it here, matching
+            // the other cleanup tools.
+            if !done.isEmpty, outcome.failed.isEmpty, outcome.kept.isEmpty {
+                HapticHelper.notification(.success)
+            }
+        }
+    }
+
+    /// "Remove Copies" on the Originals Kept alert: the originals stay, the
+    /// new copies go.
+    func removeCopies() {
+        let items = keptOriginals
+        keptOriginals = []
+        guard !items.isEmpty else { return }
+        isCompressing = true
+        Task {
+            let outcome = await OriginalsCommit.removeCopies(items)
+            // A decline leaves both versions: say so instead of going quiet.
+            if !outcome.allCopiesRemoved {
+                errorMessage = OriginalsCommit.copiesKeptMessage
+            }
+            // An original that vanished outside the app is already replaced, so
+            // its saved copy is the library's asset now — stop listing the row
+            // instead of claiming both versions are present.
+            let doneIds = Set(outcome.completed.map(\.assetId))
+            removePhotos(doneIds)
+            selectedIds.subtract(doneIds)
+            // Declined rows stay non-eligible: their copies are still in the
+            // library (journaled as kept), so offering Compress again would
+            // strand another duplicate. Rows whose copies went back to waiting
+            // are the ones the journal nilled a `replacementId` for.
+            let keptIds = Set(outcome.kept.map(\.assetId))
+            let remaining = Set(items.map(\.assetId)).subtracting(doneIds)
+            for index in photos.indices where remaining.contains(photos[index].id) {
+                if keptIds.contains(photos[index].id) {
+                    photos[index].compressionState = .keptOriginal(reason: "Original kept — both versions in your library")
+                } else {
+                    photos[index].compressionState = .waiting
+                }
+            }
+            // A decline leaves the decision open, so the Originals Kept alert
+            // (and the preview cover, which reads the same state) keeps
+            // offering Try Again and Remove Copies for the rows whose copies
+            // are still in the library.
+            keptOriginals = outcome.kept
+            isCompressing = false
+        }
     }
 
     func compressSelected(modelContext: ModelContext) async {
@@ -182,11 +345,16 @@ final class PhotoCompressionViewModel {
         isCompressing = true
         isCancelled = false
 
-        // COMP-16: skip assets that already have a completed record so they are
-        // never re-encoded (quality degradation).
-        let previouslyCompletedIds: Set<String> = ((try? modelContext.fetch(
-            FetchDescriptor<CompressionRecord>(predicate: #Predicate { $0.outcome == "completed" })
-        )) ?? []).reduce(into: Set<String>()) { $0.insert($1.assetLocalIdentifier) }
+        // COMP-16: skip assets that already have a usable copy — completed
+        // swaps, no-savings skips, and kept-both declines — so they are never
+        // re-encoded (quality degradation, duplicate copies).
+        //
+        // The copy must still be in the library: a kept-both row whose copy the
+        // user deleted in Photos would otherwise block its original from ever
+        // being compressed again ("Already compressed" forever).
+        let settled = CompressionJournal.settledReplacements(modelContext: modelContext)
+        let liveReplacements = await photoService.existingIds(Array(settled.values))
+        let previouslyCompletedIds = Set(settled.filter { liveReplacements.contains($0.value) }.keys)
 
         // D1: resolve leftovers from any interrupted swap BEFORE the batch.
         await CompressionJournal.reconcile(modelContext: modelContext)
@@ -203,25 +371,11 @@ final class PhotoCompressionViewModel {
         let indexById = Dictionary(uniqueKeysWithValues: photos.enumerated().map { ($1.id, $0) })
 
         let handlers = CompressionBatchRunner.Handlers(
-            setExporting: { [weak self] index, progress in
-                guard let self else { return }
-                self.photos[index].compressionState = .exporting(progress)
+            setState: { [weak self] index, state in
+                self?.photos[index].compressionState = state
             },
-            setKeptOriginal: { [weak self] index, reason in
-                guard let self else { return }
-                self.photos[index].compressionState = .keptOriginal(reason: reason)
-            },
-            setCompleted: { [weak self] index, saved in
-                guard let self else { return }
-                self.photos[index].compressionState = .completed(savedBytes: saved)
-            },
-            setFailed: { [weak self] index, message in
-                guard let self else { return }
-                self.photos[index].compressionState = .failed(message)
-            },
-            setWaiting: { [weak self] index in
-                guard let self else { return }
-                self.photos[index].compressionState = .waiting
+            setPhase: { [weak self] phase in
+                self?.phase = phase
             }
         )
 
@@ -279,11 +433,14 @@ final class PhotoCompressionViewModel {
                         return .skipped
                     }
 
-                    swap.finalizeCompleted(compressedSize: compressResult.compressedSize)
-                    return .completed(
+                    // Step 1 done. The original stays until the runner's single
+                    // delete commit, which finalizes this journal row.
+                    return .saved(PendingOriginal(
+                        assetId: id,
                         originalSize: compressResult.originalSize,
-                        compressedSize: compressResult.compressedSize
-                    )
+                        compressedSize: compressResult.compressedSize,
+                        swap: swap
+                    ))
                 } catch {
                     if self.isCancelled || error is CancellationError {
                         // A cancel is not a failure: History must not render a red
@@ -310,8 +467,9 @@ final class PhotoCompressionViewModel {
 
         // COMP-04: remove only successfully compressed (and deleted) items;
         // skipped ones stay so the user can see why they were left alone.
-        photos.removeAll { successfulIds.contains($0.id) }
+        removePhotos(successfulIds)
         selectedIds.subtract(successfulIds)
+        keptOriginals = result.kept
         isCompressing = false
         batchSummary = CompressionBatchSummary(
             completed: completedCount,

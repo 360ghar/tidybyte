@@ -47,6 +47,9 @@ struct CompressionBatchSummary: Sendable, Equatable {
 enum CompressionState: Sendable {
     case waiting
     case exporting(Float)
+    /// Step 1 done: the new copy is saved. The original is deleted in step 2,
+    /// with the rest of the batch.
+    case copySaved
     case completed(savedBytes: Int64)
     /// The item was intentionally left untouched (no savings, unknown size,
     /// or already compressed previously) and stays in the list so the user
@@ -214,7 +217,7 @@ actor VideoCompressionService {
             )
         }
 
-        // Capture album membership before deleting the original so we can restore it.
+        // Capture album membership so the replacement joins the same albums.
         let albumIdentifiers = await photoService.userAlbumIdentifiers(containing: assetId)
 
         // Save the compressed video, preserving the original's
@@ -243,15 +246,8 @@ actor VideoCompressionService {
         // real exported size so the journal never has to guess at 0.
         await onReplacementSaved?(replacementId, compressedSize)
 
-        // A cancel that landed after the replacement commit must not strand a
-        // duplicate: roll the just-saved copy back and report cancellation so
-        // the batch loop resets the row instead of recording a failure. The
-        // pending journal row still names the replacement, so if this rollback
-        // fails reconcile retries the removal on the next load.
-        if Task.isCancelled {
-            _ = try? await photoService.deleteAssets(identifiers: [replacementId])
-            throw CompressionError.cancelled
-        }
+        // A cancel that lands after this point keeps the saved copy: the
+        // batch still offers it in the single delete-originals commit.
 
         // Restore album membership on the replacement (best effort).
         for albumId in albumIdentifiers {
@@ -262,39 +258,9 @@ actor VideoCompressionService {
             }
         }
 
-        // Delete the original only after confirming the replacement exists. If
-        // deletion fails, roll the replacement back so we don't leave a
-        // duplicate behind (COMP-02).
-        var originalDeleteUnconfirmed = false
-        do {
-            let deleted = try await photoService.deleteAssets(identifiers: [assetId])
-            // SHARED-01: deleteAssets reports success as a SUBSET of its input —
-            // the per-identifier fallback returns a partial (or empty) set
-            // without throwing when it is cancelled mid-retry. An unconfirmed
-            // delete means the original is still in the library, so the swap
-            // must not be reported as done (that would credit savings for a
-            // duplicate and hide the leftover from the journal).
-            originalDeleteUnconfirmed = !deleted.contains(assetId)
-        } catch {
-            originalDeleteUnconfirmed = true
-        }
-        if originalDeleteUnconfirmed {
-            var rollbackSucceeded = false
-            do {
-                let rolledBack = try await photoService.deleteAssets(identifiers: [replacementId])
-                rollbackSucceeded = rolledBack.contains(replacementId)
-            } catch {
-                rollbackSucceeded = false
-            }
-            // A cancelled delete left the library as we found it — report a
-            // cancellation so the batch loop can reset the row instead of
-            // claiming a failure the user did not cause.
-            if Task.isCancelled {
-                throw CompressionError.cancelled
-            }
-            throw CompressionError.originalDeletionFailed(rollbackSucceeded: rollbackSucceeded)
-        }
-
+        // The original is NOT deleted here. The batch deletes every original
+        // in one `OriginalsCommit.commit` call after all copies are saved, so
+        // the user sees one iOS prompt per batch instead of one per video.
         return CompressionResult(
             originalSize: originalSize,
             compressedSize: compressedSize,
@@ -365,7 +331,6 @@ enum CompressionError: LocalizedError {
     case exportSessionCreationFailed
     case exportFailed(String)
     case fileSizeReadFailed
-    case originalDeletionFailed(rollbackSucceeded: Bool)
 
     var errorDescription: String? {
         switch self {
@@ -376,12 +341,6 @@ enum CompressionError: LocalizedError {
         case .exportSessionCreationFailed: "Failed to create export session."
         case .exportFailed(let msg): "Export failed: \(msg)"
         case .fileSizeReadFailed: "Failed to read file size."
-        case .originalDeletionFailed(let rollbackSucceeded):
-            if rollbackSucceeded {
-                "Compressed copy saved, but the original couldn't be deleted. We removed the new copy to avoid a duplicate."
-            } else {
-                "Compressed copy saved, but the original couldn't be deleted, and the new copy couldn't be removed either. Check your library for a duplicate."
-            }
         }
     }
 }

@@ -17,10 +17,6 @@ import SwiftUI
 struct PhotoPermissionView: View {
     let permissionHandler: PhotoPermissionHandler
 
-    /// Drives the pre-prompt explainer. Tapping the ask affordance opens it;
-    /// only its "Continue" reaches `PHPhotoLibrary.requestAuthorization`.
-    @State private var showPrimer = false
-
     private var presentation: PermissionPresentation {
         permissionHandler.permissionState.presentation
     }
@@ -53,23 +49,10 @@ struct PhotoPermissionView: View {
                 VStack(spacing: Spacing.xl) {
                     Spacer(minLength: Spacing.lg)
 
-                    ZStack {
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [accent.opacity(0.15), .clear],
-                                    center: .center,
-                                    startRadius: 0,
-                                    endRadius: 90
-                                )
-                            )
-                            .scaledSquare(ScaledSize.stateHalo)
-
-                        Image(systemName: glyph)
-                            .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
-                            .foregroundStyle(accent.opacity(0.85))
-                    }
-                    .accessibilityHidden(true)
+                    Image(systemName: glyph)
+                        .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
+                        .foregroundStyle(accent.opacity(0.85))
+                        .accessibilityHidden(true)
 
                     VStack(spacing: Spacing.md) {
                         Text(presentation.title)
@@ -95,7 +78,6 @@ struct PhotoPermissionView: View {
                 .readableWidth()
             }
         }
-        .photoPermissionPrimer(isPresented: $showPrimer, permissionHandler: permissionHandler)
     }
 
     // MARK: - What the access is for
@@ -137,12 +119,15 @@ struct PhotoPermissionView: View {
         case .requestPermission:
             Button {
                 HapticHelper.impact(.light)
-                showPrimer = true
+                // This screen already explains the ask, so it goes straight
+                // to the iOS prompt. A second in-app alert here said "this is
+                // that ask" right after the screen said "iOS will ask next".
+                Task { await permissionHandler.requestPermission() }
             } label: {
                 primaryLabel("Allow Access", icon: "checkmark")
             }
             .scaleOnPress()
-            .accessibilityHint("Explains what TidyByte needs, then opens the iOS permission prompt")
+            .accessibilityHint("Opens the iOS permission prompt")
         case .openSettings:
             Button {
                 HapticHelper.impact(.light)

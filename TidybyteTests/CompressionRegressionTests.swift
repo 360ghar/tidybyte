@@ -1,3 +1,4 @@
+import Photos
 import SwiftData
 import XCTest
 @testable import Tidybyte
@@ -39,6 +40,105 @@ final class CompressionRegressionTests: XCTestCase {
             isScreenshot: false,
             isLocallyAvailable: true
         )
+    }
+
+    // MARK: - One delete prompt per batch
+
+    func testPartitionCommitsItemsWhoseOriginalIsGone() {
+        let split = OriginalsCommit.partition(["a", "b", "c"], id: { $0 }, stillPresent: ["b"])
+        XCTAssertEqual(split.committed, ["a", "c"])
+        XCTAssertEqual(split.kept, ["b"])
+    }
+
+    func testPartitionKeepsEverythingWhenUserDeclines() {
+        let split = OriginalsCommit.partition(["a", "b"], id: { $0 }, stillPresent: ["a", "b"])
+        XCTAssertTrue(split.committed.isEmpty)
+        XCTAssertEqual(split.kept, ["a", "b"])
+    }
+
+    /// Reconcile must not touch a row whose swap is still waiting for the
+    /// Originals Kept choice: deleting its copy would race Try Again.
+    func testSwapIsLiveUntilFinalized() throws {
+        let schema = Schema([CompressionRecord.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [configuration])
+        let swap = try CompressionSwap(
+            mediaType: .video,
+            assetId: "live-test",
+            originalSize: 100,
+            exportPreset: "720p",
+            modelContext: container.mainContext
+        )
+        XCTAssertTrue(CompressionSwap.isLive(assetId: "live-test"))
+        swap.finalizeOriginalKept(copyRemoved: true)
+        XCTAssertFalse(CompressionSwap.isLive(assetId: "live-test"))
+    }
+
+    /// A kept-both row whose copy the user later deleted in Photos must settle
+    /// when its swap fails again: the pending-only lookup used to skip it, so
+    /// the row kept naming an absent copy in `savedCopyIds` (blocking the
+    /// original from every candidate list) while the UI reported the item as
+    /// failed.
+    func testMarkFailedSettlesKeptRowWhoseReplacementIsAbsent() async throws {
+        let schema = Schema([CompressionRecord.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+        let swap = try CompressionSwap(
+            mediaType: .video,
+            assetId: "kept-gone",
+            originalSize: 100,
+            exportPreset: "720p",
+            modelContext: context
+        )
+        swap.recordReplacement(id: "copy-1", size: 40)
+        swap.finalizeKeptBoth()
+        XCTAssertEqual(CompressionJournal.savedCopyIds(modelContext: context), ["copy-1"])
+
+        await CompressionJournal.markPendingFailed(
+            assetId: "kept-gone",
+            replacementAbsent: true,
+            modelContext: context
+        )
+
+        XCTAssertNil(CompressionJournal.savedCopyIds(modelContext: context).first, "the absent copy must leave `savedCopyIds`")
+        let record = try XCTUnwrap(
+            try context.fetch(FetchDescriptor<CompressionRecord>()).first
+        )
+        XCTAssertEqual(record.outcome, "failed")
+        XCTAssertNil(record.replacementAssetLocalIdentifier)
+        XCTAssertEqual(record.compressedSizeBytes, 0)
+    }
+
+    func testPhotoCompressionCandidatesSkipCopiesSmallAndHEIC() {
+        func photo(_ id: String, size: Int64, file: String, live: Bool = false) -> AssetSummary {
+            AssetSummary(
+                id: id, mediaType: .photo, creationDate: nil, modificationDate: nil,
+                pixelWidth: 4000, pixelHeight: 3000, duration: 0, fileSize: size,
+                filename: file, isFavorite: false, isBurst: false, burstIdentifier: nil,
+                isLivePhoto: live, isScreenshot: false, isLocallyAvailable: true
+            )
+        }
+        let assets = [
+            photo("big-jpg", size: 5_000_000, file: "IMG_1.JPG"),
+            photo("small-jpg", size: 500_000, file: "IMG_2.JPG"),
+            photo("big-heic", size: 5_000_000, file: "IMG_3.HEIC"),
+            photo("copy", size: 5_000_000, file: "IMG_4.JPG"),
+            photo("live", size: 5_000_000, file: "IMG_5.JPG", live: true)
+        ]
+        let large = PhotoCompressionViewModel.candidates(from: assets, excluding: ["copy"], showAll: false)
+        XCTAssertEqual(large.map(\.id), ["big-jpg"])
+        let all = PhotoCompressionViewModel.candidates(from: assets, excluding: ["copy"], showAll: true)
+        XCTAssertEqual(all.map(\.id), ["big-jpg", "small-jpg", "big-heic"], "a compressed copy and a Live Photo are never listed")
+    }
+
+    func testIsUserDeclinedMatchesPhotoKitCancelOnly() {
+        let declined = NSError(domain: PHPhotosErrorDomain, code: PHPhotosError.Code.userCancelled.rawValue)
+        let other = NSError(domain: PHPhotosErrorDomain, code: PHPhotosError.Code.accessUserDenied.rawValue)
+        XCTAssertTrue(PhotoServiceError.isUserDeclined(declined))
+        XCTAssertTrue(PhotoServiceError.isUserDeclined(PhotoServiceError.userDeclined))
+        XCTAssertFalse(PhotoServiceError.isUserDeclined(other))
+        XCTAssertFalse(PhotoServiceError.isUserDeclined(PhotoServiceError.albumNotFound))
     }
 
     // MARK: - COMP-10: effectivePreset never upscales
@@ -204,5 +304,62 @@ final class CompressionRegressionTests: XCTestCase {
 
         XCTAssertTrue(completedIds.contains("done"))
         XCTAssertFalse(completedIds.contains("failed-once"))
+    }
+
+    // MARK: - Kept-both durability (PR #2: kill with the Originals Kept
+    // alert open must not delete the saved copy on next launch)
+
+    func testKeptBothDeclineLeavesDurableNonPendingRow() throws {
+        let schema = Schema([CompressionRecord.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+
+        let swap = try CompressionSwap(
+            mediaType: .video,
+            assetId: "kept-test",
+            originalSize: 100,
+            exportPreset: "720p",
+            modelContext: context
+        )
+        swap.recordReplacement(id: "copy-1", size: 50)
+        swap.finalizeKeptBoth()
+
+        let records = try context.fetch(FetchDescriptor<CompressionRecord>())
+        XCTAssertEqual(records.count, 1)
+        let row = try XCTUnwrap(records.first)
+        // Non-pending rows are invisible to reconcile, so a later launch can
+        // never resolve this row to deleteOrphanThenFail.
+        XCTAssertEqual(row.outcome, CompressionOutcome.kept.rawValue)
+        XCTAssertTrue(row.isKept)
+        XCTAssertFalse(row.succeeded)
+        XCTAssertFalse(row.isFailed)
+        XCTAssertEqual(row.savedBytes, 0)
+        XCTAssertEqual(row.replacementAssetLocalIdentifier, "copy-1")
+    }
+
+    func testKeptBothRowPromotesToCompletedOnTryAgain() throws {
+        let schema = Schema([CompressionRecord.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+
+        let swap = try CompressionSwap(
+            mediaType: .video,
+            assetId: "kept-promote-test",
+            originalSize: 100,
+            exportPreset: "720p",
+            modelContext: context
+        )
+        swap.recordReplacement(id: "copy-1", size: 50)
+        swap.finalizeKeptBoth()
+        // finalizeKeptBoth deliberately leaves the swap live so Try Again can
+        // still promote the row.
+        swap.finalizeCompleted(compressedSize: 50)
+
+        let records = try context.fetch(FetchDescriptor<CompressionRecord>())
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records.first?.outcome, CompressionOutcome.completed.rawValue)
+        XCTAssertTrue(records.first?.succeeded == true)
     }
 }

@@ -22,7 +22,10 @@ struct AnalyzedPhoto: Identifiable, Sendable {
 @MainActor
 final class BlurryPhotosViewModel {
     var analyzedPhotos: [AnalyzedPhoto] = [] {
-        didSet { filterCache = nil }
+        didSet {
+            filterCache = nil
+            if scanState == .completed { ScanResults.record(.blurry, count: analyzedPhotos.count) }
+        }
     }
     var scanState: ScanState = .idle
     var activeTab: BlurryTab = .blurry
@@ -46,25 +49,17 @@ final class BlurryPhotosViewModel {
     private let photoService = PhotoLibraryService.shared
     private let visionService = VisionAnalysisService()
 
-    /// Selections kept PER TAB (C11): switching tabs no longer destroys the
-    /// selection made on the other tab, so a user can curate blurry and dark
-    /// picks independently and delete both in one batch.
-    private var selectionsByTab: [BlurryTab: Set<String>] = [:]
+    /// One selection per photo, shared by all tabs. A photo that is both
+    /// blurry and too dark shows the same check on both tabs, and the action
+    /// bar, the confirm and the delete all count the same set. Switching tabs
+    /// keeps every pick (C11).
+    var selectedIds: Set<String> = []
 
-    var selectedIds: Set<String> {
-        get { selectionsByTab[activeTab] ?? [] }
-        set { selectionsByTab[activeTab] = newValue }
-    }
+    var totalSelectedCount: Int { selectedIds.count }
 
-    /// Every selected id across all tabs — what `deleteSelected()` actually
-    /// removes. The confirm dialog must use this, not `selectedIds`, or it
-    /// announces fewer photos than it deletes.
-    ///
-    /// Deduplicated through a Set, like `deleteSelected()` does: one photo can be
-    /// both blurry and too dark, and selecting it on both tabs would otherwise
-    /// report two deletions for a single asset.
-    var totalSelectedCount: Int {
-        Set(selectionsByTab.values.flatMap { $0 }).count
+    /// Selected photos not shown on the active tab.
+    var selectedOnOtherTabs: Int {
+        selectedIds.subtracting(filteredPhotos.map(\.id)).count
     }
 
     /// Eligibility for quality analysis: screenshots are excluded — they're
@@ -130,7 +125,7 @@ final class BlurryPhotosViewModel {
     var overexposedCount: Int { filteredAndCounts().counts[.overexposed] ?? 0 }
 
     var selectedSize: Int64 {
-        filteredPhotos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
+        analyzedPhotos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
     }
 
     func scan(token: Int) async {
@@ -138,13 +133,18 @@ final class BlurryPhotosViewModel {
         // turn on the main actor) must not touch shared state: `cancelScan()`
         // already moved the UI to `.idle`.
         guard scanRunner.isCurrent(token) else { return }
+        // Captured before any await: a library change during the scan bumps the
+        // epoch, and this run's result must then be dropped rather than
+        // published as a pre-change count.
+        let scanEpoch = ScanResults.epoch
         scanState = .scanning(0)
         analyzedPhotos = []
         // D-02: stale selections from a previous scan must not persist across
         // rescans (all tabs — mirrors SmartCategoriesViewModel.scan()).
-        selectionsByTab.removeAll()
+        selectedIds.removeAll()
         skippedScreenshotCount = 0
         deletedCount = 0
+        pendingPrune = false
 
         let allPhotos = await photoService.fetchAllPhotos()
         let total = allPhotos.count
@@ -228,30 +228,62 @@ final class BlurryPhotosViewModel {
 
         scanState = .scanning(1.0)
         scanState = .completed
+        // A library change that landed mid-scan: prune now that publishing
+        // can't be overwritten by a later tick.
+        if pendingPrune {
+            pendingPrune = false
+            await pruneDeleted()
+        }
+        ScanResults.record(.blurry, count: analyzedPhotos.count, epoch: scanEpoch)
+    }
+
+    /// Drops results deleted elsewhere (Swipe Review, the Photos app).
+    /// A library change that lands mid-scan can't prune yet (results are
+    /// still landing), so it's remembered and applied when the scan
+    /// completes instead of being lost.
+    private var pendingPrune = false
+
+    func pruneDeleted() async {
+        if case .scanning = scanState {
+            pendingPrune = true
+            return
+        }
+        guard scanState == .completed, !analyzedPhotos.isEmpty, !isDeleting else { return }
+        // Snapshot before the await: a new scan can replace `analyzedPhotos`
+        // while we suspend, and applying the old membership set to the fresh
+        // results would drop them.
+        let scannedIds = analyzedPhotos.map(\.id)
+        let present = await PhotoLibraryService.shared.existingIds(scannedIds)
+        guard present.count < scannedIds.count else { return }
+        guard scanState == .completed, !isDeleting else { return }
+        let goneIds = Set(scannedIds.filter { !present.contains($0) })
+        analyzedPhotos.removeAll { goneIds.contains($0.id) }
+        selectedIds.subtract(goneIds)
     }
 
     func toggleSelection(_ id: String) {
         selectedIds.toggle(id)
     }
 
-    /// `allSatisfy` rather than count equality: `selectedIds` can briefly hold
-    /// ids from other tabs (selections are per-tab, C11).
+    /// `allSatisfy` rather than count equality: `selectedIds` also holds picks
+    /// from other tabs.
     var allVisibleSelected: Bool {
         !filteredPhotos.isEmpty && filteredPhotos.allSatisfy { selectedIds.contains($0.id) }
     }
 
+    /// Select All / Deselect All act on the visible tab only.
     func selectAll() {
-        selectedIds = Set(filteredPhotos.map(\.id))
+        selectedIds.formUnion(filteredPhotos.map(\.id))
     }
 
     func deselectAll() {
-        selectedIds.removeAll()
+        selectedIds.subtract(filteredPhotos.map(\.id))
     }
 
     func deleteSelected() async {
         // C11: delete across ALL tabs' selections — a batch isn't limited to
         // the visible tab.
-        let allSelected = Set(selectionsByTab.values.flatMap { $0 })
+        let allSelected = selectedIds
         guard !allSelected.isEmpty, !isDeleting else { return }
         errorMessage = nil
         isDeleting = true
@@ -264,9 +296,7 @@ final class BlurryPhotosViewModel {
             sizeById: sizeById,
             apply: { deletedIds in
                 analyzedPhotos.removeAll { deletedIds.contains($0.id) }
-                for tab in BlurryTab.allCases {
-                    selectionsByTab[tab]?.subtract(deletedIds)
-                }
+                selectedIds.subtract(deletedIds)
             },
             recordDeleted: { self.deletedCount = $0 }
         )
@@ -285,11 +315,7 @@ final class BlurryPhotosViewModel {
             sizeById: sizeById,
             apply: { deletedIds in
                 analyzedPhotos.removeAll { deletedIds.contains($0.id) }
-                if deletedIds.contains(assetId) {
-                    for tab in BlurryTab.allCases {
-                        selectionsByTab[tab]?.remove(assetId)
-                    }
-                }
+                selectedIds.subtract(deletedIds)
             },
             recordDeleted: { self.deletedCount = $0 }
         )

@@ -1,14 +1,13 @@
 import SwiftUI
-import StoreKit
 
 struct LargeFilesView: View {
     @State private var viewModel = LargeFilesViewModel()
     @State private var showDeleteConfirm = false
     @State private var previewStart: AssetSummary?
     @State private var rowToDelete: AssetSummary?
-    @Environment(\.requestReview) private var requestReview
     @State private var isCelebrating = false
     @State private var celebrationStatLine: String?
+    @State private var toast: ToastMessage?
     /// Mirrors SettingsView's control so the threshold never diverges between
     /// screens while the tool is open (LF-06).
     @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var thresholdMB: Double = 10.0
@@ -80,7 +79,15 @@ struct LargeFilesView: View {
                                 Spacer()
                                 Button("Cancel") { viewModel.cancelShare() }
                             } else {
-                                Text("\(viewModel.selectedVisibleCount) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
+                                // Picks hidden by the media filter or sort order
+                                // are kept, but only the visible ones are shared
+                                // or deleted. A pick that falls below the size
+                                // slider is cleared on the next refresh, which
+                                // raises a toast instead of dropping it quietly.
+                                let hidden = viewModel.selectedIds.count - viewModel.selectedVisibleCount
+                                Text(hidden > 0
+                                     ? "\(viewModel.selectedVisibleCount) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize) (\(hidden) hidden by filter)"
+                                     : "\(viewModel.selectedVisibleCount) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
                                     .font(.caption)
                                 Spacer()
                                 Button { viewModel.startShare() } label: {
@@ -88,10 +95,12 @@ struct LargeFilesView: View {
                                         .font(.headline)
                                 }
                                 .accessibilityLabel("Share selected")
+                                .disabled(viewModel.selectedVisibleCount == 0)
                                 Button(role: .destructive) { showDeleteConfirm = true } label: {
                                     Label("Delete", systemImage: "trash")
                                         .font(.headline)
                                 }
+                                .disabled(viewModel.selectedVisibleCount == 0)
                             }
                         }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -121,21 +130,20 @@ struct LargeFilesView: View {
                 Task {
                     await viewModel.deleteSelected()
                     // This tool fired no success feedback before; parity with
-                    // the other cleanup tools now that the happy path offers
-                    // Rate/Share (native review prompt only on milestones).
+                    // the other cleanup tools (haptic every time, rating
+                    // prompt only on milestones).
                     // Guard the count: the VM no-ops an empty selection
                     // without setting an error, and a no-op is not a success.
                     guard count > 0, viewModel.errorMessage == nil else { return }
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleared \(count) large files",
-                        requestReview: requestReview
+                        line: "cleared \(count) large files"
                     )
                 }
             }
         } message: {
-            Text("This will delete \(viewModel.selectedSize.formattedFileSize) of media. This action cannot be undone.")
+            Text("This will delete \(viewModel.selectedSize.formattedFileSize) of media. \(CleanupDeletion.recoverableNote)")
         }
         // Non-modal error surface. `safeAreaInset` pushes the list down rather
         // than floating the banner over its first row.
@@ -150,6 +158,13 @@ struct LargeFilesView: View {
                 .padding(.vertical, Spacing.sm)
             }
         }
+        .toast($toast)
+        // A load/refresh that had to clear picks below the size slider says so,
+        // instead of the selection just disappearing.
+        .onChange(of: viewModel.droppedSelectionNotice) { _, notice in
+            guard let notice else { return }
+            toast = ToastMessage(text: notice.text, systemImage: "info.circle")
+        }
         .alert("Delete File", isPresented: .init(
             get: { rowToDelete != nil },
             set: { if !$0 { rowToDelete = nil } }
@@ -161,7 +176,7 @@ struct LargeFilesView: View {
                 Task { await viewModel.deleteAsset(id: id) }
             }
         } message: { asset in
-            Text("This will delete \(asset.displaySize). This action cannot be undone.")
+            Text("This will delete \(asset.displaySize). \(CleanupDeletion.recoverableNote)")
         }
         .fullScreenCover(item: $previewStart) { start in
             MediaPreviewView(
@@ -174,15 +189,6 @@ struct LargeFilesView: View {
         .sheet(item: $viewModel.sharePayload, onDismiss: { viewModel.cleanupShareExport() }) { payload in
             ShareSheet(urls: payload.urls)
         }
-        .onChange(of: thresholdMB) { _, _ in
-            viewModel.synchronizeSelection()
-        }
-        .onChange(of: viewModel.mediaFilter) { _, _ in
-            viewModel.synchronizeSelection()
-        }
-        .onChange(of: viewModel.sortOrder) { _, _ in
-            viewModel.synchronizeSelection()
-        }
         .task {
             await viewModel.loadIfNeeded()
         }
@@ -192,7 +198,7 @@ struct LargeFilesView: View {
     private var emptyResultsView: some View {
         VStack(spacing: Spacing.md) {
             Image(systemName: emptyIcon)
-                .font(.system(size: 48, weight: .light))
+                .scaledGlyph(48, weight: .light)
                 .foregroundStyle(.secondary)
             Text(emptyTitle)
                 .font(.headline)
@@ -254,19 +260,9 @@ struct LargeFilesView: View {
         HStack(spacing: Spacing.md) {
             // Always-visible selection checkbox. Tapping it (de)selects the row;
             // tapping anywhere else on the row opens the preview.
-            Button {
-                HapticHelper.selection()
+            SelectToggle(isSelected: viewModel.selectedIds.contains(asset.id), itemName: "file", overPhoto: false) {
                 viewModel.toggleSelection(asset.id)
-            } label: {
-                Image(systemName: viewModel.selectedIds.contains(asset.id) ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(viewModel.selectedIds.contains(asset.id) ? .blue : .secondary)
-                    .scaleEffect(viewModel.selectedIds.contains(asset.id) ? 1.0 : 0.9)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: viewModel.selectedIds.contains(asset.id))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(viewModel.selectedIds.contains(asset.id) ? "Deselect file" : "Select file")
-            .accessibilityAddTraits(viewModel.selectedIds.contains(asset.id) ? [.isButton, .isSelected] : .isButton)
 
             AsyncThumbnailView(assetId: asset.id, photoService: photoService)
                 .frame(width: 60, height: 60)
@@ -310,7 +306,8 @@ struct LargeFilesView: View {
                 Image(systemName: "trash")
                     .font(.body)
                     .foregroundStyle(.red)
-                    .padding(.leading, Spacing.xs)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Delete file")

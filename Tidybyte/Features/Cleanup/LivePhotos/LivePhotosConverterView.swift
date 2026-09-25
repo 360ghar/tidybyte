@@ -1,13 +1,14 @@
 import SwiftUI
 import SwiftData
-import StoreKit
 
 struct LivePhotosConverterView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = LivePhotosConverterViewModel()
     @State private var showConvertAllConfirm = false
     @State private var previewItem: LivePhotoItem?
-    @Environment(\.requestReview) private var requestReview
+    /// Set when a single Convert waits for the first-time explainer.
+    @State private var explainerItemId: String?
+    @AppStorage(LivePhotoConvertExplainer.storageKey) private var hasSeenExplainer = false
     @State private var isCelebrating = false
     @State private var celebrationStatLine: String?
     private let photoService = PhotoLibraryService.shared
@@ -21,7 +22,7 @@ struct LivePhotosConverterView: View {
                     icon: "livephoto",
                     title: "No Live Photos",
                     message: "You don't have any Live Photos in your library.",
-                    iconColor: .yellow,
+                    iconColor: CleanupTool.livePhotos.color,
                     // D12: refresh affordance — new Live Photos may have landed
                     // since the last fetch (parity with Large Files/Bursts).
                     actionTitle: "Refresh"
@@ -33,6 +34,16 @@ struct LivePhotosConverterView: View {
             }
         }
         .navigationTitle("Live Photos")
+        .toolbar {
+            // Conversions are logged in the same history as compression.
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    CompressionHistoryView()
+                } label: {
+                    Label("Conversion History", systemImage: "clock.arrow.circlepath")
+                }
+            }
+        }
         .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
         .onDisappear {
             // D2: leaving the screen must stop Convert All — the loop deletes
@@ -41,25 +52,49 @@ struct LivePhotosConverterView: View {
         }
         .alert("Convert All Live Photos", isPresented: $showConvertAllConfirm) {
             Button("Cancel", role: .cancel) { }
-            Button("Convert All", role: .destructive) {
+            Button("Convert All") {
                 // D2: VM-owned task so cancellation works; haptic on full success.
                 viewModel.startConvertAll(modelContext: modelContext)
             }
         } message: {
-            Text("This converts all Live Photos to still images; the motion component is removed. Some metadata may not be preserved. This cannot be undone.")
+            Text(LivePhotoConvertExplainer.message)
         }
+        .alert("Convert Live Photo", isPresented: .init(
+            get: { explainerItemId != nil },
+            set: { if !$0 { explainerItemId = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { explainerItemId = nil }
+            Button("Convert") {
+                hasSeenExplainer = true
+                if let id = explainerItemId {
+                    explainerItemId = nil
+                    Task { await viewModel.convertSingle(itemId: id, modelContext: modelContext) }
+                }
+            }
+        } message: {
+            Text(LivePhotoConvertExplainer.message)
+        }
+        .originalsKeptAlert(
+            // No settable state backs this condition — keptOriginals is
+            // VM-owned and the preview gate is local — so a constant binding.
+            isPresented: .constant(!viewModel.keptOriginals.isEmpty && previewItem == nil),
+            onTryAgain: { viewModel.retryRemovingOriginals() },
+            onRemoveCopies: { viewModel.removeCopies() }
+        )
         .onChange(of: viewModel.convertingAll) { was, isNow in
             // Happy path: celebrate only a fully-successful Convert All (the
             // COMP-09 pattern) — a user-cancelled batch is not a milestone.
             guard was, !isNow, !viewModel.isCancelled,
                   viewModel.errorMessage == nil,
                   let batch = viewModel.lastBatch,
-                  batch.failed == 0, batch.converted > 0 else { return }
+                  batch.failed == 0, batch.converted > 0,
+                  // Kept originals leave the "Originals Kept" alert open: not
+                  // a clean success, and the rating sheet would collide with it.
+                  viewModel.keptOriginals.isEmpty else { return }
             HappyPathReporter.fire(
                 isCelebrating: $isCelebrating,
                 statLine: $celebrationStatLine,
-                line: "converted \(batch.converted) Live Photos",
-                requestReview: requestReview
+                line: "converted \(batch.converted) Live Photos"
             )
         }
         // Non-modal error surface. Also covers the batch summary
@@ -114,25 +149,29 @@ struct LivePhotosConverterView: View {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("\(viewModel.items.count) Live Photos")
                         .font(.caption.bold())
-                    Text("~\(viewModel.estimatedSavings.formattedFileSize) savings")
+                    Text("est. ~\(viewModel.estimatedSavings.formattedFileSize) savings")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                if viewModel.convertingAll {
+                if viewModel.convertingAll || viewModel.phase != .idle {
                     ProgressView()
                         .padding(.trailing, Spacing.sm)
-                    // D2: a real stop control — the loop deletes originals.
-                    Button("Stop", role: .destructive) {
-                        HapticHelper.impact(.light)
-                        viewModel.cancelConvertAll()
-                    }
-                    .font(.subheadline.bold())
-                    Text("Converting...")
-                        .font(.subheadline)
+                    Text(ReplaceOriginalsNotice.phaseText(viewModel.phase))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    // D2: a real stop control. Step 2 is one iOS alert, so
+                    // there is nothing left to stop then.
+                    if viewModel.convertingAll, case .savingCopies = viewModel.phase {
+                        Button("Stop", role: .destructive) {
+                            HapticHelper.impact(.light)
+                            viewModel.cancelConvertAll()
+                        }
+                        .font(.subheadline.bold())
+                    }
                 } else {
                     Button {
                         HapticHelper.impact(.light)
@@ -147,6 +186,7 @@ struct LivePhotosConverterView: View {
                             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
                     }
                     .scaleOnPress()
+                    .disabled(viewModel.isBusy)
                 }
             }
         }
@@ -159,7 +199,7 @@ struct LivePhotosConverterView: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("\(viewModel.items.count) Live Photos")
                     .font(.headline)
-                Text("Total: \(viewModel.totalSize.formattedFileSize) · Estimated savings: ~\(viewModel.estimatedSavings.formattedFileSize)")
+                Text("Total: \(viewModel.totalSize.formattedFileSize) · est. savings ~\(viewModel.estimatedSavings.formattedFileSize)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if viewModel.deletedCount > 0 {
@@ -173,7 +213,7 @@ struct LivePhotosConverterView: View {
 
             Image(systemName: "livephoto")
                 .font(.title2)
-                .foregroundStyle(.yellow.opacity(0.8))
+                .foregroundStyle(CleanupTool.livePhotos.color)
         }
         .glassCard()
         .padding(.horizontal, Spacing.lg)
@@ -236,7 +276,11 @@ struct LivePhotosConverterView: View {
         case .idle:
             Button {
                 HapticHelper.impact(.light)
-                Task { await viewModel.convertSingle(itemId: item.id, modelContext: modelContext) }
+                if hasSeenExplainer {
+                    Task { await viewModel.convertSingle(itemId: item.id, modelContext: modelContext) }
+                } else {
+                    explainerItemId = item.id
+                }
             } label: {
                 Text("Convert")
                     .font(.caption.bold())
@@ -251,10 +295,15 @@ struct LivePhotosConverterView: View {
                     )
             }
             .scaleOnPress()
-            .disabled(viewModel.convertingAll)
+            .disabled(viewModel.convertingAll || viewModel.isBusy)
 
         case .converting:
             ProgressView()
+
+        case .copySaved:
+            Label("Copy saved", systemImage: "checkmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
         case .completed:
             HStack(spacing: Spacing.xs) {
@@ -273,9 +322,22 @@ struct LivePhotosConverterView: View {
                     .foregroundStyle(.red)
                 Text(error)
                     .font(.caption2)
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
+                    .foregroundStyle(Color.destructive)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 140)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
+}
+
+/// First-time explainer for Live Photo conversion. Shared by the list and the
+/// full-screen preview, which both offer a single Convert.
+enum LivePhotoConvertExplainer {
+    static let storageKey = "hasSeenLivePhotoConvertExplainer"
+    static let message = ReplaceOriginalsNotice.explainer(
+        copies: "the still image of each Live Photo as a new photo",
+        originals: "the Live Photos"
+    )
 }

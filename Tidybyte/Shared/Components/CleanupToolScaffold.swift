@@ -156,24 +156,12 @@ struct ToolScanningView: View {
         VStack(spacing: Spacing.xl) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [tint.opacity(0.15), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 80
-                        )
-                    )
-                    .scaledSquare(ScaledSize.stateHalo / 2)
-
-                Image(systemName: icon)
-                    .scaledGlyph(ScaledSize.stateGlyph / 2, weight: .light)
-                    .foregroundStyle(tint.opacity(0.8))
-                    .symbolEffect(.pulse)
-            }
-            .accessibilityHidden(true)
+            // Bare glyph, no glow halo behind it.
+            Image(systemName: icon)
+                .scaledGlyph(ScaledSize.stateGlyph / 2, weight: .light)
+                .foregroundStyle(tint.opacity(0.8))
+                .symbolEffect(.pulse)
+                .accessibilityHidden(true)
 
             VStack(spacing: Spacing.md) {
                 Text(title)
@@ -272,32 +260,19 @@ struct ToolSkeletonList: View {
     }
 }
 
-/// The halo-plus-glyph motif shared by the idle and empty states.
+/// The bare-glyph motif shared by the idle and empty states.
 ///
-/// Its two halves are scaled separately: the halo is a background wash, while
-/// the glyph carries the meaning, so they must not grow at the same rate.
+/// A single SF Symbol with no halo or bloom, so the glyph alone carries the
+/// meaning at loading and empty sizes.
 struct ToolStateGlyph: View {
     let icon: String
     let tint: Color
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [tint.opacity(0.15), .clear],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 80
-                    )
-                )
-                .scaledSquare(ScaledSize.stateHalo)
-
-            Image(systemName: icon)
-                .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
-                .foregroundStyle(tint.opacity(0.8))
-                .subtleShadow()
-        }
-        .accessibilityHidden(true)
+        // Bare glyph: no glow halo, no bloom shadow.
+        Image(systemName: icon)
+            .scaledGlyph(ScaledSize.stateGlyph, weight: .light)
+            .foregroundStyle(tint.opacity(0.8))
+            .accessibilityHidden(true)
     }
 }

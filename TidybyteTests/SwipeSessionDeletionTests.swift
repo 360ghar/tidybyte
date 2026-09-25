@@ -46,6 +46,46 @@ final class SwipeSessionDeletionTests: XCTestCase {
         XCTAssertEqual(try swipeRecordCount(), 0)
     }
 
+    func testKeepAfterMarkRemovesPendingDeletion() throws {
+        let vm = try makeViewModel()
+        vm.pendingDeletionIds = ["asset-0"]
+        vm.pendingDeletionSizeById = ["asset-0": 8_000_000]
+        vm.sessionStats.deletedCount = 1
+
+        vm.swipeRight() // asset-0 is current: the user now keeps it
+
+        XCTAssertTrue(vm.pendingDeletionIds.isEmpty, "A kept photo must not stay on the delete list")
+        XCTAssertEqual(vm.pendingDeletionBytes, 0)
+        XCTAssertEqual(vm.sessionStats.deletedCount, 0)
+    }
+
+    func testDeckShowsOneFramePerBurstPreferringPicks() {
+        func frame(_ id: String, burst: String?, pick: BurstPick = .none) -> AssetSummary {
+            var asset = AssetSummary(
+                id: id, mediaType: .photo, creationDate: nil, modificationDate: nil,
+                pixelWidth: 100, pixelHeight: 100, duration: 0, fileSize: 1_000,
+                filename: nil, isFavorite: false, isBurst: burst != nil, burstIdentifier: burst,
+                isLivePhoto: false, isScreenshot: false, isLocallyAvailable: true
+            )
+            asset.burstPick = pick
+            return asset
+        }
+        let deck = SwipeSessionViewModel.collapsingBursts([
+            frame("solo", burst: nil),
+            frame("b1-first", burst: "b1"),
+            frame("b1-auto", burst: "b1", pick: .iPhone),
+            frame("b2-first", burst: "b2"),
+            frame("b2-second", burst: "b2")
+        ])
+        XCTAssertEqual(deck.map(\.id), ["solo", "b1-auto", "b2-first"])
+    }
+
+    func testDeckReloadExcludesPendingDeletions() {
+        let assets = ["a", "b", "c"].map(makeAsset(id:))
+        let deck = SwipeSessionViewModel.deckAssets(assets, excludingPending: ["b"])
+        XCTAssertEqual(deck.map(\.id), ["a", "c"])
+    }
+
     func testSwipeLeftDoesNotDoubleCountAlreadyPendingAsset() throws {
         let vm = try makeViewModel()
         vm.pendingDeletionIds = ["asset-0"]

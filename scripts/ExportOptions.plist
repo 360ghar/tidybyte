@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Re-signs the archive with the Apple Distribution certificate -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<!-- Exports AND uploads in one step; auth comes from Xcode's signed-in Apple ID via -allowProvisioningUpdates -->
+	<key>destination</key>
+	<string>upload</string>
+	<key>teamID</key>
+	<string>HMWGCVU4SV</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+</dict>
+</plist>

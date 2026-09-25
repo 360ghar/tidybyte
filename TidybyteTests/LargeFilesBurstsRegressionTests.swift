@@ -255,12 +255,115 @@ final class LargeFilesBurstsRegressionTests: XCTestCase {
         XCTAssertEqual(twoFrame.first?.assets.count, 2)
     }
 
+    // MARK: - Auto-Clean honors per-group curation (PR #2 finding 1)
+
+    func testAutoCleanArmedIdsArmSuggestionsForUntouchedGroups() {
+        let group = makeGroup(id: "g1", best: "a", others: ["b", "c"])
+        let armed = BurstCleanerViewModel.autoCleanArmedIds(
+            groups: [group],
+            touchedGroups: [],
+            selection: []
+        )
+        XCTAssertEqual(armed, ["b", "c"])
+    }
+
+    func testAutoCleanArmedIdsKeepUserDeselectionsInTouchedGroups() {
+        let group = makeGroup(id: "g1", best: "a", others: ["b", "c"])
+        // The user touched the group and kept "b": only "c" stays armed.
+        let armed = BurstCleanerViewModel.autoCleanArmedIds(
+            groups: [group],
+            touchedGroups: ["g1"],
+            selection: ["c"]
+        )
+        XCTAssertEqual(armed, ["c"], "a deselected frame must not be re-armed by Auto-Clean")
+    }
+
+    func testAutoCleanArmedIdsMixTouchedAndUntouchedGroups() {
+        let touched = makeGroup(id: "touched", best: "a", others: ["b", "c"])
+        let fresh = makeGroup(id: "fresh", best: "x", others: ["y", "z"])
+        let armed = BurstCleanerViewModel.autoCleanArmedIds(
+            groups: [touched, fresh],
+            touchedGroups: ["touched"],
+            selection: ["b"]
+        )
+        XCTAssertEqual(armed, ["b", "y", "z"])
+    }
+
+    // MARK: - Auto-Clean's confirm count matches what it deletes (PR #2 finding)
+
+    /// The confirm button and its enable check used the suggestion set for every
+    /// group, while the delete arms the user's surviving picks for a touched
+    /// group — so the alert over-counted and the button could stay live for a
+    /// zero-delete no-op.
+    func testAutoCleanArmedCountTracksTheDeleteNotTheSuggestionSummary() {
+        let viewModel = BurstCleanerViewModel()
+        viewModel.groups = [makeGroup(id: "g1", best: "a", others: ["b", "c"])]
+        // Untouched group: the two sets agree.
+        XCTAssertEqual(viewModel.deletableCount, 2)
+        XCTAssertEqual(viewModel.autoCleanArmedCount, 2)
+
+        // The user touches the group and keeps "b": Auto-Clean now arms only
+        // "c", while the passive "N removable" summary still describes the
+        // untouched suggestion set.
+        viewModel.toggleSelection("c")
+        XCTAssertEqual(viewModel.deletableCount, 2, "the suggestion summary is not the armed set")
+        XCTAssertEqual(
+            viewModel.autoCleanArmedCount, 1,
+            "the confirm count must match the set Auto-Clean really deletes"
+        )
+    }
+
+    /// Touching a group and then clearing it leaves the armed set empty while the
+    /// suggestion summary still reports two frames.
+    func testAutoCleanArmedCountIsZeroAfterClearingATouchedGroup() {
+        let viewModel = BurstCleanerViewModel()
+        viewModel.groups = [makeGroup(id: "g1", best: "a", others: ["b", "c"])]
+        viewModel.deselectAll()
+        XCTAssertEqual(viewModel.deletableCount, 2)
+        XCTAssertEqual(
+            viewModel.autoCleanArmedCount, 0,
+            "Auto-Clean must be disabled when it would delete nothing"
+        )
+    }
+
+    /// The confirm copy promises "Favorites are kept". Auto-Clean never suggests
+    /// a favorite, but Select All is an explicit choice that arms one.
+    func testAutoCleanArmedIncludesFavoriteOnlyAfterAnExplicitPick() {
+        let viewModel = BurstCleanerViewModel()
+        viewModel.groups = [makeGroup(id: "g1", best: "a", others: ["b", "c"], favorites: ["c"])]
+        XCTAssertFalse(
+            viewModel.autoCleanArmedIncludesFavorite,
+            "an untouched group never arms a favorite"
+        )
+
+        viewModel.selectAllNonBest()
+        XCTAssertTrue(
+            viewModel.autoCleanArmedIncludesFavorite,
+            "the confirm must stop promising favorites are kept once one is armed"
+        )
+    }
+
     // MARK: - Helpers
 
-    private func makeGroup(id: String, best: String, others: [String]) -> BurstGroup {
-        let bestAsset = makeAsset(id: best, fileSize: 9_000_000, filename: "\(best).jpg")
-        let otherAssets = others.map { makeAsset(id: $0, fileSize: 8_000_000, filename: "\($0).jpg") }
-        return BurstGroup(id: id, assets: [bestAsset] + otherAssets, bestAssetId: best)
+    private func makeGroup(
+        id: String,
+        best: String,
+        others: [String],
+        favorites: Set<String> = []
+    ) -> BurstGroup {
+        func asset(_ assetId: String, fileSize: Int64) -> AssetSummary {
+            makeAsset(
+                id: assetId,
+                fileSize: fileSize,
+                filename: "\(assetId).jpg",
+                isFavorite: favorites.contains(assetId)
+            )
+        }
+        return BurstGroup(
+            id: id,
+            assets: [asset(best, fileSize: 9_000_000)] + others.map { asset($0, fileSize: 8_000_000) },
+            bestAssetId: best
+        )
     }
 
     private func makeAsset(
@@ -269,7 +372,8 @@ final class LargeFilesBurstsRegressionTests: XCTestCase {
         fileSize: Int64,
         filename: String,
         pixelWidth: Int = 4032,
-        pixelHeight: Int = 3024
+        pixelHeight: Int = 3024,
+        isFavorite: Bool = false
     ) -> AssetSummary {
         AssetSummary(
             id: id,
@@ -281,7 +385,7 @@ final class LargeFilesBurstsRegressionTests: XCTestCase {
             duration: mediaType == .video ? 60 : 0,
             fileSize: fileSize,
             filename: filename,
-            isFavorite: false,
+            isFavorite: isFavorite,
             isBurst: false,
             burstIdentifier: nil,
             isLivePhoto: false,

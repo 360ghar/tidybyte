@@ -67,7 +67,36 @@ final class ScreenshotCleanerViewModel {
         cachedSelectedSize
     }
 
+    /// A library change that lands while a fetch is in flight: pruning now
+    /// would be overwritten when the in-flight snapshot publishes, so it's
+    /// remembered and applied right after instead of being lost.
+    private var pendingPrune = false
+
     /// Loads on first appearance. No-op when already loaded or loading (D-01).
+    /// Drops screenshots deleted elsewhere (Swipe Review, the Photos app).
+    /// Defers while a fetch is in flight (see `fetchScreenshots`).
+    func pruneDeleted() async {
+        if scanRunner.isRunning {
+            pendingPrune = true
+            return
+        }
+        await pruneNow()
+    }
+
+    private func pruneNow() async {
+        guard !screenshots.isEmpty, !isDeleting else { return }
+        // Snapshot before the await: a concurrent refresh can publish new rows
+        // while we suspend, and applying the old membership set to the fresh
+        // array would drop them.
+        let snapshotIds = screenshots.map(\.id)
+        let present = await PhotoLibraryService.shared.existingIds(snapshotIds)
+        guard present.count < snapshotIds.count else { return }
+        guard !isDeleting else { return }
+        let goneIds = Set(snapshotIds.filter { !present.contains($0) })
+        screenshots.removeAll { goneIds.contains($0.id) }
+        selectedIds.subtract(goneIds)
+    }
+
     func loadIfNeeded() async {
         guard !hasLoadedScreenshots else { return }
         startScan()
@@ -101,6 +130,16 @@ final class ScreenshotCleanerViewModel {
         guard !Task.isCancelled else { return }
         screenshots = fetched
         selectedIds.formIntersection(Set(fetched.map(\.id)))
+        // A library change that landed mid-fetch: the snapshot above
+        // predates it, so prune now that publishing can't overwrite it.
+        // (Bypasses the `isRunning` guard — this IS the in-flight fetch.)
+        // Drain in a loop: a library change arriving during the prune below
+        // re-sets `pendingPrune`, and a one-shot check would leave it unpruned
+        // for the rest of this scan.
+        while pendingPrune {
+            pendingPrune = false
+            await pruneNow()
+        }
         hasLoadedScreenshots = true
         if showsLoading { isLoading = false }
     }

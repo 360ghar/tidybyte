@@ -1,28 +1,130 @@
 import SwiftUI
 
-// SwipeCardDeck: the swappable card stack and its action bar, extracted from
-// SwipeSessionView so a drag frame re-renders only the deck. `dragOffset` used
-// to be @State on SwipeSessionView, which meant every drag frame re-ran the
-// whole session body (progress bar, both toolbars, the ViewThatFits action bar,
-// toast, safeAreaInset, plus the 3-card ForEach).
+/// Live drag position of one card. A reference type so a drag frame
+/// invalidates only the views that read `offset` (the top card), not the
+/// deck body, its action bar, or the cards behind.
+@Observable
+@MainActor
+final class CardMotion {
+    var offset: CGSize
+    var isDragging = false
+
+    init(offset: CGSize = .zero) {
+        self.offset = offset
+    }
+}
+
+/// What a swipe does, and where the card flies when it commits.
+enum SwipeDirection: Equatable {
+    case delete, keep, album, skip
+
+    /// Fraction of the card width a drag must travel to commit.
+    static let commitFraction: CGFloat = 0.4
+    /// Predicted end translation (pt) that commits a short, fast flick.
+    static let flickThreshold: CGFloat = 500
+
+    /// The commit policy for a released drag; nil snaps the card back.
+    /// Horizontal checks come first so an ambiguous diagonal drag resolves to
+    /// keep/delete, not the album picker — the up-swipe only wins when the
+    /// vertical motion is unambiguous.
+    static func resolve(translation: CGSize, predicted: CGSize, cardWidth: CGFloat) -> SwipeDirection? {
+        let threshold = cardWidth * commitFraction
+        if translation.width > threshold || predicted.width > flickThreshold { return .keep }
+        if translation.width < -threshold || predicted.width < -flickThreshold { return .delete }
+        if translation.height < -threshold || predicted.height < -flickThreshold { return .album }
+        return nil
+    }
+
+    /// Off-screen end point for a card leaving in this direction, keeping the
+    /// cross-axis position it was released at. Skip leaves downward, matching
+    /// its down-arrow key.
+    func flingOffset(from start: CGSize, distance: CGFloat) -> CGSize {
+        switch self {
+        case .keep: CGSize(width: distance, height: start.height)
+        case .delete: CGSize(width: -distance, height: start.height)
+        case .album: CGSize(width: start.width, height: -distance)
+        case .skip: CGSize(width: start.width, height: distance)
+        }
+    }
+
+    /// Release velocity expressed the way SwiftUI springs take it: fractions
+    /// of the remaining travel per second, along the travel direction. Lets
+    /// the fling carry the finger's speed instead of restarting from rest.
+    static func relativeVelocity(_ velocity: CGSize, from start: CGSize, to target: CGSize) -> Double {
+        let dx = target.width - start.width
+        let dy = target.height - start.height
+        let distance = hypot(dx, dy)
+        guard distance > 1 else { return 0 }
+        let along = (velocity.width * dx + velocity.height * dy) / distance
+        return min(max(along / distance, 0), 10)
+    }
+}
+
+// SwipeCardDeck: the swappable card stack and its action bar.
 //
-// Animation contract: the drag writes `dragOffset` OUTSIDE any withAnimation so
-// the card tracks the finger 1:1. Every intended animation (snap-back, zoom
-// reset, commit fling, post-fling reset) supplies its own explicit animation.
+// Commit contract: a swipe applies its decision to the view model AT ONCE, so
+// the next card is live immediately and a fast second swipe is never dropped.
+// The outgoing card stays in the same ForEach (same id, so its image is not
+// reloaded) as a "departing" card, flies off, and is removed when its
+// animation completes. The drag writes `motion.offset` outside any animation
+// so the card tracks the finger 1:1.
 struct SwipeCardDeck: View {
     @Bindable var viewModel: SwipeSessionViewModel
     /// Surfaces the "marked for deletion — tap Undo" hint in the parent's toast.
-    var onUndoHint: () -> Void
+    /// Called with the id of the photo just marked for deletion, so the
+    /// toast's Undo can check it still undoes that photo.
+    var onUndoHint: (String) -> Void
+    /// Called when a delete is refused because the photo never showed.
+    var onDeleteBlocked: () -> Void = {}
 
-    @State private var dragOffset: CGSize = .zero
-    @State private var isDragging = false
-    @State private var swipeTask: Task<Void, Never>?
+    /// One rendered card: `depth` 0 is the top card, nil a departing one.
+    private struct DeckSlot: Identifiable {
+        let asset: AssetSummary
+        let depth: Int?
+        let motion: CardMotion?
+        var id: String { asset.id }
+    }
+
+    @State private var motion = CardMotion()
+    @State private var departing: [DeckSlot] = []
+    /// The card parked on top while the album picker is open. Filing is an
+    /// explicit choice, so the card waits for the picker instead of flying off;
+    /// when the choice lands the deck flings it out like any other decision, so
+    /// its exit animates instead of vanishing.
+    @State private var albumCardPending: AssetSummary?
+    @State private var deckSize: CGSize = .zero
     /// True while the top card is pinch-zoomed: the swipe drag yields so a
     /// one-finger drag pans the photo instead of committing a swipe.
     @State private var isTopCardZoomed = false
     /// Monotonic counter driving CardView's "Zoom" accessibility action.
     @State private var zoomToggleRequest = 0
+    @State private var playRequest = 0
+    @State private var retryRequest = 0
+    /// Ids of cards whose image is on screen. Delete stays off for a card that
+    /// never showed its photo (still loading, or the iCloud download failed).
+    @State private var shownAssetIds: Set<String> = []
+
+    private var canDeleteTopCard: Bool {
+        guard let id = viewModel.currentAsset?.id else { return false }
+        return shownAssetIds.contains(id)
+    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Far enough that a card, rotated, clears the screen from the deck center.
+    private var flingDistance: CGFloat {
+        deckSize == .zero ? 1000 : deckSize.width + deckSize.height
+    }
+
+    /// Stack (back to front) then departing cards on top. A card that is both
+    /// visible and still departing (undo mid-fling) renders as visible.
+    private var slots: [DeckSlot] {
+        let visible = viewModel.visibleCards
+        let visibleIds = Set(visible.map(\.id))
+        let stack = visible.enumerated().reversed().map { index, asset in
+            DeckSlot(asset: asset, depth: index, motion: index == 0 ? motion : nil)
+        }
+        return stack + departing.filter { !visibleIds.contains($0.id) }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,27 +153,47 @@ struct SwipeCardDeck: View {
             // card's callback (whose onZoomChanged prop is already nil by
             // teardown time). Resetting the request counter also stops a
             // promoted card from re-firing a stale VoiceOver zoom request.
-            // Deliberately UNANIMATED: the incoming card must read the
-            // already-zero offset instead of animating in from the outgoing
-            // card's flung-off position.
             isTopCardZoomed = false
             zoomToggleRequest = 0
-            dragOffset = .zero
-            isDragging = false
+            playRequest = 0
+            retryRequest = 0
+            motion.isDragging = false
+            // The album picker resolved (or the user chose "Keep Without
+            // Album"): the parked card leaves `visibleCards` with no fling of
+            // its own, so give it a departing slot or it vanishes mid-deck.
+            // Guarded on `visibleCards` rather than the top card, so a cancelled
+            // picker (the card is still on screen) flings nothing.
+            if let parked = albumCardPending,
+               !viewModel.visibleCards.contains(where: { $0.id == parked.id }) {
+                albumCardPending = nil
+                flingOut(parked)
+            }
+            // Undo can land while the departing card is still flinging. That
+            // card is back on top, and `slots` now renders it from `motion`
+            // instead of its departing `flying` offset. Animating `motion.offset`
+            // home (even though it is already zero) lets SwiftUI interpolate
+            // from the on-screen fling position instead of teleporting the card
+            // to deck center.
+            if let returningId = viewModel.currentAsset?.id,
+               departing.contains(where: { $0.id == returningId }) {
+                withAnimation(.reduceMotionAware(
+                    .spring(response: 0.35, dampingFraction: 0.8),
+                    reduceMotion: reduceMotion
+                )) {
+                    motion.offset = .zero
+                }
+            } else if motion.offset != .zero {
+                motion.offset = .zero
+            }
         }
         .onChange(of: isTopCardZoomed) {
             // Zoom engaged mid-swipe-drag: the in-flight drag tears down
             // without onEnded, so snap the card back instead of leaving it
             // tilted with no swipe committed.
             if isTopCardZoomed {
-                withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
-                    dragOffset = .zero
-                }
-                isDragging = false
+                motion.isDragging = false
+                snapBack()
             }
-        }
-        .onDisappear {
-            swipeTask?.cancel()
         }
     }
 
@@ -80,43 +202,51 @@ struct SwipeCardDeck: View {
     private var cardStack: some View {
         GeometryReader { geometry in
             ZStack {
-                ForEach(Array(viewModel.visibleCards.enumerated().reversed()), id: \.element.id) { index, asset in
-                    let isTop = index == 0
-                    let scale = 1.0 - CGFloat(index) * 0.05
-                    let yOffset = CGFloat(index) * 10
+                ForEach(slots) { slot in
+                    let isTop = slot.depth == 0
+                    let depth = CGFloat(slot.depth ?? 0)
+                    let asset = slot.asset
 
                     CardView(
                         asset: asset,
                         photoService: viewModel.photoService,
                         isTopCard: isTop,
-                        dragOffset: isTop ? dragOffset : .zero,
-                        isDragging: isTop && isDragging,
+                        motion: slot.motion,
                         zoomToggleRequest: isTop ? zoomToggleRequest : 0,
+                        playRequest: isTop ? playRequest : 0,
+                        retryRequest: isTop ? retryRequest : 0,
                         onZoomChanged: isTop ? { isTopCardZoomed = $0 } : nil,
                         onSwipeDragChanged: handleDragChanged,
-                        onSwipeDragEnded: handleDragEnded
+                        onSwipeDragEnded: handleDragEnded,
+                        onImageShown: { shownAssetIds.insert($0) }
                     )
-                    .scaleEffect(isTop ? 1.0 : scale)
-                    .offset(y: isTop ? 0 : yOffset)
-                    .offset(x: isTop ? dragOffset.width : 0, y: isTop ? dragOffset.height : 0)
-                    .rotationEffect(isTop ? .degrees(Double(dragOffset.width / 20)) : .zero)
+                    // Scoped so the stack shift animates on every path (swipe,
+                    // skip, undo, album confirm) without touching the drag.
+                    .animation(.reduceMotionAware(.smooth(duration: 0.3), reduceMotion: reduceMotion)) {
+                        $0.scaleEffect(1.0 - depth * 0.05)
+                            .offset(y: depth * 10)
+                    }
+                    .transition(.stateTransition)
                     // No `.gesture` here on purpose. A drag attached above
                     // CardView is starved: the card's own pinch holds the touch
-                    // and the deck never sees `onChanged`, so the card sits still
-                    // until the finger lifts. `.simultaneousGesture` and
-                    // `.highPriorityGesture` here did not change that. The swipe
-                    // is relayed from CardView's gesture graph instead.
+                    // and the deck never sees `onChanged`. The swipe is relayed
+                    // from CardView's gesture graph instead.
                     .allowsHitTesting(isTop && !viewModel.isPerformingMutation)
                     .accessibilityElement(children: .ignore)
                     .accessibilityHidden(!isTop)
                     .accessibilityLabel(isTop ? accessibilityLabel(for: asset) : Text(""))
                     .accessibilityActions {
                         if isTop {
-                            Button("Delete") { triggerDelete() }
-                            Button("Keep") { triggerKeep() }
-                            Button("Add to Album") { triggerKeepWithAlbum() }
-                            Button("Skip") { viewModel.skip() }
-                            if asset.mediaType != .video {
+                            Button("Delete") { commit(.delete) }
+                            Button("Keep") { commit(.keep) }
+                            Button("Add to Album") { commit(.album) }
+                            Button("Skip") { commit(.skip) }
+                            if !shownAssetIds.contains(asset.id) {
+                                Button("Try Loading Again") { retryRequest += 1 }
+                            }
+                            if asset.mediaType == .video {
+                                Button("Play Video") { playRequest += 1 }
+                            } else {
                                 Button(isTopCardZoomed ? "Zoom Out" : "Zoom In") {
                                     zoomToggleRequest += 1
                                 }
@@ -126,6 +256,7 @@ struct SwipeCardDeck: View {
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { deckSize = $0 }
         }
     }
 
@@ -134,68 +265,126 @@ struct SwipeCardDeck: View {
     /// Relay for the top card's drag. The gesture itself lives on `CardView`
     /// (see `unifiedDrag`), because a drag attached anywhere above it is starved
     /// of every `onChanged` by the card's own pinch.
-    private func handleDragChanged(_ translation: CGSize) {
-        guard !viewModel.isPerformingMutation, !viewModel.isSwiping else { return }
-        if !isDragging {
-            isDragging = true
+    private func handleDragChanged(_ assetId: String, _ translation: CGSize) {
+        // The card under the finger must still be the top card: an undo (or a
+        // skip) mid-drag re-points the deck at a different asset, and applying
+        // this gesture to it would move the wrong photo.
+        guard !viewModel.isPerformingMutation,
+              assetId == viewModel.currentAsset?.id else { return }
+        if !motion.isDragging {
+            motion.isDragging = true
             HapticHelper.impact(.light)
         }
-        dragOffset = translation
+        motion.offset = translation
     }
 
-    /// Relay for the top card's drag end. Owns the commit policy: threshold,
-    /// velocity, and the horizontal-before-vertical resolution.
-    private func handleDragEnded(_ value: DragGesture.Value, cardWidth: CGFloat) {
-        // A second touch ending mid-fling (or mid-mutation) must not re-run
-        // the commit policy or snap the card back — mirrors handleDragChanged.
-        guard !viewModel.isSwiping, !viewModel.isPerformingMutation else { return }
-        isDragging = false
-        // A pinch can zoom the card mid-drag (the drag was already in flight
-        // when the touch began) — snap back instead of committing a swipe the
-        // user replaced with an inspection.
-        guard !isTopCardZoomed else {
-            withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
-                dragOffset = .zero
-            }
+    /// Relay for the top card's drag end. A pinch can zoom the card mid-drag
+    /// (the drag was already in flight when the touch began) — snap back
+    /// instead of committing a swipe the user replaced with an inspection.
+    private func handleDragEnded(_ assetId: String, _ value: DragGesture.Value, cardWidth: CGFloat) {
+        // An undo mid-drag puts a different card on top. Committing this gesture
+        // would apply the in-flight swipe to the previous card, so drop it.
+        guard !viewModel.isPerformingMutation,
+              assetId == viewModel.currentAsset?.id else {
+            motion.isDragging = false
+            // A mutation that starts mid-drag without changing the top card (a
+            // batch commit) freezes this drag: every frame after it began was
+            // ignored, so the offset is still mid-swipe and rotated. Snap it
+            // home. When the top card did change, the offset is already zero
+            // and the animation has nothing to do.
+            snapBack()
             return
         }
-        let threshold = cardWidth * 0.4
-        let velocityThreshold: CGFloat = 500
-        let predictedWidth = value.predictedEndTranslation.width
-        let predictedHeight = value.predictedEndTranslation.height
+        guard !isTopCardZoomed,
+              let direction = SwipeDirection.resolve(
+                translation: value.translation,
+                predicted: value.predictedEndTranslation,
+                cardWidth: cardWidth
+              ) else {
+            motion.isDragging = false
+            snapBack()
+            return
+        }
+        commit(direction, velocity: value.velocity)
+    }
 
-        // Horizontal checks come first so an ambiguous diagonal drag
-        // resolves to keep/delete, not the album picker — the up-swipe
-        // only wins when the vertical motion is unambiguous.
-        if value.translation.width > threshold || predictedWidth > velocityThreshold {
-            // Swipe right — keep
-            HapticHelper.impact(.heavy)
-            performSwipeAnimation(offset: CGSize(width: 1000, height: value.translation.height)) {
-                viewModel.swipeRight()
-            }
-        } else if value.translation.width < -threshold || predictedWidth < -velocityThreshold {
-            // Swipe left — delete
-            HapticHelper.impact(.heavy)
-            performSwipeAnimation(offset: CGSize(width: -1000, height: value.translation.height)) {
-                viewModel.swipeLeft()
-                onUndoHint()
-            }
-        } else if value.translation.height < -threshold || predictedHeight < -velocityThreshold {
-            // Swipe up — file this photo into an album. Explicit intent:
-            // the picker opens and the card stays until the choice resolves.
-            HapticHelper.impact(.heavy)
-            performSwipeAnimation(offset: CGSize(width: value.translation.width, height: -1000)) {
-                viewModel.keepWithAlbum()
-            }
-        } else {
-            // Snap back
-            withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
-                dragOffset = .zero
-            }
+    /// Flings a card out of the deck without applying a decision. Used for the
+    /// album card once the picker's choice has already advanced the view model,
+    /// so its exit animates like every other decision instead of vanishing.
+    private func flingOut(_ asset: AssetSummary) {
+        let target = SwipeDirection.album.flingOffset(from: .zero, distance: flingDistance)
+        let flying = CardMotion(offset: target)
+        withAnimation(.reduceMotionAware(
+            Animation.interpolatingSpring(duration: 0.35, bounce: 0, initialVelocity: 0),
+            reduceMotion: reduceMotion
+        ), completionCriteria: .logicallyComplete) {
+            departing.removeAll { $0.id == asset.id }
+            departing.append(DeckSlot(asset: asset, depth: nil, motion: flying))
+        } completion: {
+            departing.removeAll { $0.motion === flying }
         }
     }
 
-    // MARK: - Accessibility / Actions
+    // MARK: - Commit
+
+    /// The one path for every swipe, button, arrow key and VoiceOver action.
+    private func commit(_ direction: SwipeDirection, velocity: CGSize = .zero) {
+        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation,
+              let asset = viewModel.currentAsset else { return }
+        motion.isDragging = false
+        // Any fresh decision supersedes a card parked for the album picker (the
+        // picker was dismissed without a choice), so it is not flung twice.
+        albumCardPending = nil
+
+        if direction == .delete, !canDeleteTopCard {
+            // The photo never showed: refuse the delete and snap back.
+            HapticHelper.notification(.warning)
+            onDeleteBlocked()
+            snapBack()
+            return
+        }
+        HapticHelper.impact(direction == .skip ? .light : .heavy)
+
+        if direction == .album {
+            // Filing is an explicit choice: the card stays on top until the
+            // picker resolves, and leaves (or stays) with the view model.
+            snapBack()
+            albumCardPending = asset
+            viewModel.keepWithAlbum()
+            return
+        }
+
+        let start = motion.offset
+        let target = direction.flingOffset(from: start, distance: flingDistance)
+        let flying = CardMotion(offset: target)
+        let fling = Animation.interpolatingSpring(
+            duration: 0.35,
+            bounce: 0,
+            initialVelocity: SwipeDirection.relativeVelocity(velocity, from: start, to: target)
+        )
+        withAnimation(.reduceMotionAware(fling, reduceMotion: reduceMotion), completionCriteria: .logicallyComplete) {
+            departing.removeAll { $0.id == asset.id }
+            departing.append(DeckSlot(asset: asset, depth: nil, motion: flying))
+            motion.offset = .zero
+            switch direction {
+            case .delete: viewModel.swipeLeft()
+            case .keep: viewModel.swipeRight()
+            case .skip: viewModel.skip()
+            case .album: break
+            }
+        } completion: {
+            departing.removeAll { $0.motion === flying }
+        }
+        if direction == .delete { onUndoHint(asset.id) }
+    }
+
+    private func snapBack() {
+        withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
+            motion.offset = .zero
+        }
+    }
+
+    // MARK: - Accessibility
 
     private func accessibilityLabel(for asset: AssetSummary) -> Text {
         var parts: [String] = [asset.mediaType == .video ? "Video" : "Photo"]
@@ -206,32 +395,8 @@ struct SwipeCardDeck: View {
         if asset.isFavorite { parts.append("Favorite") }
         if asset.isLivePhoto { parts.append("Live Photo.") }
         if !asset.isLocallyAvailable { parts.append("In iCloud.") }
+        if !shownAssetIds.contains(asset.id) { parts.append("Not loaded yet. Delete is off until it shows.") }
         return Text(parts.joined(separator: ", "))
-    }
-
-    private func triggerDelete() {
-        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        HapticHelper.impact(.heavy)
-        performSwipeAnimation(offset: CGSize(width: -1000, height: 0)) {
-            viewModel.swipeLeft()
-            onUndoHint()
-        }
-    }
-
-    private func triggerKeep() {
-        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        HapticHelper.impact(.heavy)
-        performSwipeAnimation(offset: CGSize(width: 1000, height: 0)) {
-            viewModel.swipeRight()
-        }
-    }
-
-    private func triggerKeepWithAlbum() {
-        guard viewModel.hasMoreCards, !viewModel.isPerformingMutation else { return }
-        HapticHelper.impact(.heavy)
-        performSwipeAnimation(offset: CGSize(width: 0, height: -1000)) {
-            viewModel.keepWithAlbum()
-        }
     }
 
     // MARK: - Action Bar
@@ -248,16 +413,14 @@ struct SwipeCardDeck: View {
             actionBarRow(spacing: Spacing.md)
             actionBarRow(spacing: Spacing.xs)
         }
-        // isSwiping included so Skip can't advance the deck mid-animation
-        // while the queued gesture would act on the wrong card (B1).
-        .disabled(!viewModel.hasMoreCards || viewModel.isPerformingMutation || viewModel.isSwiping)
+        .disabled(!viewModel.hasMoreCards || viewModel.isPerformingMutation)
     }
 
     private func actionBarRow(spacing: CGFloat) -> some View {
         HStack(spacing: spacing) {
             // Delete button
             Button {
-                triggerDelete()
+                commit(.delete)
             } label: {
                 Image(systemName: "xmark")
                     .font(.title2.bold())
@@ -265,16 +428,17 @@ struct SwipeCardDeck: View {
                     .scaledSquare(ScaledSize.actionButton)
                     .background(.red)
                     .clipShape(Circle())
-                    .shadow(color: .red.opacity(0.3), radius: 8)
             }
-            .keyboardShortcut(.delete, modifiers: [])
+            // Keys follow the swipe: left deletes, right keeps.
+            .keyboardShortcut(.leftArrow, modifiers: [])
+            .disabled(!canDeleteTopCard)
+            .opacity(canDeleteTopCard ? 1 : 0.4)
             .accessibilityLabel("Delete")
             .accessibilityHint("Marks this photo for deletion and shows the next one")
 
-            // Info / Skip button
+            // Skip button
             Button {
-                HapticHelper.impact(.light)
-                viewModel.skip()
+                commit(.skip)
             } label: {
                 Image(systemName: "forward.fill")
                     .font(.title3)
@@ -283,13 +447,13 @@ struct SwipeCardDeck: View {
                     .background(Color(.systemGray))
                     .clipShape(Circle())
             }
-            .keyboardShortcut(.rightArrow, modifiers: [])
+            .keyboardShortcut(.downArrow, modifiers: [])
             .accessibilityLabel("Skip")
             .accessibilityHint("Leaves this photo unchanged and shows the next one")
 
             // Add to Album button — same as an up-swipe
             Button {
-                triggerKeepWithAlbum()
+                commit(.album)
             } label: {
                 Image(systemName: "folder.badge.plus")
                     .font(.title3)
@@ -304,7 +468,7 @@ struct SwipeCardDeck: View {
 
             // Keep button
             Button {
-                triggerKeep()
+                commit(.keep)
             } label: {
                 Image(systemName: "checkmark")
                     .font(.title2.bold())
@@ -312,50 +476,10 @@ struct SwipeCardDeck: View {
                     .scaledSquare(ScaledSize.actionButton)
                     .background(.green)
                     .clipShape(Circle())
-                    .shadow(color: .green.opacity(0.3), radius: 8)
             }
-            .keyboardShortcut(.return, modifiers: [])
+            .keyboardShortcut(.rightArrow, modifiers: [])
             .accessibilityLabel("Keep")
             .accessibilityHint("Keeps this photo without prompting")
-        }
-    }
-
-    // MARK: - Swipe Animation
-
-    private func performSwipeAnimation(
-        offset: CGSize,
-        action: @escaping @MainActor () async -> Void
-    ) {
-        // Serialize swipes: a second gesture during the animation window is
-        // ignored instead of racing the in-flight task (SWIPE-05). The slot
-        // guarantee means no task can be in flight here, so no cancel needed.
-        guard !viewModel.isPerformingMutation, viewModel.beginSwipeAnimation() else { return }
-        withAnimation(.reduceMotionAware(.spring(response: 0.3, dampingFraction: 0.8), reduceMotion: reduceMotion)) {
-            dragOffset = offset
-        }
-
-        swipeTask = Task {
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else {
-                viewModel.endSwipeAnimation()
-                return
-            }
-            await MainActor.run {
-                // Only reset the offset if the drag actually ended — resetting
-                // mid-gesture yanks the card back from under a new drag (SWIPE-05).
-                // The reset needs its own animation now that the removed
-                // per-frame `.animation(value: dragOffset)` no longer supplies
-                // one: the up-swipe album path does NOT advance currentIndex, so
-                // nothing else animates the card back and it would stay flung
-                // off-screen while the album picker is up.
-                if !isDragging {
-                    withAnimation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.7), reduceMotion: reduceMotion)) {
-                        dragOffset = .zero
-                    }
-                }
-            }
-            await action()
-            viewModel.endSwipeAnimation()
         }
     }
 }

@@ -3,9 +3,9 @@ import XCTest
 
 /// Pins the cleanup home's grouping and the hero's byte math.
 ///
-/// The byte rule is the part worth testing: the hero sums two sets that must stay
-/// disjoint, and the obvious implementation (sum screenshots, then sum everything
-/// over the threshold) double counts every large screenshot.
+/// The byte rule is the part worth testing: the hero uses the disjoint
+/// `ReclaimBucketer` total, so no asset (a large screenshot, say) is counted
+/// twice.
 final class CleanupHomeGroupingTests: XCTestCase {
 
     // MARK: - Category grouping
@@ -77,7 +77,7 @@ final class CleanupHomeGroupingTests: XCTestCase {
         XCTAssertEqual(rollup.largeFiles, 0)
     }
 
-    func testReclaimableTotalExcludesSmallAndLiveAssets() {
+    func testReclaimableTotalMatchesStorageAndWidget() {
         let assets = [
             asset(size: 500, screenshot: true),
             asset(size: 9_000, live: true),
@@ -85,10 +85,25 @@ final class CleanupHomeGroupingTests: XCTestCase {
         ]
 
         let rollup = CleanupLibraryRollup.compute(from: assets, thresholdBytes: 100_000)
+        let stats = MediaLibraryStats.build(from: assets, largeFileThresholdBytes: 100_000)
 
-        // Only the screenshot is outright deletable at this threshold.
-        XCTAssertEqual(rollup.reclaimableBytes, 500)
-        XCTAssertEqual(rollup.reclaimableItemCount, 1)
+        // Screenshot in full, Live Photo at the half-size conversion estimate.
+        XCTAssertEqual(rollup.reclaimableBytes, 500 + 4_500)
+        XCTAssertEqual(rollup.reclaimableItemCount, 2)
+        XCTAssertEqual(rollup.reclaimableBytes, stats.reclaimableBytes, "one figure on every screen")
+    }
+
+    func testReclaimableTotalSkipsICloudOnlyItems() {
+        var cloud = asset(size: 50_000, screenshot: true)
+        cloud = AssetSummary(
+            id: cloud.id, mediaType: .photo, creationDate: nil, modificationDate: nil,
+            pixelWidth: 100, pixelHeight: 100, duration: 0, fileSize: 50_000,
+            filename: nil, isFavorite: false, isBurst: false, burstIdentifier: nil,
+            isLivePhoto: false, isScreenshot: true, isLocallyAvailable: false
+        )
+        let rollup = CleanupLibraryRollup.compute(from: [cloud], thresholdBytes: 10_000)
+        XCTAssertEqual(rollup.screenshots, 1, "the badge still counts it")
+        XCTAssertEqual(rollup.reclaimableBytes, 0, "deleting it frees no space on this iPhone")
     }
 
     /// The regression this whole roll-up exists to prevent.
