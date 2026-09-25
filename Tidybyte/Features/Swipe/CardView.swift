@@ -6,6 +6,7 @@ struct CardView: View {
     let asset: AssetSummary
     let photoService: PhotoLibraryService
     let isTopCard: Bool
+    var reviewReason: String? = nil
 
     /// Drag position for the top card (the deck's live motion) or a departing
     /// card (its fling target); nil for the cards behind. Read only by the
@@ -154,6 +155,15 @@ struct CardView: View {
 
                     Spacer()
 
+                    if isTopCard, let reviewReason {
+                        Text(reviewReason)
+                            .font(.caption)
+                            .foregroundStyle(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(Spacing.sm)
+                            .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: CornerRadius.small))
+                            .padding(.horizontal, Spacing.lg)
+                    }
                     // Bottom info
                     HStack(alignment: .bottom) {
                         VStack(alignment: .leading, spacing: Spacing.xs) {

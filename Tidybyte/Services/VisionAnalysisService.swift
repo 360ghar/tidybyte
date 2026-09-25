@@ -1,6 +1,7 @@
 import Vision
 import UIKit
 import CoreImage
+import Metal
 
 struct BlurAnalysisResult: Sendable {
     let blurScore: Float      // Higher = more blurry. 0-1 scale
@@ -76,9 +77,58 @@ struct ContentClassificationResult: Sendable {
     let textCoverage: Float
     /// Area of the largest detected face as a fraction of the frame (0–1).
     let faceCoverage: Float
+    var succeeded = true
+}
+
+struct AestheticsResult: Sendable, Equatable {
+    let score: Float
+    let isUtility: Bool
+    var isLowQuality: Bool { score.isFinite && score < 0 && !isUtility }
+}
+
+struct LensSmudgeResult: Sendable, Equatable {
+    let confidence: Float
+    var isSmudged: Bool { confidence.isFinite && confidence >= 0.8 }
 }
 
 actor VisionAnalysisService {
+    private var smudgeUnsupported = false
+
+    func supportsLensSmudge() -> Bool {
+        if #available(iOS 26, *) {
+            // Apple GPU family 7 starts at A14/M1, the request's hardware floor.
+            return !smudgeUnsupported && MTLCreateSystemDefaultDevice()?.supportsFamily(.apple7) == true
+        }
+        return false
+    }
+
+    func analyzeAesthetics(image: CGImage) async -> AestheticsResult? {
+        guard #available(iOS 18, *), !Task.isCancelled else { return nil }
+        do {
+            let result = try await CalculateImageAestheticsScoresRequest().perform(on: image)
+            guard !Task.isCancelled, result.overallScore.isFinite else { return nil }
+            return AestheticsResult(score: result.overallScore, isUtility: result.isUtility)
+        } catch {
+            return nil
+        }
+    }
+
+    func analyzeLensSmudge(image: CGImage) async -> LensSmudgeResult? {
+        guard #available(iOS 26, *), supportsLensSmudge(), !Task.isCancelled else { return nil }
+        do {
+            let result = try await DetectLensSmudgeRequest().perform(on: image)
+            guard !Task.isCancelled, result.confidence.isFinite else { return nil }
+            return LensSmudgeResult(confidence: result.confidence)
+        } catch {
+            let error = error as NSError
+            if error.domain == VNErrorDomain,
+               [VNErrorCode.unsupportedRequest.rawValue, VNErrorCode.unsupportedComputeDevice.rawValue].contains(error.code) {
+                smudgeUnsupported = true
+            }
+            return nil
+        }
+    }
+
 
     /// Reused across all Core Image operations. Creating a `CIContext` per call
     /// (as the previous implementation did) allocates a fresh render pipeline each
@@ -280,7 +330,7 @@ actor VisionAnalysisService {
             try handler.perform([classify, text, faces])
         } catch {
             AppLog.vision.error("Content classification failed: \(error.localizedDescription, privacy: .public)")
-            return ContentClassificationResult(labels: [:], textCoverage: 0, faceCoverage: 0)
+            return ContentClassificationResult(labels: [:], textCoverage: 0, faceCoverage: 0, succeeded: false)
         }
 
         var labels: [String: Float] = [:]

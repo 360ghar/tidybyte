@@ -1,9 +1,10 @@
 import SwiftUI
 
-enum BlurryTab: String, CaseIterable {
+enum BlurryTab: String, CaseIterable, Sendable {
     case blurry = "Blurry"
     case tooDark = "Too Dark"
     case overexposed = "Overexposed"
+    case lensSmudge = "Lens Smudge"
 }
 
 struct AnalyzedPhoto: Identifiable, Sendable {
@@ -12,10 +13,7 @@ struct AnalyzedPhoto: Identifiable, Sendable {
     let blurScore: Float
     let luminance: Float
     let categories: Set<BlurryTab>
-    /// True when the analysis image came from the degraded fast-format
-    /// thumbnail fallback (asset's full resolution lives only in iCloud) —
-    /// such photos can read as blurrier than they really are (D-03).
-    let isFallbackAnalysis: Bool
+    var smudgeConfidence: Float? = nil
 }
 
 @Observable
@@ -38,6 +36,9 @@ final class BlurryPhotosViewModel {
     /// (they're covered by the dedicated Screenshots tool) — surfaced in the
     /// results footer (D-04).
     private(set) var skippedScreenshotCount = 0
+    private(set) var skippedAnalysisCount = 0
+    private(set) var skippedSmudgeCount = 0
+    private(set) var supportsLensSmudge = false
 
     /// C1/C2: owns the cancellable scan task + generation token.
     private let scanRunner = ScanRunner()
@@ -123,6 +124,7 @@ final class BlurryPhotosViewModel {
     var blurryCount: Int { filteredAndCounts().counts[.blurry] ?? 0 }
     var darkCount: Int { filteredAndCounts().counts[.tooDark] ?? 0 }
     var overexposedCount: Int { filteredAndCounts().counts[.overexposed] ?? 0 }
+    var smudgeCount: Int { filteredAndCounts().counts[.lensSmudge] ?? 0 }
 
     var selectedSize: Int64 {
         analyzedPhotos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
@@ -143,6 +145,9 @@ final class BlurryPhotosViewModel {
         // rescans (all tabs — mirrors SmartCategoriesViewModel.scan()).
         selectedIds.removeAll()
         skippedScreenshotCount = 0
+        skippedAnalysisCount = 0
+        skippedSmudgeCount = 0
+        supportsLensSmudge = await visionService.supportsLensSmudge()
         deletedCount = 0
         pendingPrune = false
 
@@ -170,30 +175,24 @@ final class BlurryPhotosViewModel {
                 continue
             }
 
-            // Prefer a sharp, on-device, exactly-sized image so sharpness is
-            // measured accurately; fall back to a fast thumbnail for assets
-            // whose full resolution lives only in iCloud (so they're still
-            // analyzed). Fallback analysis is flagged so the UI can warn that
-            // a low-res copy may read as softer than the original (D-03).
-            // `phById` was resolved once up front — no per-photo fetch.
-            // (Missing = deleted externally mid-scan; skip like a nil image.)
-            var uiImage: UIImage?
-            var usedFallback = true
-            if let phAsset = phById[photo.id] {
-                uiImage = await photoService.loadAnalysisImage(for: phAsset, targetSize: CGSize(width: 512, height: 512))
-                usedFallback = uiImage == nil
-                if uiImage == nil {
-                    uiImage = await photoService.loadThumbnail(for: phAsset, size: CGSize(width: 300, height: 300))
-                }
-            }
-            guard let cgImage = uiImage?.cgImage else {
+            guard let phAsset = phById[photo.id],
+                  let uiImage = await photoService.loadAnalysisImage(for: phAsset, targetSize: CGSize(width: 512, height: 512)),
+                  let cgImage = uiImage.cgImage else {
+                if scanRunner.isCurrent(token) { skippedAnalysisCount += 1 }
                 continue
             }
 
             let blurResult = await visionService.analyzeBlurriness(image: cgImage, assetId: photo.id, sensitivity: sensitivity)
             let exposureResult = await visionService.analyzeExposure(image: cgImage)
 
-            if Task.isCancelled { return }
+            var smudgeResult: LensSmudgeResult?
+            if supportsLensSmudge {
+                smudgeResult = await visionService.analyzeLensSmudge(image: cgImage)
+                guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
+                if smudgeResult == nil { supportsLensSmudge = await visionService.supportsLensSmudge() }
+            }
+            guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
+            if supportsLensSmudge && smudgeResult == nil { skippedSmudgeCount += 1 }
 
             var categories = Set<BlurryTab>()
             if blurResult.isBlurry {
@@ -206,6 +205,7 @@ final class BlurryPhotosViewModel {
                 categories.insert(.overexposed)
             }
 
+            if smudgeResult?.isSmudged == true { categories.insert(.lensSmudge) }
             if !categories.isEmpty {
                 analyzedPhotos.append(AnalyzedPhoto(
                     id: photo.id,
@@ -213,7 +213,7 @@ final class BlurryPhotosViewModel {
                     blurScore: blurResult.blurScore,
                     luminance: exposureResult.meanLuminance,
                     categories: categories,
-                    isFallbackAnalysis: usedFallback
+                    smudgeConfidence: smudgeResult?.confidence
                 ))
             }
 
@@ -226,6 +226,13 @@ final class BlurryPhotosViewModel {
         // A cancelled or superseded run must never publish progress/results.
         guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
+        guard scanEpoch == ScanResults.epoch else {
+            analyzedPhotos = []
+            scanState = .idle
+            errorMessage = "Your library changed during analysis. Scan again for current results."
+            return
+        }
+        if !supportsLensSmudge && activeTab == .lensSmudge { activeTab = .blurry }
         scanState = .scanning(1.0)
         scanState = .completed
         // A library change that landed mid-scan: prune now that publishing

@@ -6,6 +6,7 @@ struct RootView: View {
     @State private var permissionHandler = PhotoPermissionHandler()
     @State private var libraryMonitor = LibraryChangeMonitor()
     @AppStorage(AppPreferences.Key.hasCompletedOnboarding) private var hasCompletedOnboarding = false
+    @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var largeFileThreshold = 10.0
     #if DEBUG
     /// Set by the UI test launch argument. Evaluated once per view instance and
     /// kept in `@State` so it cannot change mid-session.
@@ -47,7 +48,7 @@ struct RootView: View {
             NavigationStack(path: cleanupPathBinding) {
                 permissionGatedView { CleanupHomeView() }
                     .navigationDestination(for: CleanupTool.self) { tool in
-                        cleanupDestinationView(for: tool)
+                        permissionGatedView { cleanupDestinationView(for: tool) }
                     }
             }
             .tabItem {
@@ -77,6 +78,11 @@ struct RootView: View {
             }
             .tag(AppTab.settings)
         }
+        .safeAreaInset(edge: .bottom) {
+            if !appNavigation.isShowingSwipeCompletion {
+                RecentlyDeletedNotice()
+            }
+        }
         .sidebarAdaptableOnPad()
         .environment(appNavigation)
         .environment(libraryMonitor)
@@ -100,6 +106,7 @@ struct RootView: View {
             }
         }
         .onChange(of: permissionHandler.permissionState) { _, newState in
+            libraryMonitor.permissionDidChange()
             // APP-02: a first-launch permission grant happens in-foreground, so
             // scenePhase never re-fires — run the daily scan on the grant. The
             // coordinator's isScanning guard dedupes against any activation
@@ -107,17 +114,22 @@ struct RootView: View {
             if newState == .authorized || newState == .limited {
                 Task { await libraryMonitor.start() }
                 Task { await widgetCoordinator.runDailyScanIfNeeded(modelContext: modelContext) }
+            } else {
+                Task { await widgetCoordinator.refreshReminder() }
             }
         }
-        .onChange(of: libraryMonitor.generation) { _, newGeneration in
+        .onChange(of: libraryMonitor.generation) { _, _ in
             // APP-03: in-app cleanups bump the generation — refresh the widget
             // snapshot (debounced + deduped inside the coordinator) and
             // reconcile the cached lifetime savings the widget reads.
             Task {
-                await widgetCoordinator.refreshAfterLibraryChange(
-                    generation: newGeneration,
-                    modelContext: modelContext
-                )
+                await widgetCoordinator.refreshAfterLibraryChange(modelContext: modelContext)
+            }
+        }
+        .onChange(of: largeFileThreshold) { _, _ in
+            // Covers the threshold controls in both Settings and Large Files.
+            Task {
+                await widgetCoordinator.refreshAfterLibraryChange(modelContext: modelContext)
             }
         }
         .onChange(of: PendingRoute.shared.link) { _, newLink in

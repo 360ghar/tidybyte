@@ -41,6 +41,15 @@ final class LibraryChangeMonitor {
         }
     }
 
+    /// Permission transitions do not always produce a PhotoKit change callback.
+    func permissionDidChange() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        generation += 1
+        ScanResults.permissionChanged()
+        Task { await ImageCache.shared.removeAll() }
+    }
+
     /// PHPhotoLibrary posts one change per mutation, so a bulk delete of N
     /// assets can fire N times in quick succession — coalesce into one bump.
     private func scheduleGenerationBump() {

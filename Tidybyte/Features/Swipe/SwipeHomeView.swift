@@ -98,6 +98,12 @@ struct SwipeHomeView: View {
                     )
                     .fadeSlideIn(delay: 0.05)
 
+                    if #available(iOS 18, *) {
+                        filterCard(title: "Worst Shots", description: "Review low-scoring photos, lowest first",
+                                   icon: "camera.metering.unknown", color: .orange, filter: .worstShots)
+                            .fadeSlideIn(delay: 0.08)
+                    }
+
                     filterCard(
                         title: "All Media",
                         description: "Every photo and video in your library",

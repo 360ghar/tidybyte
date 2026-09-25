@@ -102,6 +102,7 @@ struct SmartCategoriesView: View {
             // D-01: a scan left running after the user leaves the screen would
             // keep consuming CPU (and PhotoKit calls) in the background.
             viewModel.cancelScan()
+            viewModel.cancelSearch()
         }
         .toolbar {
             if viewModel.scanState == .completed {
@@ -127,6 +128,7 @@ struct SmartCategoriesView: View {
                         }
                         Button {
                             HapticHelper.impact(.light)
+                            viewModel.cancelSearch()
                             viewModel.scanState = .idle
                         } label: {
                             Label("New Scan", systemImage: "arrow.counterclockwise")
@@ -227,6 +229,7 @@ struct SmartCategoriesView: View {
             onCancel: {
                 HapticHelper.impact(.light)
                 viewModel.cancelScan()
+                viewModel.cancelSearch()
             }
         )
         .fadeSlideIn()
@@ -249,14 +252,39 @@ struct SmartCategoriesView: View {
                 }
                 Spacer()
             } else {
-                categoryChips
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    TextField("Search scanned photos", text: $viewModel.searchText)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.search)
+                        .onSubmit { viewModel.submitSearch() }
+                    HStack {
+                        Button("Search") { viewModel.submitSearch() }
+                            .disabled(!viewModel.isSearchActive || viewModel.isSearching)
+                        if viewModel.isSearchActive {
+                            Button("Clear") { viewModel.searchText = "" }
+                        }
+                    }
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
+                if viewModel.isSearching { ProgressView("Searching on device") }
+                if let message = viewModel.searchMessage {
+                    Text(message).font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
+                }
+                if viewModel.skippedAnalysisCount > 0 {
+                    Text("\(viewModel.skippedAnalysisCount) photos could not be indexed from a local image.")
+                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
+                }
+                if !viewModel.isSearchActive { categoryChips }
 
-                if viewModel.filteredPhotos.isEmpty {
+                if viewModel.isSearching {
+                    Spacer()
+                } else if viewModel.filteredPhotos.isEmpty {
                     Spacer()
                     EmptyStateView(
                         icon: "checkmark.circle",
-                        title: "All Clear",
-                        message: "No photos in this category.",
+                        title: viewModel.isSearchActive ? "No matching photos" : "All Clear",
+                        message: viewModel.isSearchActive ? "Submit a content search or try different words." : "No photos in this category.",
                         iconColor: .green
                     )
                     Spacer()
@@ -293,7 +321,7 @@ struct SmartCategoriesView: View {
                 // reachable even when this one is empty.
                     if !viewModel.selectedIds.isEmpty {
                         ActionBarView {
-                            Text(viewModel.selectedInOtherCategories > 0 ? "\(viewModel.selectedIds.count) selected (\(viewModel.selectedInOtherCategories) on other tabs) \u{00B7} \(viewModel.selectedSize.formattedFileSize)" : "\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
+                            Text(viewModel.selectedInOtherCategories > 0 ? "\(viewModel.selectedIds.count) selected (\(viewModel.selectedInOtherCategories) not shown) \u{00B7} \(viewModel.selectedSize.formattedFileSize)" : "\(viewModel.selectedIds.count) selected \u{00B7} \(viewModel.selectedSize.formattedFileSize)")
                                 .font(.caption)
                             if viewModel.isDeleting {
                                 ProgressView()

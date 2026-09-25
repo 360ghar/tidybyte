@@ -10,7 +10,7 @@ enum CleanupDeletion {
     static let recoverableNote = "iOS will ask you to confirm. Deleted items go to Recently Deleted in Photos, where you can restore them for 30 days."
 
     struct Outcome {
-        let removed: Set<String>       // confirmed deleted; empty on total failure
+        let removed: Set<String>       // confirmed deleted or already absent
         let errorMessage: String?      // nil on full success; set on partial + hard failure
         let deletedCount: Int?         // what deletedCount must be assigned; nil when guard rejected
     }
@@ -22,7 +22,9 @@ enum CleanupDeletion {
         requestedIds: Set<String>,
         kind: CleanupActivityKind,
         sizeById: [String: Int64],
-        photoService: PhotoLibraryService = .shared,
+        performDelete: @MainActor ([String]) async throws -> PhotoDeletionOutcome = {
+            try await PhotoLibraryService.shared.deleteAssets(identifiers: $0)
+        },
         apply: (Set<String>) -> Void,
         recordDeleted: ((Int) -> Void)? = nil
     ) async -> Outcome {
@@ -30,22 +32,24 @@ enum CleanupDeletion {
             return Outcome(removed: [], errorMessage: nil, deletedCount: nil)
         }
         do {
-            let deletedIds = try await photoService.deleteAssets(identifiers: Array(requestedIds))
+            let result = try await performDelete(Array(requestedIds))
+            let deletedIds = result.deletedIds
             recordDeleted?(deletedIds.count)
             CleanupLedger.shared.record(kind: kind, deletedIds: deletedIds, sizeOf: { sizeById[$0] ?? 0 })
-            apply(deletedIds)
-            return Outcome(removed: deletedIds, errorMessage: nil, deletedCount: deletedIds.count)
+            apply(result.removedIds)
+            return Outcome(removed: result.removedIds, errorMessage: nil, deletedCount: deletedIds.count)
         } catch is CancellationError {
             // A cancel is not a deletion failure: nothing was deleted, so stay
             // quiet rather than reporting "Deleted 0 of N items. N couldn't be
             // deleted. Try again." and inviting a pointless re-confirm.
             return Outcome(removed: [], errorMessage: nil, deletedCount: nil)
         } catch let error as PhotoServiceError {
-            if let succeededIds = error.succeededIds {
+            if let result = error.deletionOutcome {
+                let succeededIds = result.deletedIds
                 recordDeleted?(succeededIds.count)
                 CleanupLedger.shared.record(kind: kind, deletedIds: succeededIds, sizeOf: { sizeById[$0] ?? 0 })
-                apply(succeededIds)
-                return Outcome(removed: succeededIds, errorMessage: error.localizedDescription, deletedCount: succeededIds.count)
+                apply(result.removedIds)
+                return Outcome(removed: result.removedIds, errorMessage: error.localizedDescription, deletedCount: succeededIds.count)
             }
             // "Don't Allow" keeps its "Nothing was deleted." message: the
             // views gate the success celebration on `errorMessage == nil`.

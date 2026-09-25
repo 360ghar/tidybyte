@@ -47,6 +47,9 @@ struct AssetSummary: Identifiable, Sendable, Hashable {
     /// The frame the user or the camera picked inside a burst. `.none` for
     /// every asset that is not a burst frame.
     var burstPick: BurstPick = .none
+    var isScreenRecording = false
+    var isCinematic = false
+    var isSpatial = false
 
     /// The original file is HEIC/HEIF (already an efficient format).
     var isHEIC: Bool {

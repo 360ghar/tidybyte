@@ -195,8 +195,11 @@ struct BlurryPhotosView: View {
                 Text("Blurry (\(viewModel.blurryCount))").tag(BlurryTab.blurry)
                 Text("Dark (\(viewModel.darkCount))").tag(BlurryTab.tooDark)
                 Text("Bright (\(viewModel.overexposedCount))").tag(BlurryTab.overexposed)
+                if viewModel.supportsLensSmudge {
+                    Text("Lens Smudge (\(viewModel.smudgeCount))").tag(BlurryTab.lensSmudge)
+                }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
             .readableWidth()
@@ -243,6 +246,18 @@ struct BlurryPhotosView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
+            if viewModel.skippedAnalysisCount > 0 {
+                Text("\(viewModel.skippedAnalysisCount) photo\(viewModel.skippedAnalysisCount == 1 ? "" : "s") had no local analysis image.")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
+            }
+            if viewModel.skippedSmudgeCount > 0 {
+                Text("Lens analysis skipped \(viewModel.skippedSmudgeCount) photo\(viewModel.skippedSmudgeCount == 1 ? "" : "s").")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
+            }
+            if #available(iOS 26, *), !viewModel.supportsLensSmudge {
+                Text("Lens smudge analysis is unavailable on this device.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             // D-04: tell the user why their library may look smaller than the
             // full photo count.
             if viewModel.skippedScreenshotCount > 0 {
@@ -304,20 +319,6 @@ struct BlurryPhotosView: View {
                     .strokeBorder(Color.blue, lineWidth: 2)
             }
         }
-        // D-03: analysis ran on the degraded iCloud thumbnail — a low-res copy
-        // can read as softer (blurrier) than the original, so say so.
-        .overlay(alignment: .bottomTrailing) {
-            if photo.isFallbackAnalysis {
-                Text("analyzed from low-res copy")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, Spacing.xs + 2)
-                    .padding(.vertical, 2)
-                    .background(.black.opacity(0.55))
-                    .clipShape(Capsule())
-                    .padding(Spacing.xs)
-            }
-        }
         .contentShape(Rectangle())
         .onTapGesture {
             previewPhoto = photo
@@ -341,6 +342,7 @@ struct BlurryPhotosView: View {
         case .blurry: "Blur"
         case .tooDark: "Darkness"
         case .overexposed: "Brightness"
+        case .lensSmudge: "Lens smudge confidence"
         }
     }
 
@@ -349,6 +351,7 @@ struct BlurryPhotosView: View {
         case .blurry: return .orange
         case .tooDark: return .purple
         case .overexposed: return .yellow
+        case .lensSmudge: return .pink
         }
     }
 
@@ -360,6 +363,8 @@ struct BlurryPhotosView: View {
             return max(0, min(1, 1 - photo.luminance))
         case .overexposed:
             return photo.luminance
+        case .lensSmudge:
+            return photo.smudgeConfidence ?? 0
         }
     }
 }

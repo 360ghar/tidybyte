@@ -112,7 +112,10 @@ struct TidybyteApp: App {
     @MainActor
     private func handleSceneActivation(modelContext: ModelContext) async {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        guard status == .authorized || status == .limited else { return }
+        guard status == .authorized || status == .limited else {
+            await widgetCoordinator.refreshReminder()
+            return
+        }
 
         // APP-01: the coordinator's `isScanning` guard dedupes the `.task` +
         // scenePhase double-fire on cold launch AND the APP-02 permission-grant

@@ -15,13 +15,19 @@ final class AppNavigation {
     /// with a custom filter. SwipeHomeView consumes this via `consumePendingSwipeFilter()`.
     private(set) var pendingSwipeFilter: SwipeFilter?
 
-    /// The live swipe session, registered by SwipeSessionView on appear and
-    /// cleared on disappear. Lets deep-link launches respect the session's
+    /// The live swipe session, weakly held through its completion screen.
+    /// Lets deep-link launches respect the session's
     /// pending-deletion review gate instead of tearing it down blindly.
     private(set) weak var activeSwipeSession: SwipeSessionViewModel?
+    private var activeSwipeSessionTab: AppTab?
+
+    var isShowingSwipeCompletion: Bool {
+        selectedTab == activeSwipeSessionTab && activeSwipeSession?.showCompletion == true
+    }
 
     func setActiveSwipeSession(_ session: SwipeSessionViewModel?) {
         activeSwipeSession = session
+        activeSwipeSessionTab = session == nil ? nil : selectedTab
     }
 
     func showCleanup(tool: CleanupTool? = nil) {

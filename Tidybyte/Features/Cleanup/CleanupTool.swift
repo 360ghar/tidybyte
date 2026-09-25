@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Groups the ten tools by what the user is actually trying to achieve.
+/// Groups cleanup tools by what the user is trying to achieve.
 ///
 /// Grouping is by intent, not by which tools happen to free space: Live Photos
 /// sits with compression (it converts rather than deletes) and Screenshots sits
@@ -39,6 +39,8 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
     case duplicates
     case similar
     case screenshots
+    case screenRecordings
+    case chatMedia
     case blurry
     case smartCategories
     case largeFiles
@@ -51,9 +53,9 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var category: CleanupToolCategory {
         switch self {
-        case .duplicates, .similar, .blurry, .largeFiles, .bursts:
+        case .duplicates, .similar, .blurry, .largeFiles, .bursts, .screenRecordings:
             .freeUpSpace
-        case .screenshots, .smartCategories:
+        case .screenshots, .smartCategories, .chatMedia:
             .organize
         case .livePhotos, .videoCompression, .photoCompression:
             .shrink
@@ -65,6 +67,8 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .duplicates: "Duplicates"
         case .similar: "Similar Photos"
         case .screenshots: "Screenshots"
+        case .screenRecordings: "Screen Recordings"
+        case .chatMedia: "Chat Media"
         case .blurry: "Blurry Photos"
         case .smartCategories: "Smart Categories"
         case .largeFiles: "Large Files"
@@ -80,6 +84,8 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .duplicates: "Find exact & visual duplicates"
         case .similar: "Photos taken close together"
         case .screenshots: "Review & clean up screenshots"
+        case .screenRecordings: "Review recorded videos"
+        case .chatMedia: "Review media in chat albums"
         case .blurry: "Out-of-focus & poorly lit"
         case .smartCategories: "Sort photos by content type"
         case .largeFiles: "Biggest files in your library"
@@ -95,6 +101,8 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .duplicates: "doc.on.doc"
         case .similar: "square.on.square"
         case .screenshots: "camera.viewfinder"
+        case .screenRecordings: "record.circle"
+        case .chatMedia: "bubble.left.and.bubble.right"
         case .blurry: "camera.metering.unknown"
         case .smartCategories: "sparkles.rectangle.stack"
         case .largeFiles: "externaldrive"
@@ -110,6 +118,8 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .duplicates: .red
         case .similar: .orange
         case .screenshots: .yellow
+        case .screenRecordings: .indigo
+        case .chatMedia: .green
         case .blurry: .purple
         case .smartCategories: .pink
         case .largeFiles: .blue
@@ -131,6 +141,8 @@ func cleanupDestinationView(for tool: CleanupTool) -> some View {
         SimilarPhotosView()
     case .screenshots:
         ScreenshotCleanerView()
+    case .screenRecordings, .chatMedia:
+        MediaCleanerView(tool: tool)
     case .blurry:
         BlurryPhotosView()
     case .smartCategories:
@@ -223,6 +235,11 @@ enum ScanResults {
     static func invalidate() {
         epoch += 1
         scanCounts.removeAll()
+    }
+
+    static func permissionChanged() {
+        invalidate()
+        derivedCounts.removeAll()
     }
 
     /// Test-only reset for the shared static state (epoch, generation guard,

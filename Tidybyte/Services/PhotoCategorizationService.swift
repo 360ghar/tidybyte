@@ -23,6 +23,8 @@ struct CategorizedPhoto: Identifiable, Sendable {
     let id: String
     let asset: AssetSummary
     let categories: Set<PhotoCategory>
+    var contentLabels: [String: Float] = [:]
+    var wasAnalyzed = false
 }
 
 /// Coordinates the Smart Categories scan: fetches thumbnails, runs Vision
@@ -58,27 +60,34 @@ actor PhotoCategorizationService {
             }
 
             var categories = Set<PhotoCategory>()
+            var labels: [String: Float] = [:]
+            var wasAnalyzed = false
             // Origin-based bucket needs no image load.
             if asset.assetOrigin == .savedFromApp {
                 categories.insert(.savedFromApps)
             }
 
             if let phAsset = phById[asset.id],
-               let uiImage = await photoService.loadThumbnail(for: phAsset, size: CGSize(width: 300, height: 300)),
+               let uiImage = await photoService.loadAnalysisImage(for: phAsset, targetSize: CGSize(width: 512, height: 512)),
                let cgImage = uiImage.cgImage {
                 let result = await visionService.classifyImageContent(
                     image: cgImage,
                     sensitivity: sensitivity
                 )
+                wasAnalyzed = result.succeeded
+                labels = Dictionary(result.labels.map { (Self.normalizeTaxonomyLabel($0.key), $0.value) }, uniquingKeysWith: max)
                 let matched = buckets(from: result, asset: asset, sensitivity: sensitivity)
                 categories.formUnion(matched)
             }
 
+            if wasAnalyzed && categories.isEmpty { categories.insert(.other) }
             if !categories.isEmpty {
                 results.append(CategorizedPhoto(
                     id: asset.id,
                     asset: asset,
-                    categories: categories
+                    categories: categories,
+                    contentLabels: labels,
+                    wasAnalyzed: wasAnalyzed
                 ))
             }
 

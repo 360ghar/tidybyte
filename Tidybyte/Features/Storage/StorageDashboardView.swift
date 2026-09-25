@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import Charts
 import UIKit
 
@@ -41,6 +42,8 @@ struct StorageDashboardView: View {
                     recentlyDeletedSection
                         .fadeSlideIn(delay: 0.2)
 
+                    cameraFormatSection
+
                     whereStorageGoesSection
                         .fadeSlideIn(delay: 0.25)
 
@@ -66,6 +69,27 @@ struct StorageDashboardView: View {
         }
     }
 
+    private var cameraFormatSection: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                Text("Camera Formats").font(.headline)
+                ForEach(viewModel.cameraFormats) { format in
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("\(format.id): \(format.count) items").font(.subheadline)
+                        Text(MediaCleanerViewModel.sizeLabel(format.assets))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Text("These formats can overlap. Sizes describe your library, not space you will free.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("ProRAW, ProRes, and RAW+JPEG totals are unavailable from the Photos subtype metadata used here.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("For smaller future captures, open Settings → Camera → Formats and review High Efficiency, ProRAW, and ProRes where available. This does not change existing media.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
     // MARK: - Skeleton
 
     private var dashboardSkeleton: some View {
@@ -84,6 +108,20 @@ struct StorageDashboardView: View {
 
             recentlyDeletedSkeleton
                 .fadeSlideIn(delay: 0.2)
+
+            GlassCard {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    SkeletonBar(width: 140, height: 20)
+                    ForEach(0..<2, id: \.self) { _ in
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            SkeletonBar(width: 160, height: 16)
+                            SkeletonBar(width: 90, height: 12)
+                        }
+                    }
+                    ForEach(0..<3, id: \.self) { _ in SkeletonBar(height: 30) }
+                }
+            }
+            .fadeSlideIn(delay: 0.225)
 
             whereStorageGoesSkeleton
                 .fadeSlideIn(delay: 0.25)

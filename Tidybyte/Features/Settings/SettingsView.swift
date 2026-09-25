@@ -4,6 +4,7 @@ import UIKit
 import Photos
 
 struct SettingsView: View {
+    @Environment(WidgetSnapshotCoordinator.self) private var widgetCoordinator
     // Swipe
     @AppStorage(AppPreferences.Key.defaultSwipeFilter) private var defaultSwipeFilter: String = DefaultSwipeFilterPreference.notSwipedYet.rawValue
 
@@ -245,7 +246,7 @@ struct SettingsView: View {
                                     // Keep the committed mirror in sync so a later
                                     // revert lands on the day the user actually has.
                                     committedReminderWeekday = reminderWeekday
-                                    _ = await NotificationService.scheduleWeeklyReminder(weekday: reminderWeekday)
+                                    await widgetCoordinator.refreshReminder()
                                 } else {
                                     remindersEnabled = false
                                     showNotificationDeniedAlert = true
@@ -276,7 +277,7 @@ struct SettingsView: View {
                                 return
                             }
                             committedReminderWeekday = newDay
-                            _ = await NotificationService.scheduleWeeklyReminder(weekday: newDay)
+                            await widgetCoordinator.refreshReminder()
                         }
                     }
                 }
