@@ -76,6 +76,10 @@ final class DuplicateFinderViewModel {
         // turn on the main actor) must not touch shared state: `cancelScan()`
         // already moved the UI to `.idle`.
         guard scanRunner.isCurrent(token) else { return }
+        // Captured before any await: a library change during the scan bumps the
+        // epoch, and this run's result must then be dropped rather than
+        // published as a pre-change count.
+        let scanEpoch = ScanResults.epoch
         scanState = .scanning(0)
         selectedForDeletion.removeAll()
         errorMessage = nil
@@ -135,7 +139,7 @@ final class DuplicateFinderViewModel {
         guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
         scanState = .completed
-        ScanResults.record(.duplicates, count: totalDuplicateCount)
+        ScanResults.record(.duplicates, count: totalDuplicateCount, epoch: scanEpoch)
 
         selectNonBestAssets()
     }

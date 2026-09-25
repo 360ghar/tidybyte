@@ -154,7 +154,22 @@ func cleanupDestinationView(for tool: CleanupTool) -> some View {
 enum ScanResults {
     private(set) static var counts: [CleanupTool: Int] = [:]
 
+    /// Bumped by `invalidate()` on every observed library change. A scan
+    /// captures it when it starts and passes it back to `record`, so a run
+    /// that finishes after a change cannot publish pre-change results.
+    private(set) static var epoch = 0
+
+    /// Records a count derived from the CURRENT library state — a prune or a
+    /// delete just updated the list, so the count is not stale.
     static func record(_ tool: CleanupTool, count: Int) {
+        counts[tool] = count
+    }
+
+    /// Records a finished scan's result. Dropped when the library changed while
+    /// the scan ran (`epoch` no longer current): publishing that count would
+    /// advertise results that no longer exist.
+    static func record(_ tool: CleanupTool, count: Int, epoch: Int) {
+        guard epoch == Self.epoch else { return }
         counts[tool] = count
     }
 
@@ -164,6 +179,7 @@ enum ScanResults {
     /// observed via `LibraryChangeMonitor.generation` — see
     /// `CleanupHomeViewModel.sync(to:)`.)
     static func invalidate() {
+        epoch += 1
         counts.removeAll()
     }
 }

@@ -89,6 +89,10 @@ final class SimilarPhotosViewModel {
         // turn on the main actor) must not touch shared state: `cancelScan()`
         // already moved the UI to `.idle`.
         guard scanRunner.isCurrent(token) else { return }
+        // Captured before any await: a library change during the scan bumps the
+        // epoch, and this run's result must then be dropped rather than
+        // published as a pre-change count.
+        let scanEpoch = ScanResults.epoch
         scanState = .scanning(0)
         selectedForDeletion.removeAll()
         errorMessage = nil
@@ -163,7 +167,7 @@ final class SimilarPhotosViewModel {
 
         groups = foundGroups
         scanState = .completed
-        ScanResults.record(.similar, count: totalDuplicateCount)
+        ScanResults.record(.similar, count: totalDuplicateCount, epoch: scanEpoch)
 
         // Similar shots are different photos: start with nothing selected.
         // "Select All" applies the suggestion (all but each keeper, never a
