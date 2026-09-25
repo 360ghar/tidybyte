@@ -87,11 +87,13 @@ final class LivePhotosConverterViewModel {
         guard let index = items.firstIndex(where: { $0.id == itemId }) else { return }
         // Captured before the await: a post-delete fetch returns nothing.
         let size = items[index].asset.fileSize
+        CleanupLedger.shared.dismissDeletionNotice()
         errorMessage = nil
         do {
-            let deletedIds = try await photoService.deleteAssets(identifiers: [itemId])
+            let result = try await photoService.deleteAssets(identifiers: [itemId])
+            let deletedIds = result.deletedIds
             CleanupLedger.shared.record(kind: .livePhotos, deletedIds: deletedIds, sizeOf: { _ in size })
-            items.removeAll { deletedIds.contains($0.id) }
+            items.removeAll { result.removedIds.contains($0.id) }
             deletedCount += deletedIds.count
         } catch {
             errorMessage = error.localizedDescription

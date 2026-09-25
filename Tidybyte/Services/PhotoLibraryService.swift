@@ -10,6 +10,7 @@ enum SwipeFilter: Sendable, Hashable {
     case specificAlbum(id: String)
     case notSwipedYet
     case screenshots
+    case worstShots
     case customAssetIds(Set<String>)
 }
 
@@ -215,6 +216,9 @@ actor PhotoLibraryService {
             let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
             return extractSummaries(from: fetchResult)
 
+        case .worstShots:
+            return fetchAllPhotos()
+
         case .screenshots:
             let options = allAssetsFetchOptions()
             options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
@@ -232,6 +236,21 @@ actor PhotoLibraryService {
         options.predicate = NSPredicate(format: "mediaType = %d", mediaType.rawValue)
         let result = PHAsset.fetchAssets(with: options)
         return extractSummaries(from: result)
+    }
+
+    nonisolated static func isScreenRecordingFilename(_ filename: String) -> Bool {
+        let name = filename.uppercased()
+        return name.hasPrefix("RPREPLAY_FINAL") && name.hasSuffix(".MP4")
+    }
+
+    func fetchChatMedia(albumIDs: Set<String>) -> [AssetSummary] {
+        var byID: [String: AssetSummary] = [:]
+        for albumID in albumIDs {
+            for asset in fetchAssets(filter: .specificAlbum(id: albumID)) where asset.mediaType == .photo || asset.mediaType == .video {
+                byID[asset.id] = asset
+            }
+        }
+        return Array(byID.values)
     }
 
     func fetchScreenshots() -> [AssetSummary] {
@@ -627,79 +646,60 @@ actor PhotoLibraryService {
 
     // MARK: - Mutations
 
-    /// Deletes the given assets atomically. If the batch fails (e.g. one
-    /// protected/undeletable asset aborts the whole `performChanges`), retries
-    /// each identifier individually so the deletable ones still go through,
-    /// then throws `partialDeletion` carrying the identifiers that DID succeed,
-    /// so callers can drop them from their lists instead of showing ghosts
-    /// (SHARED-01).
+    /// Only successful PhotoKit mutations count as deletions. Already-absent
+    /// assets still leave the UI, but never contribute bytes to the ledger.
     @discardableResult
-    func deleteAssets(identifiers: [String]) async throws -> Set<String> {
-        let assets = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
+    func deleteAssets(identifiers: [String]) async throws -> PhotoDeletionOutcome {
+        let requested = Set(identifiers)
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: Array(requested), options: nil)
+        var present = Set<String>()
+        assets.enumerateObjects { asset, _, _ in present.insert(asset.localIdentifier) }
+        var absent = requested.subtracting(present)
+        guard !present.isEmpty else { return PhotoDeletionOutcome(deletedIds: [], alreadyAbsentIds: absent) }
         do {
+            try Task.checkCancellation()
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.deleteAssets(assets)
             }
-            // fetchAssets silently drops externally-vanished ids, so intersect
-            // with what was actually fetched — callers sum freed bytes over
-            // returned ids, and crediting vanished ids would inflate the ledger.
-            var fetchedIds = Set<String>()
-            assets.enumerateObjects { asset, _, _ in
-                fetchedIds.insert(asset.localIdentifier)
-            }
-            return Set(identifiers).intersection(fetchedIds)
+            return PhotoDeletionOutcome(deletedIds: present, alreadyAbsentIds: absent)
         } catch {
-            // "Don't Allow" on the iOS prompt: stop here. The per-id retry
-            // below would show the same prompt again, once per item.
-            if PhotoServiceError.isUserDeclined(error) {
-                throw PhotoServiceError.userDeclined
-            }
-            var succeeded = Set<String>()
+            if error is CancellationError { throw error }
+            if PhotoServiceError.isUserDeclined(error) { throw PhotoServiceError.userDeclined }
+            var deleted = Set<String>()
             var failed = 0
-            for (offset, id) in identifiers.enumerated() {
-                // Serial by design (PhotoKit-safe); yield periodically so a
-                // long fallback retry stays cancellable and responsive.
+            for (offset, id) in present.sorted().enumerated() {
                 if offset % 10 == 0 { await Task.yield() }
-                // Cancelled mid-loop. When nothing has been deleted yet a plain
-                // cancel must stay a cancel — reporting "Deleted 0 of N items"
-                // (or Swipe's "Failed to delete N photos") nudges the user into
-                // re-confirming an iOS prompt for a deletion they never asked
-                // to retry. Only once some ids have actually gone do we throw
-                // `partialDeletion`, so the ids deleted so far travel with the
-                // error via `succeededIds` instead of being discarded.
                 if Task.isCancelled {
-                    guard !succeeded.isEmpty else { throw CancellationError() }
+                    guard !deleted.isEmpty else { throw CancellationError() }
                     throw PhotoServiceError.partialDeletion(
-                        succeededIds: succeeded,
-                        failedCount: identifiers.count - succeeded.count
+                        succeededIds: deleted, failedCount: requested.subtracting(deleted.union(absent)).count,
+                        alreadyAbsentIds: absent
                     )
                 }
+                guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
+                    absent.insert(id)
+                    continue
+                }
                 do {
-                    guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
-                        // The asset no longer exists in the library (deleted
-                        // externally — e.g. iCloud sync or the Photos app —
-                        // between fetch and delete). The delete's goal state,
-                        // "not in the library", is already satisfied, so
-                        // deliberately report it in the succeeded set instead
-                        // of scaring the user with a bogus "couldn't be
-                        // deleted" failure.
-                        succeeded.insert(id)
-                        continue
-                    }
                     try await PHPhotoLibrary.shared().performChanges {
                         PHAssetChangeRequest.deleteAssets([asset] as NSArray)
                     }
-                    succeeded.insert(id)
+                    deleted.insert(id)
                 } catch {
+                    if PhotoServiceError.isUserDeclined(error) {
+                        guard !deleted.isEmpty else { throw PhotoServiceError.userDeclined }
+                        throw PhotoServiceError.partialDeletion(
+                            succeededIds: deleted, failedCount: requested.subtracting(deleted.union(absent)).count,
+                            alreadyAbsentIds: absent
+                        )
+                    }
                     failed += 1
                 }
             }
             if failed > 0 {
-                throw PhotoServiceError.partialDeletion(succeededIds: succeeded, failedCount: failed)
+                throw PhotoServiceError.partialDeletion(succeededIds: deleted, failedCount: failed, alreadyAbsentIds: absent)
             }
-            // Every individual retry succeeded — the batch failure was
-            // transient; nothing remains.
-            return succeeded
+            return PhotoDeletionOutcome(deletedIds: deleted, alreadyAbsentIds: absent)
         }
     }
 
@@ -984,11 +984,13 @@ actor PhotoLibraryService {
     }
 
     nonisolated private static func estimateFileSize(from resources: [PHAssetResource]) -> Int64 {
-        var totalSize: Int64 = 0
-        for resource in resources {
-            totalSize += Self.safeFileSize(for: resource)
-        }
-        return totalSize
+        completeResourceSize(resources.map(Self.safeFileSize))
+    }
+
+    /// A missing Live Photo component or adjustment resource makes the total unknown.
+    nonisolated static func completeResourceSize(_ sizes: [Int64]) -> Int64 {
+        guard !sizes.isEmpty, sizes.allSatisfy({ $0 > 0 }) else { return 0 }
+        return sizes.reduce(0, +)
     }
 
     nonisolated private static func makeSummary(from asset: PHAsset) -> AssetSummary {
@@ -1028,7 +1030,13 @@ actor PhotoLibraryService {
             isLocallyAvailable: isLocal,
             assetOrigin: Self.detectOrigin(for: asset, filename: resources.first?.originalFilename),
             burstPick: asset.burstSelectionTypes.contains(.userPick) ? .user
-                : asset.burstSelectionTypes.contains(.autoPick) ? .iPhone : .none
+                : asset.burstSelectionTypes.contains(.autoPick) ? .iPhone : .none,
+            isScreenRecording: asset.mediaType == .video && (
+                asset.mediaSubtypes.contains(.videoScreenRecording)
+                || resources.contains { Self.isScreenRecordingFilename($0.originalFilename) }
+            ),
+            isCinematic: asset.mediaSubtypes.contains(.videoCinematic),
+            isSpatial: asset.mediaSubtypes.contains(.spatialMedia)
         )
     }
 
@@ -1113,13 +1121,19 @@ actor PhotoLibraryService {
     }
 }
 
+struct PhotoDeletionOutcome: Sendable, Equatable {
+    let deletedIds: Set<String>
+    let alreadyAbsentIds: Set<String>
+    var removedIds: Set<String> { deletedIds.union(alreadyAbsentIds) }
+}
+
 // MARK: - Errors
 
 enum PhotoServiceError: LocalizedError {
     case albumNotFound
     case albumCreationFailed
     case albumChangeFailed
-    case partialDeletion(succeededIds: Set<String>, failedCount: Int)
+    case partialDeletion(succeededIds: Set<String>, failedCount: Int, alreadyAbsentIds: Set<String> = [])
     /// The user tapped "Don't Allow" on the iOS delete prompt.
     case userDeclined
 
@@ -1128,7 +1142,7 @@ enum PhotoServiceError: LocalizedError {
         case .albumNotFound: return "Album not found."
         case .albumCreationFailed: return "Failed to create album."
         case .albumChangeFailed: return "Couldn't modify the album. Please try again."
-        case .partialDeletion(let succeededIds, let failedCount):
+        case .partialDeletion(let succeededIds, let failedCount, _):
             let total = succeededIds.count + failedCount
             return "Deleted \(succeededIds.count) of \(total) items. \(failedCount) couldn't be deleted. Try again."
         case .userDeclined: return "Nothing was deleted."
@@ -1144,14 +1158,13 @@ enum PhotoServiceError: LocalizedError {
             && nsError.code == PHPhotosError.Code.userCancelled.rawValue
     }
 
-    /// Ids that were deleted before a partial failure. `nil` for non-partial
-    /// errors. Shared by all cleanup tools' delete reconciliation (C5).
-    var succeededIds: Set<String>? {
-        if case .partialDeletion(let succeededIds, _) = self {
-            return succeededIds
+    var deletionOutcome: PhotoDeletionOutcome? {
+        if case .partialDeletion(let deleted, _, let absent) = self {
+            return PhotoDeletionOutcome(deletedIds: deleted, alreadyAbsentIds: absent)
         }
         return nil
     }
+
 }
 
 // MARK: - Change Observer Helper

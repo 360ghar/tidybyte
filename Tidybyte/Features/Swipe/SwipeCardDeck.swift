@@ -211,6 +211,7 @@ struct SwipeCardDeck: View {
                         asset: asset,
                         photoService: viewModel.photoService,
                         isTopCard: isTop,
+                        reviewReason: isTop ? viewModel.reviewReason : nil,
                         motion: slot.motion,
                         zoomToggleRequest: isTop ? zoomToggleRequest : 0,
                         playRequest: isTop ? playRequest : 0,
@@ -392,6 +393,7 @@ struct SwipeCardDeck: View {
             parts.append(date.formatted(date: .abbreviated, time: .omitted))
         }
         parts.append(asset.displaySize)
+        if asset.id == viewModel.currentAsset?.id, let reason = viewModel.reviewReason { parts.append(reason) }
         if asset.isFavorite { parts.append("Favorite") }
         if asset.isLivePhoto { parts.append("Live Photo.") }
         if !asset.isLocallyAvailable { parts.append("In iCloud.") }

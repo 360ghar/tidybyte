@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import Charts
 import UIKit
 
@@ -41,6 +42,8 @@ struct StorageDashboardView: View {
                     recentlyDeletedSection
                         .fadeSlideIn(delay: 0.2)
 
+                    cameraFormatSection
+
                     whereStorageGoesSection
                         .fadeSlideIn(delay: 0.25)
 
@@ -63,6 +66,27 @@ struct StorageDashboardView: View {
         }
         .task(id: libraryMonitor.generation) {
             await viewModel.sync(to: libraryMonitor.generation, modelContext: modelContext)
+        }
+    }
+
+    private var cameraFormatSection: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                Text("Camera Formats").font(.headline)
+                ForEach(viewModel.cameraFormats) { format in
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("\(format.id): \(format.count) items").font(.subheadline)
+                        Text(MediaCleanerViewModel.sizeLabel(format.assets))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Text("These formats can overlap. Sizes describe your library, not space you will free.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("ProRAW, ProRes, and RAW+JPEG totals are unavailable from the Photos subtype metadata used here.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("For smaller future captures, open Settings → Camera → Formats and review High Efficiency, ProRAW, and ProRes where available. This does not change existing media.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 

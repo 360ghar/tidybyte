@@ -24,6 +24,36 @@ final class SwipeSessionViewModel {
     var assets: [AssetSummary] = []
     var currentIndex: Int = 0
     var isLoading: Bool = false
+    private(set) var analysisProgress: Float = 0
+    private(set) var skippedAnalysisCount = 0
+    private var loadGeneration = 0
+    private let visionService = VisionAnalysisService()
+    private let intelligence = LocalPhotoIntelligence()
+    private var cardReason: (asset: AssetSummary, text: String)?
+    var reviewReason: String? {
+        guard cardReason?.asset == currentAsset else { return nil }
+        return cardReason?.text
+    }
+
+    func refreshReviewReason() async {
+        cardReason = nil
+        guard let asset = currentAsset, !showCompletion, await intelligence.isAvailable() else { return }
+        let epoch = ScanResults.epoch
+        do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+        guard !Task.isCancelled, currentAsset == asset else { return }
+        let current = await photoService.fetchAssets(filter: .customAssetIds([asset.id])).first
+        guard !Task.isCancelled, current == asset else { return }
+        let image = asset.mediaType == .photo && !asset.isScreenshot
+            ? await photoService.loadAnalysisImage(for: asset.id, targetSize: CGSize(width: 512, height: 512))?.cgImage : nil
+        let reason = await intelligence.reviewReason(asset: asset, image: image)
+        guard !Task.isCancelled else { return }
+        applyReviewReason(reason, for: asset, epoch: epoch)
+    }
+
+    func applyReviewReason(_ reason: String?, for asset: AssetSummary, epoch: Int) {
+        guard currentAsset == asset, epoch == ScanResults.epoch, !showCompletion else { return }
+        if let reason { cardReason = (asset, reason) }
+    }
     private(set) var hasLoadedInitialAssets = false
     var sessionStats: SessionStats = .empty
     var showCompletion: Bool = false
@@ -130,12 +160,43 @@ final class SwipeSessionViewModel {
 
     private func loadAssets() async {
         isLoading = true
+        loadGeneration += 1
+        let token = loadGeneration
+        let epoch = ScanResults.epoch
+        defer { if token == loadGeneration { isLoading = false } }
+        analysisProgress = 0
+        skippedAnalysisCount = 0
         allPhotosAlreadySwiped = false
 
         let swipedIds = fetchSwipedIdentifiers()
 
         let fetched: [AssetSummary]
         switch filter {
+        case .worstShots:
+            let all = await photoService.fetchAllPhotos()
+            guard !Task.isCancelled, token == loadGeneration else { return }
+            let candidates = Self.collapsingBursts(all).filter(Self.isWorstShotCandidate)
+            var scored: [(asset: AssetSummary, result: AestheticsResult)] = []
+            for (index, asset) in candidates.enumerated() {
+                guard !Task.isCancelled, token == loadGeneration else { return }
+                if index % 20 == 0 { await Task.yield() }
+                if let image = await photoService.loadAnalysisImage(for: asset.id, targetSize: CGSize(width: 512, height: 512))?.cgImage,
+                   let result = await visionService.analyzeAesthetics(image: image) {
+                    guard !Task.isCancelled, token == loadGeneration else { return }
+                    if result.isLowQuality { scored.append((asset, result)) }
+                } else if token == loadGeneration {
+                    skippedAnalysisCount += 1
+                }
+                guard !Task.isCancelled, token == loadGeneration else { return }
+                analysisProgress = Float(index + 1) / Float(max(1, candidates.count))
+            }
+            guard !Task.isCancelled, token == loadGeneration else { return }
+            guard epoch == ScanResults.epoch else {
+                errorMessage = "Your library changed during analysis. Try Worst Shots again."
+                hasLoadedInitialAssets = true
+                return
+            }
+            fetched = scored.sorted(by: Self.worstShotOrder).map(\.asset)
         case .notSwipedYet:
             let allAssets = await photoService.fetchAssets(filter: .allMedia)
             // Collapse before the swipe filter: filtering first lets a reviewed
@@ -164,6 +225,7 @@ final class SwipeSessionViewModel {
         default:
             deck = Self.collapsingBursts(fetched)
         }
+        guard !Task.isCancelled, token == loadGeneration else { return }
         assets = Self.deckAssets(deck, excludingPending: pendingDeletionIds)
         currentIndex = 0
         // Undo entries point into the old deck; after a reload they would
@@ -179,6 +241,26 @@ final class SwipeSessionViewModel {
         Task {
             await photoService.startCaching(assetIds: prefetchIds, targetSize: screenSize)
         }
+    }
+
+    func cancelLoading() {
+        loadGeneration += 1
+        isLoading = false
+    }
+
+    nonisolated static func isWorstShotCandidate(_ asset: AssetSummary) -> Bool {
+        asset.mediaType == .photo && !asset.isFavorite && !asset.isScreenshot
+    }
+
+    nonisolated static func worstShotOrder(
+        _ lhs: (asset: AssetSummary, result: AestheticsResult),
+        _ rhs: (asset: AssetSummary, result: AestheticsResult)
+    ) -> Bool {
+        if lhs.result.score != rhs.result.score { return lhs.result.score < rhs.result.score }
+        if lhs.asset.creationDate != rhs.asset.creationDate {
+            return (lhs.asset.creationDate ?? .distantPast) < (rhs.asset.creationDate ?? .distantPast)
+        }
+        return lhs.asset.id < rhs.asset.id
     }
 
     /// A reload ("Try Again" after the deck ran out) must not show photos that
@@ -373,6 +455,7 @@ final class SwipeSessionViewModel {
     func commitDeletions() async {
         guard !pendingDeletionIds.isEmpty, !isDeletingBatch else { return }
         isDeletingBatch = true
+        CleanupLedger.shared.dismissDeletionNotice()
         // Sizes come from the in-memory session assets (no re-fetch): only ids
         // the library confirms as deleted are counted, so assets that vanished
         // externally before commit can't overstate "Storage Freed" (SWIPE-08).
@@ -380,16 +463,9 @@ final class SwipeSessionViewModel {
         // drops pending ids (`deckAssets`), so rebuilding from `assets` alone
         // reports zero freed bytes for them.
         let sizeById = pendingDeletionSizeById
-        // Fresh pre-delete existence check: deleteAssets' fast path returns
-        // every requested id, including assets that vanished externally (iCloud
-        // sync, the Photos app) between session load and commit. Only ids
-        // present here count toward bytes, stats, and the ledger — the pending
-        // list itself still clears, since "not in the library" is the goal
-        // state either way.
-        let existingIds = await photoService.existingIds(pendingDeletionIds)
         do {
-            let deletedIds = try await photoService.deleteAssets(identifiers: pendingDeletionIds)
-            let confirmedIds = deletedIds.intersection(existingIds)
+            let result = try await photoService.deleteAssets(identifiers: pendingDeletionIds)
+            let confirmedIds = result.deletedIds
             let freedBytes = confirmedIds.reduce(Int64(0)) { sum, id in sum + (sizeById[id] ?? 0) }
             committedDeletionCount += confirmedIds.count
             committedDeletionBytes += freedBytes
@@ -410,7 +486,8 @@ final class SwipeSessionViewModel {
             // Partial failure: some assets WERE deleted. Reconcile state to the
             // survivors first, then surface an honest retry message (B6).
             var handled = false
-            if let succeededIds = error.succeededIds {
+            if let result = error.deletionOutcome {
+                let succeededIds = result.removedIds
                 // Bytes from the pre-delete size map — a post-delete fetch of
                 // these ids is empty (they are gone), which is what inflated
                 // pendingDeletionBytes before (B6). sessionStats stays as-is:
@@ -418,7 +495,7 @@ final class SwipeSessionViewModel {
                 // so succeeded ids are covered; a retry or discard resolves.
                 // Like the success path, only pre-delete-existing ids count —
                 // externally-vanished ids clear from pending but add no bytes.
-                let confirmedSucceeded = succeededIds.intersection(existingIds)
+                let confirmedSucceeded = result.deletedIds
                 let succeededBytes = confirmedSucceeded.reduce(Int64(0)) { sum, id in sum + (sizeById[id] ?? 0) }
                 committedDeletionCount += confirmedSucceeded.count
                 committedDeletionBytes += succeededBytes

@@ -409,9 +409,9 @@ extension PhotoLibraryService {
     fileprivate func removeOrphanedAssets(ids: [String]) async -> Set<String> {
         guard !ids.isEmpty else { return [] }
         do {
-            return try await deleteAssets(identifiers: ids)
+            return try await deleteAssets(identifiers: ids).removedIds
         } catch {
-            return (error as? PhotoServiceError)?.succeededIds ?? []
+            return (error as? PhotoServiceError)?.deletionOutcome?.removedIds ?? []
         }
     }
 }

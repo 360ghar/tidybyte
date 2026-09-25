@@ -47,7 +47,7 @@ struct RootView: View {
             NavigationStack(path: cleanupPathBinding) {
                 permissionGatedView { CleanupHomeView() }
                     .navigationDestination(for: CleanupTool.self) { tool in
-                        cleanupDestinationView(for: tool)
+                        permissionGatedView { cleanupDestinationView(for: tool) }
                     }
             }
             .tabItem {
@@ -77,6 +77,11 @@ struct RootView: View {
             }
             .tag(AppTab.settings)
         }
+        .safeAreaInset(edge: .bottom) {
+            if !appNavigation.isShowingSwipeCompletion {
+                RecentlyDeletedNotice()
+            }
+        }
         .sidebarAdaptableOnPad()
         .environment(appNavigation)
         .environment(libraryMonitor)
@@ -100,6 +105,7 @@ struct RootView: View {
             }
         }
         .onChange(of: permissionHandler.permissionState) { _, newState in
+            libraryMonitor.permissionDidChange()
             // APP-02: a first-launch permission grant happens in-foreground, so
             // scenePhase never re-fires — run the daily scan on the grant. The
             // coordinator's isScanning guard dedupes against any activation
@@ -107,6 +113,8 @@ struct RootView: View {
             if newState == .authorized || newState == .limited {
                 Task { await libraryMonitor.start() }
                 Task { await widgetCoordinator.runDailyScanIfNeeded(modelContext: modelContext) }
+            } else {
+                Task { await widgetCoordinator.refreshReminder() }
             }
         }
         .onChange(of: libraryMonitor.generation) { _, newGeneration in

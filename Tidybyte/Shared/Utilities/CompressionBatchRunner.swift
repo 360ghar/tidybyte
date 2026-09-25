@@ -379,7 +379,15 @@ enum OriginalsCommit {
         let ids = viable.map(\.assetId)
         // A decline or a partial failure throws; the presence check below
         // decides what happened either way.
-        _ = try? await photoService.deleteAssets(identifiers: ids)
+        CleanupLedger.shared.dismissDeletionNotice()
+        var deleted = Set<String>()
+        do {
+            deleted = try await photoService.deleteAssets(identifiers: ids).deletedIds
+        } catch {
+            deleted = (error as? PhotoServiceError)?.deletionOutcome?.deletedIds ?? []
+        }
+        let sizes = Dictionary(viable.map { ($0.assetId, $0.originalSize) }, uniquingKeysWith: { first, _ in first })
+        CleanupLedger.shared.publishDeletion(deletedIds: deleted, sizeOf: { sizes[$0] ?? 0 })
         let split = partition(viable, id: \.assetId, stillPresent: await photoService.existingIds(ids))
         for item in split.committed {
             item.swap.finalizeCompleted(compressedSize: item.compressedSize)

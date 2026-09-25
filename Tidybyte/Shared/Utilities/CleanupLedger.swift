@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Observation
 
 /// Append-only ledger of successful cleanups, plus the cached lifetime totals
 /// that the widget and the non-launching `FreeSpaceIntent` read.
@@ -9,11 +10,22 @@ import SwiftData
 /// reconciled from the store during the daily scan / after a library change.
 /// An unattached ledger (no model context yet, e.g. very early launch) logs and
 /// no-ops rather than crashing or blocking a delete the user already confirmed.
+@Observable
 @MainActor
 final class CleanupLedger {
     static let shared = CleanupLedger()
 
     private var modelContext: ModelContext?
+    private(set) var deletionNotice: DeletionNotice?
+
+    func dismissDeletionNotice(id: UUID? = nil) {
+        if id == nil || deletionNotice?.id == id { deletionNotice = nil }
+    }
+
+    func publishDeletion(deletedIds: Set<String>, sizeOf: (String) -> Int64) {
+        guard !deletedIds.isEmpty else { return }
+        deletionNotice = DeletionNotice(sizes: deletedIds.map { sizeOf($0) })
+    }
 
     private init() {}
 
@@ -28,6 +40,7 @@ final class CleanupLedger {
     /// pointing at a torn-down store for every test that runs after it.
     func detach() {
         modelContext = nil
+        deletionNotice = nil
     }
 
     // MARK: - Recording
@@ -70,6 +83,7 @@ final class CleanupLedger {
         at date: Date = .now
     ) {
         guard !deletedIds.isEmpty else { return }
+        publishDeletion(deletedIds: deletedIds, sizeOf: sizeOf)
         let bytes = deletedIds.reduce(Int64(0)) { $0 + max(0, sizeOf($1)) }
         record(kind: kind, itemCount: deletedIds.count, freedBytes: bytes, at: date)
     }
@@ -161,5 +175,26 @@ final class CleanupLedger {
             ))
         }
         return events
+    }
+}
+
+/// A result of one confirmed cleanup, never an estimate of the Photos trash.
+struct DeletionNotice: Identifiable, Sendable, Equatable {
+    let id = UUID()
+    let itemCount: Int
+    let knownBytes: Int64
+    let unknownSizeCount: Int
+
+    init(sizes: [Int64]) {
+        itemCount = sizes.count
+        knownBytes = sizes.reduce(0) { $0 + max(0, $1) }
+        unknownSizeCount = sizes.filter { $0 <= 0 }.count
+    }
+
+    var message: String {
+        let amount = unknownSizeCount == 0 && knownBytes > 0
+            ? knownBytes.formattedFileSize
+            : "\(itemCount) item\(itemCount == 1 ? "" : "s")"
+        return "This cleanup moved \(amount) to Recently Deleted. Open Photos to empty it."
     }
 }

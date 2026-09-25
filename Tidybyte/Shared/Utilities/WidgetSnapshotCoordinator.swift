@@ -2,8 +2,9 @@ import Foundation
 import Observation
 import SwiftData
 import WidgetKit
+import Photos
 
-/// Owns the once-per-day heavy library scan and the widget-snapshot refreshes
+/// Owns the launch-time library scan and the widget-snapshot refreshes
 /// that keep the widget in sync with in-app cleanups.
 ///
 /// Every entry point funnels through here so the APP-01 cold-launch race
@@ -14,6 +15,8 @@ import WidgetKit
 final class WidgetSnapshotCoordinator {
     private let photoService: PhotoLibraryService
     private var isScanning = false
+    private var hasScannedThisLaunch = false
+    private var lastScanPermission: PHAuthorizationStatus?
     /// Generation the widget snapshot was last written for. In-memory (not
     /// persisted) deliberately: the monitor's generation counter restarts at 0
     /// each launch, so a persisted value would wrongly suppress the first
@@ -27,15 +30,16 @@ final class WidgetSnapshotCoordinator {
 
     // MARK: - Daily Scan
 
-    /// The once-per-day heavy scan: storage snapshot (SwiftData), reminder
-    /// refresh, widget snapshot write, and the scan-date marker. Re-entrant:
+    /// Refreshes statistics on launch or permission changes; storage history is
+    /// written only once per day. Re-entrant:
     /// concurrent callers see `isScanning` and return immediately (APP-01).
     func runDailyScanIfNeeded(modelContext: ModelContext) async {
         guard !isScanning else { return }
 
+        let permission = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
-        if let lastScan = AppPreferences.lastStorageScanDate(),
+        if hasScannedThisLaunch, lastScanPermission == permission, let lastScan = AppPreferences.lastStorageScanDate(),
            calendar.isDate(lastScan, inSameDayAs: today) {
             // Heavy scan already ran today; still refresh the cheap
             // device-capacity numbers so the widget's storage ring stays
@@ -47,27 +51,31 @@ final class WidgetSnapshotCoordinator {
         isScanning = true
         defer { isScanning = false }
 
-        // `measuredAt` only marks that this scan ran (the once-per-day gate).
-        // Snapshot timestamps are stamped at WRITE time below — a scan spanning
-        // midnight must land on the day its data was recorded, not when the
-        // enumeration started (A2).
-        let measuredAt = Date()
-
         // A single enumeration feeds the storage snapshot and the widget
-        // snapshot.
-        let stats = await Self.computeStats(photoService: photoService)
+        // snapshot. Retry if access or the library changes during enumeration.
+        let snapshot = await currentSnapshot()
+        guard !Task.isCancelled else { return }
+        guard let snapshot else {
+            await refreshReminder(snapshot: nil)
+            return
+        }
+        let stats = snapshot.stats
+        let completedAt = Date()
 
-        recordStorageSnapshot(stats: stats, modelContext: modelContext)
+        if Self.shouldRecordStorageSnapshot(lastRecordedAt: AppPreferences.lastStorageScanDate(), completedAt: completedAt) {
+            recordStorageSnapshot(stats: stats, at: completedAt, modelContext: modelContext)
+        }
+        hasScannedThisLaunch = true
+        lastScanPermission = snapshot.isLimited ? .limited : .authorized
         // Reconcile the cached lifetime totals from the ledger BEFORE the
         // widget write, so the widget's "Cleaned up ..." figure can't drift from
         // the SwiftData history it's supposed to mirror.
         CleanupLedger.shared.refreshCache(modelContext: modelContext)
         writeWidgetSnapshot(stats: stats)
-        await migrateReminderCopyIfNeeded()
         // Record that the heavy scan ran today regardless of the SwiftData save
-        // result above, so a persistent save failure can't re-trigger it on
-        // every foreground.
-        AppPreferences.saveLastStorageScanDate(measuredAt)
+        // result. Use the same day as the history row, including across midnight.
+        AppPreferences.saveLastStorageScanDate(completedAt)
+        await refreshReminder(snapshot: snapshot)
     }
 
     // MARK: - Widget Refresh After Library Change
@@ -89,17 +97,23 @@ final class WidgetSnapshotCoordinator {
             // rows directly (not through the ledger), so this is the point that
             // folds their savings into the cached lifetime total.
             CleanupLedger.shared.refreshCache(modelContext: modelContext)
-            let stats = await Self.computeStats(photoService: self.photoService)
-            self.writeWidgetSnapshot(stats: stats)
+            let snapshot = await self.currentSnapshot()
+            guard !Task.isCancelled else { return }
+            self.writeWidgetSnapshot(stats: snapshot?.stats ?? MediaLibraryStats())
+            await self.refreshReminder(snapshot: snapshot)
             self.lastWrittenGeneration = generation
         }
     }
 
     // MARK: - Snapshot Writing
 
-    private func recordStorageSnapshot(stats: MediaLibraryStats, modelContext: ModelContext) {
+    nonisolated static func shouldRecordStorageSnapshot(lastRecordedAt: Date?, completedAt: Date, calendar: Calendar = .current) -> Bool {
+        lastRecordedAt.map { !calendar.isDate($0, inSameDayAs: completedAt) } ?? true
+    }
+
+    private func recordStorageSnapshot(stats: MediaLibraryStats, at date: Date, modelContext: ModelContext) {
         let snapshot = StorageSnapshot(
-            capturedAt: .now,
+            capturedAt: date,
             photoBytes: stats.photoBytes,
             videoBytes: stats.videoBytes,
             screenshotBytes: stats.screenshotBytes,
@@ -181,24 +195,31 @@ final class WidgetSnapshotCoordinator {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    /// A repeating reminder keeps the text it was scheduled with. Reminders
-    /// scheduled by older builds carry stale counts, so reschedule once with
-    /// the count-free text.
-    ///
-    /// Gated on V3, not V2: V2 was already consumed by the build that shipped
-    /// "large videos" in the body, so those users kept the old wording. A fresh
-    /// key re-runs the reschedule once and lets the current copy land.
-    private func migrateReminderCopyIfNeeded() async {
-        let key = AppPreferences.Key.reminderCopyMigratedV3
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
-        guard AppPreferences.remindersEnabled() else {
-            UserDefaults.standard.set(true, forKey: key)
-            return
+    /// Settings requests fresh counts without writing another storage-history row.
+    func refreshReminder() async {
+        let snapshot = await currentSnapshot()
+        guard !Task.isCancelled else { return }
+        await refreshReminder(snapshot: snapshot)
+    }
+
+    private func refreshReminder(snapshot: NotificationService.Snapshot?) async {
+        if snapshot == nil { lastScanPermission = nil }
+        NotificationService.updateSnapshot(snapshot)
+        _ = await NotificationService.scheduleWeeklyReminder(weekday: AppPreferences.reminderWeekday())
+    }
+
+    private func currentSnapshot() async -> NotificationService.Snapshot? {
+        while !Task.isCancelled {
+            let permission = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+            guard permission == .authorized || permission == .limited else { return nil }
+            let epoch = ScanResults.epoch
+            let date = Date()
+            let stats = await Self.computeStats(photoService: photoService)
+            guard !Task.isCancelled else { return nil }
+            if permission != PHPhotoLibrary.authorizationStatus(for: .readWrite) || epoch != ScanResults.epoch { continue }
+            return NotificationService.Snapshot(stats: stats, date: date, isLimited: permission == .limited)
         }
-        let weekday = AppPreferences.reminderWeekday()
-        guard (1...7).contains(weekday), await NotificationService.isPermissionGranted() else { return }
-        guard await NotificationService.scheduleWeeklyReminder(weekday: weekday) else { return }
-        UserDefaults.standard.set(true, forKey: key)
+        return nil
     }
 
     // MARK: - Shared Helpers

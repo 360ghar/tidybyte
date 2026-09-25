@@ -5,6 +5,8 @@ import SwiftUI
 final class SmartCategoriesViewModel {
     var categorizedPhotos: [CategorizedPhoto] = [] {
         didSet {
+            indexRevision += 1
+            cancelSearch()
             recomputeCategoryCounts()
             recomputeFiltered()
             if scanState == .completed { ScanResults.record(.smartCategories, count: categorizedPhotos.count) }
@@ -24,6 +26,56 @@ final class SmartCategoriesViewModel {
         didSet { recomputeFiltered() }
     }
     var errorMessage: String?
+    var searchText = "" {
+        didSet {
+            cancelSearch()
+            appliedSearch = nil
+            searchMessage = nil
+            recomputeFiltered()
+        }
+    }
+    private(set) var searchMessage: String?
+    private(set) var isSearching = false
+    private(set) var skippedAnalysisCount = 0
+    private var appliedSearch: PhotoSearchQuery?
+    private var searchTask: Task<Void, Never>?
+    private var searchGeneration = 0
+    private var indexRevision = 0
+    private let searchOperation: @Sendable (String, Set<String>) async -> PhotoSearchResult
+
+    var isSearchActive: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    func cancelSearch() {
+        searchGeneration += 1
+        searchTask?.cancel()
+        searchTask = nil
+        isSearching = false
+    }
+
+    func submitSearch() {
+        cancelSearch()
+        let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        appliedSearch = nil
+        recomputeFiltered()
+        isSearching = true
+        let token = searchGeneration
+        let epoch = ScanResults.epoch
+        let vocabulary = Set(categorizedPhotos.flatMap { $0.contentLabels.keys })
+        searchTask = Task {
+            let result = await searchOperation(text, vocabulary)
+            guard !Task.isCancelled, token == searchGeneration else { return }
+            guard epoch == ScanResults.epoch else {
+                isSearching = false
+                searchMessage = "Your library changed. Scan again before searching."
+                return
+            }
+            appliedSearch = result.query
+            searchMessage = result.message
+            isSearching = false
+            recomputeFiltered()
+        }
+    }
     var isDeleting = false
     /// DUP-04/DUP-09 parity: how many items the last delete actually removed,
     /// so the view can gate the success haptic on a non-zero result (C12).
@@ -56,7 +108,9 @@ final class SmartCategoriesViewModel {
     private let visionService = VisionAnalysisService()
     private let categorizationService: PhotoCategorizationService
 
-    init() {
+    init(search: (@Sendable (String, Set<String>) async -> PhotoSearchResult)? = nil) {
+        let intelligence = LocalPhotoIntelligence()
+        searchOperation = search ?? { text, vocabulary in await intelligence.search(text, vocabulary: vocabulary) }
         categorizationService = PhotoCategorizationService(
             photoService: photoService,
             visionService: visionService
@@ -104,7 +158,12 @@ final class SmartCategoriesViewModel {
     }
 
     private func recomputeFiltered() {
-        let filtered = categorizedPhotos.filter { $0.categories.contains(activeCategory) }
+        let filtered = categorizedPhotos.filter { photo in
+            if isSearchActive {
+                return photo.wasAnalyzed && appliedSearch?.matches(labels: photo.contentLabels) == true
+            }
+            return photo.categories.contains(activeCategory)
+        }
         cachedFilteredPhotos = filtered
         cachedActiveCategorySize = filtered.reduce(0) { $0 + $1.asset.fileSize }
     }
@@ -136,6 +195,7 @@ final class SmartCategoriesViewModel {
         // epoch, and this run's result must then be dropped rather than
         // published as a pre-change count.
         let scanEpoch = ScanResults.epoch
+        searchText = ""
         scanState = .scanning(0)
         categorizedPhotos = []
         selectedIds.removeAll()
@@ -162,6 +222,12 @@ final class SmartCategoriesViewModel {
         // `cancelScan()` already moved the UI to `.idle` (C1/C2).
         guard !Task.isCancelled, scanRunner.isCurrent(token) else { return }
 
+        guard scanEpoch == ScanResults.epoch else {
+            scanState = .idle
+            errorMessage = "Your library changed during analysis. Scan again for current results."
+            return
+        }
+        skippedAnalysisCount = max(0, photoCount - results.filter(\.wasAnalyzed).count)
         categorizedPhotos = results
         // Land on the first category that actually has results.
         if let first = nonEmptyCategories.first {
@@ -202,16 +268,20 @@ final class SmartCategoriesViewModel {
             return
         }
         guard scanState == .completed, !categorizedPhotos.isEmpty, !isDeleting else { return }
-        // Snapshot before the await: a cancel+restart can replace
-        // `categorizedPhotos` while we suspend, and applying the previous
-        // scan's membership set to the new results would drop them.
-        let scannedIds = categorizedPhotos.map(\.id)
-        let present = await PhotoLibraryService.shared.existingIds(scannedIds)
-        guard present.count < scannedIds.count else { return }
-        guard scanState == .completed, !isDeleting else { return }
-        let goneIds = Set(scannedIds.filter { !present.contains($0) })
-        categorizedPhotos.removeAll { goneIds.contains($0.id) }
-        selectedIds.subtract(goneIds)
+        cancelSearch()
+        appliedSearch = nil
+        recomputeFiltered()
+        let token = indexRevision
+        let current = await photoService.fetchAllPhotos()
+        guard scanState == .completed, !isDeleting, token == indexRevision else { return }
+        let byID = Dictionary(current.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        categorizedPhotos.removeAll { photo in
+            guard let asset = byID[photo.id] else { return true }
+            return asset.modificationDate != photo.asset.modificationDate
+        }
+        selectedIds.formIntersection(categorizedPhotos.map(\.id))
+        searchMessage = "Library checked. Scan again to include new or edited photos."
+        recomputeFiltered()
     }
 
     func toggleSelection(_ id: String) {

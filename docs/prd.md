@@ -390,39 +390,24 @@ A quick-action section showing:
 - "X duplicate groups found — free up Y MB"
 - "X screenshots — free up Y MB"
 - "X videos over 100 MB — Y GB total"
-- "X items in Recently Deleted — Y MB"
-- Each row is tappable. The first three navigate to that cleanup tool; the Recently Deleted row deep-links to the system Photos app via `photos-redirect://` (Tidybyte cannot permanently delete from this album because PHKit triggers a mandatory system confirmation alert that cannot be suppressed by a third-party app).
+- A Recently Deleted shortcut with manual instructions; no measurable balance.
+- Each row is tappable. The first three navigate to that cleanup tool; the Recently Deleted row deep-links to the system Photos app via `photos-redirect://` (PhotoKit does not expose this album or an API to empty it).
 
 This section is computed async when the tab loads. Show skeleton placeholders while computing.
 
 #### 5.3.5 Recently Deleted Reminder
 
-**What it does:** Surfaces a read-only reminder inside the Storage tab showing how much storage the iOS "Recently Deleted" smart album is currently holding. The row is rendered inside the *Cleanup Opportunities* `GlassCard` so it lives alongside the other storage hints.
+PhotoKit does not expose the contents of Recently Deleted or provide a public API to empty it. Do not find this album by title or claim a remaining balance.
 
-**Why read-only:** Permanently deleting items from Recently Deleted via `PHAssetChangeRequest.deleteAssets` triggers a mandatory system confirmation alert that cannot be suppressed or customised. TidyByte therefore does not attempt to perform this operation; it only shows the user the size impact and a one-tap path to the system Photos app where they can complete the action themselves.
+After confirmed deletion, show a dismissible notice: "This cleanup moved X to Recently Deleted. Open Photos to empty it." X is the known size only when all deleted sizes are available; otherwise use the confirmed item count. Keep the notice across navigation, including a swipe session that commits while exiting. Cancelled or failed operations do not create a success notice. Partial operations count only confirmed deletions, excluding assets already absent from Photos.
 
-**Data source:**
-```swift
-// PhotoKit exposes no PHAssetCollectionSubtype for the system "Recently
-// Deleted" album, so we locate it by enumerating all smart albums and
-// matching the system-localised title (English: "Recently Deleted").
-let allSmartAlbums = PHAssetCollection.fetchAssetCollections(
-    with: .smartAlbum, subtype: .any, options: nil
-)
-let deletedAlbum = /* the album whose localizedTitle == "Recently Deleted" */
-let assets = PHAsset.fetchAssets(in: deletedAlbum, options: nil)
-// Sum `PHAssetResource.fileSize` (KVC-guarded) across all assets in the album.
-```
+Compression and Live Photo replacement notices use original bytes, while the existing savings ledger keeps net savings. Notices are transient and do not add another history record.
 
-**UI:**
-- Trash SF Symbol, grey colour, title "Recently Deleted".
-- Detail: `"\(count) items · \(bytes) · kept for 30 days"`.
-- Tap: open the system Photos app via `openURL(URL(string: "photos-redirect://")!)`.
-- Hidden silently when `count == 0` or when the smart album cannot be located (e.g., iOS version or locale where the English title doesn't match). No error toast, no empty state — just don't render the row.
+Open Photos with `photos-redirect://`. If opening fails, show manual instructions to find Recently Deleted under Utilities. The Storage tab retains a general shortcut without any balance claim.
 
-**Edge cases:**
-- iCloud-only deleted items: included in the count and size.
-- Permission: this fetch runs only after the user has granted photo library access (handled by the existing `permissionGatedView` wrapper around the Storage tab).
+#### 5.3.6 Camera Format Insights
+
+Show Cinematic and Spatial counts and known sizes from public PhotoKit subtype flags. Categories can overlap and are not added to reclaimable totals. ProRAW, ProRes, and RAW+JPEG totals are unavailable in this subtype-only implementation. Include a manual Settings → Camera → Formats tip for future captures.
 
 ---
 
@@ -448,7 +433,7 @@ Simple settings screen with the following options:
 
 When **Cleanup Reminders** is enabled in Settings:
 - Schedule a weekly `UNCalendarNotificationTrigger` for the chosen day at 10:00 AM.
-- Notification body: compute current counts for duplicates, screenshots, and large files at notification time. Example: *"You have 47 screenshots and 12 duplicate groups to review. Your library is using 14.2 GB."*
+- Refresh dated screenshot and large-file counts on launch, after library changes, and after reminder settings change. Example: *"Last scan, 25 Sep 2026: 214 screenshots (1.2 GB) to review."* Counts are a snapshot, not a measurement at notification delivery. Omit incomplete size totals and identify limited-library counts. Use generic text when counts are unavailable.
 - Tapping the notification opens the Cleanup tab.
 - Re-schedule the notification each time the app launches (to reflect updated content).
 
@@ -470,7 +455,7 @@ When **Cleanup Reminders** is enabled in Settings:
 - **iCloud download failure:** Show a non-blocking toast/snackbar. Let the user swipe past.
 - **AVAssetExportSession failure:** Show an alert with the specific error. Log to `os_log`. Do not silently discard.
 - **SwiftData errors:** Wrap all `modelContext.save()` calls in do/catch. Log errors. Non-critical (swipe records failing to save should not crash the app).
-- **Recently Deleted smart album inaccessible:** Hide the Storage tab reminder row silently. Do not show an error toast.
+- **Recently Deleted:** Do not attempt to enumerate it. Use only confirmed cleanup outcomes for notices and offer manual Photos instructions.
 
 ---
 

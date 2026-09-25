@@ -88,6 +88,8 @@ struct SessionCompletionView: View {
             .glassCard()
             .padding(.horizontal, Spacing.lg)
 
+            RecentlyDeletedNotice()
+
             // One primary action; the second exit is a plain text button.
             VStack(spacing: Spacing.md) {
                 Button {

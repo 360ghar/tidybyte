@@ -23,6 +23,8 @@ struct MediaLibraryStats: Sendable {
     /// (APP-12).
     var largeFileCount: Int = 0
     var largeFileBytes: Int64 = 0
+    var screenshotUnknownSizeCount = 0
+    var largeFileUnknownSizeCount = 0
 
     /// Videos strictly over 100 MB — the honest "video compression"
     /// candidate set, matching what VideoCompression actually offers
@@ -50,6 +52,7 @@ struct MediaLibraryStats: Sendable {
                 if asset.isScreenshot {
                     stats.screenshotBytes += size
                     stats.screenshotCount += 1
+                    if size <= 0 { stats.screenshotUnknownSizeCount += 1 }
                 } else if asset.isLivePhoto {
                     stats.livePhotoBytes += size
                     stats.livePhotoCount += 1

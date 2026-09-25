@@ -48,6 +48,7 @@ struct DeviceStorageInfo: Sendable {
 @MainActor
 final class StorageDashboardViewModel {
     var categories: [StorageCategory] = []
+    var cameraFormats: [CameraFormatInsight] = []
     var deviceStorage = DeviceStorageInfo()
     var snapshots: [StorageSnapshot] = []
     var isLoading = true
@@ -145,6 +146,7 @@ final class StorageDashboardViewModel {
         // A single library enumeration feeds the category breakdown, iCloud status,
         // reclaimable wins, and by‑year / by‑source breakdowns.
         let assets = await photoService.fetchAssets(filter: .allMedia)
+        cameraFormats = CameraFormatInsight.build(from: assets)
         buildCategories(from: assets)
         buildICloudStatus(from: assets)
         buildWins(from: assets)
@@ -355,5 +357,16 @@ final class StorageDashboardViewModel {
         snapshots = ((try? modelContext.fetch(descriptor)) ?? [])
             .filter { $0.capturedAt >= thirtyDaysAgo }
             .sorted { $0.capturedAt < $1.capturedAt }
+    }
+}
+
+struct CameraFormatInsight: Identifiable, Sendable {
+    let id: String
+    let assets: [AssetSummary]
+    var count: Int { assets.count }
+
+    static func build(from assets: [AssetSummary]) -> [CameraFormatInsight] {
+        [CameraFormatInsight(id: "Cinematic", assets: assets.filter(\.isCinematic)),
+         CameraFormatInsight(id: "Spatial", assets: assets.filter(\.isSpatial))]
     }
 }

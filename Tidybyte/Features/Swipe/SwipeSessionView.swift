@@ -3,6 +3,7 @@ import SwiftUI
 struct SwipeSessionView: View {
     @Bindable var viewModel: SwipeSessionViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(LibraryChangeMonitor.self) private var libraryMonitor
     @Environment(AppNavigation.self) private var appNavigation
     /// The app-wide handler `RootView` injects, so the empty-state permission
     /// block offers the same ask the tab gate does.
@@ -29,10 +30,21 @@ struct SwipeSessionView: View {
         VStack(spacing: 0) {
             // Progress bar
             progressBar
+            if viewModel.filter == .worstShots, viewModel.skippedAnalysisCount > 0 {
+                Text("\(viewModel.skippedAnalysisCount) photos could not be scored from a local image.")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
+            }
 
             if isBootstrapping {
                 Spacer()
-                ProgressView("Loading photos...")
+                if viewModel.filter == .worstShots {
+                    ProgressView("Scoring photos", value: viewModel.analysisProgress)
+                        .padding(.horizontal, Spacing.xxl)
+                    Button("Cancel") { viewModel.cancelLoading(); dismiss() }
+                        .frame(minHeight: 44)
+                } else {
+                    ProgressView("Loading photos...")
+                }
                 Spacer()
             } else if viewModel.visibleCards.isEmpty, !viewModel.showCompletion {
                 // While the completion screen pushes, the deck stays mounted
@@ -77,6 +89,9 @@ struct SwipeSessionView: View {
                     toast = ToastMessage(text: "Delete is off until the photo loads.", systemImage: "hourglass")
                 })
             }
+        }
+        .task(id: ReviewReasonTaskID(asset: viewModel.currentAsset, generation: libraryMonitor.generation, completion: viewModel.showCompletion)) {
+            await viewModel.refreshReviewReason()
         }
         .toast($toast)
         .photoPermissionPrimer(isPresented: $showPermissionPrimer, permissionHandler: permissionHandler)
@@ -171,6 +186,10 @@ struct SwipeSessionView: View {
             }
         }
         .task {
+            // Capture the hosting tab before an asynchronous scan can outlive a tab switch.
+            // Keep the weak reference through the completion push so external launches
+            // still respect pending deletions. A new session replaces it.
+            appNavigation.setActiveSwipeSession(viewModel)
             await viewModel.loadAssetsIfNeeded()
             // One-time zoom hint, only when there is actually a card to pinch.
             // An empty deck leaves the flag unset so the hint fires on a
@@ -179,17 +198,6 @@ struct SwipeSessionView: View {
                 hasSeenZoomHint = true
                 flashZoomHint()
             }
-            // Register the live session so external launches (deep link /
-            // widget / intent) can respect the pending-deletion review gate
-            // instead of tearing the session down blindly (A1). Deliberately
-            // never cleared here: the reference is weak, a new session
-            // overwrites it, and any session that reaches home has already
-            // resolved its deletions through the review gate — so a stale
-            // entry can never wrongly trigger the gate. Registering only here
-            // (not pairing with onDisappear) matters: onDisappear fires when
-            // the completion screen pushes on top, which is exactly when the
-            // gate must stay armed.
-            appNavigation.setActiveSwipeSession(viewModel)
         }
         .onChange(of: viewModel.deletionReviewRequested) { _, requested in
             // A deep link asked for a new session while this one held uncommitted
@@ -210,6 +218,7 @@ struct SwipeSessionView: View {
             }
         }
         .onDisappear {
+            viewModel.cancelLoading()
             // Any path that leaves the session view (back, empty-state exit,
             // external dismissal, completion push) releases the prefetch cache
             // so a session never pins images in the image manager (SWIPE-01).
@@ -359,4 +368,10 @@ struct SwipeSessionView: View {
     private func flashZoomHint() {
         toast = ToastMessage(text: "Pinch or double-tap a photo to inspect it", systemImage: "magnifyingglass")
     }
+}
+
+private struct ReviewReasonTaskID: Hashable {
+    let asset: AssetSummary?
+    let generation: Int
+    let completion: Bool
 }

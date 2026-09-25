@@ -152,6 +152,11 @@ final class CleanupHomeViewModel {
         reclaimableItemCount = rollup.reclaimableItemCount
 
         updateTool(.screenshots, count: rollup.screenshots)
+        ScanResults.record(.screenRecordings, count: allAssets.filter(\.isScreenRecording).count)
+        let albums = await photoService.fetchUserAlbums().filter { $0.type == .userAlbum }
+        let chatIDs = ChatAlbumSelection.selectedIDs(in: albums)
+        let chatAssets = await photoService.fetchChatMedia(albumIDs: chatIDs)
+        ScanResults.record(.chatMedia, count: chatAssets.count)
         updateTool(.livePhotos, count: rollup.livePhotos)
         updateTool(.videoCompression, count: rollup.largeVideos)
         updateTool(.largeFiles, count: rollup.largeFiles)
@@ -173,6 +178,9 @@ final class CleanupHomeViewModel {
     /// Duplicates, similar, blurry and smart categories cost a full scan to
     /// count: show the last scan's result, or nil ("Not scanned").
     func applyScanResults() {
+        for tool in [CleanupTool.chatMedia, .screenRecordings] {
+            if let count = ScanResults.counts[tool] { updateTool(tool, count: count) }
+        }
         for tool in [CleanupTool.duplicates, .similar, .blurry, .smartCategories] {
             updateTool(tool, count: ScanResults.counts[tool], isLoading: false)
         }

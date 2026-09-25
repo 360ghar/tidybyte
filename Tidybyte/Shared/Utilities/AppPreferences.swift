@@ -39,11 +39,7 @@ enum AppPreferences {
         static let successfulActionCount = "successfulActionCount"
         static let lastReviewPromptAt = "lastReviewPromptAt"
         static let pendingReviewMilestone = "pendingReviewMilestone"
-        /// Bumped from V2: the reminder body changed from "large videos" to
-        /// "large files", but V2 was already consumed on installs that ran the
-        /// previous build, so those users kept the old wording. A new key
-        /// re-runs the reschedule once and lets the current copy land.
-        static let reminderCopyMigratedV3 = "reminderCopyMigratedV3"
+        static let chatAlbumIDs = "chatAlbumIDs"
         static let hasRatedApp = "hasRatedApp"
         static let lifetimeFreedBytes = "lifetimeFreedBytes"
         static let lifetimeItemCount = "lifetimeItemCount"

@@ -5,6 +5,7 @@ struct CleanupHomeView: View {
     @Environment(AppNavigation.self) private var appNavigation
     @Environment(LibraryChangeMonitor.self) private var libraryMonitor
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var viewModel = CleanupHomeViewModel()
 
     /// Replacement-copy ids persisted by the compression flows. The badge must
@@ -14,7 +15,9 @@ struct CleanupHomeView: View {
         CompressionJournal.savedCopyIds(modelContext: modelContext)
     }
 
-    private let columns = ResponsiveGrid.card()
+    private var columns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize ? [GridItem(.flexible())] : ResponsiveGrid.card()
+    }
 
     /// The single tool to point at first: the biggest pile in the group the user
     /// can act on immediately. Nil until counts land, and nil when nothing in
@@ -87,6 +90,11 @@ struct CleanupHomeView: View {
                             cleanupToolCard(info, isStartHere: info.tool == startHereTool)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityLabel("\(info.name), \(info.description)")
+                        .accessibilityValue(info.isLoading ? "Loading" : info.count.map { "\($0) items" } ?? "Not scanned")
+                        .accessibilityIdentifier("cleanup.\(info.tool.rawValue)")
                         .scaleOnPress()
                         .fadeSlideIn(delay: Double(index) * 0.04)
                     }
@@ -123,13 +131,13 @@ struct CleanupHomeView: View {
                     Text(tool.name)
                         .font(.subheadline.bold())
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                         .minimumScaleFactor(0.8)
 
                     Text(tool.description)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2, reservesSpace: true)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                         .minimumScaleFactor(0.8)
 
                     // Always laid out, shown on one card only, so that card is
