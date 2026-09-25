@@ -225,6 +225,10 @@ final class VideoCompressionViewModel {
             keptOriginals = outcome.kept
             if !outcome.failed.isEmpty {
                 errorMessage = OriginalsCommit.missingReplacementMessage
+            } else if outcome.kept.isEmpty {
+                // A retry that finishes the delete clears a stale "Copies
+                // kept" banner left by a declined Remove Copies.
+                errorMessage = nil
             }
             // A retry that completes the delete IS a clean batch success, but
             // `batchSummary` is unchanged so the view's `.onChange` never

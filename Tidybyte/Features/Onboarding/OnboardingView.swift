@@ -157,6 +157,9 @@ struct OnboardingView: View {
                     .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             }
             .scaleOnPress()
+            // The permission gate behind this cover renders its own
+            // "Allow Access" button, so UI tests scope to this one by id.
+            .accessibilityIdentifier("onboardingPrimaryButton")
             .accessibilityHint(isLastPage
                                ? "Opens the iOS permission prompt for your photo library"
                                : "Shows the next page")

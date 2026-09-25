@@ -156,7 +156,7 @@ final class LivePhotosConverterViewModel {
             setState(.copySaved, for: itemId)
             let result = await commitOriginals([pending])
             if result.failed > 0 {
-                errorMessage = OriginalsCommit.missingReplacementMessage
+                errorMessage = OriginalsCommit.missingStillMessage
             }
         } catch {
             setState(.failed(error.localizedDescription), for: itemId)
@@ -182,7 +182,7 @@ final class LivePhotosConverterViewModel {
         // on `.copySaved`, which has no action at all.
         for item in outcome.failed {
             if let idx = indexById[item.assetId] {
-                items[idx].conversionState = .failed(OriginalsCommit.missingReplacementMessage)
+                items[idx].conversionState = .failed(OriginalsCommit.missingStillMessage)
             }
         }
         keptOriginals = outcome.kept

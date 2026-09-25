@@ -39,6 +39,9 @@ struct SettingsView: View {
     @State private var isRequestingNotificationPermission = false
     @State private var showNotificationDeniedAlert = false
     @State private var showMailUnavailableAlert = false
+    /// The last composer attempt failed to hand the message to Mail, so
+    /// Settings says so instead of closing as if the feedback went out.
+    @State private var showMailSendFailedAlert = false
     /// The in-app composer's payload, or nil when it is not presented.
     @State private var mailDraft: MailDraft?
     /// The last weekday we actually committed to the scheduler. The Reminder Day
@@ -399,9 +402,17 @@ struct SettingsView: View {
         } message: {
             Text("Could not clear swipe history. Please try again.")
         }
+        .alert("Couldn't Send Feedback", isPresented: $showMailSendFailedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("The message couldn't be sent. Please try again or email us at \(FeedbackMail.address).")
+        }
         .sheet(item: $mailDraft) { draft in
-            MailComposeView(subject: draft.subject, body: draft.body) { _ in
+            MailComposeView(subject: draft.subject, body: draft.body) { result in
                 mailDraft = nil
+                // MessageUI's `.failed` means the message was neither saved
+                // nor queued — surface it instead of dismissing silently.
+                showMailSendFailedAlert = (result == .failed)
             }
         }
     }
@@ -417,6 +428,7 @@ struct SettingsView: View {
             showMailUnavailableAlert = true
             return
         }
+        showMailSendFailedAlert = false
         mailDraft = MailDraft(subject: subject, body: FeedbackMail.body(prompt: prompt))
     }
 

@@ -293,6 +293,10 @@ enum OriginalsCommit {
     /// so every surface names the same failure.
     static let missingReplacementMessage = "The compressed copy is missing from your library."
 
+    /// Same failure for Live Photo → still conversions: the saved replacement
+    /// is a still, not a compressed copy, so the shared wording would mislead.
+    static let missingStillMessage = "The converted still is missing from your library."
+
     struct Outcome: Sendable {
         var committed: [PendingOriginal]
         var kept: [PendingOriginal]

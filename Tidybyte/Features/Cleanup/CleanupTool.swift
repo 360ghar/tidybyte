@@ -152,7 +152,30 @@ func cleanupDestinationView(for tool: CleanupTool) -> some View {
 /// Cleanup home shows "12 found" instead of "Not scanned" after a scan.
 @MainActor
 enum ScanResults {
-    private(set) static var counts: [CleanupTool: Int] = [:]
+    /// Finished-scan results, stamped with the epoch they were published in.
+    /// Expired on library change: they may name assets deleted since the scan.
+    private static var scanCounts: [CleanupTool: (count: Int, epoch: Int)] = [:]
+
+    /// Counts derived from the CURRENT list — a prune or a delete just updated
+    /// it, so the count is not stale. These survive library changes, including
+    /// the change notification a tool's own delete triggers: wiping them would
+    /// flip the badge to "Not scanned" right after a successful cleanup.
+    /// Externally deleted assets are corrected the same way, when each tool's
+    /// prune re-records its derived count on the next observed generation.
+    private static var derivedCounts: [CleanupTool: Int] = [:]
+
+    /// A derived count wins over a scan result: it came from the live list,
+    /// not from a snapshot that predates it.
+    static var counts: [CleanupTool: Int] {
+        var merged: [CleanupTool: Int] = [:]
+        for (tool, entry) in scanCounts where entry.epoch == epoch {
+            merged[tool] = entry.count
+        }
+        for (tool, count) in derivedCounts {
+            merged[tool] = count
+        }
+        return merged
+    }
 
     /// Bumped on every observed library change. A scan captures it when it
     /// starts and passes it back to `record`, so a run that finishes after a
@@ -166,7 +189,7 @@ enum ScanResults {
     /// Records a count derived from the CURRENT library state — a prune or a
     /// delete just updated the list, so the count is not stale.
     static func record(_ tool: CleanupTool, count: Int) {
-        counts[tool] = count
+        derivedCounts[tool] = count
     }
 
     /// Records a finished scan's result. Dropped when the library changed while
@@ -174,27 +197,41 @@ enum ScanResults {
     /// advertise results that no longer exist.
     static func record(_ tool: CleanupTool, count: Int, epoch: Int) {
         guard epoch == Self.epoch else { return }
-        counts[tool] = count
+        scanCounts[tool] = (count, epoch)
     }
 
-    /// The library changed. Expires cached counts and advances the epoch, so
-    /// every in-flight scan's captured epoch goes stale and its result is
-    /// dropped. Called from the change-observation path (`LibraryChangeMonitor`),
-    /// not from a screen: screen ownership would clear counts that are still
-    /// valid whenever SwiftUI recreates that screen's view model, and a scan
-    /// could publish a pre-change result if its screen never saw the change.
+    /// The library changed. Expires finished-scan results and advances the
+    /// epoch, so every in-flight scan's captured epoch goes stale and its
+    /// result is dropped — but derived counts survive, because they describe
+    /// the list as it stands after the change. Called from the
+    /// change-observation path (`LibraryChangeMonitor`), not from a screen:
+    /// screen ownership would clear counts that are still valid whenever
+    /// SwiftUI recreates that screen's view model, and a scan could publish a
+    /// pre-change result if its screen never saw the change.
     static func libraryChanged(to generation: Int) {
         guard generation != lastHandledGeneration else { return }
         lastHandledGeneration = generation
-        invalidate()
+        epoch += 1
+        scanCounts.removeAll()
     }
 
-    /// Expires cached counts when the library changes: a recorded count may
-    /// include assets deleted since the scan. The badges fall back to
-    /// "Not scanned" until the tool is scanned again. Changes are observed via
-    /// `LibraryChangeMonitor`, which calls `libraryChanged(to:)`.
+    /// Expires finished-scan results when the library changes: a recorded scan
+    /// count may include assets deleted since the scan. Derived counts survive;
+    /// the badges fall back to "Not scanned" only for tools with neither.
+    /// Changes are observed via `LibraryChangeMonitor`, which calls
+    /// `libraryChanged(to:)`.
     static func invalidate() {
         epoch += 1
-        counts.removeAll()
+        scanCounts.removeAll()
+    }
+
+    /// Test-only reset for the shared static state (epoch, generation guard,
+    /// and both stores), so order-independence tests don't leak generations
+    /// into each other.
+    static func resetForTesting() {
+        scanCounts.removeAll()
+        derivedCounts.removeAll()
+        epoch = 0
+        lastHandledGeneration = 0
     }
 }

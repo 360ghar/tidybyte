@@ -93,8 +93,11 @@ final class DynamicTypeUITests: XCTestCase {
             "page three should be showing"
         )
 
-        let allowButton = app.buttons["Allow Access"]
+        // Scoped by identifier: the permission gate behind this cover renders
+        // its own "Allow Access" button, which must not satisfy this query.
+        let allowButton = app.buttons["onboardingPrimaryButton"]
         XCTAssertTrue(allowButton.waitForExistence(timeout: timeout))
+        XCTAssertEqual(allowButton.label, "Allow Access")
         XCTAssertTrue(
             allowButton.isHittable,
             "the primer's Allow Access button must stay reachable at Accessibility XXXL — it is the only route to the system prompt"

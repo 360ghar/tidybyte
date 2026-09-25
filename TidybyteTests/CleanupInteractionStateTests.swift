@@ -3,6 +3,13 @@ import XCTest
 
 @MainActor
 final class CleanupInteractionStateTests: XCTestCase {
+    /// `ScanResults` is process-wide static state: reset it per test so
+    /// hardcoded generations can't leak from one test into the next and make
+    /// results depend on execution order.
+    override func setUp() {
+        super.setUp()
+        ScanResults.resetForTesting()
+    }
     func testDuplicateSetBestMovesDeletionSelectionToPreviousBest() {
         let viewModel = DuplicateFinderViewModel()
         let first = makeAsset(id: "first")
@@ -123,21 +130,32 @@ final class CleanupInteractionStateTests: XCTestCase {
     /// The epoch advances from the library-change path, exactly once per
     /// generation. A screen can no longer clear counts on its first load — a
     /// recreated home view model used to wipe counts that were still valid.
+    /// Finished scans expire on change; counts derived from the current list
+    /// (a tool's own delete or prune) survive it.
     func testLibraryChangedAdvancesTheEpochOncePerGeneration() {
-        ScanResults.record(.screenshots, count: 3)
+        ScanResults.record(.screenshots, count: 3, epoch: ScanResults.epoch)
 
         let generation = 70_001
         ScanResults.libraryChanged(to: generation)
-        XCTAssertNil(ScanResults.counts[.screenshots])
+        XCTAssertNil(ScanResults.counts[.screenshots], "a finished scan expires on change")
 
-        // Re-observing the same generation must not clear anything new.
-        ScanResults.record(.screenshots, count: 3)
+        // Re-observing the same generation advances nothing: a scan published
+        // now stays visible.
+        ScanResults.record(.screenshots, count: 3, epoch: ScanResults.epoch)
         ScanResults.libraryChanged(to: generation)
         XCTAssertEqual(ScanResults.counts[.screenshots], 3)
 
-        // A genuinely new generation expires again.
+        // A genuinely new generation expires the scan again...
         ScanResults.libraryChanged(to: generation + 1)
         XCTAssertNil(ScanResults.counts[.screenshots])
+
+        // ...while a count derived from the current list survives it.
+        ScanResults.record(.screenshots, count: 2)
+        ScanResults.libraryChanged(to: generation + 2)
+        XCTAssertEqual(
+            ScanResults.counts[.screenshots], 2,
+            "a tool's own post-delete count survives the change its delete triggered"
+        )
     }
 
     /// A scan that started before the change and finished after it is dropped,
