@@ -660,13 +660,15 @@ actor PhotoLibraryService {
                 // Serial by design (PhotoKit-safe); yield periodically so a
                 // long fallback retry stays cancellable and responsive.
                 if offset % 10 == 0 { await Task.yield() }
-                // Cancelled mid-loop: throw partialDeletion (not a bare
-                // CancellationError) so the ids deleted so far travel with the
-                // error via `succeededIds` instead of being discarded — journal
-                // reconciliation and the cleanup tools' delete paths recover
-                // the partial set from it. Everything not in `succeeded`
-                // counts as not-deleted.
+                // Cancelled mid-loop. When nothing has been deleted yet a plain
+                // cancel must stay a cancel — reporting "Deleted 0 of N items"
+                // (or Swipe's "Failed to delete N photos") nudges the user into
+                // re-confirming an iOS prompt for a deletion they never asked
+                // to retry. Only once some ids have actually gone do we throw
+                // `partialDeletion`, so the ids deleted so far travel with the
+                // error via `succeededIds` instead of being discarded.
                 if Task.isCancelled {
+                    guard !succeeded.isEmpty else { throw CancellationError() }
                     throw PhotoServiceError.partialDeletion(
                         succeededIds: succeeded,
                         failedCount: identifiers.count - succeeded.count

@@ -35,6 +35,11 @@ enum CleanupDeletion {
             CleanupLedger.shared.record(kind: kind, deletedIds: deletedIds, sizeOf: { sizeById[$0] ?? 0 })
             apply(deletedIds)
             return Outcome(removed: deletedIds, errorMessage: nil, deletedCount: deletedIds.count)
+        } catch is CancellationError {
+            // A cancel is not a deletion failure: nothing was deleted, so stay
+            // quiet rather than reporting "Deleted 0 of N items. N couldn't be
+            // deleted. Try again." and inviting a pointless re-confirm.
+            return Outcome(removed: [], errorMessage: nil, deletedCount: nil)
         } catch let error as PhotoServiceError {
             if let succeededIds = error.succeededIds {
                 recordDeleted?(succeededIds.count)
