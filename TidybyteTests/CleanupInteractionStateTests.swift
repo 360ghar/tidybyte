@@ -89,6 +89,35 @@ final class CleanupInteractionStateTests: XCTestCase {
         XCTAssertEqual(viewModel.totalSelectedCount, 2)
     }
 
+    // MARK: - Scan results are tied to a library generation (PR #2 finding)
+
+    /// A scan that starts before a library change and finishes after it used to
+    /// republish its pre-change count, so the home badge advertised results that
+    /// no longer existed.
+    func testScanResultRecordedBeforeALibraryChangeIsNotPublished() {
+        let staleEpoch = ScanResults.epoch
+        // The library changed: cached counts expire and a new epoch starts.
+        ScanResults.invalidate()
+        XCTAssertNil(ScanResults.counts[.blurry], "invalidate must expire the cached count")
+
+        // The pre-change scan finishes late: its count is dropped.
+        ScanResults.record(.blurry, count: 12, epoch: staleEpoch)
+        XCTAssertNil(ScanResults.counts[.blurry], "a pre-change scan must not republish")
+
+        // A scan that started after the change publishes normally.
+        ScanResults.record(.blurry, count: 7, epoch: ScanResults.epoch)
+        XCTAssertEqual(ScanResults.counts[.blurry], 7)
+    }
+
+    /// A prune or delete re-derives its count from the CURRENT list, so it is
+    /// accepted without an epoch — only a finished scan can be stale.
+    func testDerivedRecordIsAcceptedAfterALibraryChange() {
+        ScanResults.record(.screenshots, count: 3)
+        ScanResults.invalidate()
+        ScanResults.record(.screenshots, count: 2)
+        XCTAssertEqual(ScanResults.counts[.screenshots], 2)
+    }
+
     private func makeAsset(id: String) -> AssetSummary {
         AssetSummary(
             id: id,
