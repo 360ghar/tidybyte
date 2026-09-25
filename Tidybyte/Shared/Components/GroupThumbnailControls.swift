@@ -53,6 +53,11 @@ struct SelectToggle: View {
                 .padding(overPhoto ? Spacing.sm : 0)
                 .scaleEffect(isSelected ? 1.0 : 0.9)
                 .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
+                // 44-pt target, matching `DeleteToggle`: without it the list
+                // variant is only the intrinsic symbol size, so a miss lands on
+                // the row preview instead of toggling the selection.
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isSelected ? "Deselect \(itemName)" : "Select \(itemName)")

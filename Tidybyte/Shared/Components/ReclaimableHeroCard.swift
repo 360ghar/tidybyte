@@ -3,7 +3,7 @@ import SwiftUI
 /// "You could free" summary at the top of the cleanup home.
 ///
 /// Shows the app-wide `ReclaimBucketer` total, the same figure as the Storage
-/// tab and the widget. It counts only items stored on this iPhone, and Live
+/// tab and the widget. It counts only items stored on this device, and Live
 /// Photos and large videos at about half their size (the usual saving from
 /// converting or compressing them). Duplicates, similar and blurry photos need
 /// a scan, so they are not in the number.

@@ -3,11 +3,25 @@ import UIKit
 actor ImageCache {
     static let shared = ImageCache()
 
+    /// Eviction state for one asset, read before a load and compared at store
+    /// time. `generation` covers global flushes (`removeAll`); `version` covers
+    /// this asset's own evictions. Both are needed: scoping edits per-asset is
+    /// what keeps an edit of asset B from discarding a perfectly fresh load of
+    /// unrelated asset A.
+    struct CacheStamp: Sendable, Equatable {
+        let generation: Int
+        let version: Int
+    }
+
     private let cache = NSCache<NSString, UIImage>()
-    /// Bumped by every eviction (`removeAllVariants`, `removeAll`) so
-    /// in-flight thumbnail loads can drop stale pre-edit bytes instead of
-    /// reinserting them (E5). Read via `currentGeneration()`.
+    /// Bumped by `removeAll()` (the memory-warning fallback), which invalidates
+    /// every in-flight load.
     private var generation = 0
+    /// Per-asset eviction counters, bumped by `removeAllVariants(of:)`. A
+    /// single global counter used to make every edit stale every other asset's
+    /// in-flight load, so those loads skipped caching and the next scroll
+    /// re-fetched from disk for no reason.
+    private var versions: [String: Int] = [:]
 
     init(countLimit: Int = 200, totalCostLimit: Int = 50 * 1024 * 1024) {
         cache.countLimit = countLimit
@@ -27,24 +41,26 @@ actor ImageCache {
             cache.removeObject(forKey: key as NSString)
             cache.removeObject(forKey: "\(key)#degraded" as NSString)
         }
-        generation += 1
+        versions[assetId, default: 0] += 1
     }
 
-    /// Current eviction generation for E5 staleness checks.
-    func currentGeneration() -> Int {
-        generation
+    /// Current eviction stamp for `assetId`. Read it before a load and pass it
+    /// back to `setImage(_:for:assetId:ifStamp:)`.
+    func stamp(for assetId: String) -> CacheStamp {
+        CacheStamp(generation: generation, version: versions[assetId] ?? 0)
     }
 
     func image(for key: String) -> UIImage? {
         cache.object(forKey: key as NSString)
     }
 
-    /// Stores the image only when no eviction happened since `generation` was
-    /// read, so pre-edit bytes are never reinserted (E5). Returns whether it
-    /// stored.
+    /// Stores the image only when no eviction touched this asset since `stamp`
+    /// was read, so pre-edit bytes are never reinserted (E5). Returns whether
+    /// it stored.
     @discardableResult
-    func setImage(_ image: UIImage, for key: String, ifGeneration expected: Int) -> Bool {
-        guard generation == expected else { return false }
+    func setImage(_ image: UIImage, for key: String, assetId: String, ifStamp stamp: CacheStamp) -> Bool {
+        guard generation == stamp.generation,
+              (versions[assetId] ?? 0) == stamp.version else { return false }
         setImage(image, for: key)
         return true
     }
@@ -79,6 +95,10 @@ actor ImageCache {
     /// `PhotoLibraryService.handleLibraryChange`.
     func removeAll() {
         cache.removeAllObjects()
+        // Global invalidation: every in-flight load is now stale. The per-asset
+        // counters are reset too, so the map cannot grow without bound — the
+        // generation check already rejects the pre-flush loads.
         generation += 1
+        versions.removeAll()
     }
 }

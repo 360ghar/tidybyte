@@ -184,8 +184,12 @@ final class WidgetSnapshotCoordinator {
     /// A repeating reminder keeps the text it was scheduled with. Reminders
     /// scheduled by older builds carry stale counts, so reschedule once with
     /// the count-free text.
+    ///
+    /// Gated on V3, not V2: V2 was already consumed by the build that shipped
+    /// "large videos" in the body, so those users kept the old wording. A fresh
+    /// key re-runs the reschedule once and lets the current copy land.
     private func migrateReminderCopyIfNeeded() async {
-        let key = AppPreferences.Key.reminderCopyMigratedV2
+        let key = AppPreferences.Key.reminderCopyMigratedV3
         guard !UserDefaults.standard.bool(forKey: key) else { return }
         guard AppPreferences.remindersEnabled() else {
             UserDefaults.standard.set(true, forKey: key)

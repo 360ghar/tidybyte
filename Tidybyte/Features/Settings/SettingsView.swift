@@ -39,6 +39,8 @@ struct SettingsView: View {
     @State private var isRequestingNotificationPermission = false
     @State private var showNotificationDeniedAlert = false
     @State private var showMailUnavailableAlert = false
+    /// The in-app composer's payload, or nil when it is not presented.
+    @State private var mailDraft: MailDraft?
     /// The last weekday we actually committed to the scheduler. The Reminder Day
     /// picker reverts to this when permission was revoked, and the revert must
     /// not be mistaken for a fresh user pick (that would loop forever: each
@@ -397,16 +399,25 @@ struct SettingsView: View {
         } message: {
             Text("Could not clear swipe history. Please try again.")
         }
+        .sheet(item: $mailDraft) { draft in
+            MailComposeView(subject: draft.subject, body: draft.body) {
+                mailDraft = nil
+            }
+        }
     }
 
     private func sendFeedback(subject: String, isBug: Bool) {
         let prompt = isBug
             ? "Describe the bug:\n\nSteps to reproduce:\n\nWhat you expected:\n\nWhat happened instead:\n"
             : "Describe the feature you'd like:\n\nWhy it would help:\n"
-        guard let url = FeedbackMail.url(subject: subject, prompt: prompt) else { return }
-        openURL(url) { accepted in
-            if !accepted { showMailUnavailableAlert = true }
+        // Same gate as the prompt card: `openURL(mailto:)` reports success
+        // whenever Mail is installed, so ask MessageUI instead and show the
+        // plain-text address when it genuinely cannot send.
+        guard FeedbackMail.canSend else {
+            showMailUnavailableAlert = true
+            return
         }
+        mailDraft = MailDraft(subject: subject, body: FeedbackMail.body(prompt: prompt))
     }
 
     private func openSystemSettings() {

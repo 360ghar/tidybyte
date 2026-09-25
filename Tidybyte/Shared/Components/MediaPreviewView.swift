@@ -35,11 +35,16 @@ struct MediaPreviewView: View {
     var onDelete: (@MainActor (AssetSummary) async -> Bool)?
     var accessory: AccessoryAction?
     /// Replace-flow Originals Kept alert (photo/video compression). Off by
-    /// default so non-replace callers are unaffected; a replace screen passes
-    /// `!viewModel.keptOriginals.isEmpty` plus its retry/remove handlers,
-    /// mirroring `LivePhotoPreviewView` (the list-level alert cannot present
-    /// over this cover).
-    var showOriginalsKept: Bool = false
+    /// default so non-replace callers are unaffected; a replace screen passes a
+    /// LIVE PROVIDER (`{ !viewModel.keptOriginals.isEmpty }`) plus its
+    /// retry/remove handlers, mirroring `LivePhotoPreviewView`.
+    ///
+    /// A provider rather than a `Bool`: a stored value is fixed at construction
+    /// and only updates if SwiftUI happens to re-invoke the cover's content
+    /// closure, so a compression finishing while the preview is open could leave
+    /// the alert hidden. Reading it here registers the observation dependency,
+    /// exactly like `assetsProvider`.
+    var showOriginalsKept: (() -> Bool)?
     var onRetryRemovingOriginals: (() -> Void)?
     var onRemoveCopies: (() -> Void)?
 
@@ -62,7 +67,7 @@ struct MediaPreviewView: View {
         photoService: PhotoLibraryService,
         onDelete: (@MainActor (AssetSummary) async -> Bool)? = nil,
         accessory: AccessoryAction? = nil,
-        showOriginalsKept: Bool = false,
+        showOriginalsKept: (() -> Bool)? = nil,
         onRetryRemovingOriginals: (() -> Void)? = nil,
         onRemoveCopies: (() -> Void)? = nil
     ) {
@@ -84,7 +89,7 @@ struct MediaPreviewView: View {
         photoService: PhotoLibraryService,
         onDelete: (@MainActor (AssetSummary) async -> Bool)? = nil,
         accessory: AccessoryAction? = nil,
-        showOriginalsKept: Bool = false,
+        showOriginalsKept: (() -> Bool)? = nil,
         onRetryRemovingOriginals: (() -> Void)? = nil,
         onRemoveCopies: (() -> Void)? = nil
     ) {
@@ -140,9 +145,9 @@ struct MediaPreviewView: View {
         // Replace flows only: the list-level alert cannot present over this
         // cover, so the cover shows it (mirrors LivePhotoPreviewView).
         // No settable state backs this condition — keptOriginals is VM-owned —
-        // so a constant binding.
+        // so a constant binding, re-read from the live provider every render.
         .originalsKeptAlert(
-            isPresented: .constant(showOriginalsKept),
+            isPresented: .constant(showOriginalsKept?() ?? false),
             onTryAgain: { onRetryRemovingOriginals?() },
             onRemoveCopies: { onRemoveCopies?() }
         )

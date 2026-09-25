@@ -1,6 +1,7 @@
 import SwiftUI
 import StoreKit
 import UIKit
+import MessageUI
 
 /// App Store routes shared by the happy-path prompt and Settings.
 /// The web URL is region-neutral (`/app/id…` redirects to the user's own
@@ -27,16 +28,15 @@ enum AppStoreLinks {
 enum FeedbackMail {
     static let address = "contact@sakshammittal.com"
 
-    /// `prompt` is the question block the user fills in; diagnostics follow it.
-    static func url(subject: String, prompt: String) -> URL? {
-        var components = URLComponents()
-        components.scheme = "mailto"
-        components.path = address
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: subject),
-            URLQueryItem(name: "body", value: "\(prompt)\n\n---\nThe info below helps us debug — please keep it.\n\(diagnostics)")
-        ]
-        return components.url
+    /// True when iOS can actually send mail. A `mailto:` `openURL` reports
+    /// success whenever Mail is installed — even with no account configured —
+    /// and the compose sheet then errors inside Mail with our own sheet already
+    /// dismissed. MessageUI answers the real question.
+    static var canSend: Bool { MFMailComposeViewController.canSendMail() }
+
+    /// The message body: the caller's `prompt` block, then diagnostics.
+    static func body(prompt: String) -> String {
+        "\(prompt)\n\n---\nThe info below helps us debug — please keep it.\n\(diagnostics)"
     }
 
     private static var diagnostics: String {
@@ -62,6 +62,57 @@ enum FeedbackMail {
     }
 }
 
+/// Subject + body for the in-app feedback composer. `Identifiable` so it can
+/// drive `sheet(item:)`.
+struct MailDraft: Identifiable {
+    let id = UUID()
+    let subject: String
+    let body: String
+}
+
+/// The system mail composer, embedded in a SwiftUI sheet.
+///
+/// Preferred over `openURL(mailto:)` because MessageUI reports the no-account
+/// case up front (`FeedbackMail.canSend`), so the caller can keep its sheet open
+/// and show the plain-text address instead of handing the user a dead composer.
+struct MailComposeView: UIViewControllerRepresentable {
+    let subject: String
+    let body: String
+    /// Called once the composer finishes, whatever the result. The owner clears
+    /// its presentation state here — SwiftUI owns the presentation, so the
+    /// controller is not dismissed directly.
+    let onFinish: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
+
+    func makeUIViewController(context: Context) -> MFMailComposeViewController {
+        let controller = MFMailComposeViewController()
+        controller.mailComposeDelegate = context.coordinator
+        controller.setToRecipients([FeedbackMail.address])
+        controller.setSubject(subject)
+        controller.setMessageBody(body, isHTML: false)
+        return controller
+    }
+
+    func updateUIViewController(_ controller: MFMailComposeViewController, context: Context) {}
+
+    final class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
+        private let onFinish: () -> Void
+
+        init(onFinish: @escaping () -> Void) {
+            self.onFinish = onFinish
+        }
+
+        func mailComposeController(
+            _ controller: MFMailComposeViewController,
+            didFinishWith result: MFMailComposeResult,
+            error: Error?
+        ) {
+            onFinish()
+        }
+    }
+}
+
 /// Two-step "Enjoying TidyByte?" prompt, presented in a sheet after a
 /// milestone success. "Yes" asks for a rating (Apple's in-app sheet, with a
 /// write-review link in case iOS suppresses it); "Not really" asks for
@@ -76,6 +127,8 @@ struct HappyPathPromptCard: View {
 
     @State private var step: Step = .question
     @State private var mailUnavailable = false
+    /// The in-app composer's payload, or nil when it is not presented.
+    @State private var mailDraft: MailDraft?
     @Environment(\.requestReview) private var requestReview
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -90,6 +143,12 @@ struct HappyPathPromptCard: View {
         }
         .frame(maxWidth: .infinity)
         .animation(.reduceMotionAware(.spring(response: 0.35, dampingFraction: 0.9), reduceMotion: reduceMotion), value: step)
+        .sheet(item: $mailDraft) { draft in
+            MailComposeView(subject: draft.subject, body: draft.body) {
+                mailDraft = nil
+                onClose()
+            }
+        }
     }
 
     // MARK: - Steps
@@ -158,13 +217,18 @@ struct HappyPathPromptCard: View {
     }
 
     private func sendFeedback() {
-        guard let url = FeedbackMail.url(
-            subject: "TidyByte Feedback",
-            prompt: "What got in the way:\n\nWhat would make TidyByte better:\n"
-        ) else { return }
-        openURL(url) { accepted in
-            if accepted { onClose() } else { mailUnavailable = true }
+        // MessageUI reports the no-account case up front, so the sheet stays
+        // open with the plain-text address instead of closing into a dead Mail
+        // composer — which is what `openURL(mailto:)` used to do, because it
+        // reports success whenever Mail is merely installed.
+        guard FeedbackMail.canSend else {
+            mailUnavailable = true
+            return
         }
+        mailDraft = MailDraft(
+            subject: "TidyByte Feedback",
+            body: FeedbackMail.body(prompt: "What got in the way:\n\nWhat would make TidyByte better:\n")
+        )
     }
 
     // MARK: - Building Blocks

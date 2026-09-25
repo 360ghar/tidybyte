@@ -13,6 +13,8 @@ struct HappyPathCelebrationModifier: ViewModifier {
     /// Measured from the content so the sheet hugs it at every Dynamic Type size.
     @State private var promptHeight: CGFloat = 260
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     /// Lets the delete alert finish dismissing and the updated list settle
     /// before the sheet rises over it.
     private static let presentationDelay: Duration = .milliseconds(600)
@@ -30,26 +32,91 @@ struct HappyPathCelebrationModifier: ViewModifier {
                 }
                 showsPrompt = true
             }
-            .sheet(isPresented: $showsPrompt, onDismiss: { isPresented = false }) {
-                // Scrolls only when the largest text sizes outgrow the screen.
-                ScrollView {
-                    HappyPathPromptCard(statLine: statLine) { showsPrompt = false }
-                        .padding(.horizontal, Spacing.xl)
-                        .padding(.top, Spacing.xxxl)
-                        .padding(.bottom, Spacing.lg)
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { promptHeight = $0 }
+            // iPad on iOS 17 cannot hug the content (see `usesCompactOverlay`),
+            // so the prompt is an inline overlay there instead of a sheet.
+            .overlay {
+                if usesCompactOverlay, showsPrompt {
+                    compactOverlay
                 }
-                .scrollBounceBehavior(.basedOnSize)
-                .presentationDetents([.height(promptHeight)])
-                .presentationDragIndicator(.visible)
-                // Opaque on purpose: iOS 26 renders a compact sheet as
-                // Liquid Glass, which lets the screen below bleed through.
-                .presentationBackground(Color(.systemBackground))
-                .fittedPresentationSizing()
-                // Recorded on presentation, not on the answer, so a
-                // swipe-down still consumes the cooldown.
-                .onAppear { AppPreferences.recordReviewPromptDate() }
             }
+            .animation(.easeInOut(duration: 0.25), value: showsPrompt)
+            .sheet(isPresented: sheetPresented, onDismiss: { isPresented = false }) {
+                promptSheet
+            }
+    }
+
+    // MARK: - Presentation
+
+    /// iPad presents sheets as a large form sheet that ignores height detents,
+    /// and `.presentationSizing(.fitted)` is iOS 18+ — so on iPadOS 17 a sheet
+    /// would swallow the screen for a three-line prompt. Fall back to an overlay
+    /// that hugs the card. iPhone is unaffected (compact size class).
+    private var usesCompactOverlay: Bool {
+        guard horizontalSizeClass == .regular else { return false }
+        if #available(iOS 18.0, *) { return false }
+        return true
+    }
+
+    /// False while the overlay path is active, so the sheet is not presented too.
+    private var sheetPresented: Binding<Bool> {
+        Binding(
+            get: { showsPrompt && !usesCompactOverlay },
+            set: { if !$0 { showsPrompt = false } }
+        )
+    }
+
+    private var promptContent: some View {
+        HappyPathPromptCard(statLine: statLine, onClose: dismissPrompt)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.top, Spacing.xxxl)
+            .padding(.bottom, Spacing.lg)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { promptHeight = $0 }
+    }
+
+    private var promptSheet: some View {
+        // Scrolls only when the largest text sizes outgrow the screen.
+        ScrollView {
+            promptContent
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .presentationDetents([.height(promptHeight)])
+        .presentationDragIndicator(.visible)
+        // Opaque on purpose: iOS 26 renders a compact sheet as
+        // Liquid Glass, which lets the screen below bleed through.
+        .presentationBackground(Color(.systemBackground))
+        .fittedPresentationSizing()
+        // Recorded on presentation, not on the answer, so a
+        // swipe-down still consumes the cooldown.
+        .onAppear { AppPreferences.recordReviewPromptDate() }
+    }
+
+    /// iOS 17 iPad fallback: the same card, centered over a dimmed backdrop.
+    private var compactOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { dismissPrompt() }
+            ScrollView {
+                promptContent
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(maxWidth: 420, maxHeight: 560)
+            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: CornerRadius.large))
+            .padding(Spacing.xl)
+            .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
+        }
+        .transition(.opacity)
+        .accessibilityAddTraits(.isModal)
+        // Same contract as the sheet: recorded on presentation, so a tap on the
+        // backdrop still consumes the cooldown.
+        .onAppear { AppPreferences.recordReviewPromptDate() }
+    }
+
+    /// Closes the prompt on either path. The sheet's `onDismiss` also clears
+    /// `isPresented`, but the overlay has no such callback.
+    private func dismissPrompt() {
+        showsPrompt = false
+        isPresented = false
     }
 }
 

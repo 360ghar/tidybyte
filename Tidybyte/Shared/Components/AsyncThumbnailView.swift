@@ -57,27 +57,41 @@ struct AsyncThumbnailView: View {
                 loadedAssetId = assetId
             }
 
-            let generation = await ImageCache.shared.currentGeneration()
-            let (loaded, isDegraded) = await photoService.loadThumbnailWithQuality(for: assetId, size: targetSize)
-            guard !Task.isCancelled else { return }
-            // E5: an edit may have evicted the cache mid-load, so `loaded` may be
-            // pre-edit. Show it (better than a stuck skeleton); the
-            // `ifGeneration` store refuses to reinsert stale bytes.
-            if let loaded {
+            // E5: an edit of THIS asset can land while the load is in flight,
+            // which moves its cache stamp. Those bytes are pre-edit, so the
+            // store refuses them — and showing them while pinning
+            // `loadedAssetId` would leave the edited image unseen for as long
+            // as this view lives. Retry with a fresh stamp instead. The stamp is
+            // per-asset, so an edit of a different asset neither refuses this
+            // store nor costs a retry.
+            let maxAttempts = 3
+            for _ in 1...maxAttempts {
+                let stamp = await ImageCache.shared.stamp(for: assetId)
+                let (loaded, isDegraded) = await photoService.loadThumbnailWithQuality(for: assetId, size: targetSize)
+                guard !Task.isCancelled else { return }
+                guard let loaded else { break }
                 if isDegraded {
                     // File the soft placeholder under the degraded key; never
-                    // overwrite something sharper we're already showing.
+                    // overwrite something sharper we're already showing. A soft
+                    // preview is shown even if its store is refused: the sharp
+                    // pass below supersedes it either way.
                     if !showingDegraded {
-                        await ImageCache.shared.setImage(loaded, for: degradedKey, ifGeneration: generation)
+                        await ImageCache.shared.setImage(loaded, for: degradedKey, assetId: assetId, ifStamp: stamp)
                         withAnimation(.easeIn(duration: 0.2)) { image = loaded }
+                        showingDegraded = true
                     }
-                } else {
-                    if await ImageCache.shared.setImage(loaded, for: sharpKey, ifGeneration: generation) {
-                        // The soft placeholder is superseded.
-                        await ImageCache.shared.removeImage(for: degradedKey)
-                    }
-                    withAnimation(.easeIn(duration: 0.2)) { image = loaded }
+                    break
                 }
+                if await ImageCache.shared.setImage(loaded, for: sharpKey, assetId: assetId, ifStamp: stamp) {
+                    // The soft placeholder is superseded.
+                    await ImageCache.shared.removeImage(for: degradedKey)
+                    withAnimation(.easeIn(duration: 0.2)) { image = loaded }
+                    break
+                }
+                // Refused: edited (or the cache flushed) mid-load, so these
+                // bytes are stale. Loop and reload rather than displaying them,
+                // unless this was the last attempt — a bound keeps a library
+                // that is changing under us from spinning here.
             }
             hasLoaded = true
             loadedAssetId = assetId
