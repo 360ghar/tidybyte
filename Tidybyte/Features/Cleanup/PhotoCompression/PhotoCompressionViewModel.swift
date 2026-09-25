@@ -261,8 +261,19 @@ final class PhotoCompressionViewModel {
             let done = Set(outcome.committed.map(\.assetId))
             removePhotos(done)
             selectedIds.subtract(done)
+            // A copy that vanished since the decline leaves its item failed:
+            // the original was never deleted, so it goes back to waiting for
+            // another Compress instead of staying on a kept state that no
+            // alert offers to act on.
+            let missingIds = Set(outcome.failed.map(\.assetId))
+            for index in photos.indices where missingIds.contains(photos[index].id) {
+                photos[index].compressionState = .waiting
+            }
             isCompressing = false
             keptOriginals = outcome.kept
+            if !outcome.failed.isEmpty {
+                errorMessage = OriginalsCommit.missingReplacementMessage
+            }
             // A retry that completes the delete IS a clean batch success, but
             // `batchSummary` is unchanged so the view's `.onChange` never
             // re-fires and the success haptic is lost. Play it here, matching
@@ -305,6 +316,11 @@ final class PhotoCompressionViewModel {
                     photos[index].compressionState = .waiting
                 }
             }
+            // A decline leaves the decision open, so the Originals Kept alert
+            // (and the preview cover, which reads the same state) keeps
+            // offering Try Again and Remove Copies for the rows whose copies
+            // are still in the library.
+            keptOriginals = outcome.kept
             isCompressing = false
         }
     }

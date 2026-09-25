@@ -74,6 +74,42 @@ final class CompressionRegressionTests: XCTestCase {
         XCTAssertFalse(CompressionSwap.isLive(assetId: "live-test"))
     }
 
+    /// A kept-both row whose copy the user later deleted in Photos must settle
+    /// when its swap fails again: the pending-only lookup used to skip it, so
+    /// the row kept naming an absent copy in `savedCopyIds` (blocking the
+    /// original from every candidate list) while the UI reported the item as
+    /// failed.
+    func testMarkFailedSettlesKeptRowWhoseReplacementIsAbsent() async throws {
+        let schema = Schema([CompressionRecord.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+        let swap = try CompressionSwap(
+            mediaType: .video,
+            assetId: "kept-gone",
+            originalSize: 100,
+            exportPreset: "720p",
+            modelContext: context
+        )
+        swap.recordReplacement(id: "copy-1", size: 40)
+        swap.finalizeKeptBoth()
+        XCTAssertEqual(CompressionJournal.savedCopyIds(modelContext: context), ["copy-1"])
+
+        await CompressionJournal.markPendingFailed(
+            assetId: "kept-gone",
+            replacementAbsent: true,
+            modelContext: context
+        )
+
+        XCTAssertNil(CompressionJournal.savedCopyIds(modelContext: context).first, "the absent copy must leave `savedCopyIds`")
+        let record = try XCTUnwrap(
+            try context.fetch(FetchDescriptor<CompressionRecord>()).first
+        )
+        XCTAssertEqual(record.outcome, "failed")
+        XCTAssertNil(record.replacementAssetLocalIdentifier)
+        XCTAssertEqual(record.compressedSizeBytes, 0)
+    }
+
     func testPhotoCompressionCandidatesSkipCopiesSmallAndHEIC() {
         func photo(_ id: String, size: Int64, file: String, live: Bool = false) -> AssetSummary {
             AssetSummary(

@@ -154,7 +154,10 @@ final class LivePhotosConverterViewModel {
         do {
             let pending = try await performConversion(assetId: itemId, modelContext: modelContext)
             setState(.copySaved, for: itemId)
-            await commitOriginals([pending])
+            let result = await commitOriginals([pending])
+            if result.failed > 0 {
+                errorMessage = OriginalsCommit.missingReplacementMessage
+            }
         } catch {
             setState(.failed(error.localizedDescription), for: itemId)
             errorMessage = error.localizedDescription
@@ -162,10 +165,10 @@ final class LivePhotosConverterViewModel {
     }
 
     /// Step 2: delete the Live Photos of every saved still in one call (one
-    /// iOS prompt). Returns how many were committed.
+    /// iOS prompt). Returns how many were committed and how many failed.
     @discardableResult
-    private func commitOriginals(_ pending: [PendingOriginal]) async -> Int {
-        guard !pending.isEmpty else { return 0 }
+    private func commitOriginals(_ pending: [PendingOriginal]) async -> (committed: Int, failed: Int) {
+        guard !pending.isEmpty else { return (0, 0) }
         let outcome = await OriginalsCommit.commit(pending) { phase = $0 }
         let indexById = Dictionary(items.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         for item in outcome.committed {
@@ -174,8 +177,16 @@ final class LivePhotosConverterViewModel {
                 items[idx].conversionState = .completed
             }
         }
+        // A still that vanished mid-batch fails its item: the Live Photo was
+        // never deleted, so the row must offer Convert again instead of sitting
+        // on `.copySaved`, which has no action at all.
+        for item in outcome.failed {
+            if let idx = indexById[item.assetId] {
+                items[idx].conversionState = .failed(OriginalsCommit.missingReplacementMessage)
+            }
+        }
         keptOriginals = outcome.kept
-        return outcome.committed.count
+        return (outcome.committed.count, outcome.failed.count)
     }
 
     /// "Try Again" on the Originals Kept alert. Clears `keptOriginals`
@@ -264,14 +275,15 @@ final class LivePhotosConverterViewModel {
         }
         // Step 2: one delete for every saved still — one iOS prompt. Also runs
         // after a Stop, so finished items finish.
-        let converted = await commitOriginals(saved)
+        let result = await commitOriginals(saved)
+        let totalFailed = failed + result.failed
         phase = .idle
         convertingAll = false
-        lastBatch = (converted: converted, failed: failed)
+        lastBatch = (converted: result.committed, failed: totalFailed)
         // COMP-09: one aggregated message instead of reporting only the last
         // error.
-        if failed > 0 {
-            errorMessage = "Converted \(converted) of \(pendingIds.count). \(failed) failed."
+        if totalFailed > 0 {
+            errorMessage = "Converted \(result.committed) of \(pendingIds.count). \(totalFailed) failed."
         }
     }
 

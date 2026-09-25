@@ -188,11 +188,32 @@ enum CompressionJournal {
             predicate: #Predicate { $0.outcome == "pending" && $0.assetLocalIdentifier == assetId }
         )
         descriptor.fetchLimit = 1
-        guard let record = try? modelContext.fetch(descriptor).first else { return }
+        if let record = try? modelContext.fetch(descriptor).first {
+            await resolveStrandedReplacement(
+                of: record,
+                outcome: outcome,
+                replacementAbsent: replacementAbsent,
+                modelContext: modelContext
+            )
+            return
+        }
+        // A row this swap already settled as kept-both can still reach a
+        // failure: the user taps Try Again, and the copy they once declined to
+        // remove has since been deleted in Photos. The pending-only fetch above
+        // misses it, and without this fallback the row would keep naming an
+        // absent copy in `savedCopyIds` forever while the UI reports the item
+        // as failed.
+        guard replacementAbsent, outcome == .failed,
+              let kept = try? modelContext.fetch(FetchDescriptor<CompressionRecord>(
+                  predicate: #Predicate { $0.outcome == "kept" && $0.assetLocalIdentifier == assetId }
+              )).first else { return }
+        AppLog.compression.info(
+            "Settling a kept-both row whose copy is gone (\(assetId, privacy: .public))"
+        )
         await resolveStrandedReplacement(
-            of: record,
-            outcome: outcome,
-            replacementAbsent: replacementAbsent,
+            of: kept,
+            outcome: .failed,
+            replacementAbsent: true,
             modelContext: modelContext
         )
     }

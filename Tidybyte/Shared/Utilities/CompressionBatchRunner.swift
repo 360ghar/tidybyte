@@ -265,7 +265,7 @@ enum CompressionBatchRunner {
             failed += outcome.failed.count
             for item in outcome.failed {
                 if let index = indexById[item.assetId] {
-                    handlers.setState(index, .failed("The compressed copy is missing from your library."))
+                    handlers.setState(index, .failed(OriginalsCommit.missingReplacementMessage))
                 }
             }
             kept = outcome.kept
@@ -289,6 +289,10 @@ enum CompressionBatchRunner {
 /// prompt per batch.
 @MainActor
 enum OriginalsCommit {
+    /// What `OriginalsCommit` reports when an item's replacement copy is gone,
+    /// so every surface names the same failure.
+    static let missingReplacementMessage = "The compressed copy is missing from your library."
+
     struct Outcome: Sendable {
         var committed: [PendingOriginal]
         var kept: [PendingOriginal]
