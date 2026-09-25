@@ -124,7 +124,7 @@ struct PhotoCompressionView: View {
                 startIndex: viewModel.sortedPhotos.firstIndex { $0.id == start.id } ?? 0,
                 photoService: photoService,
                 onDelete: { await viewModel.deletePhoto(id: $0.id) },
-                showOriginalsKept: !viewModel.keptOriginals.isEmpty,
+                showOriginalsKept: { !viewModel.keptOriginals.isEmpty },
                 onRetryRemovingOriginals: { viewModel.retryRemovingOriginals() },
                 onRemoveCopies: { viewModel.removeCopies() }
             )

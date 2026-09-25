@@ -157,9 +157,16 @@ final class CompressionSwap {
         CompressionJournal.finalize(record, outcome: .skipped, modelContext: modelContext)
     }
 
-    func markFailed(assetId: String) async {
+    /// Pass `replacementAbsent: true` when the caller already proved the
+    /// journaled copy is gone: the journal then settles the row instead of
+    /// asking PhotoKit to delete an asset it knows is absent.
+    func markFailed(assetId: String, replacementAbsent: Bool = false) async {
         guard beginFinish() else { return }
-        await CompressionJournal.markPendingFailed(assetId: assetId, modelContext: modelContext)
+        await CompressionJournal.markPendingFailed(
+            assetId: assetId,
+            replacementAbsent: replacementAbsent,
+            modelContext: modelContext
+        )
         endFinish()
     }
 
@@ -252,6 +259,15 @@ enum CompressionBatchRunner {
                     handlers.setState(index, .completed(savedBytes: max(0, item.originalSize - item.compressedSize)))
                 }
             }
+            // A vanished replacement fails the item during the commit phase.
+            // Those failures used to be dropped, so the batch could report
+            // `failed: 0` while journal rows were marked failed.
+            failed += outcome.failed.count
+            for item in outcome.failed {
+                if let index = indexById[item.assetId] {
+                    handlers.setState(index, .failed("The compressed copy is missing from your library."))
+                }
+            }
             kept = outcome.kept
         }
         handlers.setPhase(.idle)
@@ -276,6 +292,25 @@ enum OriginalsCommit {
     struct Outcome: Sendable {
         var committed: [PendingOriginal]
         var kept: [PendingOriginal]
+        /// Items whose replacement copy was already gone when the commit ran.
+        /// Their originals were never touched, so the caller must report these
+        /// as failures instead of producing a zero-failure summary.
+        var failed: [PendingOriginal] = []
+    }
+
+    /// What `removeCopies` did, so callers stop showing rows the library has
+    /// already settled. A plain `Bool` could not name the rows whose original
+    /// vanished externally, so those stayed on screen as "both versions in
+    /// your library" even though the swap was done.
+    struct CopiesOutcome: Sendable {
+        /// Original vanished outside the app: the swap is complete and the
+        /// saved copy is the library's surviving asset. Callers drop these rows.
+        var completed: [PendingOriginal] = []
+        /// Copies still in the library (the user declined). Both versions
+        /// remain, so the row stays a kept original.
+        var kept: [PendingOriginal] = []
+        /// True when every copy this call targeted is gone.
+        var allCopiesRemoved: Bool = false
     }
 
     /// Splits items by whether their original is still in the library. The
@@ -317,16 +352,22 @@ enum OriginalsCommit {
         let replacementIds = pending.compactMap(\.swap.replacementId)
         let existingReplacements = await photoService.existingIds(replacementIds)
         var viable: [PendingOriginal] = []
+        var failed: [PendingOriginal] = []
         viable.reserveCapacity(pending.count)
         for item in pending {
             guard let replacementId = item.swap.replacementId,
                   existingReplacements.contains(replacementId) else {
-                await item.swap.markFailed(assetId: item.assetId)
+                // The copy is already gone, so tell the journal that rather than
+                // asking it to delete an asset we just proved absent — that
+                // delete reports not-gone and would leave the row pending
+                // forever, retried by every later reconcile.
+                await item.swap.markFailed(assetId: item.assetId, replacementAbsent: true)
+                failed.append(item)
                 continue
             }
             viable.append(item)
         }
-        guard !viable.isEmpty else { return Outcome(committed: [], kept: []) }
+        guard !viable.isEmpty else { return Outcome(committed: [], kept: [], failed: failed) }
         let ids = viable.map(\.assetId)
         // A decline or a partial failure throws; the presence check below
         // decides what happened either way.
@@ -343,28 +384,32 @@ enum OriginalsCommit {
         for item in split.kept {
             item.swap.finalizeKeptBoth()
         }
-        return Outcome(committed: split.committed, kept: split.kept)
+        return Outcome(committed: split.committed, kept: split.kept, failed: failed)
     }
 
     /// The user kept the originals and chose "Remove Copies": delete the new
     /// copies in one call (one iOS prompt). If they decline that too, both
     /// versions stay and the journal stops tracking the copies.
-    /// Returns false when some copies are still there (the user declined).
-    @discardableResult
+    ///
+    /// Reports which rows it settled, so callers can drop the ones whose
+    /// original had already vanished instead of continuing to show them as
+    /// "both versions in your library".
     static func removeCopies(
         _ kept: [PendingOriginal],
         photoService: PhotoLibraryService = .shared
-    ) async -> Bool {
+    ) async -> CopiesOutcome {
         // An original that vanished outside the app is already replaced: the
         // end state holds, so complete those rows and never touch their copies.
         let existingOriginals = await photoService.existingIds(kept.map(\.assetId))
         var active: [PendingOriginal] = []
+        var completed: [PendingOriginal] = []
         active.reserveCapacity(kept.count)
         for item in kept {
             if existingOriginals.contains(item.assetId) {
                 active.append(item)
             } else {
                 item.swap.finalizeCompleted(compressedSize: item.compressedSize)
+                completed.append(item)
             }
         }
         let copyIds = active.compactMap(\.swap.replacementId)
@@ -372,10 +417,16 @@ enum OriginalsCommit {
             _ = try? await photoService.deleteAssets(identifiers: copyIds)
         }
         let stillPresent = await photoService.existingIds(copyIds)
+        var keptRows: [PendingOriginal] = []
         for item in active {
             let copyGone = item.swap.replacementId.map { !stillPresent.contains($0) } ?? true
             item.swap.finalizeOriginalKept(copyRemoved: copyGone)
+            if !copyGone { keptRows.append(item) }
         }
-        return stillPresent.isEmpty
+        return CopiesOutcome(
+            completed: completed,
+            kept: keptRows,
+            allCopiesRemoved: stillPresent.isEmpty
+        )
     }
 }

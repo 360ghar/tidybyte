@@ -68,31 +68,44 @@ final class VideoCompressionViewModel {
         videos.totalFileSize(selectedIds: selectedIds, idOf: \.id, sizeOf: { $0.asset.fileSize })
     }
 
-    func loadIfNeeded() async {
+    func loadIfNeeded(modelContext: ModelContext) async {
         guard !hasLoadedVideos else { return }
-        await load()
+        await load(modelContext: modelContext)
     }
 
-    func load() async {
+    func load(modelContext: ModelContext) async {
         isLoading = true
         errorMessage = nil
-        let videoAssets = await photoService.fetchAssetsByMediaType(.video)
-        videos = videoAssets.map { VideoItem(id: $0.id, asset: $0, selectedPreset: defaultPreset) }
+        videos = await candidateVideos(presets: [:], modelContext: modelContext)
         hasLoadedVideos = true
         isLoading = false
     }
 
     /// Re-fetch without flipping `isLoading`, so existing content stays under the pull-to-refresh spinner.
-    func refresh() async {
+    func refresh(modelContext: ModelContext) async {
         // Don't replace `videos` out from under an in-flight compression loop —
         // its per-id index lookups would miss and savings/records would be lost.
         guard !isCompressing else { return }
         errorMessage = nil
-        let videoAssets = await photoService.fetchAssetsByMediaType(.video)
         // Per-row quality picks survive a refresh.
         let presets = Dictionary(videos.map { ($0.id, $0.selectedPreset) }, uniquingKeysWith: { first, _ in first })
-        videos = videoAssets.map { VideoItem(id: $0.id, asset: $0, selectedPreset: presets[$0.id] ?? defaultPreset) }
+        videos = await candidateVideos(presets: presets, modelContext: modelContext)
         hasLoadedVideos = true
+    }
+
+    /// The library's videos, minus the copies this app made. Without that
+    /// exclusion a saved copy (the replacement that survived a swap) is listed
+    /// as a candidate and can be re-encoded, stranding yet another duplicate —
+    /// the photo stack has always excluded them via `savedCopyIds`.
+    private func candidateVideos(
+        presets: [String: CompressionPreset],
+        modelContext: ModelContext
+    ) async -> [VideoItem] {
+        let savedCopyIds = CompressionJournal.savedCopyIds(modelContext: modelContext)
+        let videoAssets = await photoService.fetchAssetsByMediaType(.video)
+        return videoAssets
+            .filter { !savedCopyIds.contains($0.id) }
+            .map { VideoItem(id: $0.id, asset: $0, selectedPreset: presets[$0.id] ?? defaultPreset) }
     }
 
     func toggleSelection(_ id: String) {
@@ -202,6 +215,13 @@ final class VideoCompressionViewModel {
             selectedIds.subtract(done)
             isCompressing = false
             keptOriginals = outcome.kept
+            // A retry that completes the delete IS a clean batch success, but
+            // `batchSummary` is unchanged so the view's `.onChange` never
+            // re-fires and the success haptic is lost. Play it here, matching
+            // the other cleanup tools.
+            if !done.isEmpty, outcome.failed.isEmpty, outcome.kept.isEmpty {
+                HapticHelper.notification(.success)
+            }
         }
     }
 
@@ -213,17 +233,24 @@ final class VideoCompressionViewModel {
         guard !items.isEmpty else { return }
         isCompressing = true
         Task {
+            let outcome = await OriginalsCommit.removeCopies(items)
             // A decline leaves both versions: say so instead of going quiet.
-            if await !OriginalsCommit.removeCopies(items) {
+            if !outcome.allCopiesRemoved {
                 errorMessage = OriginalsCommit.copiesKeptMessage
             }
-            let ids = Set(items.map(\.assetId))
+            // An original that vanished outside the app is already replaced, so
+            // its saved copy is the library's asset now — stop listing the row
+            // instead of claiming both versions are present.
+            let doneIds = Set(outcome.completed.map(\.assetId))
+            videos.removeAll { doneIds.contains($0.id) }
+            selectedIds.subtract(doneIds)
             // Declined rows stay non-eligible: their copies are still in the
             // library (journaled as kept), so offering Compress again would
-            // strand another duplicate. `replacementId` is nilled when the
-            // copy is removed, so rows whose copies are gone go back to waiting.
-            let keptIds = Set(items.filter { $0.swap.replacementId != nil }.map(\.assetId))
-            for index in videos.indices where ids.contains(videos[index].id) {
+            // strand another duplicate. Rows whose copies went back to waiting
+            // are the ones the journal nilled a `replacementId` for.
+            let keptIds = Set(outcome.kept.map(\.assetId))
+            let remaining = Set(items.map(\.assetId)).subtracting(doneIds)
+            for index in videos.indices where remaining.contains(videos[index].id) {
                 if keptIds.contains(videos[index].id) {
                     videos[index].compressionState = .keptOriginal(reason: "Original kept — both versions in your library")
                 } else {
@@ -258,10 +285,14 @@ final class VideoCompressionViewModel {
 
         // COMP-16: skip assets that already have a usable copy — completed
         // swaps, no-savings skips, and kept-both declines — so they are never
-        // re-encoded (quality degradation, duplicate copies). Only rows that
-        // still name a copy count: failed rows and skips whose copies were
-        // removed (Remove Copies accepted) stay eligible for another try.
-        let previouslyCompletedIds = CompressionJournal.alreadyCompressedIds(modelContext: modelContext)
+        // re-encoded (quality degradation, duplicate copies).
+        //
+        // The copy must still be in the library: a kept-both row whose copy the
+        // user deleted in Photos would otherwise block its original from ever
+        // being compressed again ("Already compressed" forever).
+        let settled = CompressionJournal.settledReplacements(modelContext: modelContext)
+        let liveReplacements = await photoService.existingIds(Array(settled.values))
+        let previouslyCompletedIds = Set(settled.filter { liveReplacements.contains($0.value) }.keys)
 
         // D1: resolve leftovers from any interrupted swap BEFORE the batch —
         // otherwise a stranded duplicate could be re-compressed or double-counted.

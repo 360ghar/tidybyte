@@ -114,7 +114,7 @@ struct VideoCompressionView: View {
                 startIndex: viewModel.sortedVideos.firstIndex { $0.id == start.id } ?? 0,
                 photoService: photoService,
                 onDelete: { await viewModel.deleteVideo(id: $0.id) },
-                showOriginalsKept: !viewModel.keptOriginals.isEmpty,
+                showOriginalsKept: { !viewModel.keptOriginals.isEmpty },
                 onRetryRemovingOriginals: { viewModel.retryRemovingOriginals() },
                 onRemoveCopies: { viewModel.removeCopies() }
             )
@@ -144,7 +144,7 @@ struct VideoCompressionView: View {
             // delete orphaned replacements from the library, so the list loaded
             // after it never shows just-deleted orphans.
             await CompressionJournal.reconcile(modelContext: modelContext)
-            await viewModel.loadIfNeeded()
+            await viewModel.loadIfNeeded(modelContext: modelContext)
         }
     }
 
@@ -165,7 +165,7 @@ struct VideoCompressionView: View {
                 }
             }
             .listStyle(.plain)
-            .pullToRefresh { await viewModel.refresh() }
+            .pullToRefresh { await viewModel.refresh(modelContext: modelContext) }
 
             if !viewModel.selectedIds.isEmpty {
                 bottomBar

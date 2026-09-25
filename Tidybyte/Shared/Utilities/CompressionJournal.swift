@@ -146,8 +146,23 @@ enum CompressionJournal {
     /// replacement that attempt stranded. No-op when no pending row exists.
     /// Shared by the photo/video batch loops (previously verbatim private copies
     /// in both view models).
-    static func markPendingFailed(assetId: String, modelContext: ModelContext) async {
-        await resolvePending(assetId: assetId, outcome: .failed, modelContext: modelContext)
+    /// Pass `replacementAbsent: true` when the caller has already proven the
+    /// journaled copy is gone (the batch commit verifies replacements against
+    /// the library before touching originals). Asking PhotoKit to delete an
+    /// asset we know is absent reports not-gone, which would leave the row
+    /// PENDING forever — every later `reconcile` would retry the same
+    /// impossible delete. With the flag set the row settles immediately.
+    static func markPendingFailed(
+        assetId: String,
+        replacementAbsent: Bool = false,
+        modelContext: ModelContext
+    ) async {
+        await resolvePending(
+            assetId: assetId,
+            outcome: .failed,
+            replacementAbsent: replacementAbsent,
+            modelContext: modelContext
+        )
     }
 
     /// Marks a still-pending row for an attempt that legitimately did not swap:
@@ -155,12 +170,18 @@ enum CompressionJournal {
     /// or a user cancel. `CompressionRecord.isFailed` renders a red badge, so
     /// these must not be recorded as failures.
     static func markPendingSkipped(assetId: String, modelContext: ModelContext) async {
-        await resolvePending(assetId: assetId, outcome: .skipped, modelContext: modelContext)
+        await resolvePending(
+            assetId: assetId,
+            outcome: .skipped,
+            replacementAbsent: false,
+            modelContext: modelContext
+        )
     }
 
     private static func resolvePending(
         assetId: String,
         outcome: CompressionOutcome,
+        replacementAbsent: Bool,
         modelContext: ModelContext
     ) async {
         var descriptor = FetchDescriptor<CompressionRecord>(
@@ -168,7 +189,12 @@ enum CompressionJournal {
         )
         descriptor.fetchLimit = 1
         guard let record = try? modelContext.fetch(descriptor).first else { return }
-        await resolveStrandedReplacement(of: record, outcome: outcome, modelContext: modelContext)
+        await resolveStrandedReplacement(
+            of: record,
+            outcome: outcome,
+            replacementAbsent: replacementAbsent,
+            modelContext: modelContext
+        )
     }
 
     /// Finalizes a pending row for an attempt that ended without a swap, first
@@ -179,6 +205,7 @@ enum CompressionJournal {
     private static func resolveStrandedReplacement(
         of record: CompressionRecord,
         outcome: CompressionOutcome,
+        replacementAbsent: Bool,
         modelContext: ModelContext
     ) async {
         guard let orphanId = record.replacementAssetLocalIdentifier else {
@@ -186,11 +213,15 @@ enum CompressionJournal {
             finalize(record, outcome: outcome, modelContext: modelContext)
             return
         }
-        guard await PhotoLibraryService.shared.removeOrphanedAsset(id: orphanId) else {
-            AppLog.compression.error(
-                "Could not remove stranded replacement \(orphanId, privacy: .public); leaving the journal row pending so the next reconcile retries"
-            )
-            return
+        // The caller already verified this copy is absent. Deleting it again
+        // would report not-gone and strand the row pending, so settle it now.
+        if !replacementAbsent {
+            guard await PhotoLibraryService.shared.removeOrphanedAsset(id: orphanId) else {
+                AppLog.compression.error(
+                    "Could not remove stranded replacement \(orphanId, privacy: .public); leaving the journal row pending so the next reconcile retries"
+                )
+                return
+            }
         }
         // The copy this row described is gone — zero its size so History doesn't
         // advertise a compression that no longer exists (the same invariant
@@ -245,14 +276,22 @@ enum CompressionJournal {
     /// method: the fetch below is pending-only, so a decline settled durably
     /// by `CompressionSwap.finalizeKeptBoth` can never resolve to
     /// `deleteOrphanThenFail` and lose the user's saved copy.
-    /// Assets that already have a usable copy (completed swaps, no-savings
-    /// skips, kept-both declines). Failed rows, and skips whose copies were
-    /// removed, stay eligible for another try.
-    static func alreadyCompressedIds(modelContext: ModelContext) -> Set<String> {
+    /// Original id → the replacement copy that row settled on. Rows that never
+    /// journaled a copy (failures, copy-removed skips) are absent.
+    ///
+    /// Callers verify the replacement is still in the library before treating
+    /// the original as done: a kept-both row whose copy the user later deleted
+    /// must become compressible again, and this mapping is what makes that
+    /// check possible.
+    static func settledReplacements(modelContext: ModelContext) -> [String: String] {
         let records = (try? modelContext.fetch(FetchDescriptor<CompressionRecord>(
             predicate: #Predicate { $0.outcome != "pending" && $0.outcome != "failed" }
         ))) ?? []
-        return Set(records.filter { $0.replacementAssetLocalIdentifier != nil }.map(\.assetLocalIdentifier))
+        return records.reduce(into: [String: String]()) { result, record in
+            if let replacement = record.replacementAssetLocalIdentifier {
+                result[record.assetLocalIdentifier] = replacement
+            }
+        }
     }
 
     /// Copies this app made that are still named on a settled row: completed

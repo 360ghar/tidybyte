@@ -199,11 +199,18 @@ final class LivePhotosConverterViewModel {
         guard !pending.isEmpty else { return }
         isBusy = true
         Task {
+            let outcome = await OriginalsCommit.removeCopies(pending)
             // A decline leaves both versions: say so instead of going quiet.
-            if await !OriginalsCommit.removeCopies(pending) {
+            if !outcome.allCopiesRemoved {
                 errorMessage = OriginalsCommit.copiesKeptMessage
             }
-            for item in pending { setState(.idle, for: item.assetId) }
+            // A Live Photo that vanished outside the app is already replaced by
+            // its still, so stop listing it instead of offering another convert.
+            let doneIds = Set(outcome.completed.map(\.assetId))
+            items.removeAll { doneIds.contains($0.id) }
+            for item in pending where !doneIds.contains(item.assetId) {
+                setState(.idle, for: item.assetId)
+            }
             isBusy = false
         }
     }
@@ -399,6 +406,13 @@ final class LivePhotosConverterViewModel {
                 swap: swap
             )
         } catch {
+            // A cancel is not a failure — History must not render a red badge
+            // for something the batch summary reports as cancelled. Mirrors the
+            // photo and video batch loops.
+            if isCancelled || error is CancellationError {
+                await swap.markSkipped(assetId: assetId)
+                throw error
+            }
             await swap.markFailed(assetId: assetId)
             throw error
         }

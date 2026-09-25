@@ -263,6 +263,13 @@ final class PhotoCompressionViewModel {
             selectedIds.subtract(done)
             isCompressing = false
             keptOriginals = outcome.kept
+            // A retry that completes the delete IS a clean batch success, but
+            // `batchSummary` is unchanged so the view's `.onChange` never
+            // re-fires and the success haptic is lost. Play it here, matching
+            // the other cleanup tools.
+            if !done.isEmpty, outcome.failed.isEmpty, outcome.kept.isEmpty {
+                HapticHelper.notification(.success)
+            }
         }
     }
 
@@ -274,17 +281,24 @@ final class PhotoCompressionViewModel {
         guard !items.isEmpty else { return }
         isCompressing = true
         Task {
+            let outcome = await OriginalsCommit.removeCopies(items)
             // A decline leaves both versions: say so instead of going quiet.
-            if await !OriginalsCommit.removeCopies(items) {
+            if !outcome.allCopiesRemoved {
                 errorMessage = OriginalsCommit.copiesKeptMessage
             }
-            let ids = Set(items.map(\.assetId))
+            // An original that vanished outside the app is already replaced, so
+            // its saved copy is the library's asset now — stop listing the row
+            // instead of claiming both versions are present.
+            let doneIds = Set(outcome.completed.map(\.assetId))
+            removePhotos(doneIds)
+            selectedIds.subtract(doneIds)
             // Declined rows stay non-eligible: their copies are still in the
             // library (journaled as kept), so offering Compress again would
-            // strand another duplicate. `replacementId` is nilled when the
-            // copy is removed, so rows whose copies are gone go back to waiting.
-            let keptIds = Set(items.filter { $0.swap.replacementId != nil }.map(\.assetId))
-            for index in photos.indices where ids.contains(photos[index].id) {
+            // strand another duplicate. Rows whose copies went back to waiting
+            // are the ones the journal nilled a `replacementId` for.
+            let keptIds = Set(outcome.kept.map(\.assetId))
+            let remaining = Set(items.map(\.assetId)).subtracting(doneIds)
+            for index in photos.indices where remaining.contains(photos[index].id) {
                 if keptIds.contains(photos[index].id) {
                     photos[index].compressionState = .keptOriginal(reason: "Original kept — both versions in your library")
                 } else {
@@ -317,10 +331,14 @@ final class PhotoCompressionViewModel {
 
         // COMP-16: skip assets that already have a usable copy — completed
         // swaps, no-savings skips, and kept-both declines — so they are never
-        // re-encoded (quality degradation, duplicate copies). Only rows that
-        // still name a copy count: failed rows and skips whose copies were
-        // removed (Remove Copies accepted) stay eligible for another try.
-        let previouslyCompletedIds = CompressionJournal.alreadyCompressedIds(modelContext: modelContext)
+        // re-encoded (quality degradation, duplicate copies).
+        //
+        // The copy must still be in the library: a kept-both row whose copy the
+        // user deleted in Photos would otherwise block its original from ever
+        // being compressed again ("Already compressed" forever).
+        let settled = CompressionJournal.settledReplacements(modelContext: modelContext)
+        let liveReplacements = await photoService.existingIds(Array(settled.values))
+        let previouslyCompletedIds = Set(settled.filter { liveReplacements.contains($0.value) }.keys)
 
         // D1: resolve leftovers from any interrupted swap BEFORE the batch.
         await CompressionJournal.reconcile(modelContext: modelContext)
