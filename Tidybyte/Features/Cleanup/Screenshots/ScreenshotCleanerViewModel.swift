@@ -85,10 +85,16 @@ final class ScreenshotCleanerViewModel {
 
     private func pruneNow() async {
         guard !screenshots.isEmpty, !isDeleting else { return }
-        let present = await PhotoLibraryService.shared.existingIds(screenshots.map(\.id))
-        guard present.count < screenshots.count else { return }
-        screenshots.removeAll { !present.contains($0.id) }
-        selectedIds.formIntersection(present)
+        // Snapshot before the await: a concurrent refresh can publish new rows
+        // while we suspend, and applying the old membership set to the fresh
+        // array would drop them.
+        let snapshotIds = screenshots.map(\.id)
+        let present = await PhotoLibraryService.shared.existingIds(snapshotIds)
+        guard present.count < snapshotIds.count else { return }
+        guard !isDeleting else { return }
+        let goneIds = Set(snapshotIds.filter { !present.contains($0) })
+        screenshots.removeAll { goneIds.contains($0.id) }
+        selectedIds.subtract(goneIds)
     }
 
     func loadIfNeeded() async {
@@ -127,7 +133,10 @@ final class ScreenshotCleanerViewModel {
         // A library change that landed mid-fetch: the snapshot above
         // predates it, so prune now that publishing can't overwrite it.
         // (Bypasses the `isRunning` guard — this IS the in-flight fetch.)
-        if pendingPrune {
+        // Drain in a loop: a library change arriving during the prune below
+        // re-sets `pendingPrune`, and a one-shot check would leave it unpruned
+        // for the rest of this scan.
+        while pendingPrune {
             pendingPrune = false
             await pruneNow()
         }

@@ -132,6 +132,10 @@ final class SmartCategoriesViewModel {
         // turn on the main actor) must not touch shared state: `cancelScan()`
         // already moved the UI to `.idle`.
         guard scanRunner.isCurrent(token) else { return }
+        // Captured before any await: a library change during the scan bumps the
+        // epoch, and this run's result must then be dropped rather than
+        // published as a pre-change count.
+        let scanEpoch = ScanResults.epoch
         scanState = .scanning(0)
         categorizedPhotos = []
         selectedIds.removeAll()
@@ -170,7 +174,7 @@ final class SmartCategoriesViewModel {
             pendingPrune = false
             await pruneDeleted()
         }
-        ScanResults.record(.smartCategories, count: categorizedPhotos.count)
+        ScanResults.record(.smartCategories, count: categorizedPhotos.count, epoch: scanEpoch)
     }
 
     /// D-06: the "Saved from Apps" bucket is recall-heavy by design (filename
@@ -198,10 +202,16 @@ final class SmartCategoriesViewModel {
             return
         }
         guard scanState == .completed, !categorizedPhotos.isEmpty, !isDeleting else { return }
-        let present = await PhotoLibraryService.shared.existingIds(categorizedPhotos.map(\.id))
-        guard present.count < categorizedPhotos.count else { return }
-        categorizedPhotos.removeAll { !present.contains($0.id) }
-        selectedIds.formIntersection(present)
+        // Snapshot before the await: a cancel+restart can replace
+        // `categorizedPhotos` while we suspend, and applying the previous
+        // scan's membership set to the new results would drop them.
+        let scannedIds = categorizedPhotos.map(\.id)
+        let present = await PhotoLibraryService.shared.existingIds(scannedIds)
+        guard present.count < scannedIds.count else { return }
+        guard scanState == .completed, !isDeleting else { return }
+        let goneIds = Set(scannedIds.filter { !present.contains($0) })
+        categorizedPhotos.removeAll { goneIds.contains($0.id) }
+        selectedIds.subtract(goneIds)
     }
 
     func toggleSelection(_ id: String) {

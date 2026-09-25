@@ -133,6 +133,10 @@ final class BlurryPhotosViewModel {
         // turn on the main actor) must not touch shared state: `cancelScan()`
         // already moved the UI to `.idle`.
         guard scanRunner.isCurrent(token) else { return }
+        // Captured before any await: a library change during the scan bumps the
+        // epoch, and this run's result must then be dropped rather than
+        // published as a pre-change count.
+        let scanEpoch = ScanResults.epoch
         scanState = .scanning(0)
         analyzedPhotos = []
         // D-02: stale selections from a previous scan must not persist across
@@ -230,7 +234,7 @@ final class BlurryPhotosViewModel {
             pendingPrune = false
             await pruneDeleted()
         }
-        ScanResults.record(.blurry, count: analyzedPhotos.count)
+        ScanResults.record(.blurry, count: analyzedPhotos.count, epoch: scanEpoch)
     }
 
     /// Drops results deleted elsewhere (Swipe Review, the Photos app).
@@ -245,10 +249,16 @@ final class BlurryPhotosViewModel {
             return
         }
         guard scanState == .completed, !analyzedPhotos.isEmpty, !isDeleting else { return }
-        let present = await PhotoLibraryService.shared.existingIds(analyzedPhotos.map(\.id))
-        guard present.count < analyzedPhotos.count else { return }
-        analyzedPhotos.removeAll { !present.contains($0.id) }
-        selectedIds.formIntersection(present)
+        // Snapshot before the await: a new scan can replace `analyzedPhotos`
+        // while we suspend, and applying the old membership set to the fresh
+        // results would drop them.
+        let scannedIds = analyzedPhotos.map(\.id)
+        let present = await PhotoLibraryService.shared.existingIds(scannedIds)
+        guard present.count < scannedIds.count else { return }
+        guard scanState == .completed, !isDeleting else { return }
+        let goneIds = Set(scannedIds.filter { !present.contains($0) })
+        analyzedPhotos.removeAll { goneIds.contains($0.id) }
+        selectedIds.subtract(goneIds)
     }
 
     func toggleSelection(_ id: String) {
