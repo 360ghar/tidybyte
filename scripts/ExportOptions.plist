@@ -12,6 +12,8 @@
 	<string>HMWGCVU4SV</string>
 	<key>signingStyle</key>
 	<string>automatic</string>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
 	<key>uploadSymbols</key>
 	<true/>
 </dict>
