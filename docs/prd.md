@@ -603,9 +603,15 @@ Arabic and Hebrew are **right-to-left** and the whole layout mirrors.
 3. **In-app picker** — applies immediately, no relaunch.
 
 In-app switching works because `RootView` injects `\.locale` and
-`\.layoutDirection` and rebuilds the view tree on language change. The two surfaces
-that do *not* change live are documented where they bite: system-owned UI follows on
-the next launch, and the widget refreshes on its next timeline reload.
+`\.layoutDirection` into the environment, so every `Text` re-resolves without a
+relaunch. The tree is deliberately *not* keyed on the language: doing that
+rebuilt the tab subtree and destroyed child `@State`, including a live swipe
+session's uncommitted deletions. `.navigationTitle` is the one surface that does
+not follow on its own, because the bar only re-applies a title whose value
+changed; every call site resolves it through `L10n.string` for that reason. The
+two surfaces that do *not* change live are documented where they bite:
+system-owned UI follows on the next launch, and the widget refreshes on its next
+timeline reload.
 
 ### 13.4 Architecture
 

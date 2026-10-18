@@ -88,7 +88,7 @@ struct MediaCleanerView: View {
                 }
             }
         }
-        .navigationTitle(viewModel.tool.name)
+        .localizedNavigationTitle(viewModel.tool.nameKey)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 SelectAllToolbarButton(allSelected: viewModel.allVisibleSelected,
@@ -130,7 +130,7 @@ struct MediaCleanerView: View {
                     }
                 }
                 .overlay { if viewModel.albums.isEmpty { Text("No accessible user albums.") } }
-                .navigationTitle(L10n.string("Chat albums"))
+                .localizedNavigationTitle("Chat albums")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showAlbums = false } }
                     ToolbarItem(placement: .confirmationAction) {

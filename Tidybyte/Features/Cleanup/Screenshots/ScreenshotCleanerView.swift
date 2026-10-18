@@ -106,7 +106,7 @@ struct ScreenshotCleanerView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.35, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.isLoading)
-        .navigationTitle(L10n.string("Screenshots"))
+        .localizedNavigationTitle("Screenshots")
         // Items deleted elsewhere (Swipe Review, the Photos app) leave the
         // list when the library changes, instead of lingering as blanks.
         .task(id: libraryMonitor.generation) {

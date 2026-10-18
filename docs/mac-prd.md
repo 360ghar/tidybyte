@@ -222,4 +222,7 @@ History** with a confirm dialog, and an About section (version, build,
    optimization tips) — file-level cleanup only.
 3. Syncing review state between Macs.
 4. Anything that permanently deletes, encrypts, or modifies file contents
-   outside the two compression tools.
+   outside the two compression tools and the confirmed, user-invoked
+   **Empty Trash** action (§5.6, §8.6). That action is the single
+   exception §8.1 names, and it is in scope; every other permanent
+   deletion is not.

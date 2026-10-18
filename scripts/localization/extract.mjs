@@ -63,6 +63,10 @@ const LOCALIZABLE_MODIFIERS = [
   'navigationTitle', 'navigationBarTitle', 'alert', 'confirmationDialog',
   'accessibilityLabel', 'accessibilityHint', 'accessibilityValue',
   'help', 'textFieldStyle',
+  // Replaces `navigationTitle` at every call site. A nav title has to be
+  // re-resolved on a language change rather than handed a value computed once,
+  // so it takes the key; see `View+LocalizedNavigationTitle.swift`.
+  'localizedNavigationTitle',
 ];
 
 /**
@@ -71,8 +75,12 @@ const LOCALIZABLE_MODIFIERS = [
  * Xcode's own extractor only sees the SwiftUI APIs above, so these keys have to
  * be collected here. `L10n.format` takes a second `fallback:` argument that
  * carries the English plural form; both are keys the catalog needs.
+ *
+ * `L10n.key` marks a literal as a key without resolving it, which is how a key
+ * accessor like `CleanupTool.nameKey` stays visible to this scan when the call
+ * site that consumes it is dynamic.
  */
-const L10N_CALLS = ['L10n.string', 'L10n.format'];
+const L10N_CALLS = ['L10n.string', 'L10n.format', 'L10n.key'];
 
 /**
  * App Shortcut files whose `phrases:` arrays are user-facing but not extracted.

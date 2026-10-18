@@ -101,7 +101,7 @@ extension ComparisonDescriptor where G == SimilarComparison {
 }
 
 /// Shared group-comparison pager. Title-free body: the call site sets
-/// `.navigationTitle` (Duplicates: "Compare", Similar: "Review Group").
+/// `localizedNavigationTitle` (Duplicates: "Compare", Similar: "Review Group").
 /// `Detail` is a generic slot (not AnyView) so the Similar quality section can
 /// be injected with no type erasure; Duplicates uses `EmptyView`.
 struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {

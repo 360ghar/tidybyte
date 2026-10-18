@@ -23,21 +23,6 @@ struct RootView: View {
     @Environment(WidgetSnapshotCoordinator.self) private var widgetCoordinator
 
     init() {
-        #if DEBUG
-        // Start UI tests from a genuinely fresh first-run state. Resetting the
-        // persisted flag here (rather than pinning it false via a launch
-        // argument) matters: an argument-domain value would outrank the write
-        // that Skip performs, so the cover could never be dismissed.
-        //
-        // Once per process, not once per init: the App body re-evaluates on a
-        // `scenePhase` change, and the photo permission alert causes one. A
-        // second reset would delete the flag Skip had just written and the
-        // cover would come back over the test.
-        if ProcessInfo.processInfo.arguments.contains("-uitest-reset-onboarding") {
-            UITestLaunchReset.perform()
-        }
-        #endif
-
         let appearance = UITabBarAppearance()
         appearance.configureWithDefaultBackground()
         appearance.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.85)
@@ -288,42 +273,6 @@ struct RootView: View {
         }
     }
 }
-
-#if DEBUG
-/// One-shot guard for the UI-test launch reset.
-///
-/// `RootView.init` runs again whenever the App body re-evaluates, and a
-/// `scenePhase` change does exactly that: the photo permission alert makes one.
-/// Without this, the reset would delete the first-run flag a second time and
-/// re-present the onboarding cover over a running test.
-///
-/// A `static let` is the one-shot: the runtime initializes it once per process,
-/// lazily and thread-safely, so no mutable global is needed.
-private enum UITestLaunchReset {
-    private static let didReset: Void = {
-        UserDefaults.standard.removeObject(forKey: AppPreferences.Key.hasCompletedOnboarding)
-        // The stored language override outranks iOS's `AppleLanguages`, which
-        // the UI tests pin to English for their label lookups. A simulator left
-        // in German by a previous hand-check would render German and fail every
-        // English assertion, so clear it here too. Written through the store so
-        // both stores (App Group and standard) are cleared by the same code that
-        // writes them.
-        LanguagePreferenceStore.save(nil)
-        // `LanguageStore.applyToSystem` mirrors the pick into `AppleLanguages`
-        // so system-rendered UI follows it, and `Bundle.main` follows that key.
-        // Clearing only the override above left the mirror behind, so the next
-        // process — the unit tests, which run in this same app and pass no
-        // `-AppleLanguages` — resolved `Bundle.main` against the language a
-        // previous UI test picked and asserted German copy against English
-        // expectations. Removing it restores "follow the device", which is what
-        // the mirror documents as the unset state.
-        UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-    }()
-
-    /// Runs the reset at most once per process, however often `init` is called.
-    static func perform() { _ = didReset }
-}
-#endif
 
 enum AppTab: Hashable {
     case swipe

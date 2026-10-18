@@ -43,7 +43,7 @@ struct ActivityView: View {
                 .readableWidth()
             }
         }
-        .navigationTitle(L10n.string("Activity & Savings"))
+        .localizedNavigationTitle("Activity & Savings")
         .navigationBarTitleDisplayMode(.inline)
         .pullToRefresh {
             viewModel.refresh(modelContext: modelContext)

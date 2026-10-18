@@ -56,7 +56,7 @@ struct BlurryPhotosView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
-        .navigationTitle(CleanupTool.blurry.name)
+        .localizedNavigationTitle(CleanupTool.blurry.nameKey)
         // Items deleted elsewhere (Swipe Review, the Photos app) leave the
         // list when the library changes, instead of lingering as blanks.
         .task(id: libraryMonitor.generation) {

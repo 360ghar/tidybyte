@@ -49,7 +49,7 @@ struct DuplicateFinderView: View {
         // pushes no title update, and a screen that was hidden while the
         // language changed keeps the old title. A `String` differs between the
         // two languages, so the title is re-applied.
-        .navigationTitle(L10n.string("Duplicates"))
+        .localizedNavigationTitle("Duplicates")
         .happyPathCelebration(
             isPresented: $isCelebrating,
             statLine: L10n.format("removed %lld duplicate", fallback: "removed %lld duplicates", viewModel.deletedCount)
@@ -89,7 +89,7 @@ struct DuplicateFinderView: View {
                 },
                 descriptor: .duplicates
             )
-            .navigationTitle(L10n.string("Compare"))
+            .localizedNavigationTitle("Compare")
             .navigationBarTitleDisplayMode(.inline)
         }
         .alert("Delete \(viewModel.selectedForDeletion.count) Items", isPresented: $showDeleteConfirm) {

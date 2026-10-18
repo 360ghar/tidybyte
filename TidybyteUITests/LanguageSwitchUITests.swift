@@ -13,9 +13,11 @@ import XCTest
 /// 2. the screen the user was on is still there afterwards.
 ///
 /// They are two tests rather than one flow because the second one leaves the app
-/// on a pushed screen, and nothing here can reliably pop it: the pushed tool's
-/// navigation bar exposes no back button to query. Splitting also means a
-/// failure names which half broke.
+/// on a pushed screen, and splitting means a failure names which half broke.
+///
+/// A third test covers the launch reset the other two depend on: it must clear a
+/// stored language before the app reads it, or every English assertion here
+/// starts from a German app.
 ///
 /// English and German are used because both ship, the German strings differ
 /// from the English ones, and the endonyms in the picker are never translated.
@@ -197,25 +199,65 @@ final class LanguageSwitchUITests: XCTestCase {
         // 2. Switch to German from Settings.
         switchToGerman(in: app)
 
-        // 3. Back on the Cleanup tab the pushed screen is still pushed, and its
-        //    own copy re-resolved. A tree rebuild is what used to cost that
-        //    screen.
+        // 3. Back on the Cleanup tab the pushed screen is still pushed, and both
+        //    its bar and its body re-resolved. A tree rebuild is what used to
+        //    cost that screen.
         //
-        //    Asserted on the screen's body copy and its back button, not on the
-        //    navigation bar's title: SwiftUI resolves a `navigationTitle` when
-        //    the body runs, and this screen's body does not run again for a
-        //    language change, so its bar keeps the previous language until the
-        //    screen is left and re-entered. That is a real, reported gap; the
-        //    state this test exists for is intact.
+        //    The bar is the assertion that matters most: it is UIKit-backed and
+        //    only re-applies a title whose *value* changed, so it is the surface
+        //    a stale key leaves behind — this screen's body does not run again
+        //    for a language change, so a title passed as the same
+        //    `LocalizedStringKey` in both languages kept the old one. Every
+        //    `.navigationTitle` call site resolves through `L10n.string` for
+        //    exactly this reason.
         tabButton(Self.germanCleanupTab, in: app).tap()
-        print("DIAG navbars=\(app.navigationBars.allElementsBoundByIndex.map(\.identifier)) back=\(app.buttons["BackButton"].exists)")
         XCTAssertTrue(
             app.buttons["BackButton"].waitForExistence(timeout: timeout),
             "the pushed tool screen must survive the language change: \(app.debugDescription)"
         )
         XCTAssertTrue(
+            app.navigationBars[Self.germanDuplicates].waitForExistence(timeout: timeout),
+            "the pushed screen's title must re-resolve in place: \(app.debugDescription)"
+        )
+        XCTAssertTrue(
             app.staticTexts[Self.germanDuplicatesIdleHeadline].waitForExistence(timeout: timeout),
             "the pushed screen must re-render its German copy: \(app.debugDescription)"
+        )
+    }
+
+    /// The launch reset must clear a stored language *before* the app reads it.
+    ///
+    /// `RootView` builds its `LanguageStore` in a property initializer, and a
+    /// property initializer runs before the body of its own `init`. A reset
+    /// performed in that body therefore cleared storage too late for the launch
+    /// it targeted: `LanguageStore` had already read the previous language, the
+    /// whole app rendered in it, and only the *next* launch saw the clear. Every
+    /// English assertion in this class then starts from a German app.
+    ///
+    /// This drives that exact sequence, which is why it deliberately ends one
+    /// launch in German without cleaning up.
+    func testResetLaunchDoesNotInheritThePreviousLanguage() {
+        // 1. A launch that ends in German, left stored on purpose.
+        let german = launch()
+        switchToGerman(in: german)
+        german.terminate()
+
+        // 2. The reset launch. `-hasCompletedOnboarding YES` keeps the cover
+        //    down (an argument-domain value outranks the write the reset makes),
+        //    and photo access was granted in step 1 and persists, so the tab bar
+        //    is on screen without walking the gate again.
+        let relaunched = XCUIApplication()
+        relaunched.launchArguments = ["-uitest-reset-onboarding", "-hasCompletedOnboarding", "YES"]
+        relaunched.launchArguments += DynamicTypeUITests.englishLaunchArguments
+        relaunched.launch()
+
+        // Asserted through `tabButton`, not `app.tabBars.buttons` directly: on
+        // this destination the tab bar is not always published as a `TabBar`
+        // element, and the helper falls back to a plain button lookup for that
+        // reason. Either way the label is English only if the reset worked.
+        XCTAssertTrue(
+            tabButton("Cleanup", in: relaunched).waitForExistence(timeout: timeout),
+            "a reset launch must not inherit the language the previous launch stored: \(relaunched.debugDescription)"
         )
     }
 

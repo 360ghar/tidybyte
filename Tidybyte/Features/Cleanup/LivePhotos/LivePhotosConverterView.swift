@@ -33,7 +33,7 @@ struct LivePhotosConverterView: View {
                 contentView
             }
         }
-        .navigationTitle(L10n.string("Live Photos"))
+        .localizedNavigationTitle("Live Photos")
         .toolbar {
             // Conversions are logged in the same history as compression.
             ToolbarItem(placement: .topBarTrailing) {

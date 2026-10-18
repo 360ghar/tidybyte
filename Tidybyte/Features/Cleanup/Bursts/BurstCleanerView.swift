@@ -48,7 +48,7 @@ struct BurstCleanerView: View {
                 contentView
             }
         }
-        .navigationTitle(L10n.string("Burst Photos"))
+        .localizedNavigationTitle("Burst Photos")
         .toolbar {
             if !viewModel.groups.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {

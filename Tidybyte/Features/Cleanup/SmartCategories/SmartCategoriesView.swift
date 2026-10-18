@@ -95,7 +95,7 @@ struct SmartCategoriesView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
-        .navigationTitle(L10n.string("Smart Categories"))
+        .localizedNavigationTitle("Smart Categories")
         // Items deleted elsewhere (Swipe Review, the Photos app) leave the
         // list when the library changes, instead of lingering as blanks.
         .task(id: libraryMonitor.generation) {

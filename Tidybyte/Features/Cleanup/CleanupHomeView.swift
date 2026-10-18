@@ -54,7 +54,7 @@ struct CleanupHomeView: View {
             }
             .padding(Spacing.lg)
         }
-        .navigationTitle(L10n.string("Cleanup"))
+        .localizedNavigationTitle("Cleanup")
         .pullToRefresh {
             await viewModel.refreshCounts(excludingCompressedCopies: savedReplacementIds())
         }

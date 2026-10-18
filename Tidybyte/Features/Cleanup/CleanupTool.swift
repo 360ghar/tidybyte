@@ -68,22 +68,29 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
         }
     }
 
-    var name: String {
+    /// The catalog key behind `name`, which is the English text.
+    ///
+    /// Separate from `name` because a navigation title has to be re-resolved on
+    /// a language change rather than handed a value that was computed once; see
+    /// `localizedNavigationTitle`.
+    var nameKey: String {
         switch self {
-        case .duplicates: L10n.string("Duplicates")
-        case .similar: L10n.string("Similar Photos")
-        case .screenshots: L10n.string("Screenshots")
-        case .screenRecordings: L10n.string("Screen Recordings")
-        case .chatMedia: L10n.string("Chat Media")
-        case .blurry: L10n.string("Blurry Photos")
-        case .smartCategories: L10n.string("Smart Categories")
-        case .largeFiles: L10n.string("Large Files")
-        case .bursts: L10n.string("Burst Photos")
-        case .livePhotos: L10n.string("Live Photos")
-        case .videoCompression: L10n.string("Video Compression")
-        case .photoCompression: L10n.string("Photo Compression")
+        case .duplicates: L10n.key("Duplicates")
+        case .similar: L10n.key("Similar Photos")
+        case .screenshots: L10n.key("Screenshots")
+        case .screenRecordings: L10n.key("Screen Recordings")
+        case .chatMedia: L10n.key("Chat Media")
+        case .blurry: L10n.key("Blurry Photos")
+        case .smartCategories: L10n.key("Smart Categories")
+        case .largeFiles: L10n.key("Large Files")
+        case .bursts: L10n.key("Burst Photos")
+        case .livePhotos: L10n.key("Live Photos")
+        case .videoCompression: L10n.key("Video Compression")
+        case .photoCompression: L10n.key("Photo Compression")
         }
     }
+
+    var name: String { L10n.string(nameKey) }
 
     var description: String {
         switch self {

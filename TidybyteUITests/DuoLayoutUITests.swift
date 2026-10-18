@@ -54,7 +54,10 @@ final class DuoLayoutUITests: XCTestCase {
                 return true
             }
         }
-        app.launchArguments = ["-hasCompletedOnboarding", "YES"]
+        // `-uitest-reset-onboarding` clears a stored language left by an earlier
+        // run, which outranks the English pin below. The argument-domain
+        // `-hasCompletedOnboarding YES` still keeps the cover down.
+        app.launchArguments = ["-uitest-reset-onboarding", "-hasCompletedOnboarding", "YES"]
         app.launchArguments += DynamicTypeUITests.englishLaunchArguments
         app.launch()
 

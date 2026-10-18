@@ -14,6 +14,19 @@ struct TidybyteApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        #if DEBUG
+        // Reset UI-test state before anything can read it. This lives here, not
+        // in `RootView.init`, because `RootView` builds its `LanguageStore` in a
+        // property initializer — and a property initializer runs before the body
+        // of its own `init`. A reset performed there cleared the stored language
+        // *after* `LanguageStore` had already read it, so the launch the reset
+        // was added for still rendered the previous language; only the launch
+        // after that saw the clear.
+        if ProcessInfo.processInfo.arguments.contains("-uitest-reset-onboarding") {
+            UITestLaunchReset.perform()
+        }
+        #endif
+
         modelContainer = Self.makeModelContainer()
         // Set before launch finishes, so a tap that cold-launches the app is
         // still routed.
@@ -126,6 +139,44 @@ struct TidybyteApp: App {
     }
 }
 
+#if DEBUG
+/// The UI-test launch reset: a genuinely fresh first-run state.
+///
+/// Two properties matter, and both were violated once:
+///
+/// 1. **It must run before anything reads the state it clears.** `RootView`
+///    builds its `LanguageStore` in a property initializer, so a reset in
+///    `RootView.init`'s body ran too late to affect the launch it targeted.
+///    `App.init` is the earliest app-owned point, and it is before any view.
+/// 2. **It must run exactly once.** `RootView.init` re-runs whenever the App
+///    body re-evaluates, and the photo permission alert causes a `scenePhase`
+///    change that does exactly that. A second reset deleted the first-run flag
+///    `Skip` had just written and brought the onboarding cover back over a
+///    running test. `App.init` already runs once; this keeps the reset
+///    idempotent regardless of where it is called from.
+private enum UITestLaunchReset {
+    private static let didReset: Void = {
+        UserDefaults.standard.removeObject(forKey: AppPreferences.Key.hasCompletedOnboarding)
+        // The stored language override outranks iOS's `AppleLanguages`, which
+        // the UI tests pin to English for their label lookups. A simulator left
+        // in German by a previous hand-check would render German and fail every
+        // English assertion, so clear it here too. Written through the store so
+        // both stores (App Group and standard) are cleared by the same code that
+        // writes them.
+        LanguagePreferenceStore.save(nil)
+        // `LanguageStore.applyToSystem` mirrors the pick into `AppleLanguages`
+        // for the system-rendered UI, and `Bundle.main` follows that key.
+        // Clearing only the override left the mirror behind, so the unit tests —
+        // which run in this same app and pass no `-AppleLanguages` — resolved
+        // `Bundle.main` against the language a previous UI test picked and
+        // asserted German copy against English expectations.
+        UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+    }()
+
+    /// Runs the reset at most once per process, however often it is called.
+    static func perform() { _ = didReset }
+}
+#endif
 /// Shown when SwiftData could not be initialized in any configuration.
 ///
 /// This screen is deliberately outside `RootView`: every feature reads

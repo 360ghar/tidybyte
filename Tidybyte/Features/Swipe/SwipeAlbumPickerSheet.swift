@@ -55,7 +55,7 @@ struct SwipeAlbumPickerSheet: View {
                     }
                 }
             }
-            .navigationTitle(L10n.string("Select Album"))
+            .localizedNavigationTitle("Select Album")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

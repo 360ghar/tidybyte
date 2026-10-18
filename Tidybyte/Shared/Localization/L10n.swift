@@ -8,15 +8,16 @@ import Foundation
 /// German string immediately, no relaunch). Services, notification bodies,
 /// widget copy, and App Intents have no such environment, so they come here.
 ///
-/// **Navigation titles are the exception, and they come here too.** A
-/// `.navigationTitle("key")` takes the same `LocalizedStringKey`, but the bar is
-/// UIKit-backed and only re-applies a title whose *value* changed. That key is
-/// identical in every language, so a screen that was hidden while the language
-/// changed keeps the old title when the user comes back to it: the body
-/// re-renders in the new language while the bar still reads the old one. Passing
-/// `string(_:)` instead makes the value differ per language, so the title is
-/// re-applied. Every `.navigationTitle` in the app does this — keep it that way,
-/// and prefer `CleanupTool.name`-style computed properties over literals.
+/// **Navigation titles are the exception, and they go through
+/// `localizedNavigationTitle`.** A `.navigationTitle("key")` takes the same
+/// `LocalizedStringKey`, but the bar is UIKit-backed and only re-applies a title
+/// whose *value* changed — and that key is identical in every language. A
+/// screen that was hidden while the language changed therefore kept the old
+/// title: its body rendered in the new language while the bar above it still
+/// read the old one. Resolving the key here fixes the value; the modifier also
+/// reads the live language, because a title is computed when the body runs and a
+/// hidden screen's body does not run again. Keep `.navigationTitle` literals out
+/// of the app.
 ///
 /// This type resolves against the *specific language's* bundle rather than
 /// `Bundle.main`. That matters for the same reason: `Bundle.main` resolves once
@@ -41,6 +42,18 @@ enum L10n {
         guard let language, language != .system else { return .main }
         return cache.bundle(for: language)
     }
+
+    /// A catalog key, unresolved.
+    ///
+    /// For a call site that must resolve the key *later* rather than now — a
+    /// navigation title, which has to be re-resolved on a language change
+    /// instead of handed a value computed once. Returning the key unchanged is
+    /// the whole implementation; the call exists so the literal is recognisably
+    /// a catalog key, both to a reader and to `extract.mjs`, which collects keys
+    /// from `L10n.key` calls.
+    ///
+    /// Use `string(_:)` instead when the text is drawn where it stands.
+    static func key(_ key: String) -> String { key }
 
     /// Looks up `key` in the language's bundle.
     ///

@@ -6,8 +6,11 @@ import Photos
 struct SettingsView: View {
     @Environment(WidgetSnapshotCoordinator.self) private var widgetCoordinator
     /// The live language/appearance state. Changing the language here
-    /// re-renders the whole app: `RootView` injects `\.locale` and keys the tree
-    /// on the language, so every screen follows without a relaunch.
+    /// re-renders the whole app: `RootView` injects `\.locale`, so every screen
+    /// follows without a relaunch and without rebuilding the tree — the tree is
+    /// deliberately *not* keyed on the language, because that rebuild destroyed
+    /// child `@State`. `.navigationTitle` is the one surface that does not
+    /// follow on its own; see `L10n.string`.
     @Environment(LanguageStore.self) private var languageStore
     // Swipe
     @AppStorage(AppPreferences.Key.defaultSwipeFilter) private var defaultSwipeFilter: String = DefaultSwipeFilterPreference.notSwipedYet.rawValue
@@ -467,7 +470,7 @@ struct SettingsView: View {
         // `LocalizedStringKey` before and after a language switch, so SwiftUI
         // pushes no title update, and the bar can keep the old title. A `String`
         // differs between the two languages, so the title is re-applied.
-        .navigationTitle(L10n.string("Settings"))
+        .localizedNavigationTitle("Settings")
         .toast($toast)
         .photoPermissionPrimer(
             isPresented: $showPhotoPermissionPrimer,

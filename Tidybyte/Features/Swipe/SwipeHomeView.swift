@@ -22,7 +22,7 @@ struct SwipeHomeView: View {
 
     var body: some View {
         mainContent
-        .navigationTitle(L10n.string("Swipe"))
+        .localizedNavigationTitle("Swipe")
         .navigationDestination(item: $selectedRoute) { route in
             SwipeSessionHostView(
                 route: route,
@@ -327,7 +327,7 @@ struct SwipeDateCutoffSheet: View {
             }
             .padding()
             }
-            .navigationTitle(L10n.string("Photos Before a Date"))
+            .localizedNavigationTitle("Photos Before a Date")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

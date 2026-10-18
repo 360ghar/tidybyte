@@ -47,7 +47,7 @@ struct SimilarPhotosView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
-        .navigationTitle(L10n.string("Similar Photos"))
+        .localizedNavigationTitle("Similar Photos")
         .happyPathCelebration(
             isPresented: $isCelebrating,
             statLine: L10n.format(
@@ -98,7 +98,7 @@ struct SimilarPhotosView: View {
                     }
                 }
             )
-            .navigationTitle(L10n.string("Review Group"))
+            .localizedNavigationTitle("Review Group")
             .navigationBarTitleDisplayMode(.inline)
         }
         .alert("Delete Similar Photos", isPresented: $showDeleteConfirm) {

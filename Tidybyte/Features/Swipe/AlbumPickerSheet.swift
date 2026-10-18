@@ -90,7 +90,7 @@ struct AlbumPickerSheet: View {
                     }
                 }
             }
-            .navigationTitle(L10n.string("Add to Album"))
+            .localizedNavigationTitle("Add to Album")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Cancel puts the card back on the deck (the sheet's onDismiss

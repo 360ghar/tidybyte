@@ -69,7 +69,7 @@ struct StorageDashboardView: View {
                 .readableWidth()
             }
         }
-        .navigationTitle(L10n.string("Storage"))
+        .localizedNavigationTitle("Storage")
         .pullToRefresh {
             await viewModel.refresh(modelContext: modelContext)
         }
