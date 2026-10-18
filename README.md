@@ -6,7 +6,7 @@
 
 A native iOS app that helps users clean up their photo library. Core UX is a Tinder-style swipe interface for reviewing media.
 
-- **Swift/SwiftUI**, iOS 17+, iPhone + iPad
+- **Swift/SwiftUI**, iOS 17+, iPhone (portrait) + iPad + iPhone Duo
 - **No backend** — all processing on-device
 - **No third-party dependencies** — Apple frameworks only
 - MVVM + Actors + SwiftData architecture

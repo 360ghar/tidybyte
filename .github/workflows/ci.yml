@@ -159,3 +159,12 @@ jobs:
       # silently-failed background load produces.
       - name: Validate App Store growth creatives
         run: npm run check:growth
+
+      # iPhone Duo (foldable, iOS 27.1) presents the system bars vertically on a
+      # side edge and can resize the window at any moment, so code that reads the
+      # device — screen size, idiom, orientation — instead of the window looks
+      # fine in one pose and breaks in the next. The compiler says nothing about
+      # that, so this static scan fails the build on the banned patterns. It reads
+      # Swift sources only and has no macOS dependencies, so it runs here.
+      - name: Guard against non-resizable layout patterns
+        run: npm run check:duo

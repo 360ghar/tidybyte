@@ -7,17 +7,20 @@ struct StorageWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            // `supportedFamilies` is fixed to small + medium, so both cases are
-            // covered explicitly; the default is required only to satisfy
-            // exhaustiveness over the rest of `WidgetFamily` (unreachable at
-            // runtime given the declared families).
+            // `supportedFamilies` is small + medium today, but the family the
+            // system hands us is not ours to guarantee: a wider one (as iPad's
+            // extraLarge did) must degrade to the medium layout rather than
+            // render an empty widget.
             switch family {
             case .systemSmall:
                 smallView(snapshot)
             case .systemMedium:
                 mediumView(snapshot)
             default:
-                EmptyView()
+                // An unexpected family (a wider one than we declare today, the
+                // way iPad's extraLarge arrived) degrades to the medium layout
+                // instead of rendering an empty widget.
+                mediumView(snapshot)
             }
         } else {
             placeholderView

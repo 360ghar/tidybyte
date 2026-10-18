@@ -154,6 +154,7 @@ it on surfaces. `plan.mjs` describes the second half.
 | Local surface | Placement type | Target |
 |---|---|---|
 | `docs/screenshots/{iphone,ipad}` | `APP_SCREENSHOT` | `appStoreVersionLocalization` |
+| `docs/screenshots/duo-outer`, `duo-inner` (`--duo` only) | `APP_SCREENSHOT` | `appStoreVersionLocalization` |
 | `growth/header-and-search` header | `PRODUCT_PAGE_HEADER_ASSET` | `appStoreVersionLocalization` |
 | `growth/header-and-search` search | search-results creative | `appStoreVersionLocalization` |
 | `growth/in-app-events` card | `EVENT_CARD_ASSET` | `appEventLocalization` |
@@ -211,6 +212,208 @@ Store localization rather than adding one.
 so the 14 screenshots are uploaded against `en-US` only and App Store Connect
 falls back to them everywhere else. The growth creatives *are* localized, all 21.
 
+## iPhone Duo screenshots
+
+iPhone Duo (the foldable) is one device with two displays. Capturing is opt-in
+and off by default, because **the group id for the Duo row is not known yet**.
+
+```sh
+npm run screenshots:duo                        # capture both Duo displays (5 screens each)
+npm run screenshots:duo -- --dry-run           # print the plan, touch nothing
+npm run screenshots:duo -- --screens swipe-home,storage-dashboard   # capture a different subset
+npm run screenshots:duo -- --drive-devicehub   # set the Duo pose in Device Hub for you
+npm run publish:media -- --duo                 # place them (needs the group id)
+```
+
+`npm run screenshots` is unchanged: it captures iPhone and iPad only, and
+`npm run publish:media` with no `--duo` produces exactly the placements it did
+before the Duo row existed.
+
+### The per-row cap: 10 screenshots
+
+App Store Connect allows **at most 10 screenshots per placement group**, and a
+group is one device-size row on the product page. A Duo submission is graded as
+**one** row, so `duo-outer/` and `duo-inner/` together may hold at most 10 files.
+
+The capture default is therefore **5 screens per display — 5 + 5 = 10**, exactly
+the cap:
+
+| # | screen |
+|---|---|
+| 1 | `swipe-home` |
+| 2 | `cleanup-tools` |
+| 3 | `cleanup-duplicates` |
+| 4 | `storage-dashboard` |
+| 5 | `activity-savings` |
+
+`cleanup-screenshots` and `cleanup-blurry-photos` are dropped **for Duo only** —
+they repeat the cleanup-tools story the duplicates screen already tells. The
+iPhone and iPad runs still capture all seven, because their rows have their own
+caps.
+
+To capture a different subset, pass `--screens` with a comma-separated list of
+the slugs above (plus `cleanup-screenshots` and `cleanup-blurry-photos`, which
+are still valid names):
+
+```sh
+npm run screenshots:duo -- --screens swipe-home,cleanup-tools,cleanup-duplicates
+```
+
+`--screens` applies to every requested family, and an unknown slug stops the run
+rather than capturing less than asked.
+
+`loadPlan` re-checks the count against the real files on disk before any network
+call: more than 10 in a Duo group throws with the count, the cap, and this same
+advice, instead of uploading 10 and dropping the rest. `scripts/publish/plan.mjs`
+names the limit in one constant, `MAX_SCREENSHOTS_PER_GROUP`.
+
+### One row, two displays
+
+Apple's screenshot specification lists a **single** "iPhone Duo" entry carrying
+all four accepted sizes — 1398×2034 / 2034×1398 (outer display) and 2007×2853 /
+2853×2007 (inner display) — with no per-display requirement note, and the Duo
+badge is described as one badge on the product page. So the upload model is **one
+group**, fed by both capture directories:
+
+| Family | Directories | Group source |
+|---|---|---|
+| `duo` (default) | `docs/screenshots/duo-outer/` + `docs/screenshots/duo-inner/` | `TIDYBYTE_DUO_GROUP_ID` |
+| `duoOuter` / `duoInner` (escape hatch) | one directory each | `TIDYBYTE_DUO_OUTER_GROUP_ID` + `TIDYBYTE_DUO_INNER_GROUP_ID` |
+
+Capture stays per display — a display is a capture concern. Only the upload
+collapses.
+
+The escape-hatch split exists for the case Apple's UI actually exposes **two
+separate rows** instead of one. Each split family then gets its **own** 10-file
+cap, so up to 7 per display is fine there — but the split is chosen only after
+`publish:verify` shows two Duo groups, never guessed.
+
+### What is still unknown
+
+**The group id.** Apple names placement groups after the display. The iPhone row
+is `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE`, the iPad row `IPAD_13_PROFILE`, and
+the Duo row has a name this repo has never seen. The API key here is empty, so
+`publish:verify` has never dumped a catalog that contains it. A guessed id would
+either fail the upload or — worse — collide with an existing group, so it is not
+guessed.
+
+Apple's published spec says one row, so one group is the working assumption. If
+the live catalog turns out to disagree, `publish:verify` is what settles it — it
+prints every `APP_SCREENSHOT` group it exposes.
+
+### Resolving it
+
+```sh
+npm run publish:verify
+```
+
+Find the `appAssetLibraryRefData` section of the dump. It lists every placement
+group as `<group-id>  <platform>  <display-class>`. Take the `APP_SCREENSHOT`
+group for the Duo display and export it for one run:
+
+```sh
+TIDYBYTE_DUO_GROUP_ID=<id> npm run publish:media -- --duo
+```
+
+or paste it into `duoFamilies()` in `plan.mjs`, which makes `--duo` permanent.
+Until one of those is done, `--duo` fails loudly rather than uploading to the
+wrong display.
+
+**If the dump shows two Duo groups** (the unlikely case — the published spec says
+one row), use the split instead: set **both** of
+
+```sh
+TIDYBYTE_DUO_OUTER_GROUP_ID=<outer-id> TIDYBYTE_DUO_INNER_GROUP_ID=<inner-id> \
+  npm run publish:media -- --duo
+```
+
+and the plan becomes two families, one directory each. Setting only one of the
+two is not a split: it falls back to the single-group model, which has no id, and
+fails loudly. A half-split cannot happen by accident.
+
+### Capturing them
+
+`npm run screenshots:duo` needs the **iOS 27.1 runtime** and the **iPhone Duo
+device type**. It checks for both before it builds anything, and if either is
+missing it prints the two commands that fix it and exits non-zero, having created
+no simulator and written no file:
+
+```sh
+xcodebuild -downloadPlatform iOS -buildVersion 27.1
+xcrun simctl create "Tidybyte Duo (App Store)" \
+  com.apple.CoreSimulator.SimDeviceType.iPhone-Duo \
+  com.apple.CoreSimulator.SimRuntime.iOS-27-1
+```
+
+It also needs the device in the right **pose**, because the two panels are never
+both showing the app — a Duo boots folded, and in the `Closed` pose only the
+**outer** panel is active while the **inner** one is a blank surface; in the
+`Open` pose the app moves to the inner panel and the outer one goes black:
+
+| Family | Pose | Orientation |
+|---|---|---|
+| `duoOuter` | `Closed` | portrait, 1398×2034 |
+| `duoInner` | `Open` | native portrait, 2007×2853 |
+
+`simctl` has no hinge or pose verb and Device Hub has no CLI, so a pose cannot be
+set from the shell. The script probes both panels, infers the pose from which one
+has content, and if it is wrong it **stops** with the Device Hub steps that fix it
+rather than capturing a blank panel:
+
+```sh
+npm run screenshots:duo                       # verify the pose, stop if it is wrong
+npm run screenshots:duo -- --drive-devicehub  # click Closed / Open / Rotate Right for you
+```
+
+`--drive-devicehub` uses the `cua-driver` Accessibility CLI to find Device Hub's
+window for the device, press the pose button **by AX label** in a fresh snapshot,
+and then re-verify through `simctl io enumerate` plus a fresh pixel probe. The
+inner panel comes up **landscape** (2853×2007) in the `Open` pose, which would
+letterbox a portrait-only app, so `Rotate Right` is pressed and checked too.
+
+Every capture then passes a **blank-panel gate**: a near-uniform PNG (all-black,
+all-white, or effectively flat) is rejected with the likely cause named — wrong
+pose, panel asleep, or the app not frontmost. That is the check a size-only test
+misses, because the black outer panel an `Open` pose produces is a perfectly valid
+1398×2034 file.
+
+One Duo simulator serves both displays. `simctl io <udid> enumerate` does **not**
+report `deviceName` or `screenID` — the fields it does report per display port are
+`UUID`, `Class`, `Display class`, `Default width`, `Default height` and
+`Default pixel format`. So the capture script picks the display by **pixel size**:
+the port whose `Default width`/`Default height` equal the family's expected size
+wins, and its UUID is passed as `--display=<uuid>`. A size match is required,
+because a numeric selector cannot be validated before the capture and the
+enumerated ports include 720x480 and 7680x4320 decoys alongside the real screen.
+Port UUIDs change on every boot, so they are never cached; the documented fallback,
+used only when the dump yields no parsable display ports, is the numeric screen id
+(`--display=1` outer, `--display=3` inner).
+
+To audit that against any booted simulator without capturing anything:
+
+```sh
+node scripts/growth/shoot-screenshots.mjs --probe <udid>
+```
+
+It prints the parsed display table, the inferred pose and the selector each family
+would choose. On a non-Duo device the Duo families report that nothing matched,
+which is correct — that device cannot produce Duo screenshots.
+
+Files land in `docs/screenshots/duo-outer/` and `docs/screenshots/duo-inner/`,
+which feed the one Duo group described above. By default that is five files each
+(positions 1-5 outer, 101-105 inner), so the pair cannot collide in the gallery
+order — which is why `publish.mjs` resolves a placement's position by the asset's
+content hash rather than by its file name.
+
+To check how the app behaves across the foldable's poses and orientations rather
+than to capture screenshots, use **Device Hub** in Xcode — it visualizes the app
+on iPhone Duo across every pose and orientation, and it is where the pose buttons
+above live.
+
+Both Duo directories may be absent, but `--duo` needs at least one PNG across the
+two: with neither, the plan throws and names `npm run screenshots:duo` rather
+than reporting a successful upload of nothing.
+
 ## Constraints worth knowing
 
 - **Placements only work while the parent is editable.** The version must be in
@@ -225,5 +428,6 @@ falls back to them everywhere else. The growth creatives *are* localized, all 21
   where you intended.
 - **Group limits apply.** App Store versions allow 10 screenshots, 3 previews and
   1 product page header per group. The plan is inside those limits; a change to
-  the manifests needs to stay inside them too.
+  the manifests needs to stay inside them too. `loadPlan` enforces the 10-screenshot
+  cap for a Duo group itself, from the files on disk, before any network call.
 - **An asset with placements cannot be deleted** — `STATE_ERROR.ASSET_HAS_PLACEMENTS`.

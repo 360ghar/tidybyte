@@ -34,13 +34,41 @@ enum SwipeDirection: Equatable {
     /// layout forward is leftward. Without this, an Arabic user's instinctive
     /// "keep" swipe would delete the photo — the one bug in this app that
     /// destroys data.
+    ///
+    /// The up-swipe's threshold is additionally capped by the card's height.
+    ///
+    /// The cap is a backstop, not a foldable rule: on both ordinary Duo poses
+    /// the measured card area is wider than it is short (≈434×484 pt on the
+    /// outer display → cap 173.6 vs width-derived 193.6; ≈560×757 pt on the
+    /// inner → cap 224 vs 302.8), so it never engages there. It engages only on
+    /// a genuinely squat card area — a small Stage Manager pane, or the largest
+    /// Dynamic Type on the outer display, where the action bar eats the height
+    /// — where a threshold larger than the card itself would make Add to Album
+    /// unreachable. A non-positive height (no geometry yet) keeps the
+    /// width-derived threshold.
+    ///
+    /// Cost, accepted and bounded: while the cap is engaged the vertical
+    /// threshold is lower than the horizontal one, so an up-and-sideways drag
+    /// that the shared threshold used to snap back could now file the photo.
+    /// The dominance test in the album branch is what keeps that narrow — it
+    /// requires the vertical travel to exceed the horizontal travel, which is
+    /// exactly the "unambiguous" condition the horizontal-first ordering gave
+    /// when both axes shared one threshold. With the cap inactive the test is
+    /// implied by the branch order and changes nothing.
     static func resolve(
         translation: CGSize,
         predicted: CGSize,
         cardWidth: CGFloat,
+        cardHeight: CGFloat,
         isRightToLeft: Bool = false
     ) -> SwipeDirection? {
         let threshold = cardWidth * commitFraction
+        // Capped so the up-swipe stays reachable on a card shorter than a
+        // width-derived fraction of itself; a non-positive height (no geometry
+        // yet) keeps the width-derived value.
+        let verticalThreshold = cardHeight > 0
+            ? min(threshold, cardHeight * commitFraction)
+            : threshold
         // +1 keeps the LTR behavior; -1 flips keep and delete onto the
         // opposite sides. The vertical (album) axis is unaffected — up is up.
         let forward: CGFloat = isRightToLeft ? -1 : 1
@@ -48,7 +76,13 @@ enum SwipeDirection: Equatable {
         let predictedHorizontal = predicted.width * forward
         if horizontal > threshold || predictedHorizontal > flickThreshold { return .keep }
         if horizontal < -threshold || predictedHorizontal < -flickThreshold { return .delete }
-        if translation.height < -threshold || predicted.height < -flickThreshold { return .album }
+        // Album also needs the vertical travel to dominate. Only reachable
+        // difference when the cap engages (see above); with the cap inactive
+        // the horizontal branch has already caught anything wider than it is
+        // tall, so this is a no-op there.
+        if translation.height < -verticalThreshold,
+           abs(translation.height) > abs(horizontal) { return .album }
+        if predicted.height < -flickThreshold { return .album }
         return nil
     }
 
@@ -133,6 +167,19 @@ struct SwipeCardDeck: View {
     /// `SwipeDirection.resolve` — without this, "swipe to keep" would delete.
     @Environment(\.layoutDirection) private var layoutDirection
     private var isRightToLeft: Bool { layoutDirection == .rightToLeft }
+    /// Pixel density of the deck's own display, for the render target below.
+    /// Taken from the environment rather than the screen, so it follows the
+    /// window the deck is actually in.
+    @Environment(\.displayScale) private var displayScale
+
+    /// The deck's own render size in pixels: the measured card area times the
+    /// display scale. This is the one target every image request in the session
+    /// is sized from — the prefetch, the card's full-size load, and the cache
+    /// release — so a resize (fold, unfold, Split View, Stage Manager) re-sizes
+    /// the decode instead of leaving it pinned to the device screen.
+    private var renderTarget: CGSize {
+        CGSize(width: deckSize.width * displayScale, height: deckSize.height * displayScale)
+    }
 
     /// Far enough that a card, rotated, clears the screen from the deck center.
     private var flingDistance: CGFloat {
@@ -219,6 +266,17 @@ struct SwipeCardDeck: View {
                 snapBack()
             }
         }
+        .onChange(of: deckSize) {
+            // A live resize (fold/unfold, Split View, Stage Manager) invalidates
+            // the geometry an in-flight drag was measured against: the offset
+            // was computed for the old card rect, so the card would stay
+            // translated and rotated for a size it no longer has. End the drag
+            // and bring the card home. A zoomed card re-clamps its own pan
+            // against the new frame (see CardView's frame observer).
+            guard motion.isDragging || motion.offset != .zero else { return }
+            motion.isDragging = false
+            snapBack()
+        }
     }
 
     // MARK: - Card Stack
@@ -235,6 +293,7 @@ struct SwipeCardDeck: View {
                         asset: asset,
                         photoService: viewModel.photoService,
                         isTopCard: isTop,
+                        renderTarget: renderTarget,
                         reviewReason: isTop ? viewModel.reviewReason : nil,
                         motion: slot.motion,
                         zoomToggleRequest: isTop ? zoomToggleRequest : 0,
@@ -281,7 +340,15 @@ struct SwipeCardDeck: View {
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { deckSize = $0 }
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { newSize in
+                deckSize = newSize
+                // Publish the render target: the session sizes its prefetch and
+                // cache release from it, and the cards size their own loads from
+                // it, so all three agree on one decode size through a resize.
+                viewModel.updateRenderTarget(
+                    CGSize(width: newSize.width * displayScale, height: newSize.height * displayScale)
+                )
+            }
         }
     }
 
@@ -306,7 +373,7 @@ struct SwipeCardDeck: View {
     /// Relay for the top card's drag end. A pinch can zoom the card mid-drag
     /// (the drag was already in flight when the touch began) — snap back
     /// instead of committing a swipe the user replaced with an inspection.
-    private func handleDragEnded(_ assetId: String, _ value: DragGesture.Value, cardWidth: CGFloat) {
+    private func handleDragEnded(_ assetId: String, _ value: DragGesture.Value, cardSize: CGSize) {
         // An undo mid-drag puts a different card on top. Committing this gesture
         // would apply the in-flight swipe to the previous card, so drop it.
         guard !viewModel.isPerformingMutation,
@@ -324,7 +391,8 @@ struct SwipeCardDeck: View {
               let direction = SwipeDirection.resolve(
                 translation: value.translation,
                 predicted: value.predictedEndTranslation,
-                cardWidth: cardWidth,
+                cardWidth: cardSize.width,
+                cardHeight: cardSize.height,
                 isRightToLeft: isRightToLeft
               ) else {
             motion.isDragging = false

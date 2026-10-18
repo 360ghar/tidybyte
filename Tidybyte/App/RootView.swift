@@ -88,7 +88,7 @@ struct RootView: View {
                 RecentlyDeletedNotice()
             }
         }
-        .sidebarAdaptableOnPad()
+        .adaptiveSidebarStyle()
         .environment(appNavigation)
         .environment(libraryMonitor)
         // Injected so any tab can react to limited access (the shared
@@ -283,22 +283,25 @@ enum AppTab: Hashable {
 }
 
 private extension View {
-    /// Adopts the iPad sidebar on iOS 18+, and stays a tab bar everywhere else.
+    /// Adopts the platform's own adaptive tab style on iOS 18+, and stays a
+    /// plain tab bar everywhere else.
     ///
     /// Deliberately NOT a `NavigationSplitView` rewrite: the four sections each
     /// carry their own `NavigationStack` with its own typed path, and rebuilding
     /// that by hand would put the iPhone navigation — deep links, App Intents,
     /// widget routes, the swipe-session deletion gate — at risk for no user
     /// benefit. `sidebarAdaptable` is the platform's own answer: the same
-    /// `TabView` renders as a tab bar on iPhone and a collapsible sidebar on
-    /// iPad, with keyboard navigation for free.
+    /// `TabView` renders as a tab bar on iPhone and a collapsible sidebar where
+    /// there is room for one, with keyboard navigation for free. Which pose that
+    /// is follows the available space, not the device, so a foldable resizing
+    /// into or out of a sidebar pose is handled by the style itself.
     ///
     /// The `#available` split exists because the style is iOS 18+ and the app
-    /// targets iOS 17. On 17 an iPad keeps the tab bar, which is exactly what it
-    /// shipped with — a graceful degradation rather than a reason to raise the
+    /// targets iOS 17. On 17 the tab bar stays, which is exactly what it shipped
+    /// with — a graceful degradation rather than a reason to raise the
     /// deployment target.
     @ViewBuilder
-    func sidebarAdaptableOnPad() -> some View {
+    func adaptiveSidebarStyle() -> some View {
         if #available(iOS 18.0, *) {
             self.tabViewStyle(.sidebarAdaptable)
         } else {

@@ -144,6 +144,10 @@ export const TOOLS: Tool[] = [
         q: "Does TidyByte work on iPad as well as iPhone?",
         a: "Yes. TidyByte is a universal app for iOS 17 and later. Every cleanup tool works on iPad, the swipe interface adapts to the larger screen, and iPad supports all orientations while iPhone stays portrait for the swipe layout.",
       },
+      {
+        q: "Does TidyByte work on iPhone Duo?",
+        a: "Yes. The same app runs on iPhone, iPad and iPhone Duo, and the swipe interface adapts to the Duo's outer and inner displays with nothing to configure. Every cleanup tool is built for both displays.",
+      },
     ],
     relatedTools: [
       "storage-cleaner",

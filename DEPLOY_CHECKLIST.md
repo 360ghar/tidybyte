@@ -101,6 +101,7 @@ Tick each:
 - [ ] Support form actually submits to Netlify Forms — check the **Forms** tab in the Netlify dashboard, submit a test message, confirm it appears
 - [ ] Lighthouse (Chrome DevTools → Lighthouse) on `/`: Performance ≥ 95, Accessibility ≥ 95, SEO ≥ 95, Best Practices ≥ 95
 - [ ] Open `/` on a real iPhone in Safari — hero and screenshots look right
+- [ ] `node scripts/growth/shoot-screenshots.mjs --duo` captures both iPhone Duo displays (outer 1398 × 2034, inner 2007 × 2853) into `docs/screenshots/duo-outer/` and `docs/screenshots/duo-inner/` with alpha stripped — needs the iOS 27.1 simulator runtime, and it is what earns the App Store's "optimized for iPhone Duo" badge. App-side, not site-side: see `docs/duo-readiness.md`
 - [ ] Test from a private/incognito window — no stale CDN cache
 
 ## 8. (One-time) submit sitemap to search engines
@@ -139,4 +140,13 @@ language → paste the six fields from that language's entry.
       translation of the English
 - [ ] Screenshots are still the English set — localized screenshots are a design
       task, tracked in `docs/APP_STORE_LISTING.md` §11, not part of this checklist
+- [ ] If the Duo screenshot row is being uploaded: the single App Store Connect
+      Duo group id is set (`TIDYBYTE_DUO_GROUP_ID`, or the `group` field on the
+      `duo` family in `scripts/publish/plan.mjs`) — it cannot be read offline
+      while the API key is empty, and `npm run publish:media -- --duo` throws
+      until it is. Fallback only: if `npm run publish:verify` really shows **two**
+      `APP_SCREENSHOT` groups for the Duo displays, set **both**
+      `TIDYBYTE_DUO_OUTER_GROUP_ID` and `TIDYBYTE_DUO_INNER_GROUP_ID` (one
+      directory each) instead; setting only one is not a split and fails loudly.
+      See `docs/duo-readiness.md` §5
 

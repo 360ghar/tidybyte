@@ -144,7 +144,6 @@ struct LivePhotoPreviewView: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .ignoresSafeArea(edges: .horizontal)
     }
 
     private func shouldShowPlayer(for item: LivePhotoItem) -> Bool {

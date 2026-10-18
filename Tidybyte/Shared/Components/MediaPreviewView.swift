@@ -193,7 +193,6 @@ struct MediaPreviewView: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .ignoresSafeArea(edges: .horizontal)
     }
 
     @ViewBuilder

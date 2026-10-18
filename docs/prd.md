@@ -572,6 +572,8 @@ TidyByte ships **20 languages** and detects its defaults from the device rather 
 assuming the US. This section is the contract; the pipeline that enforces it is in
 `scripts/localization/`.
 
+TidyByte runs on iPhone (portrait-only), iPad, and iPhone Duo (foldable, iOS 27.1); Duo verification status is tracked in `docs/duo-readiness.md`.
+
 ### 13.1 Supported languages
 
 English (base), Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada,

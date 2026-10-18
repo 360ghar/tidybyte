@@ -243,14 +243,24 @@ TidyByte cleans up the device photo library. To review it properly:
 
 Suggested upload order, per device (from `docs/screenshots/<device>/`): `01-swipe-home`, `02-cleanup-tools`, `06-storage-dashboard`, `03-cleanup-duplicates`, `07-activity-savings`, then `04-cleanup-screenshots` and `05-cleanup-blurry-photos`. Up to 10 allowed per device size. The legacy `05-swipe-session`, `06-album-picker` and `07-session-complete` shots need manual taps to reach and are not produced by the automated pipeline.
 
+**iPhone Duo (foldable, shipping 23 October 2026 with iOS 27.1):** App Store Connect grades the two Duo displays as **one row** — a single "iPhone Duo" entry that carries both displays' sizes under one heading — and supplying it earns the **"optimized for iPhone Duo" badge** on the product page. The default model is therefore one Duo row with one group id, `TIDYBYTE_DUO_GROUP_ID`.
+
+| Row | Accepted sizes (portrait) | Accepted sizes (landscape) | Captured to |
+|---|---|---|---|
+| iPhone Duo (one row, both displays) | **1398 × 2034** (outer) and **2007 × 2853** (inner) | 2034 × 1398 (outer), 2853 × 2007 (inner) | `docs/screenshots/duo-outer/` and `docs/screenshots/duo-inner/` |
+
+Both are fixed sizes — the 1179-vs-1206 slack the iPhone row allows does not apply — and both are exactly 3× the display's point size. Capture with `node scripts/growth/shoot-screenshots.mjs --duo`, which needs the **iOS 27.1 simulator runtime** (the `--duo` flag checks for it before building), writes the two directories above with alpha stripped, and verifies the dimensions. Both directories feed the single Duo row; capture stays per display, the upload collapses both into one row. Same rules as every other row: PNG/JPEG, no alpha channel, 1-10 per row.
+
+**Status: not yet captured, and the badge is therefore not earned.** The app has not been verified on a Duo simulator, and the App Store Connect group id (`TIDYBYTE_DUO_GROUP_ID`) for the single Duo row cannot be read while the API key is empty. A two-group split — setting both `TIDYBYTE_DUO_OUTER_GROUP_ID` and `TIDYBYTE_DUO_INNER_GROUP_ID`, one directory each — is a **fallback only**, for the case where `npm run publish:verify` really does show two `APP_SCREENSHOT` groups; the published spec says one, so one is the default. See `docs/duo-readiness.md` for the claims ledger and the open items. From **April 2027** the Duo screenshots become **mandatory** for apps built with the iOS 27.1 SDK, so this row stops being optional then.
+
 ---
 
 ## 12. What's New (v1.1.0 release notes)
 
 ```
-TidyByte now speaks 20 languages, with full right-to-left layout for Arabic and Hebrew. Dates, sizes and counts follow your region, and Siri shortcuts work in your language. Everything still runs on your device: no account, no ads, no subscription.
+TidyByte now speaks 20 languages, with full right-to-left layout for Arabic and Hebrew. Dates, sizes and counts follow your region, and Siri shortcuts work in your language. Everything still runs on your device: no account, no ads, no subscription. Now built for iPhone Duo: same cleanup, adapted to both displays.
 ```
-Length: 248 chars (well under the 4000-char release-notes limit). Translated into all 21 storefront locales by `scripts/localization/translations/_notes-1.1.0.mjs`.
+Length: 314 chars (well under the 4000-char release-notes limit). Translated into all 21 storefront locales by `scripts/localization/translations/_notes-1.1.0.mjs`.
 
 ---
 
@@ -258,7 +268,7 @@ Length: 248 chars (well under the 4000-char release-notes limit). Translated int
 
 | Version | Build | Release notes source |
 |---|---|---|
-| 1.1.0 | 7 | §12 above. 20 languages with RTL, region-aware formatting, localized Siri phrases. |
+| 1.1.0 | 8 | §12 above. 20 languages with RTL, region-aware formatting, localized Siri phrases, and the iPhone Duo readiness work (build 7 was never uploaded, so build 8 carries it). |
 | 1.0.5 | 6 | On-device AI search, Screen Recordings tool, Chat Media tool, smarter reminders. |
 | 1.0.4 | — | Cleanup tools refresh: UI, honest savings numbers, keep-choices preserved across scans. (1.0.3 was skipped.) |
 | 1.0.2 | — | Storage dashboard redesign, cross-tab deep links, cleanup-tool fixes. |
@@ -302,9 +312,9 @@ The marketing site now has one landing page per cleanup tool, each targeting its
 | Subtitle A | 30 | `Swipe to clean your photos` | 26 | ✅ |
 | Subtitle B | 30 | `Declutter photos, free space` | 28 | ✅ |
 | Subtitle C | 30 | `Photo cleaner & storage saver` | 29 | ✅ |
-| Subtitle F | 30 | `Photo cleaner, free space` | 25 | ✅ |
+| Subtitle H | 30 | `Photo cleaner, free space` | 25 | ✅ |
 | Promotional Text | 170 | (see §2) | 157 | ✅ |
-| Keywords (any subtitle) | 100 | (see §4) | 95–99 | ✅ |
+| Keywords (any subtitle) | 100 | (see §4) | 90–98 | ✅ |
 
 **Shipping cleanup tools** (verified against `Tidybyte/Features/Cleanup/CleanupTool.swift` enum + view directories): Duplicates, Similar Photos, Screenshots, Screen Recordings, Chat Media, Blurry Photos, Smart Categories, Large Files, Burst Photos, Live Photos, Video Compression, Photo Compression — twelve tools, plus on-device AI photo search inside Smart Categories, the Swipe review flow, the Storage dashboard, and the Activity & Savings ledger. **RecentlyDeleted was removed and is intentionally NOT listed.**
 

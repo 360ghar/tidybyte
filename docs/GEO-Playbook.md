@@ -14,7 +14,7 @@ AI answer engines (ChatGPT, Perplexity, Claude, Gemini, Copilot) build their ans
 
 Practical consequences:
 
-1. **Entity consistency beats volume.** The name, category, price and platform must read identically everywhere: "TidyByte", free iPhone/iPad photo and storage cleaner, iOS 17+, no ads, no subscription, no account, on-device, MIT open source. Contradictions make an entity unreliable, and unreliable entities do not get cited.
+1. **Entity consistency beats volume.** The name, category, price and platform must read identically everywhere: "TidyByte", free iPhone/iPad/iPhone Duo photo and storage cleaner, iOS 17+, no ads, no subscription, no account, on-device, MIT open source. Contradictions make an entity unreliable, and unreliable entities do not get cited.
 2. **A listing on a comparison site is worth more than a blog post nobody links to.** The comparison sites are what the answer engines read.
 3. **Reddit threads get cited constantly.** A genuinely useful answer in an existing thread about iPhone storage is one of the highest-leverage things available, and one of the easiest to do wrong.
 

@@ -32,6 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { AscError, createClient, credentialsFromEnv, findApp } from './asc.mjs';
 import {
   BUNDLE_ID, MARKETING_URL, PRIVACY_POLICY_URL, SUPPORT_URL, loadPlan,
+  orderLookups, orderSequence,
 } from './plan.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -1100,19 +1101,6 @@ async function cmdSubmit() {
 // ---------------------------------------------------------------------------
 
 /**
- * Finds the file name of an image from the `included` side of a placements
- * response. Apple returns related assets under `included`, not nested in the
- * relationship, so the name has to be joined by id.
- */
-function includedName(placements, imageId) {
-  if (!imageId) return null;
-  const asset = placements.included?.find(
-    (entry) => entry.type === 'appAssetLibraryImages' && entry.id === imageId,
-  );
-  return asset?.attributes?.fileName ?? asset?.attributes?.referenceName ?? null;
-}
-
-/**
  * Sets the display order of existing placements.
  *
  * Separate from `media` because ordering is idempotent and cheap while
@@ -1123,6 +1111,12 @@ function includedName(placements, imageId) {
  * Screenshots are the reason this matters: they display in a fixed sequence
  * that is not the upload order, so without this the gallery appears in
  * whatever order the files happened to be created.
+ *
+ * The position lookup lives in `plan.mjs` (`orderLookups` / `orderSequence`),
+ * because it is the one part of this command that is pure and therefore
+ * checkable without live credentials. It keys by **content hash** — the asset's
+ * `referenceName` — with the basename as a tie-breaker only, so two files that
+ * share a basename across device families stay distinct.
  */
 async function cmdOrder() {
   const { client, appId } = await connect();
@@ -1135,46 +1129,37 @@ async function cmdOrder() {
     `/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=200`,
   );
 
-  // Desired position per asset file, from the plan. Screenshots carry an
-  // explicit `order` from their filename prefix; creatives have no sequence,
-  // so they keep whatever order Apple returns.
-  const orderByFile = new Map();
-  for (const item of items) {
-    if (item.order) orderByFile.set(basename(item.file), item.order);
-  }
+  const lookups = orderLookups(items, { readFile: readFileSync, createHash });
 
   let ordered = 0;
   for (const localization of localizations) {
     const placements = await client.getAll(
       `/v1/appStoreVersionLocalizations/${localization.id}/placements?limit=200&include=image`,
     );
-    if (placements.length < 2) continue;
+    if (placements.data.length < 2) continue;
 
     // An ordering request accepts one placement type in one group, so the
     // placements are bucketed by both.
     const buckets = new Map();
-    for (const placement of placements) {
+    for (const placement of placements.data) {
       const key = `${placement.attributes.placementType}:${placement.attributes.placementGroup}`;
       if (!buckets.has(key)) {
         buckets.set(key, {
           placementType: placement.attributes.placementType,
           placementGroup: placement.attributes.placementGroup,
-          entries: [],
+          placements: [],
         });
       }
-      buckets.get(key).entries.push(placement);
+      buckets.get(key).placements.push(placement);
     }
 
     for (const bucket of buckets.values()) {
-      if (bucket.entries.length < 2) continue;
-      const sequence = bucket.entries
-        .map((placement) => {
-          const fileName = placement.relationships?.image?.data?.id;
-          const name = includedName(placements, fileName) ?? '';
-          return { id: placement.id, position: orderByFile.get(name) ?? 99 };
-        })
-        .sort((a, b) => a.position - b.position)
-        .map((entry) => entry.id);
+      if (bucket.placements.length < 2) continue;
+      const orderedEntries = orderSequence(
+        { data: bucket.placements, included: placements.included },
+        lookups,
+      );
+      const sequence = orderedEntries.map((entry) => entry.id);
 
       if (dryRun) {
         plan(
@@ -1182,6 +1167,9 @@ async function cmdOrder() {
           '/v1/appAssetLibraryPlacementOrderingRequests',
           `${localization.attributes.locale} ${bucket.placementType} (${sequence.length})`,
         );
+        for (const entry of orderedEntries) {
+          console.log(`        ${String(entry.position).padStart(3)}  ${entry.name || entry.id}`);
+        }
         continue;
       }
       await client.post('/v1/appAssetLibraryPlacementOrderingRequests', {

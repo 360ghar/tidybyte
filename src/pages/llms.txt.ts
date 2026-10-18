@@ -57,7 +57,7 @@ export const GET: APIRoute = () => {
     "- Duplicate detection: exact duplicates via SHA-256 of file data; near-duplicates via Vision feature prints",
     "- Compression: video re-encoding with presets and post-export size verification; photo re-encoding with metadata preserved",
     "- Open source: MIT licensed at https://github.com/360ghar/snap-clean-ios",
-    "- Platform: iPhone and iPad, iOS 17 or later",
+    "- Platform: iPhone, iPad and iPhone Duo, iOS 17 or later",
     // Keep in sync with MARKETING_VERSION / CURRENT_PROJECT_VERSION in
     // project.yml when the app ships a release.
     "- Current version: 1.0.5 (build 6)",
