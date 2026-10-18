@@ -463,7 +463,11 @@ struct SettingsView: View {
             }
 
         }
-        .navigationTitle("Settings")
+        // A resolved `String`, not the literal: the literal is the same
+        // `LocalizedStringKey` before and after a language switch, so SwiftUI
+        // pushes no title update, and the bar can keep the old title. A `String`
+        // differs between the two languages, so the title is re-applied.
+        .navigationTitle(L10n.string("Settings"))
         .toast($toast)
         .photoPermissionPrimer(
             isPresented: $showPhotoPermissionPrimer,

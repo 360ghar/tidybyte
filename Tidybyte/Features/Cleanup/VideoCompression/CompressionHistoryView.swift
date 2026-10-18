@@ -148,7 +148,7 @@ struct CompressionHistoryView: View {
                 // SwiftData, so a manual refresh gesture could only fake work.
             }
         }
-        .navigationTitle("History")
+        .navigationTitle(L10n.string("History"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

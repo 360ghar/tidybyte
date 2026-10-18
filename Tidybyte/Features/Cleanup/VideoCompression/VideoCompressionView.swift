@@ -26,7 +26,7 @@ struct VideoCompressionView: View {
                 contentView
             }
         }
-        .navigationTitle("Video Compression")
+        .navigationTitle(L10n.string("Video Compression"))
         .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
         .toolbar {
             if !viewModel.isLoading && !viewModel.videos.isEmpty {

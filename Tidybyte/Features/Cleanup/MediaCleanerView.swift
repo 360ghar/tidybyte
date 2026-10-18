@@ -130,7 +130,7 @@ struct MediaCleanerView: View {
                     }
                 }
                 .overlay { if viewModel.albums.isEmpty { Text("No accessible user albums.") } }
-                .navigationTitle("Chat albums")
+                .navigationTitle(L10n.string("Chat albums"))
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showAlbums = false } }
                     ToolbarItem(placement: .confirmationAction) {

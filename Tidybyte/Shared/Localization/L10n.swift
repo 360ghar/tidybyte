@@ -8,6 +8,16 @@ import Foundation
 /// German string immediately, no relaunch). Services, notification bodies,
 /// widget copy, and App Intents have no such environment, so they come here.
 ///
+/// **Navigation titles are the exception, and they come here too.** A
+/// `.navigationTitle("key")` takes the same `LocalizedStringKey`, but the bar is
+/// UIKit-backed and only re-applies a title whose *value* changed. That key is
+/// identical in every language, so a screen that was hidden while the language
+/// changed keeps the old title when the user comes back to it: the body
+/// re-renders in the new language while the bar still reads the old one. Passing
+/// `string(_:)` instead makes the value differ per language, so the title is
+/// re-applied. Every `.navigationTitle` in the app does this — keep it that way,
+/// and prefer `CleanupTool.name`-style computed properties over literals.
+///
 /// This type resolves against the *specific language's* bundle rather than
 /// `Bundle.main`. That matters for the same reason: `Bundle.main` resolves once
 /// per process launch, so it keeps serving the launch-time language after the

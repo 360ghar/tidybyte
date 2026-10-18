@@ -99,7 +99,7 @@ struct SwipeSessionView: View {
         }
         .toast($toast)
         .photoPermissionPrimer(isPresented: $showPermissionPrimer, permissionHandler: permissionHandler)
-        .navigationTitle("Swipe Session")
+        .navigationTitle(L10n.string("Swipe Session"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {

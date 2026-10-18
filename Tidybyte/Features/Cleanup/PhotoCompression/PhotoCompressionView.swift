@@ -36,7 +36,7 @@ struct PhotoCompressionView: View {
                 contentView
             }
         }
-        .navigationTitle("Photo Compression")
+        .navigationTitle(L10n.string("Photo Compression"))
         .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
         .toolbar {
             if !viewModel.isLoading && !viewModel.photos.isEmpty {
