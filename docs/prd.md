@@ -606,10 +606,25 @@ In-app switching works because `RootView` injects `\.locale` and
 `\.layoutDirection` into the environment, so every `Text` re-resolves without a
 relaunch. The tree is deliberately *not* keyed on the language: doing that
 rebuilt the tab subtree and destroyed child `@State`, including a live swipe
-session's uncommitted deletions. `.navigationTitle` is the one surface that does
-not follow on its own, because the bar only re-applies a title whose value
-changed; every call site resolves it through `L10n.string` for that reason. The
-two surfaces that do *not* change live are documented where they bite:
+session's uncommitted deletions.
+
+A navigation title is the one surface that does not follow on its own, for two
+separate reasons, so it goes through the `localizedNavigationTitle` modifier
+rather than `.navigationTitle`:
+
+1. the bar is UIKit-backed and only re-applies a title whose **value** changed,
+   and a key is the same in every language, so the modifier resolves it through
+   `L10n`; and
+2. a title is computed when the view's body runs, and a screen that was hidden
+   while the language changed does not run its body again — its leaf `Text`
+   views re-resolve, which is what makes a stale bar easy to miss — so the
+   modifier reads the live `LanguageStore` to give itself that dependency.
+
+Resolving the key without the environment read is the mistake to avoid: it looks
+correct, and leaves the old title on any screen that was not on top when the
+language changed.
+
+The two surfaces that do *not* change live are documented where they bite:
 system-owned UI follows on the next launch, and the widget refreshes on its next
 timeline reload.
 

@@ -10,7 +10,7 @@ struct SettingsView: View {
     /// follows without a relaunch and without rebuilding the tree — the tree is
     /// deliberately *not* keyed on the language, because that rebuild destroyed
     /// child `@State`. `.navigationTitle` is the one surface that does not
-    /// follow on its own; see `L10n.string`.
+    /// follow on its own; see `localizedNavigationTitle`.
     @Environment(LanguageStore.self) private var languageStore
     // Swipe
     @AppStorage(AppPreferences.Key.defaultSwipeFilter) private var defaultSwipeFilter: String = DefaultSwipeFilterPreference.notSwipedYet.rawValue
