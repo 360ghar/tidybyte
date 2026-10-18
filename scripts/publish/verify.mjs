@@ -137,7 +137,7 @@ async function main() {
   // The reference data is the source of truth for placement groups. Printing
   // the relevant slice here means the upload step never has to guess.
   heading('Reference data: placement groups');
-  const refData = await client.get('/v1/appAssetLibraryRefData?limit=200');
+  const refData = await client.get('/v1/appAssetLibraryRefData');
   const datum = refData?.data?.[0]?.attributes ?? {};
   const groups = datum.placementProfileGroups ?? [];
   const types = datum.placementTypes ?? [];
@@ -148,7 +148,7 @@ async function main() {
 
   console.log('\n  features we use:');
   for (const feature of features) {
-    if (!RELEVANT_FEATURES.includes(feature.feature)) continue;
+    if (!RELEVANT_FEATURES.includes(feature.featureId)) continue;
     const policies = (feature.placementPolicies ?? [])
       .map((policy) => {
         const limits = (policy.groupLimits ?? [])
@@ -156,22 +156,22 @@ async function main() {
           .join(', ');
         return `${policy.placementType}${limits ? ` [${limits}]` : ''}`;
       });
-    console.log(`    ${feature.feature}`);
+    console.log(`    ${feature.featureId}`);
     for (const policy of policies) console.log(`      ${policy}`);
   }
 
   console.log('\n  placement types we plan to use, with the groups each accepts:');
   const wanted = ['APP_SCREENSHOT', 'APP_PREVIEW', 'PRODUCT_PAGE_HEADER_ASSET', 'EVENT_CARD_ASSET', 'EVENT_DETAILS_ASSET', 'SEARCH_RESULTS_ASSET'];
   for (const type of types) {
-    if (!wanted.includes(type.placementType)) continue;
+    if (!wanted.includes(type.placementTypeId)) continue;
     const groupsForType = Object.keys(type.specMappings ?? {});
-    console.log(`    ${type.placementType}  accepts=${(type.acceptsAssetCategories ?? []).join(',')}`);
+    console.log(`    ${type.placementTypeId}  accepts=${(type.acceptsAssetCategories ?? []).join(',')}`);
     console.log(`      groups: ${groupsForType.join(', ') || '(none listed)'}`);
   }
 
   console.log('\n  every group identifier Apple currently exposes:');
   for (const group of groups) {
-    console.log(`    ${String(group.groupId).padEnd(48)} ${String(group.platform).padEnd(10)} ${group.displayClass}`);
+    console.log(`    ${String(group.placementProfileGroupId).padEnd(48)} ${String(group.platform).padEnd(18)} ${group.displayClassId}`);
   }
 
   // Finally, what we intend to push, so the local and remote pictures are

@@ -24,15 +24,39 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const BUNDLE_ID = 'com.sakshammittal.tidybyte';
 
 /**
+ * The URLs every localization shares.
+ *
+ * App Store Connect requires a support URL and a privacy policy URL; a version
+ * cannot be submitted without them, and the rejection names `supportUrl` on
+ * every localization rather than on one, so a missing value reads as twenty
+ * separate errors.
+ *
+ * The same English URL serves every storefront. That is normal and allowed —
+ * Apple does not require a localized support page, only one that resolves.
+ *
+ * These live here rather than in `listings.json` because that file is the
+ * translated copy, and a URL is not translated. `docs/APP_STORE_LISTING.md` §6
+ * documents the same values for a human.
+ */
+export const SUPPORT_URL = 'https://tidybyte.360ghar.com/support';
+export const MARKETING_URL = 'https://tidybyte.360ghar.com';
+export const PRIVACY_POLICY_URL = 'https://tidybyte.360ghar.com/privacy';
+
+/**
  * Which App Store surface each growth surface targets.
  *
  * `placementType` values are candidates, not gospel. Apple exposes placement
- * types as strings in its reference data rather than as an enum, and it does
- * not document every name it uses — the product page header and event card
- * types are named in Apple's guides, but the search-results creative is not.
- * The upload step therefore tries each candidate in order against the live
- * catalog and reports the names Apple actually offers when none match, which
- * turns a guess into a one-line correction instead of a silent no-op.
+ * types as strings in its reference data rather than as an enum, and the names
+ * are not all guessable — the search-results creative is
+ * `APP_STORE_SEARCH_RESULTS_ASSET` and the event details image is
+ * `EVENT_DETAILS_PAGE_ASSET`, neither of which is the obvious guess. The upload
+ * step therefore resolves each candidate against the live catalog and reports
+ * the names Apple actually offers when none match, which turns a wrong guess
+ * into a one-line fix instead of a silent no-op.
+ *
+ * Verified against `GET /v1/appAssetLibraryRefData` on 2026-10-18: all four
+ * creative types live in the `DEFAULT_PROFILE` group and allow exactly one
+ * asset each. Screenshots have their own per-display groups.
  *
  * `targetKind` is the relationship name on the placement. `category` is set at
  * reservation time and cannot be changed afterwards, so it has to be right
@@ -44,28 +68,32 @@ const SURFACE_TARGETS = {
   'in-app-events': {
     placementTypesBySpec: {
       eventCard: ['EVENT_CARD_ASSET'],
-      eventDetails: ['EVENT_DETAILS_ASSET'],
+      eventDetails: ['EVENT_DETAILS_PAGE_ASSET', 'EVENT_DETAILS_ASSET'],
     },
     targetKind: 'appEventLocalization',
     category: 'CREATIVE_ASSETS',
     orderable: false,
   },
   'custom-product-pages': {
-    placementTypesBySpec: { searchResults: ['APP_SCREENSHOT'] },
+    // The 3:2 artwork is the search-results creative, not a screenshot. Custom
+    // product pages accept both types, and sending the creative as
+    // APP_SCREENSHOT fails: screenshots are validated against device
+    // dimensions, and 2400x1600 is not one.
+    placementTypesBySpec: { searchResults: ['APP_STORE_SEARCH_RESULTS_ASSET'] },
     targetKind: 'appCustomProductPageLocalization',
-    category: 'APP_SCREENSHOTS_AND_PREVIEWS',
+    category: 'CREATIVE_ASSETS',
     orderable: true,
   },
   'product-page-optimization': {
-    placementTypesBySpec: { searchResults: ['APP_SCREENSHOT'] },
+    placementTypesBySpec: { searchResults: ['APP_STORE_SEARCH_RESULTS_ASSET'] },
     targetKind: 'appStoreVersionExperimentTreatmentLocalization',
-    category: 'APP_SCREENSHOTS_AND_PREVIEWS',
+    category: 'CREATIVE_ASSETS',
     orderable: true,
   },
   'header-and-search': {
     placementTypesBySpec: {
       productPageHeader: ['PRODUCT_PAGE_HEADER_ASSET'],
-      searchResults: ['SEARCH_RESULTS_ASSET', 'PRODUCT_PAGE_SEARCH_RESULTS_ASSET', 'SEARCH_RESULT_ASSET'],
+      searchResults: ['APP_STORE_SEARCH_RESULTS_ASSET'],
     },
     targetKind: 'appStoreVersionLocalization',
     category: 'CREATIVE_ASSETS',
@@ -77,7 +105,7 @@ const SURFACE_TARGETS = {
   'asset-library': {
     placementTypesBySpec: {
       productPageHeader: ['PRODUCT_PAGE_HEADER_ASSET'],
-      searchResults: ['SEARCH_RESULTS_ASSET', 'PRODUCT_PAGE_SEARCH_RESULTS_ASSET', 'SEARCH_RESULT_ASSET'],
+      searchResults: ['APP_STORE_SEARCH_RESULTS_ASSET'],
     },
     targetKind: 'appStoreVersionLocalization',
     category: 'CREATIVE_ASSETS',
@@ -87,17 +115,27 @@ const SURFACE_TARGETS = {
 };
 
 /**
- * The device family each screenshot set targets.
+ * The device family each screenshot set targets, and the group it belongs to.
  *
- * Apple names placement groups after the display, not the device: the iPhone
- * row that App Store Connect requires is the "medium display" set, and Apple
- * scales it for larger phones. The iPad 13-inch set is separate and mandatory
- * for an app that ships iPad. The upload step matches these prefixes against
- * the live group list rather than hard-coding the full identifier.
+ * Apple names placement groups after the display, not the device. The iPhone
+ * row App Store Connect requires is the "medium display" set — Apple scales it
+ * for larger phones — so `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` is the correct
+ * target for 1206x2622 screenshots, not the LARGE variant. The iPad 13-inch set
+ * is separate and mandatory for an app that ships iPad.
+ *
+ * `group` is checked against the live catalog and the upload fails loudly if it
+ * is absent, so an Apple rename shows up as an error rather than as media
+ * landing on the wrong display.
  */
 const SCREENSHOT_FAMILIES = {
-  iphone: { prefix: 'IPHONE_DYNAMIC_ISLAND', label: 'iPhone (Dynamic Island)' },
-  ipad: { prefix: 'IPAD', label: 'iPad 13-inch' },
+  iphone: {
+    group: 'IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE',
+    label: 'iPhone with Dynamic Island (medium display)',
+  },
+  ipad: {
+    group: 'IPAD_13_PROFILE',
+    label: 'iPad 13-inch',
+  },
 };
 
 /**
@@ -202,7 +240,7 @@ export function loadPlan() {
         category: 'APP_SCREENSHOTS_AND_PREVIEWS',
         orderable: true,
         libraryOnly: false,
-        familyPrefix: meta.prefix,
+        groupId: meta.group,
         familyLabel: meta.label,
         // Position in the gallery, taken from the numeric filename prefix.
         order: Number(name.slice(0, 2)),

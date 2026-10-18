@@ -30,7 +30,9 @@ import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { AscError, createClient, credentialsFromEnv, findApp } from './asc.mjs';
-import { BUNDLE_ID, loadPlan } from './plan.mjs';
+import {
+  BUNDLE_ID, MARKETING_URL, PRIVACY_POLICY_URL, SUPPORT_URL, loadPlan,
+} from './plan.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const LISTINGS_PATH = join(ROOT, 'docs', 'appstore', 'listings.json');
@@ -72,23 +74,229 @@ async function connect() {
   return { client, app, appId: app.id };
 }
 
-/** The version we are allowed to write to. Anything else fails on the first write. */
-async function findEditableVersion(client, appId) {
+/** Reads the version string from project.yml, so there is one source of truth. */
+function marketingVersion() {
+  const yml = readFileSync(join(ROOT, 'project.yml'), 'utf8');
+  const match = yml.match(/^\s*MARKETING_VERSION:\s*"?([^"\n]+?)"?\s*$/m);
+  if (!match) throw new Error('No MARKETING_VERSION found in project.yml.');
+  return match[1].trim();
+}
+
+/**
+ * The app info record, which holds the fields that apply across all versions.
+ *
+ * The subtitle lives here rather than on the version, and there is normally one
+ * record. An editable one is preferred when it exists, because some fields can
+ * only be changed while the app is not live.
+ */
+async function findAppInfo(client, appId) {
+  const infos = await client.getAll(`/v1/apps/${appId}/appInfos?limit=20`);
+  return infos.find((info) => info.attributes?.appStoreState === 'PREPARE_FOR_SUBMISSION')
+    ?? infos[0]
+    ?? null;
+}
+
+/**
+ * Creates the version and localizations needed before anything can be written.
+ *
+ * Separate from `details` so the structural change — a new version, twenty new
+ * store locales — is a step you take deliberately, and can inspect before the
+ * copy and media land on top of it.
+ */
+async function cmdPrepare() {
+  const { client, appId } = await connect();
+  const listings = loadListings();
+  const { LOCALE_BY_LANGUAGE } = await import('./plan.mjs');
+  const wanted = Object.keys(listings).filter((key) => !key.startsWith('_'));
+  const locales = wanted.map((language) => LOCALE_BY_LANGUAGE[language] ?? language);
+
+  heading(`Version ${marketingVersion()}`);
+  const existing = await client.getAll(
+    `/v1/apps/${appId}/appStoreVersions?limit=50`
+    + '&fields[appStoreVersions]=versionString,appStoreState',
+  );
+  const already = existing.find(
+    (v) => v.attributes.versionString === marketingVersion()
+      && v.attributes.appStoreState === 'PREPARE_FOR_SUBMISSION',
+  );
+  if (already) {
+    console.log(`  ${marketingVersion()} already exists and is editable`);
+  } else if (dryRun) {
+    plan('POST', '/v1/appStoreVersions', `create ${marketingVersion()} (IOS, MANUAL release)`);
+  }
+
+  const version = dryRun && !already
+    ? { id: 'dry-run', attributes: { versionString: marketingVersion() } }
+    : await ensureEditableVersion(client, appId, { create: !dryRun });
+
+  heading(`Store localizations (${locales.length} wanted)`);
+  if (dryRun) {
+    const current = already
+      ? await client.getAll(`/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=200`)
+      : [];
+    const have = new Set(current.map((l) => l.attributes.locale));
+    for (const locale of locales) {
+      if (have.has(locale)) console.log(`  ${locale.padEnd(9)} exists`);
+      else plan('POST', '/v1/appStoreVersionLocalizations', locale);
+    }
+    const appInfo = await findAppInfo(client, appId);
+    if (appInfo) {
+      const infoLocs = await client.getAll(`/v1/appInfos/${appInfo.id}/appInfoLocalizations?limit=200`);
+      const haveInfo = new Set(infoLocs.map((l) => l.attributes.locale));
+      console.log('\n  App info (subtitle):');
+      for (const locale of locales) {
+        if (haveInfo.has(locale)) console.log(`    ${locale.padEnd(9)} exists`);
+        else plan('POST', '/v1/appInfoLocalizations', locale);
+      }
+    }
+    return;
+  }
+
+  const appInfo = await findAppInfo(client, appId);
+  const report = await ensureLocalizations(client, {
+    version,
+    appInfoId: appInfo?.id,
+    locales,
+    create: true,
+  });
+
+  console.log(`  ${report.existing.length} already present`);
+  if (report.created.length > 0) console.log(`  created: ${report.created.join(', ')}`);
+  if (report.failed.length > 0) {
+    console.log(`  FAILED (${report.failed.length}):`);
+    for (const failure of report.failed) console.log(`    ${failure}`);
+    console.log('\n  Apple rejects a locale it does not support. Fix the mapping in');
+    console.log('  plan.mjs LOCALE_BY_LANGUAGE and re-run.');
+  }
+
+  heading('Next');
+  console.log(`  npm run archive            # build ${marketingVersion()} (build from project.yml)`);
+  console.log('  npm run publish:build      # upload the IPA');
+  console.log('  npm run publish:details    # copy, into all localizations');
+  console.log('  npm run publish:media      # assets and placements');
+  console.log('  npm run publish:submit     # submit for review');
+}
+
+/** The version we are allowed to write to, creating it when asked. */
+async function ensureEditableVersion(client, appId, { create = false } = {}) {
+  const wanted = marketingVersion();
   const versions = await client.getAll(
     `/v1/apps/${appId}/appStoreVersions?limit=50`
-    + '&fields[appStoreVersions]=versionString,appStoreState,platform',
+    + '&fields[appStoreVersions]=versionString,appStoreState,platform,createdDate',
   );
+
   const editable = versions.filter((v) => v.attributes?.appStoreState === 'PREPARE_FOR_SUBMISSION');
-  if (editable.length === 0) {
+  if (editable.length > 0) {
+    const exact = editable.find((v) => v.attributes.versionString === wanted);
+    if (exact) return exact;
+    // Another version is editable. Using it would edit the wrong release, so say
+    // so rather than silently picking one.
+    const others = editable.map((v) => v.attributes.versionString).join(', ');
+    throw new Error(
+      `Version ${wanted} does not exist, but ${others} is editable.\n`
+      + 'Finish or discard that version first, or set MARKETING_VERSION to match it.',
+    );
+  }
+
+  if (!create) {
     const states = versions.map((v) => `${v.attributes.versionString} (${v.attributes.appStoreState})`);
     throw new Error(
       `No version in PREPARE_FOR_SUBMISSION. Present: ${states.join(', ') || 'none'}.\n`
-      + 'Media and details can only be changed while the version is editable.',
+      + 'Details and media can only be changed while a version is editable.\n'
+      + 'Create one with: npm run publish:prepare',
     );
   }
-  // Prefer the highest version number when more than one is editable.
-  return editable.sort((a, b) =>
-    String(b.attributes.versionString).localeCompare(String(a.attributes.versionString), undefined, { numeric: true }))[0];
+
+  // A released version can never be reopened, so publishing new work means a new
+  // version number. The string comes from project.yml, not from this script.
+  console.log(`  creating version ${wanted}`);
+  const created = await client.post('/v1/appStoreVersions', {
+    data: {
+      type: 'appStoreVersions',
+      attributes: {
+        platform: 'IOS',
+        versionString: wanted,
+        // Hold the release until it is released by hand, so a submission cannot
+        // go live while it is still being checked.
+        releaseType: 'MANUAL',
+      },
+      relationships: { app: { data: { type: 'apps', id: appId } } },
+    },
+  });
+  return created.data;
+}
+
+/**
+ * Creates the store localizations that do not exist yet.
+ *
+ * A new version starts with only the primary locale, and the app info carries
+ * its own separate set. Both have to be created before any localized copy or
+ * media can be attached, and the two are different resources with different
+ * parents, which is the usual place this goes wrong.
+ */
+async function ensureLocalizations(client, { version, appInfoId, locales, create }) {
+  const wanted = [...new Set(locales)].sort();
+  const report = { created: [], existing: [], failed: [] };
+
+  const versionLocales = new Map(
+    (await client.getAll(`/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=200`))
+      .map((l) => [l.attributes.locale, l]),
+  );
+
+  for (const locale of wanted) {
+    if (versionLocales.has(locale)) {
+      report.existing.push(locale);
+      continue;
+    }
+    if (!create) {
+      report.failed.push(`${locale}: version localization missing`);
+      continue;
+    }
+    try {
+      const created = await client.post('/v1/appStoreVersionLocalizations', {
+        data: {
+          type: 'appStoreVersionLocalizations',
+          attributes: { locale },
+          relationships: {
+            appStoreVersion: { data: { type: 'appStoreVersions', id: version.id } },
+          },
+        },
+      });
+      report.created.push(locale);
+      versionLocales.set(locale, created.data);
+    } catch (error) {
+      // Apple names the offending value, so surface its message rather than a
+      // generic failure. An unsupported locale is the usual cause.
+      report.failed.push(`${locale}: ${error.message.split('\n').pop()}`);
+    }
+  }
+
+  // App info localizations are a separate resource. The subtitle lives here, and
+  // a locale with no app info localization cannot carry one.
+  if (appInfoId) {
+    const infoLocales = new Map(
+      (await client.getAll(`/v1/appInfos/${appInfoId}/appInfoLocalizations?limit=200`))
+        .map((l) => [l.attributes.locale, l]),
+    );
+    for (const locale of wanted) {
+      if (infoLocales.has(locale)) continue;
+      if (!create) continue;
+      try {
+        await client.post('/v1/appInfoLocalizations', {
+          data: {
+            type: 'appInfoLocalizations',
+            attributes: { locale, name: 'TidyByte' },
+            relationships: { appInfo: { data: { type: 'appInfos', id: appInfoId } } },
+          },
+        });
+        report.created.push(`appInfo:${locale}`);
+      } catch (error) {
+        report.failed.push(`appInfo ${locale}: ${error.message.split('\n').pop()}`);
+      }
+    }
+  }
+
+  return report;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,18 +401,36 @@ async function cmdBuild() {
  */
 async function cmdDetails() {
   const { client, appId } = await connect();
-  const version = await findEditableVersion(client, appId);
+  const version = await ensureEditableVersion(client, appId, { create: args.includes('--create') });
   const listings = loadListings();
 
   heading(`Details for version ${version.attributes.versionString}`);
+
+  const { LOCALE_BY_LANGUAGE } = await import('./plan.mjs');
+  const wanted = Object.keys(listings).filter((key) => !key.startsWith('_'));
+  const wantedLocales = wanted.map((language) => LOCALE_BY_LANGUAGE[language] ?? language);
+
+  const appInfo = await findAppInfo(client, appId);
+  const prepared = await ensureLocalizations(client, {
+    version,
+    appInfoId: appInfo?.id,
+    locales: wantedLocales,
+    create: args.includes('--create'),
+  });
+  if (prepared.created.length > 0) {
+    console.log(`  created ${prepared.created.length} localization(s): ${prepared.created.join(', ')}`);
+  }
+  if (prepared.failed.length > 0) {
+    console.log(`  ${prepared.failed.length} could not be prepared:`);
+    for (const failure of prepared.failed) console.log(`    ${failure}`);
+    console.log('  Re-run with --create to add the missing ones.');
+  }
 
   const localizations = await client.getAll(
     `/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=200`,
   );
   const byLocale = new Map(localizations.map((l) => [l.attributes.locale, l]));
 
-  const { LOCALE_BY_LANGUAGE } = await import('./plan.mjs');
-  const wanted = Object.keys(listings).filter((key) => !key.startsWith('_'));
   let changed = 0;
   let unchanged = 0;
   const missingLocales = [];
@@ -222,6 +448,11 @@ async function cmdDetails() {
       description: entry.description,
       keywords: entry.keywords,
       promotionalText: entry.promotionalText,
+      // Required by App Review. A version cannot be submitted without a support
+      // URL, and the rejection names it per localization, so omitting it looks
+      // like twenty errors rather than one.
+      supportUrl: SUPPORT_URL,
+      marketingUrl: MARKETING_URL,
       // whatsNew is required to submit an update; listings.json carries it.
       ...(entry.whatsNew ? { whatsNew: entry.whatsNew } : {}),
     };
@@ -249,14 +480,12 @@ async function cmdDetails() {
 
   // The subtitle lives on the app info, not the version, and it is per-locale.
   heading('Subtitle (app info localizations)');
-  const appInfos = await client.getAll(`/v1/apps/${appId}/appInfos?limit=20`);
-  const editableInfo = appInfos.find((info) => info.attributes?.appStoreState === 'PREPARE_FOR_SUBMISSION')
-    ?? appInfos[0];
-  if (!editableInfo) {
+  if (!appInfo) {
     console.log('  no app info record found; subtitle not updated.');
   } else {
+    // Re-read: ensureLocalizations may have just created these.
     const infoLocalizations = await client.getAll(
-      `/v1/appInfos/${editableInfo.id}/appInfoLocalizations?limit=200`,
+      `/v1/appInfos/${appInfo.id}/appInfoLocalizations?limit=200`,
     );
     const infoByLocale = new Map(infoLocalizations.map((l) => [l.attributes.locale, l]));
     for (const language of wanted) {
@@ -277,6 +506,28 @@ async function cmdDetails() {
         data: { type: 'appInfoLocalizations', id: localization.id, attributes: { subtitle } },
       });
     }
+
+    // The privacy policy URL lives on the app info, not the version, and is
+    // required before submission. It is set once per localization.
+    console.log('\n  Privacy policy URL (app info localizations)');
+    for (const language of wanted) {
+      const locale = LOCALE_BY_LANGUAGE[language] ?? language;
+      const localization = infoByLocale.get(locale);
+      if (!localization) continue;
+      if (localization.attributes?.privacyPolicyUrl === PRIVACY_POLICY_URL) continue;
+      if (dryRun) {
+        plan('PATCH', `/v1/appInfoLocalizations/${localization.id}`, 'privacyPolicyUrl');
+        continue;
+      }
+      await client.patch(`/v1/appInfoLocalizations/${localization.id}`, {
+        data: {
+          type: 'appInfoLocalizations',
+          id: localization.id,
+          attributes: { privacyPolicyUrl: PRIVACY_POLICY_URL },
+        },
+      });
+    }
+    console.log(`  ${PRIVACY_POLICY_URL}`);
   }
 
   heading('Summary');
@@ -297,11 +548,16 @@ async function cmdDetails() {
  * Reads the placement catalog Apple publishes.
  *
  * The catalog is the authority on which placement types exist and which groups
- * each accepts. Resolving against it turns "the search-results type is named
- * something I guessed" into a specific error listing the real names.
+ * each accepts. Resolving against it turns a wrong guess at a type name into a
+ * specific error listing the real names.
+ *
+ * Field names here were read off the live response, not from the prose docs:
+ * the types carry `placementTypeId`, groups carry `placementProfileGroupId`,
+ * `specMappings` is an array of `{placementGroupId, specs}`, and features carry
+ * `featureId`.
  */
 async function loadPlacementCatalog(client) {
-  const refData = await client.get('/v1/appAssetLibraryRefData?limit=200');
+  const refData = await client.get('/v1/appAssetLibraryRefData');
   const datum = refData?.data?.[0]?.attributes ?? {};
   return {
     groups: datum.placementProfileGroups ?? [],
@@ -319,7 +575,7 @@ async function loadPlacementCatalog(client) {
  * full list of names Apple offers.
  */
 function resolvePlacementTypes(catalog, items) {
-  const available = new Set(catalog.types.map((type) => type.placementType));
+  const available = new Set(catalog.types.map((type) => type.placementTypeId));
   const resolved = new Map();
   const unresolved = new Map();
 
@@ -337,46 +593,34 @@ function resolvePlacementTypes(catalog, items) {
 /**
  * Chooses the placement group for each surface/spec.
  *
- * Placement groups name a display target, not a device — Apple's iPhone row is
- * `IPHONE_DYNAMIC_ISLAND_*` because that is the display the required screenshot
- * size corresponds to, and Apple scales it down for larger phones. The
- * identifiers are strings in the catalog rather than an enum, so they are
- * matched by prefix here and never hard-coded.
+ * Screenshots are device-shaped and each display family has its own group, so
+ * the group comes from the plan and is verified against the catalog.
  *
- * A group is resolved once per surface/spec for screenshots (which are
- * device-shaped) and once per surface/spec/group for creatives (which are not).
+ * Creatives are not device-shaped: every one of the four creative types lives in
+ * a single group, `DEFAULT_PROFILE`, which the catalog states directly. Reading
+ * it from the type's `specMappings` rather than hard-coding it means an Apple
+ * change shows up as a resolved value, not as a failed upload.
  */
 function resolvePlacementGroups(catalog, items, placementTypes) {
   const resolved = new Map();
   const unresolved = new Map();
-  const allGroups = catalog.groups.map((group) => group.groupId);
+  const allGroups = new Set(catalog.groups.map((group) => group.placementProfileGroupId));
 
   for (const item of items) {
-    const key = item.surface === 'app-store-screenshots'
-      ? `${item.surface}/${item.spec}:${item.group}`
-      : `${item.surface}/${item.spec}:${item.group}`;
+    const key = `${item.surface}/${item.spec}:${item.group}`;
     if (resolved.has(key) || unresolved.has(key)) continue;
 
-    if (item.familyPrefix) {
-      // Screenshots: match the display family by prefix.
-      const matches = allGroups.filter((id) => id.startsWith(item.familyPrefix));
-      if (matches.length === 0) {
-        unresolved.set(key, `no group starts with ${item.familyPrefix}`);
-        continue;
-      }
-      // Prefer the medium display when a family offers several sizes, because
-      // that is the row App Store Connect requires and scales from.
-      const preferred = matches.find((id) => id.includes('MEDIUM'))
-        ?? matches.find((id) => id.includes('LARGE'))
-        ?? matches[0];
-      resolved.set(key, preferred);
+    if (item.groupId) {
+      // Screenshots: the plan names the display group.
+      if (allGroups.has(item.groupId)) resolved.set(key, item.groupId);
+      else unresolved.set(key, `group ${item.groupId} is not in the catalog`);
       continue;
     }
 
     // Creatives: ask the placement type which groups accept it.
     const placementType = placementTypes.get(`${item.surface}/${item.spec}`);
-    const type = catalog.types.find((entry) => entry.placementType === placementType);
-    const groupsForType = Object.keys(type?.specMappings ?? {});
+    const type = catalog.types.find((entry) => entry.placementTypeId === placementType);
+    const groupsForType = (type?.specMappings ?? []).map((mapping) => mapping.placementGroupId);
     if (groupsForType.length === 0) {
       unresolved.set(key, `placement type ${placementType} lists no groups`);
       continue;
@@ -387,18 +631,17 @@ function resolvePlacementGroups(catalog, items, placementTypes) {
     }
 
     // More than one group accepts this type. Pick the one whose spec list
-    // includes a spec matching the dimensions we rendered; the spec catalog
-    // states exact width and height for creatives.
+    // includes a spec matching the dimensions we rendered.
     const specById = new Map(catalog.specs.map((spec) => [spec.specId, spec]));
     const matching = groupsForType.filter((groupId) => {
-      const specs = type.specMappings[groupId]?.specs ?? [];
-      return specs.some((specId) => {
+      const mapping = type.specMappings.find((m) => m.placementGroupId === groupId);
+      return (mapping?.specs ?? []).some((specId) => {
         const spec = specById.get(specId);
         if (!spec?.dimensions) return false;
-        return spec.dimensions.minWidth === item.width
-          && spec.dimensions.minHeight === item.height
-          && spec.dimensions.maxWidth === item.width
-          && spec.dimensions.maxHeight === item.height;
+        return spec.dimensions.minWidth <= item.width
+          && spec.dimensions.maxWidth >= item.width
+          && spec.dimensions.minHeight <= item.height
+          && spec.dimensions.maxHeight >= item.height;
       });
     });
     if (matching.length >= 1) {
@@ -519,7 +762,7 @@ async function buildTargetIndex(client, appId, version, items) {
  */
 async function cmdMedia() {
   const { client, appId } = await connect();
-  const version = await findEditableVersion(client, appId);
+  const version = await ensureEditableVersion(client, appId);
   const items = await loadPlan();
 
   heading('Asset library');
@@ -567,6 +810,75 @@ async function cmdMedia() {
     for (const name of absent) console.log(`    ${name}`);
   }
 
+  // Creating a version copies the previous version's screenshots onto it, and
+  // those inherited placements count against the per-group limit. A group holds
+  // at most 10, so a full inherited set leaves no room and the new uploads are
+  // rejected with a limit error that does not mention the inherited media.
+  //
+  // `--replace` clears the groups this plan manages before creating anything, so
+  // the gallery ends up as exactly the new set. It also clears any other
+  // APP_SCREENSHOT group, because a stale row for an older display family keeps
+  // showing old artwork to users on those devices instead of falling back to the
+  // medium set.
+  const replace = args.includes('--replace');
+  if (replace) {
+    heading('Replace: removing existing media');
+    const managedGroups = new Set([
+      ...groups.resolved.values(),
+      ...items.filter((i) => i.surface === 'app-store-screenshots').map((i) => i.groupId),
+    ]);
+    const removable = [];
+    for (const item of items) {
+      const targetId = index.get(`${item.targetKind}:${item.group}:${item.locale}`);
+      if (!targetId || item.targetKind !== 'appStoreVersionLocalization') continue;
+      removable.push({ targetId, locale: item.locale });
+    }
+    const seenTargets = new Set();
+    let removed = 0;
+    for (const { targetId, locale } of removable) {
+      if (seenTargets.has(targetId)) continue;
+      seenTargets.add(targetId);
+      const existingPlacements = await client.getAll(
+        `/v1/appStoreVersionLocalizations/${targetId}/placements?limit=200`,
+      );
+      for (const placement of existingPlacements) {
+        const type = placement.attributes.placementType;
+        const group = placement.attributes.placementGroup;
+        // Screenshots: every group, because a stale row is worse than no row.
+        // Creatives: only the groups this plan writes to.
+        const isScreenshot = type === 'APP_SCREENSHOT';
+        const isManagedCreative = managedGroups.has(group) && type !== 'APP_SCREENSHOT';
+        if (!isScreenshot && !isManagedCreative) continue;
+        console.log(`  ${locale.padEnd(9)} delete ${type}/${group}`);
+        if (!dryRun) await client.del(`/v1/appAssetLibraryPlacements/${placement.id}`);
+        removed += 1;
+      }
+    }
+    console.log(`  ${removed} placement(s) ${dryRun ? 'would be ' : ''}removed`);
+  }
+
+  // Drop anything with no target before uploading. An in-app event image whose
+  // event does not exist has nowhere to go, and uploading it would spend a
+  // gigabyte of transfer to create an orphan asset in the library. The plan
+  // reports these separately instead.
+  //
+  // `libraryOnly` surfaces are excluded for a different reason: the
+  // `asset-library` surface renders the same header and search creatives as
+  // `header-and-search`, byte for byte, and targets the same localization and
+  // group. Creating placements for both would ask Apple for two assets in a
+  // group whose limit is one. The files still get uploaded — that is the point
+  // of the library — and `header-and-search` places them.
+  const placeable = items.filter((item) =>
+    !item.libraryOnly
+    && index.has(`${item.targetKind}:${item.group}:${item.locale}`)
+    && resolved.has(`${item.surface}/${item.spec}`)
+    && groups.resolved.has(`${item.surface}/${item.spec}:${item.group}`));
+
+  const orphaned = items.length - placeable.length;
+  if (orphaned > 0) {
+    console.log(`\n  ${orphaned} placement(s) not created (library-only, or no container yet)`);
+  }
+
   // One upload per distinct file *by content*, not by path.
   //
   // 42 of the files here are the same bytes on two surfaces: the header and
@@ -576,7 +888,7 @@ async function cmdMedia() {
   // would upload those 42 twice.
   const hashByFile = new Map();
   const filesByHash = new Map();
-  for (const item of items) {
+  for (const item of placeable) {
     if (!hashByFile.has(item.file)) {
       const hash = createHash('sha256').update(readFileSync(item.file)).digest('hex');
       hashByFile.set(item.file, hash);
@@ -586,24 +898,24 @@ async function cmdMedia() {
   const bytes = [...filesByHash.values()].reduce((n, f) => n + statSync(f).size, 0);
 
   heading('Plan');
-  console.log(`  ${items.length} placement(s)`);
+  console.log(`  ${placeable.length} placement(s) to create, ${orphaned} skipped`);
   console.log(
     `  ${filesByHash.size} distinct file(s) by content, `
     + `${(bytes / 1024 / 1024).toFixed(1)} MB to upload`,
   );
-  const saved = new Set(items.map((i) => i.file)).size - filesByHash.size;
+  const saved = new Set(placeable.map((i) => i.file)).size - filesByHash.size;
   if (saved > 0) console.log(`  ${saved} duplicate file(s) avoided by content hash`);
 
   if (dryRun) {
     for (const [hash, file] of filesByHash) {
-      const item = items.find((i) => i.file === file);
+      const item = placeable.find((i) => i.file === file);
       plan('POST', '/v1/appAssetLibraryImages', `${basename(file)} (${item.category}) ${hash.slice(0, 12)}`);
     }
-    console.log(`  [dry-run] then ${items.length} placement request(s)`);
+    console.log(`  [dry-run] then ${placeable.length} placement request(s)`);
     return;
   }
 
-  if (!(await confirm(`Upload ${filesByHash.size} file(s) and create ${items.length} placement(s)?`))) {
+  if (!(await confirm(`Upload ${filesByHash.size} file(s) and create ${placeable.length} placement(s)?`))) {
     console.log('  cancelled.');
     return;
   }
@@ -626,7 +938,7 @@ async function cmdMedia() {
       reused += 1;
       continue;
     }
-    const item = items.find((i) => i.file === file);
+    const item = placeable.find((i) => i.file === file);
     process.stdout.write(`  uploading ${basename(file)} ... `);
     const { assetId } = await client.uploadAsset({
       type: 'appAssetLibraryImages',
@@ -646,7 +958,10 @@ async function cmdMedia() {
   let placed = 0;
   let skipped = 0;
   const failures = [];
-  for (const item of items) {
+  // Placement IDs per (target, group), so the gallery can be ordered after.
+  const byTargetGroup = new Map();
+
+  for (const item of placeable) {
     const assetId = assetIdByHash.get(hashByFile.get(item.file));
     const targetId = index.get(`${item.targetKind}:${item.group}:${item.locale}`);
     const placementType = resolved.get(`${item.surface}/${item.spec}`);
@@ -656,7 +971,7 @@ async function cmdMedia() {
       continue;
     }
     try {
-      await client.post('/v1/appAssetLibraryPlacements', {
+      const created = await client.post('/v1/appAssetLibraryPlacements', {
         data: {
           type: 'appAssetLibraryPlacements',
           attributes: { placementType, placementGroup },
@@ -667,10 +982,53 @@ async function cmdMedia() {
         },
       });
       placed += 1;
+      // Keyed by placementType as well as group: the header and the search
+      // creative both live in DEFAULT_PROFILE on the same localization, and an
+      // ordering request rejects a list that mixes two types.
+      const key = `${item.targetKind}:${targetId}:${placementType}:${placementGroup}`;
+      if (!byTargetGroup.has(key)) {
+        byTargetGroup.set(key, {
+          targetKind: item.targetKind,
+          targetId,
+          placementType,
+          placementGroup,
+          entries: [],
+        });
+      }
+      byTargetGroup.get(key).entries.push({ id: created.data.id, order: item.order ?? 0, item });
     } catch (error) {
       failures.push(`${basename(item.file)} on ${item.targetKind} ${item.locale}: ${error.message}`);
     }
   }
+
+  heading('Gallery order');
+  // Screenshots display in sequence and the order is not the upload order, so
+  // it has to be set explicitly. In-app event localizations are not orderable —
+  // each of their types allows a single asset per group.
+  let ordered = 0;
+  for (const { targetKind, targetId, placementGroup, entries } of byTargetGroup.values()) {
+    if (targetKind === 'appEventLocalization') continue;
+    if (entries.length < 2) continue;
+    const sequence = [...entries].sort((a, b) => a.order - b.order).map((entry) => entry.id);
+    try {
+      await client.post('/v1/appAssetLibraryPlacementOrderingRequests', {
+        data: {
+          type: 'appAssetLibraryPlacementOrderingRequests',
+          attributes: { placementGroup },
+          relationships: {
+            orderedPlacements: {
+              data: sequence.map((id) => ({ type: 'appAssetLibraryPlacements', id })),
+            },
+            [targetKind]: { data: { type: `${targetKind}s`, id: targetId } },
+          },
+        },
+      });
+      ordered += 1;
+    } catch (error) {
+      failures.push(`ordering ${placementGroup} on ${targetKind} ${targetId}: ${error.message}`);
+    }
+  }
+  console.log(`  ${ordered} group(s) ordered`);
 
   heading('Summary');
   console.log(`  ${placed} placement(s) created, ${skipped} skipped (no target or group)`);
@@ -688,7 +1046,7 @@ async function cmdMedia() {
 /** Creates a review submission containing the version, then submits it. */
 async function cmdSubmit() {
   const { client, appId } = await connect();
-  const version = await findEditableVersion(client, appId);
+  const version = await ensureEditableVersion(client, appId);
   heading(`Submit ${version.attributes.versionString} for review`);
 
   const build = args.find((a) => a.startsWith('--build='))?.split('=')[1];
@@ -741,10 +1099,118 @@ async function cmdSubmit() {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Finds the file name of an image from the `included` side of a placements
+ * response. Apple returns related assets under `included`, not nested in the
+ * relationship, so the name has to be joined by id.
+ */
+function includedName(placements, imageId) {
+  if (!imageId) return null;
+  const asset = placements.included?.find(
+    (entry) => entry.type === 'appAssetLibraryImages' && entry.id === imageId,
+  );
+  return asset?.attributes?.fileName ?? asset?.attributes?.referenceName ?? null;
+}
+
+/**
+ * Sets the display order of existing placements.
+ *
+ * Separate from `media` because ordering is idempotent and cheap while
+ * creating placements is neither, and because the order can only be set once
+ * every placement in a group exists. Re-running `media` to fix an order would
+ * create a duplicate gallery.
+ *
+ * Screenshots are the reason this matters: they display in a fixed sequence
+ * that is not the upload order, so without this the gallery appears in
+ * whatever order the files happened to be created.
+ */
+async function cmdOrder() {
+  const { client, appId } = await connect();
+  const version = await ensureEditableVersion(client, appId);
+  const items = await loadPlan();
+
+  heading(`Gallery order for ${version.attributes.versionString}`);
+
+  const localizations = await client.getAll(
+    `/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=200`,
+  );
+
+  // Desired position per asset file, from the plan. Screenshots carry an
+  // explicit `order` from their filename prefix; creatives have no sequence,
+  // so they keep whatever order Apple returns.
+  const orderByFile = new Map();
+  for (const item of items) {
+    if (item.order) orderByFile.set(basename(item.file), item.order);
+  }
+
+  let ordered = 0;
+  for (const localization of localizations) {
+    const placements = await client.getAll(
+      `/v1/appStoreVersionLocalizations/${localization.id}/placements?limit=200&include=image`,
+    );
+    if (placements.length < 2) continue;
+
+    // An ordering request accepts one placement type in one group, so the
+    // placements are bucketed by both.
+    const buckets = new Map();
+    for (const placement of placements) {
+      const key = `${placement.attributes.placementType}:${placement.attributes.placementGroup}`;
+      if (!buckets.has(key)) {
+        buckets.set(key, {
+          placementType: placement.attributes.placementType,
+          placementGroup: placement.attributes.placementGroup,
+          entries: [],
+        });
+      }
+      buckets.get(key).entries.push(placement);
+    }
+
+    for (const bucket of buckets.values()) {
+      if (bucket.entries.length < 2) continue;
+      const sequence = bucket.entries
+        .map((placement) => {
+          const fileName = placement.relationships?.image?.data?.id;
+          const name = includedName(placements, fileName) ?? '';
+          return { id: placement.id, position: orderByFile.get(name) ?? 99 };
+        })
+        .sort((a, b) => a.position - b.position)
+        .map((entry) => entry.id);
+
+      if (dryRun) {
+        plan(
+          'POST',
+          '/v1/appAssetLibraryPlacementOrderingRequests',
+          `${localization.attributes.locale} ${bucket.placementType} (${sequence.length})`,
+        );
+        continue;
+      }
+      await client.post('/v1/appAssetLibraryPlacementOrderingRequests', {
+        data: {
+          type: 'appAssetLibraryPlacementOrderingRequests',
+          attributes: { placementGroup: bucket.placementGroup },
+          relationships: {
+            orderedPlacements: {
+              data: sequence.map((id) => ({ type: 'appAssetLibraryPlacements', id })),
+            },
+            appStoreVersionLocalization: {
+              data: { type: 'appStoreVersionLocalizations', id: localization.id },
+            },
+          },
+        },
+      });
+      ordered += 1;
+    }
+  }
+
+  console.log(`  ${ordered} group(s) ordered${dryRun ? ' (dry run)' : ''}`);
+}
+
 const COMMANDS = {
   build: cmdBuild,
+  prepare: cmdPrepare,
   details: cmdDetails,
   media: cmdMedia,
+  order: cmdOrder,
   submit: cmdSubmit,
   /**
    * Reports credential state without making an API call.
@@ -813,7 +1279,7 @@ const COMMANDS = {
     try {
       const app = await findApp(client, BUNDLE_ID);
       console.log(`  authenticated; found "${app.attributes.name}" (${app.id})`);
-      const version = await findEditableVersion(client, app.id);
+      const version = await ensureEditableVersion(client, app.id);
       console.log(`  editable version: ${version.attributes.versionString}`);
       const library = await client.get(`/v1/apps/${app.id}/assetLibrary`);
       console.log(`  asset library: ${library?.data?.id ?? '(none)'}`);
@@ -847,6 +1313,7 @@ const COMMANDS = {
     console.log(`  ${items.length - byHash.size} placement(s) reuse an already-uploaded file`);
   },
   async all() {
+    await cmdPrepare();
     await cmdBuild();
     await cmdDetails();
     await cmdMedia();

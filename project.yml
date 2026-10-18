@@ -12,10 +12,11 @@ settings:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
     # Single version source (A10): every target inherits these; bump once here.
-    # Build 7: the 20-language release. Build 6 was the last one prepared, so a
-    # new upload needs a build number App Store Connect has not seen.
+    # 1.1.0 / build 7: the 20-language release. 1.0.5 (build 6) is live, and a
+    # released version cannot be reopened, so new work needs a new version
+    # string. Build 7 was never uploaded, so it is still free to use.
     CURRENT_PROJECT_VERSION: 7
-    MARKETING_VERSION: "1.0.5"
+    MARKETING_VERSION: "1.1.0"
     INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "TidyByte needs access to your photo library to help you organize and clean up photos and videos."
     INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "TidyByte needs write access to save compressed videos and converted photos."
     CODE_SIGN_STYLE: Automatic

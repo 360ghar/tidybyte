@@ -245,12 +245,12 @@ Suggested upload order, per device (from `docs/screenshots/<device>/`): `01-swip
 
 ---
 
-## 12. What's New (v1.0.5 release notes)
+## 12. What's New (v1.1.0 release notes)
 
 ```
-Search your photos in plain words — "dogs on a beach" — with on-device AI. Plus two new tools: Screen Recordings and Chat Media, for the largest files hiding in your library. Everything still runs on your device: no account, no ads, no subscription.
+TidyByte now speaks 20 languages, with full right-to-left layout for Arabic and Hebrew. Dates, sizes and counts follow your region, and Siri shortcuts work in your language. Everything still runs on your device: no account, no ads, no subscription.
 ```
-Length: 258 chars (well under the 4000-char release-notes limit).
+Length: 248 chars (well under the 4000-char release-notes limit). Translated into all 21 storefront locales by `scripts/localization/translations/_notes-1.1.0.mjs`.
 
 ---
 
@@ -258,7 +258,8 @@ Length: 258 chars (well under the 4000-char release-notes limit).
 
 | Version | Build | Release notes source |
 |---|---|---|
-| 1.0.5 | 6 | §12 above. On-device AI search, Screen Recordings tool, Chat Media tool, smarter reminders. |
+| 1.1.0 | 7 | §12 above. 20 languages with RTL, region-aware formatting, localized Siri phrases. |
+| 1.0.5 | 6 | On-device AI search, Screen Recordings tool, Chat Media tool, smarter reminders. |
 | 1.0.4 | — | Cleanup tools refresh: UI, honest savings numbers, keep-choices preserved across scans. (1.0.3 was skipped.) |
 | 1.0.2 | — | Storage dashboard redesign, cross-tab deep links, cleanup-tool fixes. |
 | 1.0.1 | — | Native iPad support, album picker fix, settings layout. |

@@ -299,27 +299,44 @@ export function createClient({ keyId, issuerId, keyPath, log = () => {} }) {
   /**
    * Polls an asset until App Store Connect finishes processing it.
    *
-   * Processing is asynchronous and reports `COMPLETE` or `FAILED`. `FAILED` is
-   * terminal — the asset record has to be deleted and re-uploaded — so it is
-   * raised rather than retried.
+   * Two things about the response shape are easy to get wrong and cost a full
+   * timeout to discover:
+   *
+   *   - The field is `state`, not `assetDeliveryState.state`. The latter is what
+   *     the deprecated set-based resources use.
+   *   - There is no `COMPLETE`. A successfully processed asset reports
+   *     `PREPARE_FOR_SUBMISSION` while its parent version is editable, and
+   *     `APPROVED` once it is live. Treating "not COMPLETE" as "still working"
+   *     waits forever on an asset that finished seconds ago.
+   *
+   * So the test is inverted: only `PROCESSING` (and an absent state) count as
+   * pending. `FAILED` is terminal — the record has to be deleted and re-uploaded
+   * — so it raises rather than retries.
    */
-  async function waitForAsset({ type, assetId, timeoutMs = 180_000 }) {
+  async function waitForAsset({ type, assetId, timeoutMs = 300_000 }) {
     const deadline = Date.now() + timeoutMs;
     let delay = 1000;
+    let lastState = null;
 
     for (;;) {
       const response = await get(`/v1/${type}/${assetId}`);
-      const state = response?.data?.attributes?.assetDeliveryState?.state;
-      if (state === 'COMPLETE') return response.data;
+      const attributes = response?.data?.attributes ?? {};
+      const state = attributes.state;
 
       if (state === 'FAILED') {
-        const errors = response.data.attributes.assetDeliveryState.errors ?? [];
-        const detail = errors.map((e) => e.description ?? e.code).join('; ') || 'no detail given';
+        const details = attributes.stateDetails;
+        const detail = typeof details === 'string' ? details : JSON.stringify(details ?? {});
         throw new Error(`Asset ${assetId} failed processing: ${detail}`);
       }
 
+      const pending = state === undefined || state === 'PROCESSING' || state === 'UPLOAD_COMPLETE';
+      if (!pending) return response.data;
+      lastState = state;
+
       if (Date.now() >= deadline) {
-        throw new Error(`Asset ${assetId} still ${state ?? 'unknown'} after ${timeoutMs / 1000}s.`);
+        throw new Error(
+          `Asset ${assetId} still ${lastState ?? 'unknown'} after ${timeoutMs / 1000}s.`,
+        );
       }
 
       await new Promise((resolve) => setTimeout(resolve, delay));
