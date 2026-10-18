@@ -147,18 +147,31 @@ jobs:
       # The App Store growth creatives — In-App Events, Custom Product Pages,
       # Asset Library, Product Page Optimization, and the header/search assets.
       #
-      # These are checked in rather than generated here, because they are
-      # reviewed by hand before upload and a regenerated file would be a new
-      # asset nobody looked at. So the job verifies what is committed: every
-      # image is inside Apple's accepted size for its surface, carries no alpha
-      # channel (App Store Connect rejects transparency, and Playwright writes
-      # RGBA by default), and exists in all 21 languages — Apple requires asset
-      # text localized for every language the app supports.
+      # The 357 per-language PNGs are derived output, and `.gitignore` keeps them
+      # out of the repo (~628 MB) because `build-assets.mjs` re-renders them
+      # byte-for-byte from the committed art in `docs/growth/art/` plus the copy
+      # in `Tidybyte/Resources/Localizable.xcstrings` and
+      # `docs/appstore/listings.json`. There is therefore nothing to validate
+      # until they are rendered, so this job renders them first. That also proves
+      # the generator still works for all 21 languages, which a check against
+      # committed files could not tell you.
       #
-      # `--strict` also fails on a render that came out blank, which is what a
-      # silently-failed background load produces.
-      - name: Validate App Store growth creatives
-        run: npm run check:growth
+      # The check is what Apple actually rejects: an image outside the surface's
+      # accepted size or aspect ratio, an alpha channel (App Store Connect
+      # rejects transparency, and Playwright writes RGBA by default), a language
+      # with no asset (Apple requires the text localized for every language the
+      # app supports), or a blank render from a silently-failed background load.
+      # `check:growth` runs `--strict`, so coverage and blankness fail the build.
+      #
+      # `npm ci` installs the Playwright package but not its browser, so the
+      # browser is installed explicitly.
+      - name: Install the browser the creatives render in
+        run: npx playwright install --with-deps chromium
+
+      - name: Render and validate App Store growth creatives
+        run: |
+          npm run growth
+          npm run check:growth
 
       # iPhone Duo (foldable, iOS 27.1) presents the system bars vertically on a
       # side edge and can resize the window at any moment, so code that reads the
