@@ -397,10 +397,13 @@ precondition is demonstrated by a run recorded in §3.
    `iPad Pro 13-inch (M5)` and `iPad mini (A17 Pro)` each fail with
    `An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=403): Incompatible device`.
    Consequence to plan around: **27.1 cannot replace 27.0 for everyday
-   simulator work.** The iOS 27.0 runtime was removed on 2026-10-18 to reclaim
-   disk (14.8 GB → 7.3 GB of runtimes), which leaves only Duo simulators on this
-   machine; the ordinary devices remain in the list but are marked
-   `unavailable, runtime profile not found`. Re-install with
-   `xcodebuild -downloadPlatform iOS -buildVersion 27.0` when a normal iPhone or
-   iPad simulator is needed again — or keep just the Duo if the Duo work is the
-   only simulator work in flight.
+   simulator work**, so both runtimes are kept installed (14.8 GB total). The
+   27.0 runtime was briefly removed on 2026-10-18 to reclaim disk — which
+   immediately marked every ordinary iPhone and iPad device
+   `unavailable, runtime profile not found` — and was restored the same day with
+   `xcodebuild -downloadPlatform iOS -buildVersion 27.0 -architectureVariant arm64`.
+   Treat that pair as a set: drop 27.0 only if the Duo is the sole simulator
+   work in flight, and expect to wait ~40 minutes and ~8 GB to get it back.
+   A second thing to expect on the way back: those stranded devices return to
+   `Shutdown` (not lost) as soon as the runtime is present again, so **do not
+   recreate them** — recreating leaves duplicate devices with the same names.
