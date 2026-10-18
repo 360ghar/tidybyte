@@ -25,6 +25,13 @@
     Content-Type = "text/markdown; charset=utf-8"
     Cache-Control = "public, max-age=86400"
 
+# Markdown alternates for the tool landing pages (/storage-cleaner.md, ...).
+[[headers]]
+  for = "/*.md"
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"
+    Cache-Control = "public, max-age=86400"
+
 # Cache and security headers.
 [[headers]]
   for = "/*"
@@ -78,6 +85,198 @@
 [[redirects]]
   from = "/changelog"
   to = "/changelog.html"
+  status = 200
+
+# Tool landing pages — one page per cleanup job, served from <slug>.html.
+# Trailing slashes are 301'd away first so /<slug>/ never resolves to
+# /<slug>/.html (same ordering rule as the blog routes below).
+[[redirects]]
+  from = "/:slug/"
+  to = "/:slug"
+  status = 301
+
+[[redirects]]
+  from = "/photo-cleaner"
+  to = "/photo-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/storage-cleaner"
+  to = "/storage-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/duplicate-photo-cleaner"
+  to = "/duplicate-photo-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/similar-photo-cleaner"
+  to = "/similar-photo-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/screenshot-cleaner"
+  to = "/screenshot-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/screen-recording-cleaner"
+  to = "/screen-recording-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/chat-media-cleaner"
+  to = "/chat-media-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/blurry-photo-cleaner"
+  to = "/blurry-photo-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/large-file-cleaner"
+  to = "/large-file-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/burst-photo-cleaner"
+  to = "/burst-photo-cleaner.html"
+  status = 200
+
+[[redirects]]
+  from = "/live-photo-converter"
+  to = "/live-photo-converter.html"
+  status = 200
+
+[[redirects]]
+  from = "/video-compression"
+  to = "/video-compression.html"
+  status = 200
+
+[[redirects]]
+  from = "/image-compression"
+  to = "/image-compression.html"
+  status = 200
+
+[[redirects]]
+  from = "/photo-organizer"
+  to = "/photo-organizer.html"
+  status = 200
+
+[[redirects]]
+  from = "/on-device-ai-photo-search"
+  to = "/on-device-ai-photo-search.html"
+  status = 200
+
+[[redirects]]
+  from = "/free-photo-cleaner-no-subscription"
+  to = "/free-photo-cleaner-no-subscription.html"
+  status = 200
+
+# Localized landing pages — the same page as "/" in each language the app
+# ships, served from <lang>.html. The slug list mirrors src/data/languages.ts;
+# scripts/seo-audit.mjs fails if a language page is not in the sitemap at the
+# home page's priority, which keeps the two in sync.
+[[redirects]]
+  from = "/hi"
+  to = "/hi.html"
+  status = 200
+
+[[redirects]]
+  from = "/bn"
+  to = "/bn.html"
+  status = 200
+
+[[redirects]]
+  from = "/ta"
+  to = "/ta.html"
+  status = 200
+
+[[redirects]]
+  from = "/te"
+  to = "/te.html"
+  status = 200
+
+[[redirects]]
+  from = "/mr"
+  to = "/mr.html"
+  status = 200
+
+[[redirects]]
+  from = "/gu"
+  to = "/gu.html"
+  status = 200
+
+[[redirects]]
+  from = "/kn"
+  to = "/kn.html"
+  status = 200
+
+[[redirects]]
+  from = "/ml"
+  to = "/ml.html"
+  status = 200
+
+[[redirects]]
+  from = "/pa"
+  to = "/pa.html"
+  status = 200
+
+[[redirects]]
+  from = "/es"
+  to = "/es.html"
+  status = 200
+
+[[redirects]]
+  from = "/fr"
+  to = "/fr.html"
+  status = 200
+
+[[redirects]]
+  from = "/de"
+  to = "/de.html"
+  status = 200
+
+[[redirects]]
+  from = "/pt-br"
+  to = "/pt-br.html"
+  status = 200
+
+[[redirects]]
+  from = "/it"
+  to = "/it.html"
+  status = 200
+
+[[redirects]]
+  from = "/ja"
+  to = "/ja.html"
+  status = 200
+
+[[redirects]]
+  from = "/ko"
+  to = "/ko.html"
+  status = 200
+
+[[redirects]]
+  from = "/zh-hans"
+  to = "/zh-hans.html"
+  status = 200
+
+[[redirects]]
+  from = "/ru"
+  to = "/ru.html"
+  status = 200
+
+[[redirects]]
+  from = "/ar"
+  to = "/ar.html"
+  status = 200
+
+[[redirects]]
+  from = "/he"
+  to = "/he.html"
   status = 200
 
 # Consolidated posts (F8): overlapping keyword clusters merged into their

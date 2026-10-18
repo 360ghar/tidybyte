@@ -1,0 +1,402 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "CFBundleDisplayName. Kept as the brand name in every language.",
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription": {
+      "comment": "NSPhotoLibraryUsageDescription — shown in the iOS permission alert.",
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحتاج TidyByte إلى الوصول إلى مكتبة الصور لديك للمساعدة في تنظيم الصور ومقاطع الفيديو وتنظيفها."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ছবি ও ভিডিও গোছাতে ও পরিষ্কার করতে TidyByte-এর আপনার ফটো লাইব্রেরিতে অ্যাক্সেস প্রয়োজন।"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte benötigt Zugriff auf deine Fotomediathek, um Fotos und Videos zu ordnen und aufzuräumen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte needs access to your photo library to help you organize and clean up photos and videos."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte necesita acceso a tu fototeca para ayudarte a organizar y limpiar fotos y vídeos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte a besoin d'accéder à votre photothèque pour vous aider à organiser et nettoyer vos photos et vidéos."
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ફોટા અને વિડિયો ગોઠવવા અને સાફ કરવામાં મદદ કરવા TidyByte ને તમારી ફોટો લાઇબ્રેરીની ઍક્સેસ જોઈએ છે."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte זקוקה לגישה לספריית התמונות שלך כדי לעזור לארגן ולנקות תמונות וסרטונים."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ोटो और वीडियो को व्यवस्थित करने और साफ़ करने में मदद के लिए TidyByte को आपकी फ़ोटो लाइब्रेरी तक पहुँच चाहिए।"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte ha bisogno di accedere alla tua libreria foto per aiutarti a organizzare e ripulire foto e video."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真とビデオの整理とクリーンアップのため、TidyByte は写真ライブラリへのアクセスを必要とします。"
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಫೋಟೋ ಮತ್ತು ವೀಡಿಯೊಗಳನ್ನು ಜೋಡಿಸಲು ಮತ್ತು ಸ್ವಚ್ಛಗೊಳಿಸಲು ಸಹಾಯ ಮಾಡಲು TidyByte ಗೆ ನಿಮ್ಮ ಫೋಟೋ ಲೈಬ್ರರಿಯ ಪ್ರವೇಶ ಬೇಕು."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사진과 동영상을 정리하고 정돈하려면 TidyByte의 사진 보관함 접근 권한이 필요합니다."
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ഫോട്ടോകളും വീഡിയോകളും ക്രമീകരിക്കാനും വൃത്തിയാക്കാനും സഹായിക്കാൻ TidyByte-ന് നിങ്ങളുടെ ഫോട്ടോ ലൈബ്രറിയിലേക്ക് ആക്സസ് ആവശ്യമാണ്."
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फोटो आणि व्हिडिओ व्यवस्थित करण्यास आणि स्वच्छ करण्यास मदत करण्यासाठी TidyByte ला तुमच्या फोटो लायब्ररीमध्ये प्रवेश हवा आहे."
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਫ਼ੋਟੋਆਂ ਅਤੇ ਵੀਡੀਓਆਂ ਨੂੰ ਸੰਭਾਲਣ ਅਤੇ ਸਾਫ਼ ਕਰਨ ਵਿੱਚ ਮਦਦ ਲਈ TidyByte ਨੂੰ ਤੁਹਾਡੀ ਫ਼ੋਟੋ ਲਾਇਬ੍ਰੇਰੀ ਤੱਕ ਪਹੁੰਚ ਚਾਹੀਦੀ ਹੈ।"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O TidyByte precisa de acesso à sua fototeca para ajudar a organizar e limpar fotos e vídeos."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte нужен доступ к вашей медиатеке, чтобы помогать упорядочивать и очищать фото и видео."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "புகைப்படங்கள் மற்றும் வீடியோக்களை ஒழுங்குபடுத்தவும் சுத்தம் செய்யவும் உதவ TidyByte-க்கு உங்கள் புகைப்பட நூலக அணுகல் தேவை."
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ఫోటోలు మరియు వీడియోలను నిర్వహించడానికి, శుభ్రం చేయడానికి సహాయపడటానికి TidyByte కి మీ ఫోటో లైబ్రరీ యాక్సెస్ అవసరం."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte 需要访问你的照片图库，以帮助你整理和清理照片与视频。"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription": {
+      "comment": "NSPhotoLibraryAddUsageDescription — shown when TidyByte first saves an edited copy.",
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحتاج TidyByte إلى إذن الكتابة لحفظ مقاطع الفيديو المضغوطة والصور المحوّلة."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "কমপ্রেস করা ভিডিও ও রূপান্তরিত ছবি সংরক্ষণ করতে TidyByte-এর লেখার অনুমতি প্রয়োজন।"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte benötigt Schreibzugriff, um komprimierte Videos und umgewandelte Fotos zu sichern."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte needs write access to save compressed videos and converted photos."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte necesita permiso de escritura para guardar vídeos comprimidos y fotos convertidas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte a besoin d'un accès en écriture pour enregistrer les vidéos compressées et les photos converties."
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "કોમ્પ્રેસ કરેલા વિડિયો અને રૂપાંતરિત ફોટા સાચવવા TidyByte ને લેખન ઍક્સેસ જોઈએ છે."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte זקוקה להרשאת כתיבה כדי לשמור סרטונים מכווצים ותמונות שהומרו."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कंप्रेस किए गए वीडियो और कन्वर्ट की गई फ़ोटो सहेजने के लिए TidyByte को लिखने की अनुमति चाहिए।"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte ha bisogno dell'accesso in scrittura per salvare video compressi e foto convertite."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "圧縮したビデオと変換した写真を保存するため、TidyByte には書き込みアクセスが必要です。"
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಸಂಕುಚಿತ ವೀಡಿಯೊಗಳನ್ನು ಮತ್ತು ಪರಿವರ್ತಿತ ಫೋಟೋಗಳನ್ನು ಉಳಿಸಲು TidyByte ಗೆ ಬರವಣಿಗೆ ಪ್ರವೇಶ ಬೇಕು."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "압축된 동영상과 변환된 사진을 저장하려면 TidyByte에 쓰기 권한이 필요합니다."
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "കംപ്രസ് ചെയ്ത വീഡിയോകളും പരിവർത്തനം ചെയ്ത ഫോട്ടോകളും സൂക്ഷിക്കാൻ TidyByte-ന് എഴുത്ത് ആക്സസ് ആവശ്യമാണ്."
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कंप्रेस केलेले व्हिडिओ आणि रूपांतरित फोटो जतन करण्यासाठी TidyByte ला लेखन प्रवेश हवा आहे."
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਕੰਪ੍ਰੈਸ ਕੀਤੇ ਵੀਡੀਓ ਅਤੇ ਬਦਲੀਆਂ ਫ਼ੋਟੋਆਂ ਸੰਭਾਲਣ ਲਈ TidyByte ਨੂੰ ਲਿਖਣ ਦੀ ਪਹੁੰਚ ਚਾਹੀਦੀ ਹੈ।"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O TidyByte precisa de permissão de escrita para salvar vídeos comprimidos e fotos convertidas."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte нужен доступ на запись, чтобы сохранять сжатые видео и преобразованные фото."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "சுருக்கப்பட்ட வீடியோக்களையும் மாற்றப்பட்ட புகைப்படங்களையும் சேமிக்க TidyByte-க்கு எழுதும் அணுகல் தேவை."
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "కుదించిన వీడియోలను మరియు మార్చిన ఫోటోలను సేవ్ చేయడానికి TidyByte కి రైట్ యాక్సెస్ అవసరం."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TidyByte 需要写入权限，以保存压缩后的视频和转换后的照片。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

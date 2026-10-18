@@ -235,6 +235,18 @@
   details[open] > .faq-summary .faq-chev {
     transform: rotate(180deg);
   }
+
+  /* Language switcher: a native <details> disclosure, so the menu opens
+     without JS. The marker triangle is dropped — the summary carries its own
+     globe and caret — and the panel is inset with a logical edge so it
+     mirrors under RTL. */
+  .lang-menu > summary {
+    @apply cursor-pointer list-none;
+  }
+
+  .lang-menu > summary::-webkit-details-marker {
+    display: none;
+  }
 }
 
 /* ===========================================================================

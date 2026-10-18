@@ -364,12 +364,30 @@ struct CardView: View {
         imageLoadTask = Task { await loadImage() }
     }
 
+    /// The failure headline, as four whole sentences rather than one assembled
+    /// from fragments.
+    ///
+    /// The original built it from five pieces (`"load"`, `"video"`, `" from
+    /// iCloud"`, …) interpolated into `"Couldn't %@ this %@%@."`. That template
+    /// is in the catalog, so it *looks* localized, but its German form is
+    /// `"%@ dieses %@%@ nicht möglich."` — the fragments go in unchanged, so a
+    /// German user read "load dieses video nicht möglich." No language can
+    /// reorder a sentence it never sees whole.
+    private var loadFailureMessage: String {
+        switch (asset.isLocallyAvailable, asset.mediaType == .video) {
+        case (true, false): L10n.string("Couldn't load this photo.")
+        case (true, true): L10n.string("Couldn't load this video.")
+        case (false, false): L10n.string("Couldn't download this photo from iCloud.")
+        case (false, true): L10n.string("Couldn't download this video from iCloud.")
+        }
+    }
+
     private var loadFailedView: some View {
         VStack(spacing: Spacing.md) {
             Image(systemName: asset.isLocallyAvailable ? "exclamationmark.triangle" : "icloud.slash")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
-            Text("Couldn't \(asset.isLocallyAvailable ? "load" : "download") this \(asset.mediaType == .video ? "video" : "photo")\(asset.isLocallyAvailable ? "" : " from iCloud").")
+            Text(loadFailureMessage)
                 .font(.headline)
                 .multilineTextAlignment(.center)
             Text("You can keep or skip it. Delete is off until it shows.")

@@ -65,7 +65,10 @@ struct PhotoCompressionView: View {
                 viewModel.startBatchCompression(modelContext: modelContext)
             }
         } message: {
-            Text(ReplaceOriginalsNotice.explainer(copies: "a new, smaller copy of each photo", originals: "the original photos"))
+            Text(ReplaceOriginalsNotice.explainer(
+                copies: L10n.string("a new, smaller copy of each photo"),
+                originals: L10n.string("the original photos")
+            ))
         }
         // Non-modal error surface. Also covers the batch summary
         // ("Compressed 8 of 10. 2 failed."), which is a report rather than a
@@ -73,8 +76,9 @@ struct PhotoCompressionView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Photo Compression",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -141,7 +145,11 @@ struct PhotoCompressionView: View {
                 HappyPathReporter.fire(
                     isCelebrating: $isCelebrating,
                     statLine: $celebrationStatLine,
-                    line: "compressed \(summary.completed) photos"
+                    line: L10n.format(
+                        "compressed %lld photo",
+                        fallback: "compressed %lld photos",
+                        summary.completed
+                    )
                 )
             }
         }
@@ -336,7 +344,10 @@ struct PhotoCompressionView: View {
                             Button(preset.label) { viewModel.setPresetForSelected(preset) }
                         }
                     } label: {
-                        Text("Quality: \(viewModel.selectedPreset?.label ?? "Mixed")")
+                        // See VideoCompressionView: the preset label is a
+                        // technical name, "Mixed" is a word.
+                        Text(L10n.format("Quality: %@",
+                                         viewModel.selectedPreset?.label ?? L10n.string("Mixed")))
                             .font(.caption.bold())
                             .frame(minHeight: 32)
                     }

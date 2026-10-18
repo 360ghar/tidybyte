@@ -4,6 +4,16 @@ enum ScreenshotSortOrder: String, CaseIterable {
     case newest = "Newest"
     case oldest = "Oldest"
     case largest = "Largest"
+
+    /// Raw value is the stable identity; this is what the picker shows.
+    /// Literals, not `rawValue`, so the extractor can see them.
+    var displayName: String {
+        switch self {
+        case .newest: L10n.string("Newest")
+        case .oldest: L10n.string("Oldest")
+        case .largest: L10n.string("Largest")
+        }
+    }
 }
 
 @Observable

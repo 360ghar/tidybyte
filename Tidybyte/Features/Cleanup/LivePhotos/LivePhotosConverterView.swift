@@ -94,7 +94,11 @@ struct LivePhotosConverterView: View {
             HappyPathReporter.fire(
                 isCelebrating: $isCelebrating,
                 statLine: $celebrationStatLine,
-                line: "converted \(batch.converted) Live Photos"
+                line: L10n.format(
+                    "converted %lld Live Photo",
+                    fallback: "converted %lld Live Photos",
+                    batch.converted
+                )
             )
         }
         // Non-modal error surface. Also covers the batch summary
@@ -103,8 +107,9 @@ struct LivePhotosConverterView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Live Photos",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -336,8 +341,13 @@ struct LivePhotosConverterView: View {
 /// full-screen preview, which both offer a single Convert.
 enum LivePhotoConvertExplainer {
     static let storageKey = "hasSeenLivePhotoConvertExplainer"
-    static let message = ReplaceOriginalsNotice.explainer(
-        copies: "the still image of each Live Photo as a new photo",
-        originals: "the Live Photos"
-    )
+    /// Computed, not stored: a `static let` resolves once, the first time the
+    /// type is touched, and then keeps serving that language after the user
+    /// switches — the same caching bug the other `static let` copy sites had.
+    static var message: String {
+        ReplaceOriginalsNotice.explainer(
+            copies: L10n.string("the still image of each Live Photo as a new photo"),
+            originals: L10n.string("the Live Photos")
+        )
+    }
 }

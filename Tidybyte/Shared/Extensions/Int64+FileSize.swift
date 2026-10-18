@@ -1,8 +1,17 @@
 import Foundation
 
 extension Int64 {
+    /// A decimal file size in the user's locale.
+    ///
+    /// Delegates to `Formatters.fileSize`, which replaced a bare
+    /// `ByteCountFormatter` call: that type has no `locale` property at all, so
+    /// every user saw "1.5 MB" regardless of whether their convention is
+    /// "1,5 MB" (German, Portuguese, Russian) or "١٫٥ م.ب" (Arabic).
+    ///
+    /// Kept as a property so the ~30 existing call sites keep working; the
+    /// locale and the chosen language are resolved inside.
     var formattedFileSize: String {
-        ByteCountFormatter.string(fromByteCount: self, countStyle: .file)
+        Formatters.fileSize(self)
     }
 }
 

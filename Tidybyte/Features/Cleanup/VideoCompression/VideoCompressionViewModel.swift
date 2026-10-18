@@ -267,7 +267,7 @@ final class VideoCompressionViewModel {
             let remaining = Set(items.map(\.assetId)).subtracting(doneIds)
             for index in videos.indices where remaining.contains(videos[index].id) {
                 if keptIds.contains(videos[index].id) {
-                    videos[index].compressionState = .keptOriginal(reason: "Original kept — both versions in your library")
+                    videos[index].compressionState = .keptOriginal(reason: L10n.string("Original kept — both versions in your library"))
                 } else {
                     videos[index].compressionState = .waiting
                 }
@@ -403,7 +403,7 @@ final class VideoCompressionViewModel {
                         // COMP-04: no-savings items stay in the list with an
                         // explanation instead of silently vanishing.
                         swap.finalizeSkipped()
-                        self.videos[index].compressionState = .keptOriginal(reason: "No savings — kept original")
+                        self.videos[index].compressionState = .keptOriginal(reason: L10n.string("No savings — kept original"))
                         return .skipped
                     }
 

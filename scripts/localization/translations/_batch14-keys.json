@@ -1,0 +1,22 @@
+{
+  "plain": {
+    "Couldn't download this photo from iCloud.": "Couldn't download this photo from iCloud.",
+    "Couldn't download this video from iCloud.": "Couldn't download this video from iCloud.",
+    "Couldn't load this photo.": "Couldn't load this photo.",
+    "Couldn't load this video.": "Couldn't load this video.",
+    "Mixed": "Mixed",
+    "Start here. ": "Start here. ",
+    "Untitled": "Untitled",
+    "media": "media"
+  },
+  "plurals": {
+    "%lld exact copies": {
+      "one": "%lld exact copy",
+      "other": "%lld exact copies"
+    },
+    "%lld look-alike photos": {
+      "one": "%lld look-alike photo",
+      "other": "%lld look-alike photos"
+    }
+  }
+}

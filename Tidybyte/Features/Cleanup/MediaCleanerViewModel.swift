@@ -56,8 +56,8 @@ final class MediaCleanerViewModel {
     static func sizeLabel(_ assets: [AssetSummary]) -> String {
         let bytes = assets.reduce(Int64(0)) { $0 + max(0, $1.fileSize) }
         let unknown = assets.filter { $0.fileSize <= 0 }.count
-        if unknown == assets.count && unknown > 0 { return "Sizes unavailable" }
-        return bytes.formattedFileSize + (unknown > 0 ? " known · \(unknown) sizes unavailable" : "")
+        if unknown == assets.count && unknown > 0 { return L10n.string("Sizes unavailable") }
+        return bytes.formattedFileSize + (unknown > 0 ? L10n.format(" known · %lld sizes unavailable", unknown) : "")
     }
 
     func load() async {

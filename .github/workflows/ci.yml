@@ -32,6 +32,75 @@ jobs:
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO
 
+      # Regenerates both String Catalogs from source, then fails if that
+      # produced a change. A stale catalog is otherwise invisible: the app
+      # builds and runs, it just shows English where a translation exists, and
+      # nobody notices until a user reports it.
+      #
+      # `refresh.sh` also runs `check.mjs`, which enforces language coverage,
+      # placeholder parity, CLDR plural categories, and that every
+      # `INFOPLIST_KEY_*UsageDescription` in project.yml has a catalog entry.
+      #
+      # `DESTINATION` is passed explicitly and matches the simulator the build
+      # and test steps use. Left to its default the script picks a different
+      # device name, and a runner that lacks it fails here instead of at build.
+      - name: Verify localization catalogs are current
+        env:
+          DESTINATION: platform=iOS Simulator,name=iPhone 16
+        run: |
+          ./scripts/localization/refresh.sh
+          git diff --exit-code -- \
+            Tidybyte/Resources/Localizable.xcstrings \
+            Tidybyte/InfoPlist.xcstrings
+
+      # Catches the class of bug the catalog sync cannot see: user-facing text
+      # that never reaches the catalog at all. A SwiftUI `Text` literal is
+      # extracted by the compiler, but the same sentence passed as a `String`
+      # parameter or built in a view model is not, so it renders raw English in
+      # every language while every coverage number still reads 100%.
+      #
+      # Three scans, each for a shape that hides a string completely:
+      #   - `L10n.string(rawValue)` — a key computed from an enum, invisible to
+      #     any literal scan. Seven enums had this shape; 16 keys were missing.
+      #   - a literal nested in an interpolation, e.g.
+      #     `Text("Couldn't \(ok ? "load" : "download") …")` — `Text` renders
+      #     the inner `String` verbatim, so every language kept the English
+      #     fragment. The German template read "load dieses video …".
+      #   - prose in a `String` parameter that no call site localizes.
+      - name: Check for unlocalized user-facing strings
+        run: node scripts/localization/extract.mjs --check
+
+      # `refresh.sh` above runs `check.mjs` without `--strict`, so a key that
+      # still carries the English text passes there and is merely reported.
+      # That is right locally — you add a string, run refresh, and see what is
+      # left to translate. In CI it must fail, or an untranslated string ships
+      # in 20 languages with a green build.
+      - name: Verify every key is translated in every language
+        run: node scripts/localization/check.mjs --strict
+
+      # The App Store listing is translated by hand into 20 languages, and the
+      # limits are hard: App Store Connect truncates a subtitle past 30
+      # characters and rejects a description past 4000. A field that overflows
+      # is discovered at upload time, which is the worst moment to find it.
+      - name: Validate App Store listings
+        run: node scripts/localization/check-listings.mjs --strict
+
+      # The localized landing pages are generated from the English page, so a
+      # translation edit that nobody rebuilt is a page still showing English
+      # under a `lang` attribute that claims otherwise. Regenerating and
+      # diffing catches it the same way the catalog gate does.
+      #
+      # The builder also fails outright when an English string has no
+      # translation, which is the stronger check of the two.
+      - name: Verify localized landing pages are current
+        run: |
+          node scripts/localization/site/extract-site-strings.mjs
+          node scripts/localization/site/build-site-translations.mjs
+          git diff --exit-code -- \
+            src/content/pages/ \
+            scripts/localization/site/site-strings.json \
+            scripts/localization/site/site-meta.json
+
       - name: Test
         run: |
           xcodebuild test \
@@ -40,3 +109,25 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Builds all 87 pages, then audits them: title and description budgets,
+      # duplicate titles, hreflang parity, per-page `lang` and `dir`, sitemap
+      # coverage, and a Markdown alternate for every sitemap URL. The localized
+      # pages are the ones most likely to break it — a missing `dir="rtl"` or a
+      # title over budget fails here rather than in search results.
+      - name: Build and audit the site
+        run: |
+          npm run build
+          npm run check

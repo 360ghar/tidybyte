@@ -10,10 +10,35 @@ enum HapticHelper {
     @MainActor
     private static var impactGenerators: [UIImpactFeedbackGenerator.FeedbackStyle: UIImpactFeedbackGenerator] = [:]
 
+    /// The user's haptics preference, cached so the hot path does not read
+    /// `UserDefaults` on every swipe.
+    ///
+    /// Refreshed by `SettingsView` when the toggle flips, and read once lazily
+    /// on first use so a launch with haptics off never fires one before the
+    /// cache is warm. `@MainActor` because every caller already is.
+    @MainActor
+    private static var isEnabledCache: Bool?
+
+    @MainActor
+    static var isEnabled: Bool {
+        if let isEnabledCache { return isEnabledCache }
+        let enabled = AppPreferences.hapticsEnabled()
+        isEnabledCache = enabled
+        return enabled
+    }
+
+    /// Called by Settings when the toggle changes, so the change takes effect
+    /// immediately without the next launch.
+    @MainActor
+    static func refreshEnabledState() {
+        isEnabledCache = AppPreferences.hapticsEnabled()
+    }
+
     // All callers are already on the main actor (views and @MainActor view
     // models), so make that explicit.
     @MainActor
     static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+        guard isEnabled else { return }
         let generator: UIImpactFeedbackGenerator
         if let existing = impactGenerators[style] {
             generator = existing
@@ -31,6 +56,7 @@ enum HapticHelper {
     /// the one that pays for starting the Taptic Engine.
     @MainActor
     static func prepare(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .light) {
+        guard isEnabled else { return }
         if let existing = impactGenerators[style] {
             existing.prepare()
         } else {
@@ -42,11 +68,13 @@ enum HapticHelper {
 
     @MainActor
     static func selection() {
+        guard isEnabled else { return }
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
     @MainActor
     static func notification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        guard isEnabled else { return }
         UINotificationFeedbackGenerator().notificationOccurred(type)
     }
 }

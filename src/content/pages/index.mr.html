@@ -1,0 +1,528 @@
+  <main id="main">
+<!-- Announcement bar: pill + link. Semantic tokens only — flips with theme. -->
+<div class="border-b border-hairline bg-surface-soft">
+  <div class="container-prose flex items-center justify-center py-2">
+    <p class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center text-xs text-body sm:text-sm">
+      <span class="badge">
+        <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-clay-pink"><circle cx="12" cy="12" r="5"/></svg>
+        1.0.5 मधील नवीन &mdash; डिव्हाइसवरच AI फोटो शोध
+      </span>
+      <a href="/changelog" class="link whitespace-nowrap">काय बदलले ते पाहा &rarr;</a>
+    </p>
+  </div>
+</div>
+
+<!-- Hero. Above the fold: no scroll-reveal attributes — renders fully without JS.
+     CTA label per DECISIONS.md: "Download TidyByte Free". Floating screenshot
+     card is hidden below sm so it can never crowd the h1 on mobile. -->
+<section class="relative overflow-hidden">
+  <div aria-hidden="true" class="absolute inset-x-0 -top-24 -z-10 h-[460px] bg-hero-glow"></div>
+  <div class="container-prose grid items-center gap-12 pb-16 pt-14 sm:pt-20 lg:grid-cols-[1.02fr_0.98fr] lg:pb-24">
+    <div>
+      <p class="badge" data-rise style="--in:0">
+        <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-clay-pink"><circle cx="12" cy="12" r="5"/></svg>
+        मोफत &middot; iPhone &amp; iPad &middot; iOS 17+
+      </p>
+      <svg aria-hidden="true" focusable="false" width="76" height="10" viewBox="0 0 76 10" fill="none" class="mt-2 block text-clay-pink" data-rise style="--in:1"><path d="M2 7c6-5.5 11-5.5 17 0s11 5.5 17 0 11-5.5 17 0 11 5 21-1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      <h1 class="h-display mt-5">iPhone साठी सर्वोत्तम मोफत स्टोरेज क्लीनर आणि फोटो क्लीनर.</h1>
+      <p class="lede mt-5 max-w-prose">डावीकडे स्वाइप करा म्हणजे हटवा, उजवीकडे स्वाइप करा म्हणजे ठेवा &mdash; आणि काही मिनिटांत गिगाबाइट्स मोकळे करा. डुप्लिकेट, स्क्रीनशॉट, चॅट मीडिया, अस्पष्ट फोटो आणि प्रचंड मोठे व्हिडिओ हाताळले जातात, फोटो कंप्रेस होतात, 100% डिव्हाइसवर. जाहिराती नाहीत, सदस्यता नाही, खाते नाही.</p>
+      <div class="mt-7 flex flex-wrap items-center gap-3" data-rise style="--in:3">
+        <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">
+          <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+          TidyByte Free डाउनलोड करा
+        </a>
+        <a href="#how-it-works" class="btn-ghost">हे कसे चालते</a>
+      </div>
+      <p class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted" data-rise style="--in:4">
+        <span class="inline-flex items-center gap-1.5"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="text-success"><path d="M5 12l5 5 9-11"/></svg>जाहिराती नाहीत</span>
+        <span class="inline-flex items-center gap-1.5"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="text-success"><path d="M5 12l5 5 9-11"/></svg>खाते नाही</span>
+        <span class="inline-flex items-center gap-1.5"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="text-success"><path d="M5 12l5 5 9-11"/></svg>फोटो कधीही तुमचा फोन सोडत नाहीत</span>
+      </p>
+    </div>
+
+    <div class="relative mx-auto w-full max-w-[520px]" data-settle style="--in:1">
+      <div class="overflow-hidden rounded-[2rem] border border-hairline bg-surface-card shadow-pop">
+        <picture>
+          <source srcset="/assets/img/illustrations/hero-cleanup.avif" type="image/avif">
+          <img src="/assets/img/illustrations/hero-cleanup.webp" alt="हिरव्या टेकड्यांवर फोन फोटो कार्ड्स वर्गीकरण ट्रेमध्ये टाकत असल्याचे क्ले-शैलीतील चित्र." width="1248" height="832" loading="eager" fetchpriority="high" decoding="async" class="block h-auto w-full">
+        </picture>
+      </div>
+      <!-- Floating app screenshot: hidden below sm (never blocks the h1 on mobile). -->
+      <div class="absolute -bottom-10 -start-4 hidden w-[38%] max-w-[170px] overflow-hidden rounded-[1.4rem] border-4 border-canvas bg-canvas shadow-pop sm:-start-8 sm:block" data-rise style="--in:5">
+        <picture>
+          <source srcset="/assets/img/screenshots/05-swipe-session-768.avif" type="image/avif">
+          <img src="/assets/img/screenshots/05-swipe-session-768.webp" alt="सत्राच्या मध्यातील TidyByte स्वाइप-पुनरावलोकन स्क्रीन." width="387" height="839" loading="lazy" decoding="async" class="block w-full">
+        </picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Quick answer: rendered here from the page's meta description, so the
+     direct answer sits above the fold for featured snippets and AI citations.
+     The wrapper supplies the container width the injected box expects. -->
+<section class="section-tight pt-0 sm:pt-0">
+  <div class="container-prose">
+    <!-- quick-answer -->
+  </div>
+</section>
+
+<!-- Stats band. Fixes the old flex-ordering bug (order classes did nothing
+     inside a block parent, so labels rendered above numbers): every stat is one
+     self-contained cell with the number first and the label second, so the
+     reading order is correct at every breakpoint (2 cols mobile / 4 desktop). -->
+<section aria-label="आकड्यांत TidyByte" class="section-tight pt-0 sm:pt-0">
+  <div class="container-prose">
+    <ul role="list" class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-hairline bg-hairline md:grid-cols-4">
+      <li class="bg-surface-card px-4 py-6 text-center sm:px-6">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-clay-pink"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
+        <p class="mt-2 font-display text-3xl font-medium text-ink">12</p>
+        <p class="mt-1 text-sm text-muted">क्लीनअप साधने</p>
+      </li>
+      <li class="bg-surface-card px-4 py-6 text-center sm:px-6">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-clay-teal"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z"/><path d="M9.5 11.5l2 2 3.5-4"/></svg>
+        <p class="mt-2 font-display text-3xl font-medium text-ink">0</p>
+        <p class="mt-1 text-sm text-muted">कधीही अपलोड झालेले बाइट्स</p>
+      </li>
+      <li class="bg-surface-card px-4 py-6 text-center sm:px-6">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-clay-ochre"><path d="M12 2H3v9l9.3 9.3a1.5 1.5 0 0 0 2.1 0l7-7a1.5 1.5 0 0 0 0-2.1L12 2z"/><circle cx="8" cy="7" r="1" fill="currentColor" stroke="none"/></svg>
+        <p class="mt-2 font-display text-3xl font-medium text-ink">$0</p>
+        <p class="mt-1 text-sm text-muted">पूर्ण मालकी मिळवण्यासाठी</p>
+      </li>
+      <li class="bg-surface-card px-4 py-6 text-center sm:px-6">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="mx-auto text-clay-lav"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
+        <p class="mt-2 font-display text-3xl font-medium text-ink">100%</p>
+        <p class="mt-1 text-sm text-muted">ओपन सोर्स, MIT</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- How it works: 3 numbered clay steps (alternating pastel tiles, ink/soft
+     text tokens) + exactly ONE screenshot, lazy-loaded in a hairline frame.
+     scroll-mt-24 sits on the section (the anchor target, clears the 4rem
+     sticky header) and on the heading wrapper as instructed. -->
+<section id="how-it-works" class="section scroll-mt-24">
+  <div class="container-prose">
+    <div class="max-w-2xl scroll-mt-24">
+      <p class="eyebrow">01 &mdash; हे कसे चालते</p>
+      <h2 class="h-section mt-3">स्वाइप, सोप्या भाषेत.</h2>
+      <p class="lede mt-4">एक कार्ड. एक निर्णय. तुमची कॉफी थंड होण्याआधीच तुम्ही वर्षानुवर्षांचे फोटो साफ कराल.</p>
+    </div>
+
+    <ol role="list" class="mt-12 grid gap-6 md:grid-cols-3" data-reveal-group>
+      <li class="rounded-2xl bg-clay-pink p-6" data-reveal>
+        <div class="flex items-center gap-3">
+          <svg aria-hidden="true" focusable="false" width="40" height="40" viewBox="0 0 40 40" fill="none" class="text-clay-pink-ink"><rect x="6" y="5" width="19" height="26" rx="4" fill="currentColor" opacity=".3"/><rect x="15" y="9" width="19" height="26" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="24.5" cy="17" r="3" fill="currentColor"/><path d="M18 28h13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <p aria-hidden="true" class="font-display text-5xl font-semibold leading-none text-clay-pink-ink">1</p>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-pink-ink">कुठून सुरुवात करायची ते निवडा</h3>
+        <p class="mt-1.5 text-sm text-clay-pink-soft">स्क्रीनशॉट, डुप्लिकेट, अस्पष्ट फोटो किंवा तुमची संपूर्ण लायब्ररी. प्रत्येक साधन फोटो कार्ड्सचा डेक उघडते.</p>
+      </li>
+      <li class="rounded-2xl bg-clay-lav p-6" data-reveal>
+        <div class="flex items-center gap-3">
+          <svg aria-hidden="true" focusable="false" width="40" height="40" viewBox="0 0 40 40" fill="none" class="text-clay-lav-ink"><rect x="13" y="7" width="14" height="26" rx="3.5" fill="currentColor" opacity=".3"/><rect x="13" y="7" width="14" height="26" rx="3.5" stroke="currentColor" stroke-width="2"/><path d="M9 14l-4 4m0 0l4 4M5 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 14l4 4m0 0l-4 4m4-4h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p aria-hidden="true" class="font-display text-5xl font-semibold leading-none text-clay-lav-ink">2</p>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-lav-ink">स्वाइप करून ठरवा</h3>
+        <p class="mt-1.5 text-sm text-clay-lav-soft">डावीकडे हटवा, उजवीकडे ठेवा. काहीही बदलण्यापूर्वी प्रत्येक निवड पुनरावलोकन यादीत जाते.</p>
+      </li>
+      <li class="rounded-2xl bg-clay-mint p-6" data-reveal>
+        <div class="flex items-center gap-3">
+          <svg aria-hidden="true" focusable="false" width="40" height="40" viewBox="0 0 40 40" fill="none" class="text-clay-mint-ink"><path d="M26 4l2.2 5.3L33.5 11.5l-5.3 2.2L26 19l-2.2-5.3L18.5 11.5l5.3-2.2L26 4z" fill="currentColor" opacity=".3"/><path d="M11 24l5 5 11-12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p aria-hidden="true" class="font-display text-5xl font-semibold leading-none text-clay-mint-ink">3</p>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-mint-ink">एकाच फेरीत साफ करा</h3>
+        <p class="mt-1.5 text-sm text-clay-mint-soft">एकदा पुष्टी करा आणि जागा परत मिळते. हटवलेले फोटो अलीकडे हटवलेले मध्ये 30 दिवस थांबतात.</p>
+      </li>
+    </ol>
+
+    <!-- The single screenshot for this section -->
+    <figure class="mt-12 flex flex-col items-center">
+      <div class="w-52 max-w-full overflow-hidden rounded-2xl border border-hairline bg-surface-card shadow-card">
+        <picture>
+          <source srcset="/assets/img/screenshots/05-swipe-session-768.avif" type="image/avif">
+          <img src="/assets/img/screenshots/05-swipe-session-768.webp" alt="स्क्रीनवर एक फोटो कार्ड आणि खाली हटवा व ठेवा बटणे असलेले TidyByte स्वाइप सत्र." width="387" height="839" loading="lazy" decoding="async" class="block h-auto w-full">
+        </picture>
+      </div>
+      <figcaption class="muted mt-3 text-center text-xs">सुरू असलेले स्वाइप सत्र &mdash; एक फोटो, एक निर्णय.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 02 · Cleanup toolkit -->
+<section id="features" class="section scroll-mt-24 pt-0 sm:pt-0">
+  <div class="container-prose">
+    <div class="grid items-center gap-10 lg:grid-cols-[1fr_auto]" data-reveal>
+      <div class="max-w-2xl">
+        <p class="eyebrow">02 &mdash; क्लीनअप साधने</p>
+        <h2 class="h-section mt-3">प्रत्येक प्रकारची अव्यवस्था, हाताळलेली.</h2>
+        <p class="lede mt-4">बारा क्लीनअप साधने, स्टोरेजची माहिती, क्लीनअप इतिहास आणि डिव्हाइसवरच AI शोध &mdash; सर्व तुमच्या डिव्हाइसवर चालतात. कोणत्याही एकावर टॅप करा आणि ते कसे चालते ते पाहा.</p>
+      </div>
+      <svg aria-hidden="true" focusable="false" width="320" height="240" viewBox="0 0 320 240" fill="none" class="hidden w-full max-w-[320px] lg:block">
+        <rect x="88" y="118" width="46" height="32" rx="6" fill="#a4d4c5" transform="rotate(-8 111 134)"/>
+        <rect x="128" y="112" width="46" height="32" rx="6" fill="#fffaf0" transform="rotate(5 151 128)"/>
+        <rect x="60" y="30" width="40" height="52" rx="8" fill="#b8a4ed" transform="rotate(-14 80 56)"/>
+        <rect x="130" y="20" width="40" height="52" rx="8" fill="#ffb084" transform="rotate(6 150 46)"/>
+        <rect x="196" y="34" width="40" height="52" rx="8" fill="#a4d4c5" transform="rotate(14 216 60)"/>
+        <path d="M124 158a36 20 0 0 1 72 0" stroke="#4a1425" stroke-width="7" stroke-linecap="round"/>
+        <rect x="86" y="112" width="148" height="42" rx="11" fill="#ff7aa2" transform="rotate(-18 160 133)"/>
+        <rect x="90" y="150" width="140" height="58" rx="13" fill="#ff4d8b"/>
+        <rect x="146" y="142" width="28" height="16" rx="4" fill="#fffaf0"/>
+        <path d="M262 78l-24 90" stroke="#b8a4ed" stroke-width="7" stroke-linecap="round"/>
+        <ellipse cx="232" cy="184" rx="25" ry="15" fill="#e8b94a"/>
+        <rect x="213" y="170" width="38" height="11" rx="5.5" fill="#fffaf0" opacity=".85"/>
+        <path d="M52 178l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#ffb084"/>
+        <path d="M286 118l2 4.8 4.8 2-4.8 2-2 4.8-2-4.8-4.8-2 4.8-2z" fill="#a4d4c5"/>
+        <circle cx="205" cy="222" r="3" fill="#e8b94a" opacity=".7"/>
+        <circle cx="222" cy="230" r="2.2" fill="#ff7aa2" opacity=".7"/>
+        <circle cx="243" cy="224" r="2.6" fill="#a4d4c5" opacity=".7"/>
+      </svg>
+    </div>
+
+    <ul class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-reveal-group>
+      <li data-reveal>
+        <a href="/duplicate-photo-cleaner" class="group block h-full rounded-3xl bg-clay-pink p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-pink"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-pink-ink">डुप्लिकेट</h3>
+        <p class="mt-1 text-sm text-clay-pink-soft">अगदी सारख्या प्रती शोधा, बाइट-बाइट.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/similar-photo-cleaner" class="group block h-full rounded-3xl bg-clay-teal p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-teal"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="9" height="9" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="12" y="3" width="9" height="9" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="7.5" y="12" width="9" height="9" rx="2"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-cream">समान फोटो</h3>
+        <p class="mt-1 text-sm text-clay-mint">जवळपास सारखे फोटो एकत्र करा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/screenshot-cleaner" class="group block h-full rounded-3xl bg-clay-lav p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-lav"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="currentColor" opacity=".25" stroke="none"/><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M9 18h6"/><circle cx="12" cy="7" r="2"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-lav-ink">स्क्रीनशॉट</h3>
+        <p class="mt-1 text-sm text-clay-lav-soft">त्यांना गोळा करा आणि एकाच फेरीत साफ करा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/blurry-photo-cleaner" class="group block h-full rounded-3xl bg-clay-peach p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-peach"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="6" fill="currentColor" opacity=".25" stroke="none"/><path d="M12 3c-3.5 4-6 6.5-6 10a6 6 0 0 0 12 0c0-3.5-2.5-6-6-10Z"/><path d="M4 4l16 16"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-peach-ink">अस्पष्ट फोटो</h3>
+        <p class="mt-1 text-sm text-clay-peach-soft">अस्पष्ट आणि हलत्या हाताने घेतलेले फोटो शोधा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/large-file-cleaner" class="group block h-full rounded-3xl bg-clay-ochre p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-ochre"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" fill="currentColor" opacity=".25" stroke="none"/><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-ochre-ink">मोठ्या फाइल्स</h3>
+        <p class="mt-1 text-sm text-clay-ochre-soft">सर्वाधिक जागा घेणारे समोर आणा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/burst-photo-cleaner" class="group block h-full rounded-3xl bg-clay-mint p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-mint"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="15" height="18" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="3" y="5" width="14" height="4" rx="1.5"/><rect x="5" y="11" width="14" height="4" rx="1.5"/><rect x="7" y="17" width="14" height="4" rx="1.5"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-mint-ink">बर्स्ट फोटो</h3>
+        <p class="mt-1 text-sm text-clay-mint-soft">क्रमातील सर्वोत्तम फोटो निवडा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/live-photo-converter" class="group block h-full rounded-3xl bg-clay-rose p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-rose"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5" fill="currentColor" opacity=".25" stroke="none"/><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-rose-ink">Live Photos</h3>
+        <p class="mt-1 text-sm text-clay-rose-soft">जागा वाचवण्यासाठी स्थिर फोटोंमध्ये बदला.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/video-compression" class="group block h-full rounded-3xl bg-clay-teal p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-teal"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16"/><path d="M17 4v16"/><path d="M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-cream">व्हिडिओ कंप्रेशन</h3>
+        <p class="mt-1 text-sm text-clay-mint">व्हिडिओ लहान करा, पाहण्यासारखे ठेवा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/image-compression" class="group block h-full rounded-3xl bg-clay-lav p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-lav"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="1.5"/><path d="M3 17l5-5 4 4 3-3 6 6"/><path d="M14 8l3-3M17 5h-3M17 5v3"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-lav-ink">फोटो कंप्रेशन</h3>
+        <p class="mt-1 text-sm text-clay-lav-soft">जागा परत मिळवण्यासाठी फोटो पुन्हा एन्कोड करा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/photo-organizer" class="group block h-full rounded-3xl bg-clay-peach p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-peach"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5" fill="currentColor" opacity=".25" stroke="none"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5" fill="currentColor" opacity=".25" stroke="none"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-peach-ink">स्मार्ट श्रेणी</h3>
+        <p class="mt-1 text-sm text-clay-peach-soft">सामग्रीच्या प्रकारानुसार क्रमवारी लावा, वेगाने पाहा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/storage-cleaner" class="group block h-full rounded-3xl bg-clay-ochre p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-ochre"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12V3a9 9 0 0 1 8.6 11.6L12 12z" fill="currentColor" opacity=".25" stroke="none"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-ochre-ink">स्टोरेज विभाजन</h3>
+        <p class="mt-1 text-sm text-clay-ochre-soft">प्रकारानुसार तुमच्या लायब्ररीचा डोनट चार्ट, आणि सर्वात मोठ्या फाइल्स.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/storage-cleaner" class="group block h-full rounded-3xl bg-clay-mint p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-mint"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8" fill="currentColor" opacity=".25" stroke="none"/><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-mint-ink">क्लीनअप इतिहास</h3>
+        <p class="mt-1 text-sm text-clay-mint-soft">प्रत्येक हटवण्याचा आणि कंप्रेसचा निर्णय डिव्हाइसवर नोंदवला जातो आणि पाहता येतो.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/screen-recording-cleaner" class="group block h-full rounded-3xl bg-clay-rose p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-rose"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M10 8.5l4.5 2.5L10 13.5z" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-rose-ink">स्क्रीन रेकॉर्डिंग</h3>
+        <p class="mt-1 text-sm text-clay-rose-soft">कुणालाच आठवत नसलेल्या सर्वात मोठ्या फाइल्स.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/chat-media-cleaner" class="group block h-full rounded-3xl bg-clay-teal p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-teal"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" fill="currentColor" opacity=".25" stroke="none"/><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/><circle cx="11" cy="11" r="1.5"/><path d="M7.5 16l3-3.5 2.5 3 2-2.5 2.5 3"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-cream">चॅट मीडिया</h3>
+        <p class="mt-1 text-sm text-clay-mint">WhatsApp आणि Telegram ने साठवलेले साफ करा.</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/on-device-ai-photo-search" class="group block h-full rounded-3xl bg-clay-pink p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-pink"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6z" fill="currentColor" opacity=".3" stroke="none"/><path d="M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6z"/><path d="M18 14l.9 2.4L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.6z"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-pink-ink">AI फोटो शोध</h3>
+        <p class="mt-1 text-sm text-clay-pink-soft">फोटोचे वर्णन साध्या शब्दांत करा, तो डिव्हाइसवरच सापडेल.</p>
+        </a>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 03 · Storage dashboard -->
+<section id="storage" class="section scroll-mt-24 pt-0">
+  <div class="container-prose grid items-center gap-12 md:grid-cols-2">
+    <div data-reveal>
+      <p class="eyebrow">03 &mdash; स्टोरेज डॅशबोर्ड</p>
+      <h2 class="h-section mt-3">तुमची जागा नेमकी कशावर खर्च होते ते पाहा.</h2>
+      <p class="lede mt-4">तुमचे स्टोरेज कुठे जाते हे दाखवणारा थेट डोनट चार्ट &mdash; फोटो, व्हिडिओ, स्क्रीनशॉट, Live Photos, इतर. टॅप करता येणाऱ्या तुकड्यांतून तुम्ही मोकळी करू शकता अशा नेमक्या आयटमपर्यंत पोहोचता येते.</p>
+      <div class="mt-8 flex flex-wrap items-center gap-8" data-reveal>
+        <div class="relative w-40 flex-none">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 120 120" fill="none" class="block w-full -rotate-90">
+            <circle cx="60" cy="60" r="40" stroke="#e5e5e5" stroke-width="20" class="dark:stroke-[#2a2a2a]" opacity=".35"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#0A84FF" stroke-width="20" style="--seg-len: 103.6"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#AF52DE" stroke-width="20" style="--seg-len: 58.3" stroke-dashoffset="-105.6"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#FFCC00" stroke-width="20" style="--seg-len: 38.2" stroke-dashoffset="-165.9"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#30B0C7" stroke-width="20" style="--seg-len: 25.6" stroke-dashoffset="-206.1"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#8E8E93" stroke-width="20" style="--seg-len: 15.6" stroke-dashoffset="-233.7"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <p class="font-display text-xl font-medium text-ink">64 GB</p>
+            <p class="text-[11px] text-muted">फोटो लायब्ररी</p>
+          </div>
+        </div>
+        <ul class="space-y-2 text-sm text-body" role="list">
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-photo"></span>Photos</li>
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-video"></span>व्हिडिओ</li>
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-screenshot"></span>स्क्रीनशॉट</li>
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-live"></span>Live Photos</li>
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-other"></span>इतर</li>
+        </ul>
+      </div>
+      <p class="mt-6 text-sm text-body"><strong>क्रियाकलाप आणि बचत</strong> हिशेब ठेवते: तुम्ही काय साफ केले, 30 दिवसांचा चार्ट आणि मोकळी केलेली एकूण जागा. Home Screen विजेट आणि Siri शॉर्टकट थेट क्लीनअपमध्ये घेऊन जातात.</p>
+    </div>
+    <div class="relative mx-auto w-full max-w-[340px]" data-reveal>
+      <div aria-hidden="true" class="absolute -inset-6 -z-10 rounded-[2.5rem] bg-clay-peach/25 blur-2xl"></div>
+      <div class="overflow-hidden rounded-[2rem] border-[6px] border-white bg-white shadow-pop">
+        <picture>
+          <source srcset="/assets/img/screenshots/03-storage-dashboard-768.avif 768w, /assets/img/screenshots/03-storage-dashboard.avif 1206w" sizes="(max-width: 768px) 90vw, 340px" type="image/avif">
+          <img src="/assets/img/screenshots/03-storage-dashboard-768.webp" srcset="/assets/img/screenshots/03-storage-dashboard-768.webp 768w, /assets/img/screenshots/03-storage-dashboard.webp 1206w" sizes="(max-width: 768px) 90vw, 340px" alt="फोटो, व्हिडिओ, स्क्रीनशॉट, Live Photos आणि इतरांचा डोनट चार्ट असलेला TidyByte स्टोरेज डॅशबोर्ड." width="387" height="839" loading="lazy" decoding="async" class="block w-full">
+        </picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 · Privacy -->
+<section class="section pt-0">
+  <div class="container-prose">
+    <div class="relative overflow-hidden rounded-[2rem] bg-clay-teal p-8 sm:p-12" data-reveal>
+      <div class="grid items-center gap-10 md:grid-cols-[1.05fr_0.95fr]">
+        <div>
+          <p class="eyebrow-on-dark">04 &mdash; गोपनीयता</p>
+          <h2 class="h-section-on-dark mt-3">तुमचे फोटो कधीही तुमचा फोन सोडत नाहीत.</h2>
+          <ul class="mt-6 space-y-4 text-sm sm:text-base text-clay-cream/90">
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-clay-mint text-clay-teal">
+                <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+              </span>
+              सर्व प्रक्रिया डिव्हाइसवरच, Apple च्या Vision आणि Photos फ्रेमवर्क्स वापरून होते.
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-clay-mint text-clay-teal">
+                <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+              </span>
+              अ‍ॅनालिटिक्स SDK नाही, बॅकएंड नाही, तृतीय-पक्ष स्क्रिप्ट नाही, ट्रॅकिंग नाही &mdash; कुठेही.
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-clay-mint text-clay-teal">
+                <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+              </span>
+              आम्ही तुमचे फोटो पाहू शकत नाही. पाहायचेही नाही.
+            </li>
+          </ul>
+          <p class="mt-7">
+            <a href="/privacy" class="btn-on-color">गोपनीयता धोरण वाचा</a>
+          </p>
+        </div>
+        <div class="relative mx-auto w-full max-w-[360px]">
+          <picture>
+            <source srcset="/assets/img/illustrations/privacy-vault.avif" type="image/avif">
+            <img src="/assets/img/illustrations/privacy-vault.webp" alt="हसत्या फोटो कार्ड्स सुरक्षित ठेवणाऱ्या टील रंगाच्या तिजोरीचे क्ले चित्र." width="1152" height="864" loading="lazy" decoding="async" class="block h-auto w-full">
+          </picture>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 · Open source -->
+<section id="open-source" class="section scroll-mt-24 pt-0">
+  <div class="container-prose">
+    <div class="rounded-[2rem] border border-hairline bg-surface-dark p-8 text-center sm:p-12" data-reveal>
+      <p class="eyebrow-on-dark">05 &mdash; ओपन सोर्स</p>
+      <h2 class="h-section-on-dark mx-auto mt-3 max-w-2xl">तुमच्या फोटोंना हात लावणारी प्रत्येक ओळ वाचा.</h2>
+      <p class="mx-auto mt-4 max-w-xl text-base text-clay-cream/70 sm:text-lg">TidyByte MIT परवानाधीन आहे. सोर्स वाचा, दावे तपासा, इश्यू नोंदवा.</p>
+      <p class="mt-7">
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="btn-on-color">
+          <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
+          GitHub वर पाहा &rarr;
+        </a>
+      </p>
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 360 200" fill="none" class="mx-auto mt-10 w-full max-w-sm">
+        <g transform="rotate(-9 116 120)">
+          <rect x="70" y="62" width="88" height="114" rx="12" fill="#fffaf0" opacity=".92"/>
+          <rect x="82" y="74" width="64" height="48" rx="8" fill="#a4d4c5"/>
+          <circle cx="95" cy="87" r="5" fill="#ff4d8b"/>
+          <rect x="82" y="132" width="48" height="7" rx="3.5" fill="#1a3a3a" opacity=".18"/>
+          <rect x="82" y="146" width="34" height="7" rx="3.5" fill="#1a3a3a" opacity=".12"/>
+        </g>
+        <g transform="rotate(6 226 120)">
+          <rect x="182" y="58" width="88" height="114" rx="12" fill="#fffaf0"/>
+          <rect x="194" y="70" width="64" height="48" rx="8" fill="#ffb084"/>
+          <circle cx="207" cy="83" r="5" fill="#1a3a3a"/>
+          <rect x="194" y="128" width="48" height="7" rx="3.5" fill="#1a3a3a" opacity=".18"/>
+          <rect x="194" y="142" width="34" height="7" rx="3.5" fill="#1a3a3a" opacity=".12"/>
+        </g>
+        <circle cx="204" cy="102" r="42" fill="#a4d4c5" opacity=".14"/>
+        <circle cx="204" cy="102" r="42" stroke="#a4d4c5" stroke-width="9"/>
+        <path d="M234 134l24 24" stroke="#a4d4c5" stroke-width="12" stroke-linecap="round"/>
+        <path d="M296 52l-14 12 14 12M322 52l14 12-14 12M313 46l-9 36" stroke="#fffaf0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+        <path d="M56 34l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#ff7aa2"/>
+        <path d="M330 150l2 4.8 4.8 2-4.8 2-2 4.8-2-4.8-4.8-2 4.8-2z" fill="#a4d4c5"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 06 · FAQ -->
+<section id="faq" class="section scroll-mt-24 pt-0">
+  <div class="container-prose">
+    <div class="max-w-2xl" data-reveal>
+      <p class="eyebrow">06 &mdash; सामान्य प्रश्न</p>
+      <h2 class="h-section mt-3">वारंवार विचारले जाणारे प्रश्न.</h2>
+    </div>
+
+    <div data-faq-accordion class="mx-auto mt-10 max-w-3xl space-y-3" data-reveal>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>TidyByte माझे फोटो अपलोड करते का?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">नाही. सर्व प्रक्रिया तुमच्या iPhone वरच, Apple च्या Photos आणि Vision फ्रेमवर्क्स वापरून होते &mdash; अ‍ॅनालिटिक्स SDK नाही, बॅकएंड नाही, ट्रॅकिंग नाही.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>फक्त iCloud मध्ये असलेल्या फोटोंबद्दल काय?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">TidyByte तुमच्या संपूर्ण लायब्ररीसह चालते, फक्त iCloud मध्ये साठवलेल्या आयटमसह. सिस्टम गरजेनुसार ते डाउनलोड करते; तुम्ही वाट न पाहता स्वाइप करून पुढेही जाऊ शकता.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>हटवलेले फोटो लगेच निघून जातात का?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">ते iOS च्या अलीकडे हटवलेले अ‍ॅल्बममध्ये जातात, तिथे कायमचे हटण्यापूर्वी 30 दिवस राहतात &mdash; Photos अ‍ॅपमधून हटवल्यासारखेच.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>त्यामुळे माझ्या फोटोंचा दर्जा कमी होईल का?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">कोणतेही क्लीनअप साधन मूळ फाइलला हात लावत नाही. पुन्हा एन्कोड करणारी एकमेव क्रिया म्हणजे तुम्ही स्वतः उघडलेले व्हिडिओ कंप्रेशन किंवा फोटो कंप्रेशन साधन, आणि प्रीसेट तुम्ही निवडता.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>डुप्लिकेट कसे ओळखले जातात?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">अगदी सारखे डुप्लिकेट फाइल डेटाच्या SHA-256 हॅशने जुळवले जातात. जवळपासचे डुप्लिकेट दिसायला सारखे फोटो शोधण्यासाठी Apple Vision फीचर प्रिंट्स वापरतात.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>मोफत ट्रायल किंवा सदस्यता आहे का?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">TidyByte मोफत आहे, कोणतीही इन-अ‍ॅप खरेदी नाही आणि पेवॉल नाही. प्रत्येक सुविधा प्रत्येक वापरकर्त्यासाठी उपलब्ध आहे. पाहा <a href="/free-photo-cleaner-no-subscription" class="link">सदस्यता घेणाऱ्या फोटो क्लीनरशी त्याची तुलना कशी होते</a>.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>TidyByte iPad ला सपोर्ट करते का?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">हो. TidyByte हे युनिव्हर्सल अ‍ॅप आहे जे iPhone आणि iPad वर नेहमीप्रमाणे चालते. प्रत्येक क्लीनअप साधन दोन्हीवर चालते, स्वाइप इंटरफेस iPad च्या मोठ्या स्क्रीनला जुळतो, आणि iPad सर्व दिशा सपोर्ट करते.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>बग कसा कळवावा किंवा नवीन सुविधा कशी मागावी?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">इश्यू उघडा <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="link">GitHub</a> किंवा संपर्क फॉर्म वापरा <a href="/support" class="link">सपोर्ट</a> पानावर.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA -->
+<section class="section-tight">
+  <div class="container-prose">
+    <div class="relative overflow-hidden rounded-[2rem] bg-surface-soft p-8 text-center sm:p-12" data-reveal>
+      <div class="relative z-10 mx-auto max-w-xl">
+        <p class="eyebrow">07 &mdash; अ‍ॅप मिळवा</p>
+        <h2 class="h-display mt-3">तुमची लायब्ररी काही मिनिटांत साफ करा.</h2>
+        <p class="lede mt-4">तयार करायला खाते नाही. सांभाळायला सदस्यता नाही. फक्त एका वेळी एक स्वाइप.</p>
+        <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+          <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">
+            <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+            TidyByte Free डाउनलोड करा
+          </a>
+          <a href="/#how-it-works" class="btn-ghost">हे कसे चालते ते पाहा</a>
+        </div>
+      </div>
+      <svg aria-hidden="true" focusable="false" width="120" height="72" viewBox="0 0 120 72" fill="none" class="absolute end-8 top-8 hidden sm:block">
+        <path d="M24 14l3.5 8.5L36 26l-8.5 3.5L24 38l-3.5-8.5L12 26l8.5-3.5z" fill="#ff7aa2" opacity=".9"/>
+        <path d="M78 8l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#a4d4c5" opacity=".9"/>
+        <path d="M96 44l2 4.8 4.8 2-4.8 2-2 4.8-2-4.8-4.8-2 4.8-2z" fill="#e8b94a" opacity=".9"/>
+      </svg>
+      <picture aria-hidden="true">
+        <source srcset="/assets/img/illustrations/cta-hills.avif" type="image/avif">
+        <img src="/assets/img/illustrations/cta-hills.webp" alt="" width="1400" height="600" loading="lazy" decoding="async" class="pointer-events-none mt-10 block w-full select-none opacity-90">
+      </picture>
+    </div>
+  </div>
+</section>
+  </main>

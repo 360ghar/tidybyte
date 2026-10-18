@@ -12,14 +12,18 @@ struct PhotoCompressionPreset: Identifiable, Sendable {
     let quality: CGFloat
     let description: String
 
-    static let presets: [PhotoCompressionPreset] = [
-        PhotoCompressionPreset(id: "high", label: "High Quality", maxDimension: nil, quality: 0.8,
-                               description: "Re-encode to HEIC, full resolution"),
-        PhotoCompressionPreset(id: "balanced", label: "Balanced", maxDimension: 3024, quality: 0.6,
-                               description: "Resize to 3K, good savings"),
-        PhotoCompressionPreset(id: "space", label: "Space Saver", maxDimension: 2048, quality: 0.5,
-                               description: "Resize to 2K, maximum savings")
-    ]
+    /// Computed, not a `static let` — see `CompressionPreset.presets` for why
+    /// caching a localized array breaks live language switching.
+    static var presets: [PhotoCompressionPreset] {
+        [
+            PhotoCompressionPreset(id: "high", label: L10n.string("High Quality"), maxDimension: nil, quality: 0.8,
+                                   description: L10n.string("Re-encode to HEIC, full resolution")),
+            PhotoCompressionPreset(id: "balanced", label: L10n.string("Balanced"), maxDimension: 3024, quality: 0.6,
+                                   description: L10n.string("Resize to 3K, good savings")),
+            PhotoCompressionPreset(id: "space", label: L10n.string("Space Saver"), maxDimension: 2048, quality: 0.5,
+                                   description: L10n.string("Resize to 2K, maximum savings"))
+        ]
+    }
 }
 
 /// Re-encodes photos to HEIC (optionally downscaling) to reclaim space, then
@@ -129,7 +133,7 @@ actor PhotoCompressionService {
         }
 
         guard let replacementId = placeholder?.localIdentifier else {
-            throw PhotoCompressionError.saveFailed("Failed to save compressed photo to library.")
+            throw PhotoCompressionError.saveFailed(L10n.string("Failed to save compressed photo to library."))
         }
         // D1: report the durable new copy to the journal immediately, with the
         // real encoded size so the journal never has to guess at 0.
@@ -252,15 +256,17 @@ enum PhotoCompressionError: LocalizedError {
     case saveFailed(String)
 
     var errorDescription: String? {
+        // Surfaced to the user in the compression tool's error banner, so these
+        // resolve through `L10n` rather than staying English literals.
         switch self {
-        case .assetNotFound: "Photo not found."
-        case .notAnImage: "This item can't be compressed as a photo."
-        case .imageDataLoadFailed: "Failed to load the photo."
-        case .sizeUnknown: "Photo size unknown (iCloud-only) — skipped."
-        case .cancelled: "Cancelled."
-        case .encodeFailed: "Failed to re-encode the photo."
-        case .fileSizeReadFailed: "Failed to read file size."
-        case .saveFailed(let msg): "Save failed: \(msg)"
+        case .assetNotFound: L10n.string("Photo not found.")
+        case .notAnImage: L10n.string("This item can't be compressed as a photo.")
+        case .imageDataLoadFailed: L10n.string("Failed to load the photo.")
+        case .sizeUnknown: L10n.string("Photo size unknown (iCloud-only) — skipped.")
+        case .cancelled: L10n.string("Cancelled.")
+        case .encodeFailed: L10n.string("Failed to re-encode the photo.")
+        case .fileSizeReadFailed: L10n.string("Failed to read file size.")
+        case .saveFailed(let msg): L10n.format("Save failed: %@", msg)
         }
     }
 }

@@ -61,7 +61,7 @@ struct ScreenshotCleanerView: View {
 
                         Picker("Sort", selection: $viewModel.sortOrder) {
                             ForEach(ScreenshotSortOrder.allCases, id: \.self) { order in
-                                Text(order.rawValue).tag(order)
+                                Text(order.displayName).tag(order)
                             }
                         }
                         .pickerStyle(.menu)
@@ -110,7 +110,14 @@ struct ScreenshotCleanerView: View {
         .task(id: libraryMonitor.generation) {
             await viewModel.pruneDeleted()
         }
-        .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) screenshots")
+        .happyPathCelebration(
+            isPresented: $isCelebrating,
+            statLine: L10n.format(
+                "cleared %lld screenshot",
+                fallback: "cleared %lld screenshots",
+                viewModel.deletedCount
+            )
+        )
         .onDisappear {
             // D-01: stop an in-flight fetch when the user leaves the screen.
             viewModel.cancelScan()
@@ -153,8 +160,9 @@ struct ScreenshotCleanerView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Screenshots",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)

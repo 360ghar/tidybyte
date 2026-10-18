@@ -44,14 +44,14 @@ struct SessionCompletionView: View {
     }
 
     private var title: String {
-        if viewModel.hasPendingDeletions { return "Review Changes" }
-        return viewModel.hasMoreCards ? "Session Ended" : "Session Complete"
+        if viewModel.hasPendingDeletions { return L10n.string("Review Changes") }
+        return viewModel.hasMoreCards ? L10n.string("Session Ended") : L10n.string("Session Complete")
     }
 
     private var pendingCount: Int { viewModel.pendingDeletionIds.count }
 
     static func items(_ count: Int) -> String {
-        "\(count) item\(count == 1 ? "" : "s")"
+        L10n.format("%lld item", fallback: "%lld items", count)
     }
 
     private var completionContent: some View {
@@ -134,14 +134,14 @@ struct SessionCompletionView: View {
             }
         }
         .confirmationDialog(
-            "\(pendingCount) item\(pendingCount == 1 ? " is" : "s are") marked for deletion",
+            L10n.format("%lld item marked for deletion", fallback: "%lld items marked for deletion", pendingCount),
             isPresented: Binding(
                 get: { pendingExit != nil },
                 set: { if !$0 { pendingExit = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("Delete \(pendingCount) Item\(pendingCount == 1 ? "" : "s")", role: .destructive) {
+            Button(L10n.format("Delete %lld item", fallback: "Delete %lld items", pendingCount), role: .destructive) {
                 if let destination = pendingExit {
                     commitAndExit(to: destination)
                 }
@@ -166,7 +166,11 @@ struct SessionCompletionView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.deletionErrorMessage {
                 ToolErrorBanner(
-                    message: message,
+                    // Already localized at the source: the view model builds it
+                    // with `L10n.format` and appends the system's
+                    // `localizedDescription`. The lookup therefore misses and
+                    // falls back to the text as-is, which is what we want.
+                    message: LocalizedStringKey(message),
                     title: "Deletion Error",
                     onRetry: {
                         viewModel.deletionErrorMessage = nil
@@ -213,10 +217,17 @@ struct SessionCompletionView: View {
 
     private var celebrationStatLine: String? {
         if viewModel.deletionCommitted, stats.deletedCount > 0 {
-            return "cleared \(Self.items(stats.deletedCount)) (\(stats.deletedBytes.formattedFileSize))"
+            return L10n.format(
+                "cleared %lld item (%@)",
+                fallback: "cleared %lld items (%@)",
+                stats.deletedCount,
+                stats.deletedBytes.formattedFileSize
+            )
         }
         let reviewed = stats.keptCount + stats.organizedCount + stats.skippedCount
-        return reviewed > 0 ? "reviewed \(Self.items(reviewed))" : nil
+        return reviewed > 0
+            ? L10n.format("reviewed %lld item", fallback: "reviewed %lld items", reviewed)
+            : nil
     }
 
     // MARK: - Exit Flow (SWIPE-02)
@@ -276,7 +287,7 @@ struct SessionCompletionView: View {
                         ProgressView()
                             .tint(.white)
                     }
-                    Text("Delete \(pendingCount) Item\(pendingCount == 1 ? "" : "s")")
+                    Text(L10n.format("Delete %lld item", fallback: "Delete %lld items", pendingCount))
                         .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
@@ -314,7 +325,9 @@ struct SessionCompletionView: View {
         }
     }
 
-    private func statRow(icon: String, color: Color, label: String, value: String) -> some View {
+    // The label is a key, the value is not: values are counts and file sizes
+    // already localized through `L10n` at the call site.
+    private func statRow(icon: String, color: Color, label: LocalizedStringKey, value: String) -> some View {
         HStack {
             Image(systemName: icon)
                 .font(.title3)

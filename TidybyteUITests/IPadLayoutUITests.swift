@@ -23,9 +23,14 @@ final class IPadLayoutUITests: XCTestCase {
     }
 
     /// Launches past the first-run flow so the assertions target the shell.
+    ///
+    /// Pinned to English: the assertions below match English tab labels, and
+    /// the app follows the device language by default. See
+    /// `DynamicTypeUITests.englishLaunchArguments`.
     private func launchApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-reset-onboarding"]
+        app.launchArguments += DynamicTypeUITests.englishLaunchArguments
         app.launch()
 
         // Dismiss onboarding if it is showing; the shell is what is under test.
@@ -64,6 +69,7 @@ final class IPadLayoutUITests: XCTestCase {
             "-uitest-reset-onboarding",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"
         ]
+        app.launchArguments += DynamicTypeUITests.englishLaunchArguments
         app.launch()
 
         let skip = app.buttons["Skip"]

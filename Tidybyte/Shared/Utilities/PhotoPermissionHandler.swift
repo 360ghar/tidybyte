@@ -14,6 +14,13 @@ enum PhotoPermissionState: Equatable {
 /// What the UI should show and offer for a given permission state. Pure so the
 /// state -> copy/action mapping is unit-tested instead of duplicated across
 /// three screens.
+///
+/// The copy is resolved through `L10n` at construction rather than by making
+/// the fields `LocalizedStringKey`. Two reasons: this type is `Equatable` and
+/// compared in tests, which a `LocalizedStringKey` field would break; and the
+/// screen renders it with `Text(presentation.title)`, which is the
+/// non-localizing `StringProtocol` overload, so the text has to arrive already
+/// translated.
 struct PermissionPresentation: Equatable {
     enum Action: Equatable { case requestPermission, openSettings, none }
 
@@ -29,10 +36,16 @@ struct PermissionPresentation: Equatable {
     /// iOS shows the photo prompt exactly once per install, so the ask is
     /// never fired cold. The primer also tells the user why a second tap can
     /// no longer produce a dialog — that is what sends them to Settings.
-    static let primerTitle = "Allow Photo Access?"
-    static let primerMessage = "iOS asks for photo access only once, and this is that ask. TidyByte then reviews your library on this device. Nothing is uploaded, and nothing changes without your review."
-    static let primerButtonTitle = "Continue"
-    static let declineButtonTitle = "Not Now"
+    ///
+    /// Computed, not stored: a `static let` would capture the launch-time
+    /// language the first time the type is touched and keep serving it after
+    /// the user switches.
+    static var primerTitle: String { L10n.string("Allow Photo Access?") }
+    static var primerMessage: String {
+        L10n.string("iOS asks for photo access only once, and this is that ask. TidyByte then reviews your library on this device. Nothing is uploaded, and nothing changes without your review.")
+    }
+    static var primerButtonTitle: String { L10n.string("Continue") }
+    static var declineButtonTitle: String { L10n.string("Not Now") }
 }
 
 extension PhotoPermissionState {
@@ -40,36 +53,36 @@ extension PhotoPermissionState {
         switch self {
         case .notDetermined:
             PermissionPresentation(
-                title: "TidyByte Needs Your Photos",
-                message: "TidyByte reviews your library on this device to find what's worth cleaning up. Nothing is uploaded, and nothing changes without your say-so. iOS will ask for access next.",
+                title: L10n.string("TidyByte Needs Your Photos"),
+                message: L10n.string("TidyByte reviews your library on this device to find what's worth cleaning up. Nothing is uploaded, and nothing changes without your say-so. iOS will ask for access next."),
                 action: .requestPermission,
                 showsPrimer: true
             )
         case .authorized:
             PermissionPresentation(
-                title: "Photo Access Is On",
-                message: "TidyByte can review your library on this device. Nothing is uploaded, and nothing changes without your say-so.",
+                title: L10n.string("Photo Access Is On"),
+                message: L10n.string("TidyByte can review your library on this device. Nothing is uploaded, and nothing changes without your say-so."),
                 action: .none,
                 showsPrimer: false
             )
         case .limited:
             PermissionPresentation(
-                title: "Limited Photo Access",
-                message: "TidyByte can only see the photos you picked. Add more whenever you want it to review the rest of your library.",
+                title: L10n.string("Limited Photo Access"),
+                message: L10n.string("TidyByte can only see the photos you picked. Add more whenever you want it to review the rest of your library."),
                 action: .none,
                 showsPrimer: false
             )
         case .denied:
             PermissionPresentation(
-                title: "Photo Access Is Off",
-                message: "iOS is blocking TidyByte from your library, and it will not ask again. Settings is the only way back — turn photo access on there and everything here starts working again.",
+                title: L10n.string("Photo Access Is Off"),
+                message: L10n.string("iOS is blocking TidyByte from your library, and it will not ask again. Settings is the only way back — turn photo access on there and everything here starts working again."),
                 action: .openSettings,
                 showsPrimer: false
             )
         case .restricted:
             PermissionPresentation(
-                title: "Photo Access Is Restricted",
-                message: "A Screen Time or device-management restriction is blocking photo access. The Photos switch in Settings cannot change it — that restriction has to be lifted first.",
+                title: L10n.string("Photo Access Is Restricted"),
+                message: L10n.string("A Screen Time or device-management restriction is blocking photo access. The Photos switch in Settings cannot change it — that restriction has to be lifted first."),
                 action: .none,
                 showsPrimer: false
             )

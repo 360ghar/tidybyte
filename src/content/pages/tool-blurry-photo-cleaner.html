@@ -1,0 +1,53 @@
+<!-- 01 · Why blur happens -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Why so many photos come out soft</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Blur is rarely a mystery. It comes from a short list of causes, and once you know them you can predict which parts of your library are worth scanning.</p>
+    <ul role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Motion.</strong> A moving subject, a moving camera, or both. This is the most common cause in photos of children, pets and concerts.</li>
+      <li><strong class="text-ink">Low light.</strong> In dim scenes the camera lengthens the exposure, so any hand movement turns into smear.</li>
+      <li><strong class="text-ink">Missed autofocus.</strong> The camera locked onto the background, or the subject moved between focus and shutter.</li>
+      <li><strong class="text-ink">Digital zoom.</strong> Zooming in software rather than optics enlarges noise and softness together.</li>
+      <li><strong class="text-ink">Too dark or blown out.</strong> Not blur at all, but the same outcome: a photo you will never use, and it is easy to detect separately.</li>
+    </ul>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">None of this is visible in a thumbnail grid, which is why blurry photos survive cleanup after cleanup. You have to see them at a useful size to judge them, and that is a job better suited to a list that has already done the filtering.</p>
+  </div>
+</section>
+
+<!-- 02 · How scoring works -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">How sharpness is scored on-device</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Each photo is analysed locally with Apple&rsquo;s Vision framework, which measures how much fine detail survives in the image: sharp photos keep high-frequency edges, soft ones smear them into gradients. The same pass reports brightness and exposure, which is how dark and overexposed photos get their own tabs instead of being lumped in with blur.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Analysis uses a reduced-size working image, which is why a scan of a large library finishes in minutes rather than hours, and why the app can stay responsive while it runs. Photos that are only in iCloud are requested from the system; when a reduced-size copy is used for the analysis, the result is marked so you know which recommendations are less certain.</p>
+    <div class="clay-card mt-8 p-5 sm:p-6">
+      <h3 class="font-display text-base font-semibold text-ink">Screenshots are excluded</h3>
+      <p class="muted mt-3 text-sm leading-relaxed">Screenshots are sharp by construction, and text looks like detail to a sharpness metric, so they would pollute the results. TidyByte skips them and reports how many it skipped. The <a href="/screenshot-cleaner" class="link">Screenshot Cleaner</a> handles that pile separately.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 03 · Tuning it -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Tuning sensitivity so you trust the list</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Any blur detector has to draw a line somewhere, and a line that is too strict flags photos you like. TidyByte puts that control in your hands with a sensitivity setting, and every flagged photo shows the score behind it, so you can see why the app made the call.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Some photos are soft on purpose: portraits with shallow depth of field, panning shots with a blurred background, long exposures of moving water. A good detector still flags them, because it measures sharpness, not intent. That is exactly why the workflow is review-then-delete rather than automatic deletion, and why deleted photos stay recoverable for 30 days.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Practical approach: start with the stricter setting, review the list, then loosen it if the results feel noisy. Most people settle on one setting after two scans and use it from then on.</p>
+  </div>
+</section>
+
+<!-- 04 · Pairs well with -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Use it alongside the other tools</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Blur is one category of clutter, and it is rarely the biggest. Run it after the high-volume tools so you are not reviewing soft versions of photos you were going to delete anyway.</p>
+    <ul role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><a href="/duplicate-photo-cleaner" class="link">Duplicate cleaner</a> first, since identical copies need no judgement at all.</li>
+      <li><a href="/screenshot-cleaner" class="link">Screenshot cleaner</a> next, for the pile that grows on its own.</li>
+      <li><a href="/similar-photo-cleaner" class="link">Similar photos</a> after that, which also catches the frames where everyone blinked.</li>
+      <li>Blur and dark shots last, with the knowledge that what is left is worth your attention.</li>
+    </ul>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">The whole sequence runs on-device, needs no account, and costs nothing, so you can stop after any step and pick it up again next week.</p>
+  </div>
+</section>

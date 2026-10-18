@@ -14,6 +14,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     initMobileMenu();
+    initLanguageMenu();
     initFaqAccordion();
     initSupportFormSuccess();
   });
@@ -93,7 +94,26 @@
     });
   }
 
-  // 2) FAQ exclusive accordion. Native <details>/<summary> still drives
+  // 2) Language switcher. <details> opens the list on its own; this only
+  // closes it when the reader moves on, which <details> will not do. Without
+  // it the panel stays open over the page until the summary is tapped again.
+  function initLanguageMenu() {
+    var menu = document.querySelector('details.lang-menu');
+    if (!menu) return;
+
+    document.addEventListener('click', function (event) {
+      if (menu.open && !menu.contains(event.target)) menu.open = false;
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape' || !menu.open) return;
+      menu.open = false;
+      var summary = menu.querySelector('summary');
+      if (summary) summary.focus();
+    });
+  }
+
+  // 3) FAQ exclusive accordion. Native <details>/<summary> still drives
   // accessibility and keyboard support; this just closes siblings on open.
   function initFaqAccordion() {
     var groups = document.querySelectorAll('[data-faq-accordion]');
@@ -112,7 +132,7 @@
     });
   }
 
-  // 3) Support form success state.
+  // 4) Support form success state.
   // Netlify forms post back to the same URL with ?submitted=true when the
   // submission lands. We detect that and swap the form for a thank-you.
   function initSupportFormSuccess() {

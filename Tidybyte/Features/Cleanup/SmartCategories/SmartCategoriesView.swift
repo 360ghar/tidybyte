@@ -6,14 +6,14 @@ import SwiftData
 extension PhotoCategory {
     var title: String {
         switch self {
-        case .memes: "Memes / Social"
-        case .documents: "Documents"
-        case .food: "Food"
-        case .pets: "Pets"
-        case .nature: "Nature"
-        case .selfies: "Selfies"
-        case .savedFromApps: "Saved from Apps"
-        case .other: "Other"
+        case .memes: L10n.string("Memes / Social")
+        case .documents: L10n.string("Documents")
+        case .food: L10n.string("Food")
+        case .pets: L10n.string("Pets")
+        case .nature: L10n.string("Nature")
+        case .selfies: L10n.string("Selfies")
+        case .savedFromApps: L10n.string("Saved from Apps")
+        case .other: L10n.string("Other")
         }
     }
 
@@ -68,8 +68,9 @@ struct SmartCategoriesView: View {
             // screen exactly as it already was.
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Smart Categories",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -97,7 +98,10 @@ struct SmartCategoriesView: View {
         .task(id: libraryMonitor.generation) {
             await viewModel.pruneDeleted()
         }
-        .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) photos")
+        .happyPathCelebration(
+            isPresented: $isCelebrating,
+            statLine: L10n.format("cleared %lld photo", fallback: "cleared %lld photos", viewModel.deletedCount)
+        )
         .onDisappear {
             // D-01: a scan left running after the user leaves the screen would
             // keep consuming CPU (and PhotoKit calls) in the background.
@@ -283,8 +287,8 @@ struct SmartCategoriesView: View {
                     Spacer()
                     EmptyStateView(
                         icon: "checkmark.circle",
-                        title: viewModel.isSearchActive ? "No matching photos" : "All Clear",
-                        message: viewModel.isSearchActive ? "Submit a content search or try different words." : "No photos in this category.",
+                        title: emptyStateTitle,
+                        message: emptyStateMessage,
                         iconColor: .green
                     )
                     Spacer()
@@ -338,6 +342,23 @@ struct SmartCategoriesView: View {
                     }
             }
         }
+    }
+
+    /// The empty category state, which reads differently when a content search
+    /// filtered everything out versus when the category is genuinely empty.
+    ///
+    /// Both branches are literals in a `LocalizedStringKey` context so the
+    /// compiler extracts them. Wrapping a ternary in `LocalizedStringKey(...)`
+    /// at the call site would hide them from the extractor and leave the screen
+    /// English in every language.
+    private var emptyStateTitle: LocalizedStringKey {
+        viewModel.isSearchActive ? "No matching photos" : "All Clear"
+    }
+
+    private var emptyStateMessage: LocalizedStringKey {
+        viewModel.isSearchActive
+            ? "Submit a content search or try different words."
+            : "No photos in this category."
     }
 
     private var categoryChips: some View {

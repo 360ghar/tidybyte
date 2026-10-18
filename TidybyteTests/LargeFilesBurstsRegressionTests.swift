@@ -134,7 +134,7 @@ final class LargeFilesBurstsRegressionTests: XCTestCase {
         // the single shared code path that makes drift impossible.)
         XCTAssertEqual(Int64(10 * 1_000_000), 10_000_000, "10 MB (decimal) must map to 10,000,000 bytes")
         let label = LargeFilesViewModel.minSizeLabel(thresholdMB: 10)
-        XCTAssertEqual(label, "Min size: \(Int64(10_000_000).formattedFileSize)")
+        XCTAssertEqual(label, L10n.format("Min size: %@", Int64(10_000_000).formattedFileSize))
     }
 
     func testThresholdBytesFollowsPersistedPreference() {

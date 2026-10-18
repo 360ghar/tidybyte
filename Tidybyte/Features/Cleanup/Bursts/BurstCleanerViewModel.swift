@@ -245,9 +245,11 @@ final class BurstCleanerViewModel {
         // Bursts reduced to a single frame are no longer "bursts" and drop out
         // of the list; let the user know rather than having them silently vanish.
         if collapsedToSingleFrame > 0 {
+            // Singular and plural are separate keys: the singular reads as a
+            // sentence ("1 burst …"), so it cannot share a counted template.
             statusMessage = collapsedToSingleFrame == 1
-                ? "1 burst cleaned down to a single photo."
-                : "\(collapsedToSingleFrame) bursts cleaned down to single photos."
+                ? L10n.string("1 burst cleaned down to a single photo.")
+                : L10n.format("%lld bursts cleaned down to single photos.", collapsedToSingleFrame)
         }
         // LF-02: never blanket re-select. Untouched groups get all non-best
         // re-armed; touched groups keep exactly the user's surviving choices.

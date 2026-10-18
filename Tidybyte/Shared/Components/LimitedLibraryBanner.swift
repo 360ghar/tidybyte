@@ -12,8 +12,9 @@ struct LimitedLibraryBanner: View {
     @Environment(PhotoPermissionHandler.self) private var permissionHandler
     @AppStorage(AppPreferences.Key.hasSeenLimitedLibraryNotice) private var hasSeenNotice = false
     /// Screen-specific line, e.g. Storage: its figures cover only the
-    /// selected photos.
-    var note: String? = nil
+    /// selected photos. A key, not a `String`, so the one literal call site
+    /// localizes without wrapping it in `L10n`.
+    var note: LocalizedStringKey? = nil
 
     var body: some View {
         if permissionHandler.permissionState == .limited {

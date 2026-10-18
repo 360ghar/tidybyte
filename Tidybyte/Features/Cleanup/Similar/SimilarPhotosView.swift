@@ -20,8 +20,9 @@ struct SimilarPhotosView: View {
             // screen exactly as it already was.
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Similar Photos",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -44,7 +45,14 @@ struct SimilarPhotosView: View {
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
         .navigationTitle("Similar Photos")
-        .happyPathCelebration(isPresented: $isCelebrating, statLine: "removed \(viewModel.deletedCount) similar photos")
+        .happyPathCelebration(
+            isPresented: $isCelebrating,
+            statLine: L10n.format(
+                "removed %lld similar photo",
+                fallback: "removed %lld similar photos",
+                viewModel.deletedCount
+            )
+        )
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.groups.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
@@ -267,7 +275,7 @@ struct SimilarPhotosView: View {
                 Button {
                     selectedGroup = group
                 } label: {
-                    Label("Review", systemImage: "chevron.right")
+                    Label("Review", systemImage: "chevron.forward")
                         .font(.caption.bold())
                 }
                 .buttonStyle(.plain)
@@ -337,9 +345,9 @@ struct SimilarPhotosView: View {
                                 }
 
                             if isKeeper {
-                                KeeperMark(reason: group.bestReason.rawValue)
+                                KeeperMark(reason: group.bestReason.displayName)
                                     .frame(minHeight: 44)
-                                    .accessibilityLabel("Recommended to keep: \(group.bestReason.rawValue)")
+                                    .accessibilityLabel("Recommended to keep: \(group.bestReason.displayName)")
                             } else {
                                 MakeKeeperButton {
                                     viewModel.setBest(assetId: asset.id, in: group.id)

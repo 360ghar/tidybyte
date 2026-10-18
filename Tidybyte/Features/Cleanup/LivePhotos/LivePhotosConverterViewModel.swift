@@ -439,11 +439,13 @@ enum LivePhotoError: LocalizedError {
     case conversionTimedOut
 
     var errorDescription: String? {
+        // Surfaced in the converter's error banner, so these resolve through
+        // `L10n` rather than staying English literals.
         switch self {
-        case .assetNotFound: "Live Photo not found."
-        case .noPhotoResource: "Could not find still image in Live Photo."
-        case .invalidImageData: "Invalid image data."
-        case .conversionTimedOut: "Timed out loading the photo (it may still be in iCloud). Please try again."
+        case .assetNotFound: L10n.string("Live Photo not found.")
+        case .noPhotoResource: L10n.string("Could not find still image in Live Photo.")
+        case .invalidImageData: L10n.string("Invalid image data.")
+        case .conversionTimedOut: L10n.string("Timed out loading the photo (it may still be in iCloud). Please try again.")
         }
     }
 }

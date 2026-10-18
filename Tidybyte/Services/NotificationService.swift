@@ -38,27 +38,38 @@ enum NotificationService {
     }
 
     nonisolated static func reminderBody(snapshot: Snapshot?) -> String {
-        guard let snapshot else { return "Screenshots and large files add up. Take a few minutes to review them." }
+        guard let snapshot else {
+            return L10n.string("Screenshots and large files add up. Take a few minutes to review them.")
+        }
         let stats = snapshot.stats
         var parts: [String] = []
         if stats.screenshotCount > 0 {
-            var text = "\(stats.screenshotCount) screenshot\(stats.screenshotCount == 1 ? "" : "s")"
+            // `L10n.format` routes through the catalog's plural variations, so
+            // languages with more than two plural forms (Arabic has six,
+            // Russian four) get their own rules instead of an appended "s".
+            var text = L10n.format("%lld screenshot", fallback: "%lld screenshots", stats.screenshotCount)
             if stats.screenshotUnknownSizeCount == 0, stats.screenshotBytes > 0 {
                 text += " (\(stats.screenshotBytes.formattedFileSize))"
             }
             parts.append(text)
         }
         if stats.largeFileCount > 0 {
-            var text = "\(stats.largeFileCount) large file\(stats.largeFileCount == 1 ? "" : "s")"
+            var text = L10n.format("%lld large file", fallback: "%lld large files", stats.largeFileCount)
             if stats.largeFileBytes > 0 {
                 text += " (\(stats.largeFileBytes.formattedFileSize))"
             }
             parts.append(text)
         }
         guard !parts.isEmpty else { return reminderBody(snapshot: nil) }
-        let date = snapshot.date.formatted(.dateTime.day().month(.abbreviated).year())
-        let scope = snapshot.isLimited ? " in selected photos" : ""
-        return "Last scan, \(date): \(parts.joined(separator: " and ")) to review\(scope)."
+        let date = Formatters.mediumDate(snapshot.date)
+        let scope = snapshot.isLimited ? L10n.string(" in selected photos") : ""
+        // `Formatters.list` supplies the locale's conjunction ("and", "und",
+        // "y", "و") rather than a hardcoded comma.
+        return L10n.format(
+            "Last scan, %@: %@ to review%@.",
+            fallback: "Last scan, %@: %@ to review%@.",
+            date, Formatters.list(parts), scope
+        )
     }
 
     /// Serialize replacements so an older add cannot overwrite a newer setting.
@@ -85,7 +96,7 @@ enum NotificationService {
             components.hour = hour
             components.minute = minute
             let content = UNMutableNotificationContent()
-            content.title = "Time for a Photo Cleanup"
+            content.title = L10n.string("Time for a Photo Cleanup")
             content.body = reminderBody(snapshot: authorizedSnapshot(snapshot, permission: photoPermission))
             content.sound = .default
             let request = UNNotificationRequest(

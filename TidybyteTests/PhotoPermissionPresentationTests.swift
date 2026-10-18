@@ -106,8 +106,8 @@ final class PhotoPermissionPresentationTests: XCTestCase {
     func testPrimerCopyIsComplete() {
         XCTAssertFalse(PermissionPresentation.primerTitle.isEmpty)
         XCTAssertFalse(PermissionPresentation.primerMessage.isEmpty)
-        XCTAssertEqual(PermissionPresentation.primerButtonTitle, "Continue")
-        XCTAssertEqual(PermissionPresentation.declineButtonTitle, "Not Now")
+        XCTAssertEqual(PermissionPresentation.primerButtonTitle, L10n.string("Continue"))
+        XCTAssertEqual(PermissionPresentation.declineButtonTitle, L10n.string("Not Now"))
     }
 
     // MARK: - PhotoKit mapping (unchanged by the refactor)

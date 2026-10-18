@@ -7,7 +7,12 @@ import Foundation
 enum CleanupDeletion {
     /// Shown in every delete confirm. PhotoKit deletes go to Recently Deleted,
     /// so "cannot be undone" was false and scared users.
-    static let recoverableNote = "iOS will ask you to confirm. Deleted items go to Recently Deleted in Photos, where you can restore them for 30 days."
+    ///
+    /// Computed, not stored: a `static let` would cache the launch-time
+    /// language and keep serving it after a language switch.
+    static var recoverableNote: String {
+        L10n.string("iOS will ask you to confirm. Deleted items go to Recently Deleted in Photos, where you can restore them for 30 days.")
+    }
 
     struct Outcome {
         let removed: Set<String>       // confirmed deleted or already absent

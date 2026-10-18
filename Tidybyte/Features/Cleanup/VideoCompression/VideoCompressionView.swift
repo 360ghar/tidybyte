@@ -55,7 +55,10 @@ struct VideoCompressionView: View {
                 viewModel.startBatchCompression(modelContext: modelContext)
             }
         } message: {
-            Text(ReplaceOriginalsNotice.explainer(copies: "a new, smaller copy of each video", originals: "the original videos"))
+            Text(ReplaceOriginalsNotice.explainer(
+                copies: L10n.string("a new, smaller copy of each video"),
+                originals: L10n.string("the original videos")
+            ))
         }
         // Non-modal error surface. Also covers the batch summary
         // ("Compressed 8 of 10. 2 failed."), which is a report rather than a
@@ -63,8 +66,9 @@ struct VideoCompressionView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Video Compression",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -131,7 +135,11 @@ struct VideoCompressionView: View {
                 HappyPathReporter.fire(
                     isCelebrating: $isCelebrating,
                     statLine: $celebrationStatLine,
-                    line: "compressed \(summary.completed) videos"
+                    line: L10n.format(
+                        "compressed %lld video",
+                        fallback: "compressed %lld videos",
+                        summary.completed
+                    )
                 )
             }
         }
@@ -314,7 +322,12 @@ struct VideoCompressionView: View {
                             Button(preset.label) { viewModel.setPresetForSelected(preset) }
                         }
                     } label: {
-                        Text("Quality: \(viewModel.selectedPreset?.label ?? "Mixed")")
+                        // `preset.label` is a technical name ("1080p HD"), so it
+                        // stays as-is; only "Mixed" is a word and goes through
+                        // `L10n`. Interpolating the literal into a `Text` key
+                        // would have shipped it in English.
+                        Text(L10n.format("Quality: %@",
+                                         viewModel.selectedPreset?.label ?? L10n.string("Mixed")))
                             .font(.caption.bold())
                             .frame(minHeight: 32)
                     }

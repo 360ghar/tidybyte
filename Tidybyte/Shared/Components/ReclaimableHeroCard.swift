@@ -12,7 +12,7 @@ struct ReclaimableHeroCard: View {
     let itemCount: Int
 
     private var itemLabel: String {
-        "\(itemCount) \(itemCount == 1 ? "item" : "items")"
+        L10n.format("%lld item", fallback: "%lld items", itemCount)
     }
 
     var body: some View {

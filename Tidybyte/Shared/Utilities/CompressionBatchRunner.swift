@@ -217,7 +217,7 @@ enum CompressionBatchRunner {
             handlers.setPhase(.savingCopies(done: offset, total: orderedIds.count))
             guard let index = indexById[id] else { continue }
             if alreadyCompletedIds.contains(id) {
-                handlers.setState(index, .keptOriginal(reason: "Already compressed"))
+                handlers.setState(index, .keptOriginal(reason: L10n.string("Already compressed")))
                 skipped += 1
                 continue
             }
@@ -237,7 +237,7 @@ enum CompressionBatchRunner {
                     break
                 }
                 if isSizeUnknown(error) {
-                    handlers.setState(index, .keptOriginal(reason: "Size unknown (iCloud-only) — skipped"))
+                    handlers.setState(index, .keptOriginal(reason: L10n.string("Size unknown (iCloud-only) — skipped")))
                     skipped += 1
                     continue
                 }
@@ -291,11 +291,14 @@ enum CompressionBatchRunner {
 enum OriginalsCommit {
     /// What `OriginalsCommit` reports when an item's replacement copy is gone,
     /// so every surface names the same failure.
-    static let missingReplacementMessage = "The compressed copy is missing from your library."
+    ///
+    /// Computed, not stored: a `static let` would freeze the launch-time
+    /// language, which is the whole reason `L10n` resolves per lookup.
+    static var missingReplacementMessage: String { L10n.string("The compressed copy is missing from your library.") }
 
     /// Same failure for Live Photo → still conversions: the saved replacement
     /// is a still, not a compressed copy, so the shared wording would mislead.
-    static let missingStillMessage = "The converted still is missing from your library."
+    static var missingStillMessage: String { L10n.string("The converted still is missing from your library.") }
 
     struct Outcome: Sendable {
         var committed: [PendingOriginal]
@@ -337,7 +340,7 @@ enum OriginalsCommit {
     }
 
     /// Shown when the user also declines Remove Copies.
-    static let copiesKeptMessage = "Copies kept. Both versions are in your library; delete either one in Photos."
+    static var copiesKeptMessage: String { L10n.string("Copies kept. Both versions are in your library; delete either one in Photos.") }
 
     /// `commit`, with the bottom bar showing "removing originals" while it runs.
     static func commit(

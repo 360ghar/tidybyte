@@ -7,9 +7,13 @@ import SwiftUI
 /// state it was already in. The banner stays next to the content it describes
 /// and can carry a retry, so recovery is one tap instead of two.
 struct ToolErrorBanner: View {
-    let message: String
-    var title: String = "Something went wrong"
-    var retryTitle: String = "Try Again"
+    /// The message is usually an app-owned sentence, but error paths also pass
+    /// `error.localizedDescription` — text from the system, already in the
+    /// user's language. A `LocalizedStringKey` handles both: a key resolves to
+    /// its translation, and a string that is not a key resolves to itself.
+    let message: LocalizedStringKey
+    var title: LocalizedStringKey = "Something went wrong"
+    var retryTitle: LocalizedStringKey = "Try Again"
     var onRetry: (() -> Void)?
     var onDismiss: (() -> Void)?
 

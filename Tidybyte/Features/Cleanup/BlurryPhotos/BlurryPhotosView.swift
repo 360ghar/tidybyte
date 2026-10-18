@@ -25,8 +25,9 @@ struct BlurryPhotosView: View {
             // screen exactly as it already was.
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Photo Quality",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -54,7 +55,14 @@ struct BlurryPhotosView: View {
         .task(id: libraryMonitor.generation) {
             await viewModel.pruneDeleted()
         }
-        .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) blurry photos")
+        .happyPathCelebration(
+            isPresented: $isCelebrating,
+            statLine: L10n.format(
+                "cleared %lld blurry photo",
+                fallback: "cleared %lld blurry photos",
+                viewModel.deletedCount
+            )
+        )
         .onDisappear {
             // D-01: a scan left running after the user leaves the screen would
             // keep consuming CPU (and PhotoKit calls) in the background.
@@ -247,11 +255,15 @@ struct BlurryPhotosView: View {
             }
 
             if viewModel.skippedAnalysisCount > 0 {
-                Text("\(viewModel.skippedAnalysisCount) photo\(viewModel.skippedAnalysisCount == 1 ? "" : "s") had no local analysis image.")
+                Text(L10n.format("%lld photo had no local analysis image.",
+                                 fallback: "%lld photos had no local analysis image.",
+                                 viewModel.skippedAnalysisCount))
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
             }
             if viewModel.skippedSmudgeCount > 0 {
-                Text("Lens analysis skipped \(viewModel.skippedSmudgeCount) photo\(viewModel.skippedSmudgeCount == 1 ? "" : "s").")
+                Text(L10n.format("Lens analysis skipped %lld photo.",
+                                 fallback: "Lens analysis skipped %lld photos.",
+                                 viewModel.skippedSmudgeCount))
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
             }
             if #available(iOS 26, *), !viewModel.supportsLensSmudge {
@@ -337,7 +349,10 @@ struct BlurryPhotosView: View {
         }
     }
 
-    private func scoreLabel(for tab: BlurryTab) -> String {
+    /// `LocalizedStringKey`, not `String`: this feeds `accessibilityLabel`,
+    /// whose `String` overload does not localize, so a `String` return would
+    /// read the tab name in English to VoiceOver in every language.
+    private func scoreLabel(for tab: BlurryTab) -> LocalizedStringKey {
         switch tab {
         case .blurry: "Blur"
         case .tooDark: "Darkness"

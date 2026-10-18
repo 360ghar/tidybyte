@@ -49,7 +49,7 @@ enum CleanupActivityKind: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .swipe: "Swipe session"
+        case .swipe: L10n.string("Swipe session")
         default: tool?.name ?? rawValue
         }
     }

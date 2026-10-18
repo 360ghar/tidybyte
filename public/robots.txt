@@ -25,6 +25,13 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
+# Applebot powers Siri suggestions and Spotlight results.
+User-agent: Applebot
+Allow: /
+
+# Machine-readable index for AI agents and answer engines.
+# See https://tidybyte.360ghar.com/llms.txt (full text: /llms-full.txt)
+
 # AI training crawlers (block — content not used for model training)
 User-agent: GPTBot
 Disallow: /

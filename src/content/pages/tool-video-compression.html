@@ -1,0 +1,64 @@
+<!-- 01 · Why videos get huge -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Why iPhone videos get so large</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Modern iPhones record at bitrates designed for large screens and for editing headroom, not for watching on a phone. Four things drive the size:</p>
+    <ul role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Resolution.</strong> 4K carries four times the pixels of 1080p. A phone screen at normal viewing distance cannot show the difference on most footage.</li>
+      <li><strong class="text-ink">Frame rate.</strong> 60 fps roughly doubles the data of 30 fps, and it is only worth it for fast motion.</li>
+      <li><strong class="text-ink">HDR and Dolby Vision.</strong> High dynamic range adds metadata and bitrate to preserve highlights and shadows.</li>
+      <li><strong class="text-ink">ProRes and Log.</strong> Professional formats store far more data per frame because they are meant for grading, not for watching.</li>
+    </ul>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">None of that is waste in the moment it is recorded. It becomes waste the moment the clip lands in a library where it will only ever be watched on a phone. Compression is the act of matching the file to how it will actually be used.</p>
+  </div>
+</section>
+
+<!-- 02 · How it works -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">How compression works in TidyByte</h2>
+    <ol role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Select the clips.</strong> The list shows each video with its current size, so you can pick by cost rather than by name.</li>
+      <li><strong class="text-ink">Choose a preset.</strong> Each preset states what it does to resolution and quality, and the default never upscales a clip that is already smaller than the preset.</li>
+      <li><strong class="text-ink">Export on-device.</strong> Re-encoding happens locally with Apple&rsquo;s media frameworks. There is no upload, so a large file does not wait on your connection.</li>
+      <li><strong class="text-ink">Verify the result.</strong> The exported file is measured against the original. If it is not genuinely smaller, the app says so and keeps the original.</li>
+      <li><strong class="text-ink">Keep or remove the original.</strong> The compressed version is saved to your library first; deleting the original is a separate, optional step.</li>
+    </ol>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Batches run with per-file progress and can be cancelled. Videos that live only in iCloud are downloaded first, and if one cannot be fetched in time it is reported as skipped instead of hanging the queue.</p>
+  </div>
+</section>
+
+<!-- 03 · Presets -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Choosing a preset without guessing</h2>
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-ink">Keep it sharp</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">For footage you might edit or show on a TV. Modest size reduction, no visible change on any screen.</p>
+      </div>
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-ink">Balanced</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">The usual choice. Clips stay crisp on a phone and in most social apps, and the file gets dramatically smaller.</p>
+      </div>
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-ink">Smallest</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">For clips you are keeping for the memory rather than the picture quality: long recordings, event coverage, anything archival.</p>
+      </div>
+    </div>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Because every result is measured, you can compress one clip, look at the saved size, and decide whether to go further before running the whole batch. There is no credit system and no per-file charge, so experimenting costs nothing.</p>
+  </div>
+</section>
+
+<!-- 04 · When not to compress -->
+<section class="section" style="padding-top:0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">When not to compress a video</h2>
+    <ul role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">You are going to edit it.</strong> Re-encoding before editing throws away detail you may want when you colour-grade or stabilise.</li>
+      <li><strong class="text-ink">It is already heavily compressed.</strong> Footage from messaging apps or social downloads has little left to give; the app skips these when the saving would not be real.</li>
+      <li><strong class="text-ink">It is the only copy of something irreplaceable.</strong> Back it up first, then compress the copy you keep on the phone.</li>
+    </ul>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">For everything else &mdash; birthday clips, holidays, screen recordings, the video you took of a parking space &mdash; compression is the fastest way to keep the memory without keeping the bitrate.</p>
+  </div>
+</section>

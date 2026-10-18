@@ -9,26 +9,33 @@ import SwiftUI
 enum ReplaceOriginalsNotice {
     /// The confirm-alert message shown before the work starts.
     /// - Parameters:
-    ///   - copies: what step 1 makes, e.g. "a new, smaller copy of each video".
-    ///   - originals: what step 2 deletes, e.g. "the original videos".
+    ///   - copies: what step 1 makes, e.g. `L10n.string("a new, smaller copy of each video")`.
+    ///   - originals: what step 2 deletes, e.g. `L10n.string("the original videos")`.
+    ///
+    /// Both arguments and the template are resolved through `L10n`, not
+    /// interpolated. The assembled sentence is handed to `Text` as a plain
+    /// `String`, which is the non-localizing overload, so everything in it has
+    /// to arrive already translated.
     static func explainer(copies: String, originals: String) -> String {
-        """
-        1. TidyByte saves \(copies).
-        2. When all copies are saved, iOS asks you to delete \(originals).
-
-        If you tap Don't Allow, you keep both versions. Deleted originals stay in Recently Deleted for 30 days.
-        """
+        L10n.format(
+            "1. TidyByte saves %@.\n2. When all copies are saved, iOS asks you to delete %@.\n\nIf you tap Don't Allow, you keep both versions. Deleted originals stay in Recently Deleted for 30 days.",
+            copies,
+            originals
+        )
     }
 
     /// Bottom-bar status for the running step.
+    ///
+    /// Resolved through `L10n` because the caller renders the returned `String`
+    /// with `Text`, which does not localize a `String`.
     static func phaseText(_ phase: ReplacePhase) -> String {
         switch phase {
         case .idle:
-            "Working…"
+            L10n.string("Working…")
         case .savingCopies(let done, let total):
-            "Step 1 of 2 · Saving copy \(min(done + 1, total)) of \(total)"
+            L10n.format("Step 1 of 2 · Saving copy %lld of %lld", min(done + 1, total), total)
         case .removingOriginals:
-            "Step 2 of 2 · Confirm in the iOS alert to delete the originals"
+            L10n.string("Step 2 of 2 · Confirm in the iOS alert to delete the originals")
         }
     }
 }

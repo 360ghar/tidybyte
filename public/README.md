@@ -6,19 +6,57 @@ static HTML in `dist/`; Tailwind CSS for styling; no client-side framework.
 ```
 src/
 ├── pages/            # Astro routes: index, support, privacy, changelog,
-│                     # 404, blog/index, blog/[slug], llms.txt, llms-full.txt
+│                     # 404, [page] (tool landing pages), [page].md
+│                     # (Markdown for the tools + core pages),
+│                     # blog/index, blog/[slug], blog/[slug].md,
+│                     # llms.txt, llms-full.txt
 ├── content/pages/    # Page bodies as HTML: index, support, privacy,
-│                     # changelog, 404 + one blog-<slug>.html per post
-├── layouts/build-page.ts  # Shared page shell (head, header, footer)
+│                     # changelog, 404, tool-<slug>.html per tool page,
+│                     # + one blog-<slug>.html per post
+├── layouts/build-page.ts  # Shared page shell (head, header, footer, JSON-LD)
 ├── chrome/           # header.html + footer.html partials
 ├── data/pages.ts     # Page/post metadata (titles, descriptions, dates)
+├── data/tools.ts     # Tool landing pages: copy, comparison tables, FAQs
+├── data/page-meta.ts # The PageMeta shape shared by both data files
 ├── lib/llms.ts       # llms.txt content builders
+├── lib/tool-page.ts  # Renders a tool page's <main> from data/tools.ts
 └── input.css         # Tailwind source (design tokens live here)
 public/
 ├── assets/           # css/, js/, img/, fonts/ — copied to dist/ as-is
 └── serve.py          # Local server for the built site (serves dist/)
 dist/                 # Build output (never committed)
 ```
+
+## Tool landing pages (SEO / GEO / AEO)
+
+Each cleanup tool has its own landing page at a top-level URL
+(`/storage-cleaner`, `/video-compression`, `/image-compression`, ...) so
+commercial search intent has a page to land on, instead of the home page
+competing with itself for every query. `/photo-cleaner` is the hub.
+
+All of it is data-driven. `src/data/tools.ts` holds the copy, the comparison
+table, and the FAQ list for each tool; `src/lib/tool-page.ts` renders the
+hero, quick-answer box, table, trust strip, FAQ, tool grid and CTA; and
+`src/pages/[page].astro` + `[page].md.ts` generate the routes. Authored prose
+lives in `src/content/pages/tool-<slug>.html`.
+
+The FAQ text lives in `tools.ts` rather than in the content file because the
+same strings are emitted twice — once as visible `<details>` markup and once
+inside the `FAQPage` JSON-LD — and Google requires the two to match. Adding a
+tool page means adding one entry to `TOOLS` and one prose file; `llms.txt`,
+the Markdown alternate, the OG card and the sitemap all follow. The sitemap's
+priority list is the one thing that cannot follow automatically — the Astro
+config cannot import `tools.ts` — so `seo-audit.mjs` fails if a tool page is
+listed at the wrong priority.
+
+Tool pages reference the app entity defined on the home page (`#app`, `#website`,
+`#org`) rather than restating it, so answer engines resolve one product rather
+than sixteen competing descriptions. Nothing on the site declares an
+`aggregateRating` or `Review`: those require genuine visible reviews, and
+inventing them is a policy violation.
+
+For the off-site half of the strategy (listings, community, measurement), see
+[`docs/GEO-Playbook.md`](../docs/GEO-Playbook.md).
 
 ## Theming (light / dark / system)
 
@@ -73,18 +111,35 @@ python3 public/serve.py                # http://localhost:3000, serves dist/
 python3 public/serve.py 8080           # custom port
 ```
 
-The `serve.py` wrapper handles the `/support`, `/privacy`, and `/changelog`
-rewrites from `netlify.toml`, so the site behaves the same locally as on Netlify.
-Raw `python3 -m http.server` will 404 on those pretty URLs (the Netlify
-redirects only run on Netlify's infrastructure).
+The `serve.py` wrapper handles the `/support`, `/privacy`, `/changelog` and
+tool-page rewrites from `netlify.toml`, so the site behaves the same locally as
+on Netlify. Raw `python3 -m http.server` will 404 on those pretty URLs (the
+Netlify redirects only run on Netlify's infrastructure).
 
 ## Production build
 
 ```bash
 npm run build        # astro build → dist/; minified Tailwind →
                      # dist/assets/css/styles.css; hash-assets.mjs fingerprints CSS/JS
-npm run check        # verify asset references resolve in dist/ (build first)
+npm run check        # hash-assets --check + seo-audit + og-card check (build first)
+npm run og           # regenerate the 1200x630 OG cards after changing page titles
 ```
+
+`npm run check` runs three validators against `dist/`:
+
+- **`hash-assets.mjs --check`** — every fingerprinted CSS/JS reference resolves.
+- **`seo-audit.mjs`** — per page: exactly one `<h1>`, unique title and
+  description within length limits, `canonical == og:url`, every JSON-LD block
+  parses, every `FAQPage` question also appears as visible text, a
+  `BreadcrumbList` exists, the `Speakable` selector actually matches a
+  rendered `[data-quick-answer]` element, all internal links and images
+  resolve, and the sitemap lists every page at the right priority. Every
+  sitemap URL must also resolve to a generated `.md` alternate, because
+  `llms.txt` promises one.
+- **`og-cards.mjs --check`** — every tool page's `og:image` was actually built.
+
+The `og` script renders cards with Playwright (Chromium), reading titles from
+the built HTML so a card can never advertise a title the page no longer uses.
 
 The `dist/` folder is the deployable artifact (never committed).
 

@@ -13,19 +13,25 @@ enum CleanupToolCategory: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// Localized through `L10n`, keyed on the English text.
+    ///
+    /// English-as-key is deliberate: Xcode's String Catalog extractor already
+    /// keys every `Text("...")` literal on its English text, so using the same
+    /// convention here means one catalog, one key namespace, and no parallel
+    /// table of symbolic keys to keep in sync.
     var title: String {
         switch self {
-        case .freeUpSpace: "Free Up Space"
-        case .organize: "Review & Organize"
-        case .shrink: "Reclaim Without Deleting"
+        case .freeUpSpace: L10n.string("Free Up Space")
+        case .organize: L10n.string("Review & Organize")
+        case .shrink: L10n.string("Reclaim Without Deleting")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .freeUpSpace: "Delete what you don't need"
-        case .organize: "Decide what's worth keeping"
-        case .shrink: "Keep everything, use less room"
+        case .freeUpSpace: L10n.string("Delete what you don't need")
+        case .organize: L10n.string("Decide what's worth keeping")
+        case .shrink: L10n.string("Keep everything, use less room")
         }
     }
 
@@ -64,35 +70,35 @@ enum CleanupTool: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var name: String {
         switch self {
-        case .duplicates: "Duplicates"
-        case .similar: "Similar Photos"
-        case .screenshots: "Screenshots"
-        case .screenRecordings: "Screen Recordings"
-        case .chatMedia: "Chat Media"
-        case .blurry: "Blurry Photos"
-        case .smartCategories: "Smart Categories"
-        case .largeFiles: "Large Files"
-        case .bursts: "Burst Photos"
-        case .livePhotos: "Live Photos"
-        case .videoCompression: "Video Compression"
-        case .photoCompression: "Photo Compression"
+        case .duplicates: L10n.string("Duplicates")
+        case .similar: L10n.string("Similar Photos")
+        case .screenshots: L10n.string("Screenshots")
+        case .screenRecordings: L10n.string("Screen Recordings")
+        case .chatMedia: L10n.string("Chat Media")
+        case .blurry: L10n.string("Blurry Photos")
+        case .smartCategories: L10n.string("Smart Categories")
+        case .largeFiles: L10n.string("Large Files")
+        case .bursts: L10n.string("Burst Photos")
+        case .livePhotos: L10n.string("Live Photos")
+        case .videoCompression: L10n.string("Video Compression")
+        case .photoCompression: L10n.string("Photo Compression")
         }
     }
 
     var description: String {
         switch self {
-        case .duplicates: "Find exact & visual duplicates"
-        case .similar: "Photos taken close together"
-        case .screenshots: "Review & clean up screenshots"
-        case .screenRecordings: "Review recorded videos"
-        case .chatMedia: "Review media in chat albums"
-        case .blurry: "Out-of-focus & poorly lit"
-        case .smartCategories: "Sort photos by content type"
-        case .largeFiles: "Biggest files in your library"
-        case .bursts: "Clean up burst sequences"
-        case .livePhotos: "Convert to stills & save space"
-        case .videoCompression: "Compress videos to save space"
-        case .photoCompression: "Re-encode photos to save space"
+        case .duplicates: L10n.string("Find exact & visual duplicates")
+        case .similar: L10n.string("Photos taken close together")
+        case .screenshots: L10n.string("Review & clean up screenshots")
+        case .screenRecordings: L10n.string("Review recorded videos")
+        case .chatMedia: L10n.string("Review media in chat albums")
+        case .blurry: L10n.string("Out-of-focus & poorly lit")
+        case .smartCategories: L10n.string("Sort photos by content type")
+        case .largeFiles: L10n.string("Biggest files in your library")
+        case .bursts: L10n.string("Clean up burst sequences")
+        case .livePhotos: L10n.string("Convert to stills & save space")
+        case .videoCompression: L10n.string("Compress videos to save space")
+        case .photoCompression: L10n.string("Re-encode photos to save space")
         }
     }
 

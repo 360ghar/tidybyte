@@ -38,7 +38,7 @@ enum AlbumMembershipLoader {
                     return
                 }
                 result[asset.localIdentifier, default: []]
-                    .append(collection.localizedTitle ?? "Untitled")
+                    .append(collection.localizedTitle ?? L10n.string("Untitled"))
             }
             if Task.isCancelled { return result }
             if index % 20 == 0 { await Task.yield() }

@@ -7,9 +7,9 @@ enum DefaultSwipeFilterPreference: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .notSwipedYet: "Not Swiped Yet"
-        case .allMedia: "All Media"
-        case .notInAnyAlbum: "Not in Any User Album"
+        case .notSwipedYet: L10n.string("Not Swiped Yet")
+        case .allMedia: L10n.string("All Media")
+        case .notInAnyAlbum: L10n.string("Not in Any User Album")
         }
     }
 
@@ -45,6 +45,13 @@ enum AppPreferences {
         static let lifetimeItemCount = "lifetimeItemCount"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let hasSeenLimitedLibraryNotice = "hasSeenLimitedLibraryNotice"
+        /// Language and appearance are read/written through
+        /// `LanguagePreferenceStore` and `AppearancePreferenceStore` so the
+        /// widget can share the language value; the keys are re-exported here
+        /// so `@AppStorage` call sites have one place to look.
+        static let appLanguage = LanguagePreferenceStore.key
+        static let appAppearance = AppearancePreferenceStore.key
+        static let hapticsEnabled = "hapticsEnabled"
     }
 
     static func defaultSwipeFilter(in defaults: UserDefaults = .standard) -> DefaultSwipeFilterPreference {
@@ -115,13 +122,18 @@ enum AppPreferences {
         defaults.set(enabled, forKey: Key.cleanupRemindersEnabled)
     }
 
-    /// Weekday (1–7, Sunday=1) for the weekly cleanup reminder. Defaults to 1
-    /// (Sunday) to match the Settings picker's default (APP-13): a stored 0
-    /// (unset) would otherwise fall outside the 1...7 range and make the daily
-    /// refresh skip the reminder copy entirely.
+    /// Weekday (1–7, Sunday=1) for the weekly cleanup reminder.
+    ///
+    /// A stored 0 (unset) falls back to the *device's* first day of the week
+    /// rather than a hardcoded Sunday (APP-13 originally hardcoded Sunday,
+    /// which is wrong for most of the world — Monday in India, Germany and
+    /// Brazil, Saturday across much of the Middle East). Reading it from the
+    /// device calendar means a fresh install opens the picker on the day the
+    /// user's own calendar starts with.
     static func reminderWeekday(in defaults: UserDefaults = .standard) -> Int {
         let stored = defaults.integer(forKey: Key.reminderWeekday)
-        return stored == 0 ? 1 : stored
+        guard (1...7).contains(stored) else { return Formatters.firstWeekday() }
+        return stored
     }
 
     static func saveReminderWeekday(_ weekday: Int, in defaults: UserDefaults = .standard) {
@@ -134,6 +146,24 @@ enum AppPreferences {
 
     static func saveRecentAlbumIds(_ albumIds: [String], in defaults: UserDefaults = .standard) {
         defaults.set(albumIds, forKey: Key.recentAlbumIds)
+    }
+
+    // MARK: - Haptics
+
+    /// Whether TidyByte is allowed to vibrate.
+    ///
+    /// Defaults to true, which is the behavior every build before this setting
+    /// had. It exists because haptics are a device-native preference people
+    /// hold strongly (some find them distracting, some rely on them), and the
+    /// swipe deck fires a lot of them.
+    static func hapticsEnabled(in defaults: UserDefaults = .standard) -> Bool {
+        // `object(forKey:)` rather than `bool(forKey:)`: an absent key must mean
+        // "on", and `bool` cannot tell absent from an explicit `false`.
+        defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
+    }
+
+    static func saveHapticsEnabled(_ enabled: Bool, in defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: Key.hapticsEnabled)
     }
 
     // MARK: - First Run

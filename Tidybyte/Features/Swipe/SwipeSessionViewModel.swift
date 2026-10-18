@@ -194,7 +194,9 @@ final class SwipeSessionViewModel {
             }
             guard !Task.isCancelled, token == loadGeneration else { return }
             guard epoch == ScanResults.epoch else {
-                errorMessage = "Your library changed during analysis. Try Worst Shots again."
+                // `errorMessage` is a String handed to a banner, so it has to be
+                // looked up where it is built — nothing downstream can localize it.
+                errorMessage = L10n.string("Your library changed during analysis. Try Worst Shots again.")
                 hasLoadedInitialAssets = true
                 return
             }
@@ -355,8 +357,8 @@ final class SwipeSessionViewModel {
         // A nil pending asset or an in-flight add is a real failure, not a
         // success: returning nil would make the picker record recents and
         // dismiss as if the photo had been filed.
-        guard let asset = pendingKeepAsset else { return "No photo is waiting to be filed. Dismiss and try again." }
-        guard !isPerformingMutation else { return "Still adding — please wait a moment and try again." }
+        guard let asset = pendingKeepAsset else { return L10n.string("No photo is waiting to be filed. Dismiss and try again.") }
+        guard !isPerformingMutation else { return L10n.string("Still adding — please wait a moment and try again.") }
         isPerformingMutation = true
         defer { isPerformingMutation = false }
 
@@ -513,12 +515,23 @@ final class SwipeSessionViewModel {
             // list stays so they can confirm again.
             if !handled, case .userDeclined = error { handled = true }
             if !handled {
-                deletionErrorMessage = "Failed to delete \(pendingDeletionIds.count) photo\(pendingDeletionIds.count == 1 ? "" : "s"): \(error.localizedDescription)"
+                deletionErrorMessage = Self.deletionFailureMessage(count: pendingDeletionIds.count, error: error)
             }
         } catch {
-            deletionErrorMessage = "Failed to delete \(pendingDeletionIds.count) photo\(pendingDeletionIds.count == 1 ? "" : "s"): \(error.localizedDescription)"
+            deletionErrorMessage = Self.deletionFailureMessage(count: pendingDeletionIds.count, error: error)
         }
         isDeletingBatch = false
+    }
+
+    /// One place for the failure copy, so the two catch paths above cannot
+    /// drift apart, and the plural form goes through the catalog instead of an
+    /// appended "s".
+    nonisolated static func deletionFailureMessage(count: Int, error: Error) -> String {
+        L10n.format(
+            "Failed to delete %lld photo",
+            fallback: "Failed to delete %lld photos",
+            count
+        ) + ": \(error.localizedDescription)"
     }
 
     func discardPendingDeletions() {
@@ -635,7 +648,7 @@ final class SwipeSessionViewModel {
             // Swipe history is mission-critical: surface the failure rather than
             // letting the user believe their decisions were recorded.
             AppLog.data.error("Failed to \(context, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            errorMessage = "Couldn't save your changes. Please try again."
+            errorMessage = L10n.string("Couldn't save your changes. Please try again.")
         }
     }
 

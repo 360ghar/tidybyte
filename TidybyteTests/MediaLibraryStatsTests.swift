@@ -121,7 +121,7 @@ final class MediaLibraryStatsTests: XCTestCase {
 
     func testDisplaySizeHandlesZeroByteAssets() {
         let unknown = asset(id: "icloud", size: 0)
-        XCTAssertEqual(unknown.displaySize, "Size unavailable")
+        XCTAssertEqual(unknown.displaySize, L10n.string("Size unavailable"))
 
         let known = asset(id: "local", size: 5_000_000)
         XCTAssertFalse(known.displaySize.isEmpty)

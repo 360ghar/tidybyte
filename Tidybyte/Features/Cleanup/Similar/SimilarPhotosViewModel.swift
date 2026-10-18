@@ -29,6 +29,24 @@ enum BestReason: String, Sendable {
     case mostRecent = "Most recent"
     case bestOverall = "Best overall"
     case userChosen = "Your choice"
+
+    /// The label the user reads.
+    ///
+    /// The raw value stays English because it is the stable identifier the
+    /// quality-weighted scoring compares; this is the display form, resolved
+    /// through `L10n` because callers render it as a plain `String` (a pill
+    /// label and an accessibility label, neither of which localizes a `String`).
+    var displayName: String {
+        switch self {
+        case .sharpest: L10n.string("Sharpest")
+        case .bestExposed: L10n.string("Best exposed")
+        case .favorite: L10n.string("Favorite")
+        case .highestRes: L10n.string("Highest res")
+        case .mostRecent: L10n.string("Most recent")
+        case .bestOverall: L10n.string("Best overall")
+        case .userChosen: L10n.string("Your choice")
+        }
+    }
 }
 
 struct SimilarGroup: Identifiable, Hashable, Sendable {

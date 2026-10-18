@@ -92,8 +92,8 @@ struct CleanupHomeView: View {
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
                         .accessibilityAddTraits(.isButton)
-                        .accessibilityLabel("\(info.tool == startHereTool ? "Start here. " : "")\(info.name), \(info.description)")
-                        .accessibilityValue(info.isLoading ? "Loading" : info.count.map { "\($0) items" } ?? "Not scanned")
+                        .accessibilityLabel(accessibilityName(info, isStartHere: info.tool == startHereTool))
+                        .accessibilityValue(accessibilityCount(info))
                         .accessibilityIdentifier("cleanup.\(info.tool.rawValue)")
                         .scaleOnPress()
                         .fadeSlideIn(delay: Double(index) * 0.04)
@@ -104,6 +104,29 @@ struct CleanupHomeView: View {
     }
 
     // MARK: - Card
+
+    /// The VoiceOver name for a tool card: an optional "Start here." marker in
+    /// front of the tool's own name and description.
+    ///
+    /// The marker is a separate key rather than a prefix glued onto the name, so
+    /// a language can place it wherever it belongs. `info.name` and
+    /// `info.description` are already resolved through `L10n`.
+    private func accessibilityName(_ info: CleanupToolInfo, isStartHere: Bool) -> String {
+        let marker = isStartHere ? L10n.string("Start here. ") : ""
+        return "\(marker)\(info.name), \(info.description)"
+    }
+
+    /// The VoiceOver value for a tool card.
+    ///
+    /// Built as a `String` on purpose: `accessibilityValue` accepts a
+    /// `LocalizedStringKey` too, but a ternary whose branches mix a literal with
+    /// an already-computed `String` resolves to the `StringProtocol` overload and
+    /// renders verbatim — so the three states are resolved through `L10n` here.
+    private func accessibilityCount(_ info: CleanupToolInfo) -> String {
+        if info.isLoading { return L10n.string("Loading") }
+        guard let count = info.count else { return L10n.string("Not scanned") }
+        return L10n.format("%lld items", count)
+    }
 
     private func cleanupToolCard(_ tool: CleanupToolInfo, isStartHere: Bool) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -154,7 +177,7 @@ struct CleanupHomeView: View {
 
                 // Signals "this opens a tool" rather than "this starts a scan" —
                 // which the "Not scanned" badge alone left ambiguous.
-                Image(systemName: "chevron.right")
+                Image(systemName: "chevron.forward")
                     .font(.caption.bold())
                     .foregroundStyle(.tertiary)
                     .padding(.bottom, 2)

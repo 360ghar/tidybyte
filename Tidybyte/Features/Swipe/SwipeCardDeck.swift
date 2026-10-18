@@ -27,10 +27,27 @@ enum SwipeDirection: Equatable {
     /// Horizontal checks come first so an ambiguous diagonal drag resolves to
     /// keep/delete, not the album picker — the up-swipe only wins when the
     /// vertical motion is unambiguous.
-    static func resolve(translation: CGSize, predicted: CGSize, cardWidth: CGFloat) -> SwipeDirection? {
+    ///
+    /// `isRightToLeft` mirrors the horizontal axis for Arabic and Hebrew. The
+    /// gesture is a spatial metaphor for reading direction: in a left-to-right
+    /// layout the card moves *forward* by going right, and in a right-to-left
+    /// layout forward is leftward. Without this, an Arabic user's instinctive
+    /// "keep" swipe would delete the photo — the one bug in this app that
+    /// destroys data.
+    static func resolve(
+        translation: CGSize,
+        predicted: CGSize,
+        cardWidth: CGFloat,
+        isRightToLeft: Bool = false
+    ) -> SwipeDirection? {
         let threshold = cardWidth * commitFraction
-        if translation.width > threshold || predicted.width > flickThreshold { return .keep }
-        if translation.width < -threshold || predicted.width < -flickThreshold { return .delete }
+        // +1 keeps the LTR behavior; -1 flips keep and delete onto the
+        // opposite sides. The vertical (album) axis is unaffected — up is up.
+        let forward: CGFloat = isRightToLeft ? -1 : 1
+        let horizontal = translation.width * forward
+        let predictedHorizontal = predicted.width * forward
+        if horizontal > threshold || predictedHorizontal > flickThreshold { return .keep }
+        if horizontal < -threshold || predictedHorizontal < -flickThreshold { return .delete }
         if translation.height < -threshold || predicted.height < -flickThreshold { return .album }
         return nil
     }
@@ -38,10 +55,13 @@ enum SwipeDirection: Equatable {
     /// Off-screen end point for a card leaving in this direction, keeping the
     /// cross-axis position it was released at. Skip leaves downward, matching
     /// its down-arrow key.
-    func flingOffset(from start: CGSize, distance: CGFloat) -> CGSize {
-        switch self {
-        case .keep: CGSize(width: distance, height: start.height)
-        case .delete: CGSize(width: -distance, height: start.height)
+    func flingOffset(from start: CGSize, distance: CGFloat, isRightToLeft: Bool = false) -> CGSize {
+        // The card must fly the way the finger pushed it, which is the
+        // mirrored direction in an RTL layout.
+        let forward = isRightToLeft ? -distance : distance
+        return switch self {
+        case .keep: CGSize(width: forward, height: start.height)
+        case .delete: CGSize(width: -forward, height: start.height)
         case .album: CGSize(width: start.width, height: -distance)
         case .skip: CGSize(width: start.width, height: distance)
         }
@@ -109,6 +129,10 @@ struct SwipeCardDeck: View {
         return shownAssetIds.contains(id)
     }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Mirrors the swipe deck's horizontal axis for Arabic and Hebrew. See
+    /// `SwipeDirection.resolve` — without this, "swipe to keep" would delete.
+    @Environment(\.layoutDirection) private var layoutDirection
+    private var isRightToLeft: Bool { layoutDirection == .rightToLeft }
 
     /// Far enough that a card, rotated, clears the screen from the deck center.
     private var flingDistance: CGFloat {
@@ -300,7 +324,8 @@ struct SwipeCardDeck: View {
               let direction = SwipeDirection.resolve(
                 translation: value.translation,
                 predicted: value.predictedEndTranslation,
-                cardWidth: cardWidth
+                cardWidth: cardWidth,
+                isRightToLeft: isRightToLeft
               ) else {
             motion.isDragging = false
             snapBack()
@@ -356,7 +381,7 @@ struct SwipeCardDeck: View {
         }
 
         let start = motion.offset
-        let target = direction.flingOffset(from: start, distance: flingDistance)
+        let target = direction.flingOffset(from: start, distance: flingDistance, isRightToLeft: isRightToLeft)
         let flying = CardMotion(offset: target)
         let fling = Animation.interpolatingSpring(
             duration: 0.35,
@@ -394,10 +419,10 @@ struct SwipeCardDeck: View {
         }
         parts.append(asset.displaySize)
         if asset.id == viewModel.currentAsset?.id, let reason = viewModel.reviewReason { parts.append(reason) }
-        if asset.isFavorite { parts.append("Favorite") }
-        if asset.isLivePhoto { parts.append("Live Photo.") }
-        if !asset.isLocallyAvailable { parts.append("In iCloud.") }
-        if !shownAssetIds.contains(asset.id) { parts.append("Not loaded yet. Delete is off until it shows.") }
+        if asset.isFavorite { parts.append(L10n.string("Favorite")) }
+        if asset.isLivePhoto { parts.append(L10n.string("Live Photo.")) }
+        if !asset.isLocallyAvailable { parts.append(L10n.string("In iCloud.")) }
+        if !shownAssetIds.contains(asset.id) { parts.append(L10n.string("Not loaded yet. Delete is off until it shows.")) }
         return Text(parts.joined(separator: ", "))
     }
 

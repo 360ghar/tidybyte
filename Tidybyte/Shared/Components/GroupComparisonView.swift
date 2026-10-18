@@ -71,12 +71,12 @@ struct ComparisonDescriptor<G: ComparisonGroup> {
 extension ComparisonDescriptor where G == DuplicateComparison {
     static var duplicates: Self {
         Self(
-            bestPillText: { _ in "Best" },
-            statusText: { _, isBest in isBest ? "Best quality" : nil },
+            bestPillText: { _ in L10n.string("Best") },
+            statusText: { _, isBest in isBest ? L10n.string("Best quality") : nil },
             statusColor: { _, _ in .green },
-            keepBestTitle: "Keep as Best",
-            keepTitle: "Don't Delete",
-            deleteTitle: "Delete",
+            keepBestTitle: L10n.string("Keep as Best"),
+            keepTitle: L10n.string("Don't Delete"),
+            deleteTitle: L10n.string("Delete"),
             pillOpacity: 0.8
         )
     }
@@ -85,16 +85,16 @@ extension ComparisonDescriptor where G == DuplicateComparison {
 extension ComparisonDescriptor where G == SimilarComparison {
     static var similar: Self {
         Self(
-            bestPillText: { $0.base.bestReason.rawValue },
+            bestPillText: { $0.base.bestReason.displayName },
             statusText: { group, isBest in
                 isBest
-                    ? "Keeping this · \(group.base.bestReason.rawValue)"
-                    : "Recommended: \(group.base.bestReason.rawValue)"
+                    ? L10n.format("Keeping this · %@", group.base.bestReason.displayName)
+                    : L10n.format("Recommended: %@", group.base.bestReason.displayName)
             },
             statusColor: { _, isBest in isBest ? .green : .secondary },
-            keepBestTitle: "Keep as Best",
-            keepTitle: "Don't Delete",
-            deleteTitle: "Delete",
+            keepBestTitle: L10n.string("Keep as Best"),
+            keepTitle: L10n.string("Don't Delete"),
+            deleteTitle: L10n.string("Delete"),
             pillOpacity: 0.85
         )
     }
@@ -327,7 +327,11 @@ struct ComparisonQualitySection: View {
                         .frame(width: max(4, 80 * CGFloat(min(1, max(0, quality.sharpness)))))
                 }
                 .frame(width: 80, height: 5)
-                Text("\(Int((quality.sharpness * 100).rounded()))%")
+                // `verbatim`: a number followed by a percent sign is the same
+                // in every language, and keeping it out of the catalog avoids
+                // making it a format string — where a bare `%` is undefined
+                // behavior and `%%` has to be doubled for every translation.
+                Text(verbatim: "\(Int((quality.sharpness * 100).rounded()))%")
                     .font(.caption.bold().monospacedDigit())
             }
             HStack {

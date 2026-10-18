@@ -417,12 +417,15 @@ Simple settings screen with the following options:
 
 | Setting | Type | Default | Notes |
 |---|---|---|---|
+| Language | Picker | Automatic (device language) | 20 languages. Applies live, no relaunch. See §13. |
+| Appearance | Picker | Automatic (device) | Light / Dark / Automatic, matching iOS's own Appearance control. |
+| Haptics | Toggle | On | Gates every `UIImpactFeedbackGenerator` / `UINotificationFeedbackGenerator` call through `HapticHelper`. |
 | Similar Photo Time Window | Slider (1–60 seconds) | 5 seconds | For Similar Photos clustering |
 | Blur Detection Sensitivity | Segmented (Low/Med/High) | Medium | Adjusts Laplacian variance threshold |
 | Large File Threshold | Slider (5–500 MB) | 10 MB | For Large File Finder |
 | Default Swipe Filter | Picker | Not Swiped Yet | Sets default filter on swipe home |
 | Cleanup Reminders | Toggle | Off | Enables weekly local notification |
-| Reminder Day | Day picker | Sunday | Shown only if reminders enabled |
+| Reminder Day | Day picker | Device's first weekday | Shown only if reminders enabled. Weekday names are localized and start from the device's first day of the week, not Sunday. |
 | Video Compression Default Preset | Picker | 1080p HD | |
 | Reset Swipe History | Button | — | Clears all SwipeRecord entries. Confirm before executing. |
 | About | Section | — | App version, build, acknowledgements |
@@ -436,6 +439,8 @@ When **Cleanup Reminders** is enabled in Settings:
 - Refresh dated screenshot and large-file counts on launch, after library changes, and after reminder settings change. Example: *"Last scan, 25 Sep 2026: 214 screenshots (1.2 GB) to review."* Counts are a snapshot, not a measurement at notification delivery. Omit incomplete size totals and identify limited-library counts. Use generic text when counts are unavailable.
 - Tapping the notification opens the Cleanup tab.
 - Re-schedule the notification each time the app launches (to reflect updated content).
+
+> **Localization note (2026-10):** the reminder time is stored as a `Date` and rendered through `Formatters.shortTime`, so it follows the user's 12/24-hour convention. The footer used to hardcode "10 AM", which read as a foreign convention in most of the world. Notification bodies are built with `L10n` because they render outside the app process, where there is no SwiftUI environment to resolve a `LocalizedStringKey`.
 
 ---
 
@@ -461,7 +466,8 @@ When **Cleanup Reminders** is enabled in Settings:
 
 ## 8. UI/UX DESIGN DIRECTION
 
-- **Dark mode first**, with full light mode support (use semantic colours / `Color(uiColor: .systemBackground)` throughout).
+- **Follow the device's appearance**, with full light and dark support (use semantic colours / `Color(uiColor: .systemBackground)` throughout). Settings offers an explicit override, but "Automatic" is the default, so the app never freezes a scheme the user did not choose. (HISTORICAL, 2026-10: this line read "Dark mode first"; the default is now the device.)
+- **Two screens stay dark on purpose:** the full-screen media previews (`MediaPreviewView`, `LivePhotoPreviewView`) pin `.preferredColorScheme(.dark)`. A bright backdrop changes how a photo reads, which is why the Photos app does the same. This is the one place an explicit scheme beats the user's choice.
 - Use **SF Symbols** for all iconography. No custom icon assets needed.
 - The swipe card stack is the hero UI. It must feel **physical and responsive** — match real-world card physics (spring animation, rotation tied to drag offset).
 - Transitions between screens: use SwiftUI's `.navigationTransition(.zoom)` (iOS 18) where available; fall back to `.slide`.
@@ -557,4 +563,174 @@ Explicitly out of scope — do not build:
 - Build and test on a **physical iPhone**. The simulator photo library is fake and will not reflect real-world performance.
 - Test with a large library (1,000+ assets) to validate background processing performance.
 - Test iCloud-only asset handling by using a device with "Optimise Storage" enabled.
+
+---
+
+## 13. LOCALIZATION & DEVICE-NATIVE DEFAULTS
+
+TidyByte ships **20 languages** and detects its defaults from the device rather than
+assuming the US. This section is the contract; the pipeline that enforces it is in
+`scripts/localization/`.
+
+### 13.1 Supported languages
+
+English (base), Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada,
+Malayalam, Punjabi, Spanish, French, German, Portuguese (Brazil), Italian,
+Japanese, Korean, Simplified Chinese, Russian, Arabic, Hebrew.
+
+Arabic and Hebrew are **right-to-left** and the whole layout mirrors.
+
+### 13.2 What detects from the device
+
+| Surface | Behavior |
+|---|---|
+| Language | Follows the device language on first launch. If the device is set to a language we do not ship, the UI falls back to English and Settings says so. |
+| Appearance | Follows the device's light/dark setting, including an automatic schedule. |
+| Region | Always from the device, even when the language is overridden. A US user who picks German gets German words and US dates — which is what iOS itself does for a per-app language. |
+| File sizes | Locale-aware decimal units (`1,5 MB` in German, Arabic-Indic digits in Arabic). |
+| Dates and times | Locale-aware, including 12/24-hour convention. |
+| Week start | The device's first day of the week (Monday in most of the world, Saturday in much of the Middle East), not Sunday. |
+| List joining | Locale conjunction via `ListFormatter` ("a, b und c", "a、b、c"). |
+
+### 13.3 Three ways the language can change
+
+1. **Automatic** (default) — follows the device.
+2. **iOS per-app language** — Settings links to the iOS screen, which is the only
+   way to change the language of *system-rendered* UI (the photo permission alert,
+   the Photos picker, the share sheet, the Mail composer).
+3. **In-app picker** — applies immediately, no relaunch.
+
+In-app switching works because `RootView` injects `\.locale` and
+`\.layoutDirection` and rebuilds the view tree on language change. The two surfaces
+that do *not* change live are documented where they bite: system-owned UI follows on
+the next launch, and the widget refreshes on its next timeline reload.
+
+### 13.4 Architecture
+
+- **`AppLanguage`** — the 21-case enum (20 + `system`). Foundation-only so the
+  widget target can share it.
+- **`LanguagePreferenceStore`** — the stored choice, mirrored to the App Group so
+  the widget reads the same value.
+- **`L10n`** — lookup for code that runs outside a SwiftUI view: services, view
+  models, notification bodies, the widget, App Intents. Resolves against the chosen
+  language's `.lproj` bundle rather than `Bundle.main`, which is what makes the
+  switch work without a relaunch.
+- **`Formatters`** — every locale-aware number, size, date, list, and calendar
+  helper. `ByteCountFormatter` is deliberately not used: it has no locale API at
+  all, so it renders "1.5 MB" for every user on earth.
+- **`LocalizedStringKey`** — the parameter type for any shared component that
+  renders text (`EmptyStateView`, `ToolIdleView`, `ToolScanningView`,
+  `ToolErrorBanner`, `MetadataRow`). A `String` parameter silently opts out of
+  localization; this is the single most common way a screen stays English.
+
+### 13.5 String Catalog
+
+One catalog, `Tidybyte/Resources/Localizable.xcstrings`, shared by the app and the
+widget extension. English text is the key. Plural variations compile to
+`.stringsdict`, which is the only way to get correct CLDR categories per language
+(Arabic needs 6, Russian 4, Hebrew 3, Japanese and Chinese 1).
+
+Permission prompts live in a separate `Tidybyte/InfoPlist.xcstrings`, keyed on the
+**plist key name** (`NSPhotoLibraryUsageDescription`), not the English sentence —
+that is how iOS resolves them, and keying on the sentence compiles fine while doing
+nothing.
+
+### 13.6 The pipeline
+
+`scripts/localization/`:
+
+| Script | Role |
+|---|---|
+| `refresh.sh` | The one command to run after changing any user-facing string. Builds to emit `.stringsdata`, syncs Xcode's own extraction into the catalog, scans for code-built strings, collects Xcode's key set, merges translations, validates. |
+| `extract.mjs` | Finds what Xcode cannot see: `L10n.*` calls, display properties, App Shortcut phrases, and a broad prose audit for user-facing text that never reached the catalog. `--check` exits non-zero on a gap. |
+| `collect-xcode-keys.mjs` | Reads the keys Xcode's extractor saw out of the build's `.stringsdata`, so `build-catalog.mjs` can tell a live key from a dead one. |
+| `build-catalog.mjs` | Merges `translations/*.json` into the catalog, expands plurals, pins reordered placeholders positionally, and prunes keys no call site can reach. |
+| `check.mjs` | Fails on missing languages, placeholder mismatches, wrong plural categories, and a `UsageDescription` set in `project.yml` with no catalog entry. |
+| `make-listings.mjs` / `check-listings.mjs` | Build and validate the App Store listings against App Store Connect's field limits. |
+
+`refresh.sh` builds into a repo-local `build/LocalizationDerivedData` rather than
+`~/Library/Developer/Xcode/DerivedData`. The shared directory holds build trees
+from every checkout and configuration, so a lookup there can read a
+`.stringsdata` from an unrelated build and merge keys from source that no longer
+exists. The catalog gate is `git diff --exit-code`, which only means anything if
+the catalog is a pure function of the source.
+
+**The catalog is pruned, because `xcstringstool sync` only ever adds.**
+A key whose source text is deleted or rewritten stays forever, carrying 20
+translations and reporting 100% coverage for a string nothing looks up. That is
+worse than a missing translation: the denominator grows, every language's
+percentage is flattered, and a genuinely untranslated string hides in the total.
+A real one shipped — `"Couldn't %@ this %@%@."` survived the rewrite of its call
+site into four whole sentences.
+
+The website has its own pair under `scripts/localization/site/`:
+
+| Script | Role |
+|---|---|
+| `extract-site-strings.mjs` | Pulls translatable text out of `src/content/pages/index.html`, plus the title and description from `src/data/pages.ts`. |
+| `build-site-translations.mjs` | Regenerates the 20 localized landing pages from the English page plus `site-translations/<slug>.json`. |
+| `keep-literal.mjs` | The strings that stay English on the site (product and framework names). Shared by both scripts, so a keep-literal string is neither asked for nor reported missing. |
+
+The site builder takes the **English page as the structural source of truth** and
+replaces only the text. Hand-editing 20 copies of a 47 KB file is how markup
+drifts; generating them means every localized page has the markup the design was
+reviewed against. It fails outright when an English string has no translation —
+a page declaring `lang="de"` while rendering English is worse than no page.
+
+The FAQ `FAQPage` structured data is rebuilt per language from that page's own
+visible FAQ rather than translated a second time, so the schema cannot drift from
+what a reader sees (Google requires them to match, and `seo-audit.mjs` enforces
+it).
+
+`translations/_glossary.json` is binding: `keepLiteral` terms (TidyByte, iOS,
+iPhone, HEIC, Live Photo, MB, iCloud) are never translated, and per-language terms
+for screenshot, duplicate, compress, Recently Deleted, and Screen Time must be used
+as given. The Screen Time and Recently Deleted entries name the exact string iOS
+shows in Settings, because the surrounding copy tells the user to go look there.
+
+### 13.7 CI gates
+
+`.github/workflows/ci.yml` runs these checks; each fails the build.
+
+1. **Catalog freshness** — `refresh.sh` then `git diff --exit-code` on both
+   catalogs. A stale catalog is otherwise invisible: the app builds and runs, it
+   just shows English where a translation exists.
+2. **No unlocalized user-facing strings** — `extract.mjs --check`, three scans for
+   three shapes that hide a string completely:
+   - **A key computed from an enum.** `L10n.string(rawValue)` is invisible to every
+     literal scan, localizes correctly at runtime, and therefore ships English in all
+     20 languages with nothing failing. Seven enums had that shape and sixteen keys
+     were missing; the labels are now written out as literals in a `switch`.
+   - **A literal nested in an interpolation.** `Text("Couldn't \(ok ? "load" :
+     "download") …")` gives `Text` the outer literal as a key and renders the inner
+     `String` verbatim, so every language kept the English fragment. The German
+     template read "load dieses video nicht möglich." Eight sites had this shape.
+   - **Prose in a `String` parameter** that no call site localizes. This is the
+     original case: the sentence never reaches the catalog while every coverage
+     number reads 100%.
+3. **Full translation coverage** — `check.mjs --strict`. `refresh.sh` runs the same
+   check without `--strict`, so a key still carrying English passes locally and is
+   merely reported; CI fails on it.
+4. **Listing validity** — `check-listings.mjs --strict`: field limits, keyword
+   hygiene, and full coverage across all 20 languages.
+5. **Localized page freshness** — regenerate the landing pages and `git diff
+   --exit-code`. A translation edit nobody rebuilt is a page still showing English.
+   The builder's own missing-translation failure is the stronger half of this gate.
+6. **Site build and audit** (separate `site` job) — `npm run build && npm run
+   check`: title and description budgets, duplicate titles, hreflang parity,
+   per-page `lang` and `dir`, sitemap coverage, and a Markdown alternate for every
+   sitemap URL.
+
+### 13.8 Non-goals
+
+- **Machine-drafted translations ship with a review flag.** The 20 locales were
+  drafted by translators and are marked for native review; `check.mjs --strict`
+  tracks coverage, not quality. The batches' flagged judgment calls are recorded in
+  `scripts/localization/translations/_batch*.md`.
+- **Blog posts stay English.** A translated post that goes stale is worse for trust
+  than an English one that is current. Only the landing page and the App Store
+  listing are localized.
+- **The app does not translate system-owned UI.** The photo permission alert, the
+  Photos picker, and the share sheet are rendered by iOS and follow the app's
+  language on the next launch.
 

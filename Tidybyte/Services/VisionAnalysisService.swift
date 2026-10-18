@@ -27,6 +27,21 @@ enum BlurSensitivity: String, CaseIterable, Sendable {
     case medium = "Medium"
     case high = "High"
 
+    /// The raw value is the persisted preference (`@AppStorage`), so it stays
+    /// English and stable; only this reaches the screen.
+    ///
+    /// Written as a `switch` over literals rather than `L10n.string(rawValue)`.
+    /// The extractor scans for string literals, so a key built from `rawValue`
+    /// is invisible to it — the string would ship English in all 20 languages
+    /// with no catalog entry and no failing check.
+    var displayName: String {
+        switch self {
+        case .low: L10n.string("Low")
+        case .medium: L10n.string("Medium")
+        case .high: L10n.string("High")
+        }
+    }
+
     /// A photo is flagged blurry when its Laplacian variance (computed on a
     /// fixed 512px grayscale working image, 0–255 luminance) falls below this.
     /// Higher sensitivity ⇒ higher threshold ⇒ more photos flagged blurry.
@@ -48,6 +63,16 @@ enum CategorySensitivity: String, CaseIterable, Sendable {
     case strict = "Strict"
     case balanced = "Balanced"
     case broad = "Broad"
+
+    /// See `BlurSensitivity.displayName` — raw value is storage, this is UI,
+    /// and the literals have to be visible to the extractor.
+    var displayName: String {
+        switch self {
+        case .strict: L10n.string("Strict")
+        case .balanced: L10n.string("Balanced")
+        case .broad: L10n.string("Broad")
+        }
+    }
 
     var confidenceFloor: Float {
         switch self {

@@ -1,10 +1,4 @@
-# TidyByte for macOS — Product Requirements
 
-Tech-agnostic feature spec. Describes **what** the Mac app does and how it
-behaves, not how it is built. Source: the shipped iOS app in `Tidybyte/`
-plus `docs/prd.md`.
-
-Locked decisions for v1:
 
 1. Folder Mode **and** Full Mac Mode both ship in v1.
 2. Deletes move files to the **Trash** (recoverable until emptied).

@@ -121,7 +121,7 @@ struct AlbumPickerSheet: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = errorMessage {
                 ToolErrorBanner(
-                    message: message,
+                    message: LocalizedStringKey(message),
                     title: "Add to Album",
                     onDismiss: { errorMessage = nil }
                 )

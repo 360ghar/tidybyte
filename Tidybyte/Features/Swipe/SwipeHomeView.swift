@@ -205,9 +205,12 @@ struct SwipeHomeView: View {
 
     // MARK: - Filter Card
 
+    // `LocalizedStringKey`, not `String`: every call site passes a literal, and
+    // a `String` parameter would render it raw instead of resolving it against
+    // the environment locale the app injects at the root.
     private func filterCard(
-        title: String,
-        description: String,
+        title: LocalizedStringKey,
+        description: LocalizedStringKey,
         icon: String,
         color: Color,
         filter: SwipeFilter?,
@@ -251,7 +254,7 @@ struct SwipeHomeView: View {
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
+                Image(systemName: "chevron.forward")
                     .font(.caption.bold())
                     .foregroundStyle(.tertiary)
             }

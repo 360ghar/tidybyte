@@ -14,6 +14,10 @@ final class CleanupFeaturesUITests: XCTestCase {
             return true
         }
         app.launchArguments = ["-hasCompletedOnboarding", "YES", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        // Pinned to English: the interruption monitor and the button lookups
+        // below match English labels, and the app follows the device language
+        // by default. See `DynamicTypeUITests.englishLaunchArguments`.
+        app.launchArguments += DynamicTypeUITests.englishLaunchArguments
         app.launch()
         let allowAccess = app.buttons["Allow Access"].firstMatch
         XCTAssertTrue(allowAccess.waitForExistence(timeout: 15))

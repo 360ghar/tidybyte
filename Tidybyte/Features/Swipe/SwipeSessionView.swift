@@ -31,7 +31,9 @@ struct SwipeSessionView: View {
             // Progress bar
             progressBar
             if viewModel.filter == .worstShots, viewModel.skippedAnalysisCount > 0 {
-                Text("\(viewModel.skippedAnalysisCount) photo\(viewModel.skippedAnalysisCount == 1 ? "" : "s") could not be scored from a local image.")
+                Text(L10n.format("%lld photo could not be scored from a local image.",
+                                 fallback: "%lld photos could not be scored from a local image.",
+                                 viewModel.skippedAnalysisCount))
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
             }
 
@@ -61,9 +63,11 @@ struct SwipeSessionView: View {
                 // The card stack and its action bar live in their own view so a
                 // drag frame re-renders only the deck, not this whole screen.
                 SwipeCardDeck(viewModel: viewModel, onUndoHint: { markedId in
+                    // A ToastMessage carries a plain String, so these have to be
+                    // looked up here — `Text` never sees them.
                     let text = undoHintCount < 3
-                        ? "Marked for deletion. Nothing is deleted until you confirm at the end."
-                        : "Marked for deletion"
+                        ? L10n.string("Marked for deletion. Nothing is deleted until you confirm at the end.")
+                        : L10n.string("Marked for deletion")
                     undoHintCount += 1
                     toast = ToastMessage(text: text, systemImage: "trash", actionTitle: "Undo") {
                         // Verify before clearing: a stale tap must not silently
@@ -74,19 +78,19 @@ struct SwipeSessionView: View {
                         // does nothing.
                         guard viewModel.isPendingDeletion(markedId),
                               viewModel.undoStack.contains(where: { $0.asset.id == markedId && $0.decision == .deleted }) else {
-                            toast = ToastMessage(text: "That photo can't be undone anymore.", systemImage: "info.circle")
+                            toast = ToastMessage(text: L10n.string("That photo can't be undone anymore."), systemImage: "info.circle")
                             return
                         }
                         guard let last = viewModel.undoStack.last,
                               last.decision == .deleted, last.asset.id == markedId else {
-                            toast = ToastMessage(text: "Undo your newer actions first to reach that photo.", systemImage: "info.circle")
+                            toast = ToastMessage(text: L10n.string("Undo your newer actions first to reach that photo."), systemImage: "info.circle")
                             return
                         }
                         toast = nil
                         Task { await viewModel.undo() }
                     }
                 }, onDeleteBlocked: {
-                    toast = ToastMessage(text: "Delete is off until the photo loads.", systemImage: "hourglass")
+                    toast = ToastMessage(text: L10n.string("Delete is off until the photo loads."), systemImage: "hourglass")
                 })
             }
         }
@@ -177,8 +181,9 @@ struct SwipeSessionView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Swipe Session",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -366,7 +371,7 @@ struct SwipeSessionView: View {
     }
 
     private func flashZoomHint() {
-        toast = ToastMessage(text: "Pinch or double-tap a photo to inspect it", systemImage: "magnifyingglass")
+        toast = ToastMessage(text: L10n.string("Pinch or double-tap a photo to inspect it"), systemImage: "magnifyingglass")
     }
 }
 

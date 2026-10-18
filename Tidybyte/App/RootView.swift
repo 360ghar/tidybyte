@@ -5,6 +5,11 @@ struct RootView: View {
     @State private var appNavigation = AppNavigation()
     @State private var permissionHandler = PhotoPermissionHandler()
     @State private var libraryMonitor = LibraryChangeMonitor()
+    /// Owned here rather than in `TidybyteApp` so the SwiftUI environment can
+    /// carry it; the app's `init` cannot publish an observable into the view
+    /// tree. Read by Settings to change the language, and by nothing else —
+    /// every other view gets the language through the environment below.
+    @State private var languageStore = LanguageStore()
     @AppStorage(AppPreferences.Key.hasCompletedOnboarding) private var hasCompletedOnboarding = false
     @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var largeFileThreshold = 10.0
     #if DEBUG
@@ -90,6 +95,27 @@ struct RootView: View {
         // `LimitedLibraryBanner`) without threading the handler through every
         // initializer.
         .environment(permissionHandler)
+        .environment(languageStore)
+        // Localization, applied at the one place every screen is below.
+        //
+        // `\.locale` is what makes `Text("Some key")` resolve against the
+        // chosen language; verified in the simulator that a child view which
+        // never reads the environment still re-renders when this changes.
+        //
+        // `.id` is the belt to that suspenders. Views that build their text in
+        // code (`Text(tool.name)`, where `name` is a computed `String`) do not
+        // read `\.locale`, so SwiftUI has no reason to re-run their bodies.
+        // Keying the tree on the language forces a full rebuild on a switch,
+        // which is a rare, deliberate action — and `AppNavigation` lives in
+        // `@State` above this point, so the user's navigation stack and
+        // in-flight selection survive the rebuild.
+        .environment(\.locale, languageStore.locale)
+        .environment(\.layoutDirection, languageStore.layoutDirection)
+        .id(languageStore.effectiveLanguage)
+        // `nil` for the default: SwiftUI then keeps following the device's
+        // light/dark setting and any automatic schedule, which is the behavior
+        // the app had before this setting existed.
+        .preferredColorScheme(languageStore.appearance.colorScheme?.swiftUI)
         .tint(.blue)
         .fullScreenCover(isPresented: onboardingBinding) {
             OnboardingView(

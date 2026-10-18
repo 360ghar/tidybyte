@@ -36,14 +36,14 @@ struct LargeFilesView: View {
 
                         Picker("Filter", selection: $viewModel.mediaFilter) {
                             ForEach(LargeFileFilter.allCases, id: \.self) { filter in
-                                Text(filter.rawValue).tag(filter)
+                                Text(filter.displayName).tag(filter)
                             }
                         }
                         .pickerStyle(.segmented)
 
                         Picker("Sort", selection: $viewModel.sortOrder) {
                             ForEach(LargeFileSortOrder.allCases, id: \.self) { order in
-                                Text(order.rawValue).tag(order)
+                                Text(order.displayName).tag(order)
                             }
                         }
                         .pickerStyle(.menu)
@@ -138,7 +138,11 @@ struct LargeFilesView: View {
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleared \(count) large files"
+                        line: L10n.format(
+                            "cleared %lld large file",
+                            fallback: "cleared %lld large files",
+                            count
+                        )
                     )
                 }
             }
@@ -150,8 +154,9 @@ struct LargeFilesView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Large Files",
+                    // View-model text: already localized where it is built, so the
+                    // lookup misses and falls back to the text itself.
+                    message: LocalizedStringKey(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -236,7 +241,10 @@ struct LargeFilesView: View {
         }
     }
 
-    private var emptyTitle: String {
+    /// `LocalizedStringKey`, not `String`: `Text(String)` is the
+    /// non-localizing overload, so a `String` return renders English in every
+    /// language.
+    private var emptyTitle: LocalizedStringKey {
         switch viewModel.mediaFilter {
         case .all: "No Large Files"
         case .photos: "No Large Photos"
@@ -244,7 +252,7 @@ struct LargeFilesView: View {
         }
     }
 
-    private var emptyMessage: String {
+    private var emptyMessage: LocalizedStringKey {
         let threshold = Int(thresholdMB)
         switch viewModel.mediaFilter {
         case .all:

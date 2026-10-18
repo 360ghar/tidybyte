@@ -311,7 +311,7 @@ final class PhotoCompressionViewModel {
             let remaining = Set(items.map(\.assetId)).subtracting(doneIds)
             for index in photos.indices where remaining.contains(photos[index].id) {
                 if keptIds.contains(photos[index].id) {
-                    photos[index].compressionState = .keptOriginal(reason: "Original kept — both versions in your library")
+                    photos[index].compressionState = .keptOriginal(reason: L10n.string("Original kept — both versions in your library"))
                 } else {
                     photos[index].compressionState = .waiting
                 }
@@ -429,7 +429,7 @@ final class PhotoCompressionViewModel {
                         // COMP-04: no-savings items stay in the list with an
                         // explanation instead of silently vanishing.
                         swap.finalizeSkipped()
-                        self.photos[index].compressionState = .keptOriginal(reason: "No savings — kept original")
+                        self.photos[index].compressionState = .keptOriginal(reason: L10n.string("No savings — kept original"))
                         return .skipped
                     }
 

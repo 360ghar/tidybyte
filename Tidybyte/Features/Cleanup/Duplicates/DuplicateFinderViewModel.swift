@@ -332,4 +332,15 @@ enum DuplicateScanType: String, CaseIterable {
     case exact = "Exact"
     case visual = "Visual"
     case all = "All"
+
+    /// Raw value stays English (it is the persisted/test identity); this is the
+    /// segmented control's label. Literals, not `rawValue`, so the extractor
+    /// can see them.
+    var displayName: String {
+        switch self {
+        case .exact: L10n.string("Exact")
+        case .visual: L10n.string("Visual")
+        case .all: L10n.string("All")
+        }
+    }
 }

@@ -1,0 +1,59 @@
+<!-- 01 · Why search matters -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Why searching beats scrolling</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Search is the only feature that gets faster as your library gets bigger. Scrolling gets slower, albums need maintenance, and sorting by year only helps if you remember when something happened. Typing &ldquo;dogs on a beach&rdquo; and getting the photos back takes a second, at any library size.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">The catch is where that search runs. Cloud photo services answer questions like this by holding your library on their servers, which is why they need an account and a connection. TidyByte does it locally: the content labels come from Apple&rsquo;s Vision framework on your device, and the interpretation of your sentence happens on the device too.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">The practical result is search that works on a plane, with no account, no upload, and no terms of service about what may be done with your photos.</p>
+  </div>
+</section>
+
+<!-- 02 · How it works -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">How on-device AI search works</h2>
+    <ol role="list" class="mt-6 space-y-5">
+      <li class="clay-card p-5">
+        <h3 class="font-display text-lg font-semibold text-ink">1. Photos are labelled locally</h3>
+        <p class="muted mt-2 text-base leading-relaxed">During a scan, each photo is classified with Apple Vision into content labels: dog, beach, food, receipt, document, and so on. This happens on your iPhone and produces the vocabulary the search works against.</p>
+      </li>
+      <li class="clay-card p-5">
+        <h3 class="font-display text-lg font-semibold text-ink">2. Your words become a query</h3>
+        <p class="muted mt-2 text-base leading-relaxed">On iPhones where Apple&rsquo;s on-device language model is available, that model reads your description and turns it into a structured query over those labels. Where it is not available, TidyByte matches your keywords against the same labels directly, and says which method it used.</p>
+      </li>
+      <li class="clay-card p-5">
+        <h3 class="font-display text-lg font-semibold text-ink">3. Matching happens in the app</h3>
+        <p class="muted mt-2 text-base leading-relaxed">The query is validated against the labels that actually exist in your scan, then matched in app code. The model never decides which photo to show you; it only translates a sentence into a search, which keeps results predictable and explainable.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 · Limits -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">What it can and cannot find</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Honest limits are more useful than a demo that only works in a keynote. TidyByte&rsquo;s AI search covers visible content, and says so in the search field.</p>
+    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-success">Works well for</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">Subjects and scenes: dogs, beaches, food, sunsets, cars, receipts, screenshots of documents, screens, and combinations like &ldquo;dog on a beach&rdquo; or &ldquo;food, not screenshots&rdquo;.</p>
+      </div>
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-destructive">Not indexed here</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">Dates, place names, people&rsquo;s names and text inside images. For those, the Photos app&rsquo;s own search is the better tool, and TidyByte tells you that instead of returning nothing.</p>
+      </div>
+    </div>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Search results behave like any other list in the app: select what you no longer need, export anything worth keeping, and delete the rest with one confirmation and a 30-day undo.</p>
+  </div>
+</section>
+
+<!-- 04 · Privacy -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Why this is a privacy feature, not just a search box</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Searching your photo library by description is the most personal query you can make of your own device. Doing it in the cloud means building a profile of what you photograph, when, and what you look for &mdash; which is exactly what on-device processing avoids.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">TidyByte performs no network requests at all. There is no account, no analytics SDK, and no upload path for a photo or a search term. You can verify the claim by turning on airplane mode and searching, or by reading the source: it is MIT licensed on <a href="https://github.com/360ghar/snap-clean-ios" class="link" target="_blank" rel="noopener">GitHub</a>.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">That is the point of building search this way: the feature that would normally be the most invasive one in a photo app becomes the one that never leaves the phone.</p>
+  </div>
+</section>

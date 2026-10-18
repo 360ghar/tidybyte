@@ -203,7 +203,7 @@ final class CleanupFeaturesTests: XCTestCase {
         await task?.value
         XCTAssertFalse(vm.isSearching)
         XCTAssertTrue(vm.filteredPhotos.isEmpty)
-        XCTAssertEqual(vm.searchMessage, "Your library changed. Scan again before searching.")
+        XCTAssertEqual(vm.searchMessage, L10n.string("Your library changed. Scan again before searching."))
     }
 
     func testExclusionSearchDoesNotTreatUnanalyzedPhotosAsMatches() async {
@@ -261,7 +261,10 @@ final class CleanupFeaturesTests: XCTestCase {
             }, apply: { removed = $0 })
         XCTAssertEqual(removed, ["gone"])
         XCTAssertEqual(declined.deletedCount, 0)
-        XCTAssertEqual(declined.errorMessage, "Nothing was deleted.")
+        // Compared through `L10n` rather than against the English literal: the
+        // production string is now resolved at runtime, so a hardcoded English
+        // expectation would pass on an English simulator and fail on any other.
+        XCTAssertEqual(declined.errorMessage, L10n.string("Nothing was deleted."))
         XCTAssertEqual(CleanupLedger.shared.deletionNotice, previous)
         _ = await CleanupDeletion.delete(requestedIds: ["kept"], kind: .chatMedia,
             sizeById: [:], performDelete: { _ in throw CancellationError() }, apply: { _ in XCTFail("No removals on cancellation") })
