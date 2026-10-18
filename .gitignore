@@ -92,3 +92,12 @@ dist/
 # The art (4 PNGs), the generator, and the App Store screenshots are all
 # committed. Only this derived output is ignored.
 docs/growth/*/by-language/
+
+# App Store Connect API private keys (scripts/publish/)
+#
+# A .p8 signs a JWT that can upload builds, rewrite store copy, and submit for
+# review. It is the whole credential, Apple lets you download it exactly once,
+# and it cannot be rotated by deleting a file in git history. Keep it out of the
+# repo: the publish scripts read it from ASC_KEY_PATH instead.
+*.p8
+AuthKey_*.p8
