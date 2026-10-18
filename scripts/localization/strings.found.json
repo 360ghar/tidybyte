@@ -135,6 +135,11 @@
       "file": "Tidybyte/Features/Cleanup/Duplicates/DuplicateFinderView.swift"
     },
     {
+      "key": "%lld issues found",
+      "fallback": "%lld issues found",
+      "file": "Tidybyte/Features/Cleanup/BlurryPhotos/BlurryPhotosView.swift"
+    },
+    {
       "key": "%lld item",
       "fallback": "%lld items",
       "file": "Tidybyte/Features/Activity/ActivityView.swift"
@@ -197,7 +202,8 @@
     },
     {
       "key": "%lld photos",
-      "file": "Tidybyte/Features/Cleanup/Similar/SimilarPhotosView.swift"
+      "file": "Tidybyte/Features/Cleanup/Similar/SimilarPhotosView.swift",
+      "fallback": "%lld photos"
     },
     {
       "key": "%lld photos · %@",
@@ -601,6 +607,10 @@
       "file": "Tidybyte/Features/Cleanup/CleanupTool.swift"
     },
     {
+      "key": "Compressed %lld of %lld. %lld failed.",
+      "file": "Tidybyte/Features/Cleanup/PhotoCompression/PhotoCompressionViewModel.swift"
+    },
+    {
       "key": "compressed %lld photo",
       "fallback": "compressed %lld photos",
       "file": "Tidybyte/Features/Cleanup/PhotoCompression/PhotoCompressionView.swift"
@@ -654,6 +664,10 @@
       "key": "converted %lld Live Photo",
       "fallback": "converted %lld Live Photos",
       "file": "Tidybyte/Features/Cleanup/LivePhotos/LivePhotosConverterView.swift"
+    },
+    {
+      "key": "Converted %lld of %lld. %lld failed.",
+      "file": "Tidybyte/Features/Cleanup/LivePhotos/LivePhotosConverterViewModel.swift"
     },
     {
       "key": "Converted to Still",
@@ -969,6 +983,10 @@
       "file": "Tidybyte/Features/Swipe/SwipeSessionViewModel.swift"
     },
     {
+      "key": "Failed to create album: %@",
+      "file": "Tidybyte/Features/Swipe/AlbumPickerSheet.swift"
+    },
+    {
       "key": "Failed to create album.",
       "file": "Tidybyte/Services/PhotoLibraryService.swift"
     },
@@ -1000,6 +1018,10 @@
     {
       "key": "Failed to save compressed video to library.",
       "file": "Tidybyte/Services/VideoCompressionService.swift"
+    },
+    {
+      "key": "Failed to undo album change: %@",
+      "file": "Tidybyte/Features/Swipe/SwipeSessionViewModel.swift"
     },
     {
       "key": "Favorite",
@@ -2469,5 +2491,5 @@
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     }
   ],
-  "total": 610
+  "total": 615
 }

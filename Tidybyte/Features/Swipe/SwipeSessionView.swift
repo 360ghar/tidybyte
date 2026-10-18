@@ -295,7 +295,10 @@ struct SwipeSessionView: View {
                     .scaledGlyph(ScaledSize.stateGlyph)
                     .foregroundStyle(.orange)
 
-                Text(presentation.title)
+                // Keyed rather than resolved: the copy comes from `L10n`, and a
+                // resolved `String` would render verbatim without reading the
+                // `\.locale` a language switch changes. See `RootView`.
+                Text(LocalizedStringKey(presentation.title))
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
                 Text(presentation.message)

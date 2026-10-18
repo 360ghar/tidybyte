@@ -111,6 +111,25 @@ export function urlFor(route: string): string {
   return route === "/" ? `${SITE}/` : `${SITE}${route}`;
 }
 
+/**
+ * Drops the body's own H1 from a converted Markdown body.
+ *
+ * The `.md` alternates emit their own H1 from the page title, and the source
+ * content files carry an `<h1>` of their own ("Privacy Policy", "The best free
+ * iPhone storage cleaner and photo cleaner."), which `htmlToMarkdown` converts
+ * too. The body's heading is not always the first line (a home page opens with
+ * its announcement bar), so this removes the first `# ` line wherever it
+ * appears in the body. Each content file has exactly one `<h1>`
+ * (`scripts/seo-audit.mjs` enforces one per HTML page), so at most one line is
+ * ever removed, and the synthetic title heading the route emits stays.
+ */
+export function stripBodyH1(markdown: string): string {
+  return markdown
+    .replace(/^#[ \t]+[^\n]*\n{0,2}/m, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function blogPosts(): PageMeta[] {
   return PAGES.filter((p) => p.route.startsWith("/blog/")).sort((a, b) =>
     a.route.localeCompare(b.route),

@@ -396,7 +396,9 @@ struct StorageDashboardView: View {
                                 Circle()
                                     .fill(win.color)
                                     .frame(width: 10, height: 10)
-                                Text(win.title)
+                                // A key, not a rendered `String`, so the label
+                                // follows a language switch. See `RootView`.
+                                Text(LocalizedStringKey(win.title))
                                     .font(.subheadline)
                                     .foregroundStyle(.primary)
                                 Spacer()
@@ -603,7 +605,9 @@ struct StorageDashboardView: View {
             Circle()
                 .fill(category.color)
                 .frame(width: 10, height: 10)
-            Text(category.name)
+            // A key, not a rendered `String`, so the label follows a language
+            // switch. See `RootView`.
+            Text(LocalizedStringKey(category.name))
                 .font(.subheadline)
             Spacer()
             Text("\(category.count)")
@@ -772,7 +776,9 @@ struct StorageDashboardView: View {
 
                 Picker("", selection: $breakdownMode) {
                     ForEach(BreakdownMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
+                        // A key, not a rendered `String`, so the segment label
+                        // follows a language switch. See `RootView`.
+                        Text(LocalizedStringKey(mode.displayName)).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)

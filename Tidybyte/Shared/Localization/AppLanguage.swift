@@ -146,7 +146,9 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
     /// - Chinese resolves by script *and* by region. `zh-Hant`, `zh-TW`,
     ///   `zh-HK` and `zh-MO` are Traditional and deliberately do not match:
     ///   showing Simplified to a Traditional reader is worse than falling back
-    ///   to English, which at least is a language they may read.
+    ///   to English, which at least is a language they may read. An explicit
+    ///   `Hans` script outranks the region, so `zh-Hans-HK` and `zh-Hans-TW`
+    ///   resolve to Simplified rather than falling back.
     static func match(identifier: String) -> AppLanguage? {
         let tag = identifier.replacingOccurrences(of: "_", with: "-")
         let parts = tag.split(separator: "-").map(String.init)
@@ -155,6 +157,11 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
         if base == "zh" {
             let subtags = parts.dropFirst().map { $0.lowercased() }
             if subtags.contains("hant") { return nil }
+            // An explicit script wins over the region. `zh-Hans-HK`,
+            // `zh-Hans-MO` and `zh-Hans-TW` name Simplified directly, so the
+            // Traditional-region rule below must not override them into the
+            // English fallback.
+            if subtags.contains("hans") { return .chineseSimplified }
             // Regions that imply Traditional even without a script subtag.
             let traditionalRegions: Set<String> = ["tw", "hk", "mo"]
             if subtags.contains(where: { traditionalRegions.contains($0) }) { return nil }

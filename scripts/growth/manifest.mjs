@@ -37,6 +37,21 @@ const CATALOG_PATH = join(ROOT, 'Tidybyte/Resources/Localizable.xcstrings');
 const LISTINGS_PATH = join(ROOT, 'docs/appstore/listings.json');
 const SHORTCUTS_PATH = join(ROOT, 'Tidybyte/Resources/AppShortcuts.xcstrings');
 
+/**
+ * Every non-art input a render reads.
+ *
+ * `build-assets.mjs` compares a cached PNG's mtime against the newest of these
+ * plus the asset's own art, so editing the String Catalog, the listing data, or
+ * this file (which carries the plan, the layouts and the font stacks) re-renders
+ * instead of reporting the image "unchanged".
+ */
+export const RENDER_SOURCE_PATHS = [
+  CATALOG_PATH,
+  LISTINGS_PATH,
+  SHORTCUTS_PATH,
+  fileURLToPath(import.meta.url),
+];
+
 /** Must match `scripts/localization/plural-categories.mjs`. */
 export const LANGUAGES = [
   'en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa',
@@ -365,10 +380,13 @@ export const SURFACES = [
     id: 'product-page-optimization',
     title: 'Product Page Optimization',
     purpose:
-      'A/B tests of the product page. Three treatments plus the original, each '
-      + 'varying the icon, screenshots, previews, or the product page header. The '
-      + 'test icon must already exist in the uploaded binary at 1024x1024. Not '
-      + 'available on custom product pages.',
+      'A/B tests of the product page. What this pipeline produces is the original '
+      + 'plus three treatments, each a 3:2 search-results creative with different '
+      + 'framing: privacy (free up space), duplicates, and screenshots. Apple also '
+      + 'lets a test vary the icon, the screenshots, the previews, or the product '
+      + 'page header; those variants are not produced here, and an icon test needs a '
+      + '1024x1024 icon already inside the uploaded binary. Not available on custom '
+      + 'product pages.',
     specs: ['searchResults'],
     treatments: [
       {

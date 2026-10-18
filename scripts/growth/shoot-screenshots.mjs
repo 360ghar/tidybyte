@@ -184,8 +184,9 @@ const REQUIRED_SIZES = {
   // "primary-1". `simctl` takes either, so `display` names the device name and
   // `screenID` is the fallback used when `io enumerate` does not print it.
   //
-  // Both entries carry the same `deviceName`, so `resolveDevice` finds the one
-  // Duo simulator for both displays rather than creating two.
+  // Both entries carry the same `deviceName`, and `resolveDevice` adds a device
+  // it creates to the shared `devices` list, so the second family finds the one
+  // Duo simulator the first family created instead of creating a second one.
   //
   // Sizes are Apple's accepted list for each row. `native` is the portrait size
   // this machine renders; `exactNative` makes the verification require it
@@ -365,6 +366,13 @@ function newestIosRuntime() {
 
 /**
  * Finds the simulator for a family, creating it if the machine does not have one.
+ *
+ * A created device is pushed into `devices` before it is returned. The caller
+ * builds that array once and reuses it for every family, and both Duo families
+ * carry the same `deviceName`: without the push, the second one re-runs the
+ * lookup against a list that does not contain the device just made, finds
+ * nothing, and creates a second simulator with the same name. `simctl` allows
+ * duplicate names, so that orphan would sit in the device list unnoticed.
  */
 function resolveDevice(spec, devices, { runtime = null } = {}) {
   const existing = findExistingDevice(spec, devices);
@@ -374,7 +382,9 @@ function resolveDevice(spec, devices, { runtime = null } = {}) {
   if (!chosen) throw new Error("no available iOS runtime to create a simulator from");
   log(`  creating ${spec.deviceName} on ${chosen.identifier}`);
   const out = run("xcrun", ["simctl", "create", spec.deviceName, spec.deviceType, chosen.identifier]);
-  return { udid: out.trim(), name: spec.deviceName, runtime: chosen.identifier, state: "Shutdown" };
+  const created = { udid: out.trim(), name: spec.deviceName, runtime: chosen.identifier, state: "Shutdown" };
+  devices.push(created);
+  return created;
 }
 
 /** The output directory for a family: the key, unless the spec names another. */
@@ -433,6 +443,9 @@ function parseDisplayPorts(raw) {
 
 /** Families that could not resolve a display on their device. Non-empty = exit 1. */
 const displayFailures = [];
+
+/** Families that produced fewer verified files than the screens they asked for. Non-empty = exit 1. */
+const captureFailures = [];
 
 /** Runs `io enumerate` for a booted device and returns the parsed display ports. */
 function enumerateDisplays(udid) {
@@ -1136,9 +1149,21 @@ function captureDevice(key, spec, device) {
       const shotArgs = ["simctl", "io", udid, "screenshot"];
       if (displayArg) shotArgs.push(`--display=${displayArg.selector}`);
       shotArgs.push(raw);
-      tryRun("xcrun", shotArgs);
+      const name = `${String(i + 1).padStart(2, "0")}-${screen.slug}.png`;
+      const shot = tryRun("xcrun", shotArgs);
       if (!existsSync(raw)) {
-        log(`  ! no screenshot produced for ${screen.slug}`);
+        // A capture that wrote nothing still gets a row, and that row fails.
+        // Skipping it instead leaves the screen with no row at all, so the
+        // table has nothing to reject and a run where every screenshot failed
+        // would end on `printTable([])` reporting success for zero files.
+        const detail = shot.out.trim() ? ` (${shot.out.trim().split("\n").pop()})` : "";
+        log(`  ✗ ${name}  no file written${detail}`);
+        rows.push({
+          file: name,
+          size: null,
+          ok: false,
+          reason: `no screenshot produced for ${screen.slug}${detail}`,
+        });
         continue;
       }
       stripAlpha(raw, file);
@@ -1148,7 +1173,6 @@ function captureDevice(key, spec, device) {
       // that is the right size and still empty. Applied to every family; on the
       // iPhone and iPad sets it has never rejected a real capture.
       const gate = blankGate(file, spec);
-      const name = `${String(i + 1).padStart(2, "0")}-${screen.slug}.png`;
       const ok = check.ok && gate.ok;
       rows.push({ file: name, size: check.size, ok });
       const reasons = [];
@@ -1165,6 +1189,21 @@ function captureDevice(key, spec, device) {
       log(`  ${ok ? "✓" : "✗"} ${name}  ${check.size[0]}x${check.size[1]}${note}`);
       if (!gate.ok) log(`    → rejected: ${gate.cause}`);
     }
+
+    // Every screen the family asked for must have produced a row that passed.
+    // Counting rows is the check that closes the hole at the top of this loop:
+    // a screen that wrote no file contributes a FAILING row now, and this
+    // assertion catches the other direction, where a screen is skipped before a
+    // row is ever built. Either way the family fails rather than reporting a
+    // smaller set as success.
+    const missingRows = screens
+      .map((s, i) => `${String(i + 1).padStart(2, "0")}-${s.slug}.png`)
+      .filter((expected) => !rows.some((r) => r.file === expected));
+    if (missingRows.length > 0) {
+      captureFailures.push(key);
+      console.error(`\n✗ ${key}: ${missingRows.length} of ${screens.length} requested screen(s) produced no verification row:`);
+      for (const file of missingRows) console.error(`    ${file}`);
+    }
     return rows;
   } finally {
     statusBar(udid, true);
@@ -1179,17 +1218,26 @@ function captureDevice(key, spec, device) {
 
 function printTable(all) {
   step("captured files");
+  if (all.length === 0) {
+    // Reached only when nothing was captured at all, which is a failure: the
+    // previous version printed a success line for zero files and exited 0.
+    console.log("  ✗ no files were captured — nothing to verify");
+    return false;
+  }
   const width = Math.max(...all.map((r) => r.file.length), "file".length);
   console.log(`  ${"device".padEnd(8)} ${"file".padEnd(width)} ${"dimensions".padEnd(14)} required`);
   console.log(`  ${"-".repeat(8)} ${"-".repeat(width)} ${"-".repeat(14)} ${"-".repeat(8)}`);
   for (const r of all) {
-    const dims = `${r.size[0]}x${r.size[1]}`;
+    const dims = r.size ? `${r.size[0]}x${r.size[1]}` : "no file";
     console.log(`  ${r.device.padEnd(8)} ${r.file.padEnd(width)} ${dims.padEnd(14)} ${r.ok ? "yes" : "NO"}`);
   }
   const bad = all.filter((r) => !r.ok);
   console.log("");
   if (bad.length) {
-    console.log(`✗ ${bad.length} file(s) failed verification (wrong size, alpha not stripped, or a blank panel)`);
+    console.log(`✗ ${bad.length} file(s) failed verification (not captured, wrong size, alpha not stripped, or a blank panel)`);
+    for (const r of bad) {
+      if (r.reason) console.log(`  ${r.device}  ${r.file}: ${r.reason}`);
+    }
     return false;
   }
   console.log(`✓ ${all.length} file(s), all at the required size, alpha stripped, no blank panels`);
@@ -1199,27 +1247,49 @@ function printTable(all) {
 function checkExisting(keys) {
   step("verifying docs/screenshots/<family>/");
   const rows = [];
+  const missingFamilies = [];
   for (const key of keys) {
     const spec = REQUIRED_SIZES[key];
     const dir = outDirFor(key, spec);
     if (!existsSync(dir)) {
-      console.log(`  ✗ ${spec.dir ?? key}/ missing`);
+      // A missing family directory fails the check. Logging it and moving on
+      // let another family's rows decide the exit code, so a fresh checkout
+      // with no captures at all could still report success.
+      console.log(`  ✗ ${spec.dir ?? key}/ missing — no screenshots captured for this family`);
+      missingFamilies.push(key);
       continue;
     }
+    const present = new Set();
     for (const f of readdirSafe(dir)) {
       if (!f.endsWith(".png") || f.startsWith(".")) continue;
+      present.add(f);
       const full = join(dir, f);
       const check = verifyFile(full, spec);
       const gate = blankGate(full, spec);
       if (gate.flat) console.log(`  ✗ ${f}: ${gate.blankReason}`);
       rows.push({ device: key, file: f, size: check.size, ok: check.ok && gate.ok });
     }
+    // The same completeness requirement the capture run enforces: every screen
+    // the family asked for must be on disk, or the check is verifying a partial
+    // set. `--screens` narrows the expected set for both paths alike.
+    const missing = screensFor(spec)
+      .map((s, i) => `${String(i + 1).padStart(2, "0")}-${s.slug}.png`)
+      .filter((expected) => !present.has(expected));
+    if (missing.length > 0) {
+      console.log(`  ✗ ${spec.dir ?? key}/ is missing ${missing.length} of ${screensFor(spec).length} screen(s): ${missing.join(", ")}`);
+      missingFamilies.push(key);
+    }
   }
-  if (!rows.length) {
+  if (!rows.length && !missingFamilies.length) {
     console.log("  nothing captured yet — run without --check");
     return false;
   }
-  return printTable(rows);
+  const tableOk = printTable(rows);
+  if (missingFamilies.length) {
+    console.error(`\n✗ ${missingFamilies.length} family/families are incomplete: ${missingFamilies.join(", ")}`);
+    return false;
+  }
+  return tableOk;
 }
 
 function readdirSafe(dir) {
@@ -1498,6 +1568,10 @@ if (displayFailures.length) {
 }
 if (poseFailures.length) {
   console.error(`\n✗ ${poseFailures.length} family/families were not in the pose or orientation they need: ${poseFailures.join(", ")}`);
+  process.exit(1);
+}
+if (captureFailures.length) {
+  console.error(`\n✗ ${captureFailures.length} family/families did not produce a file for every requested screen: ${captureFailures.join(", ")}`);
   process.exit(1);
 }
 process.exit(printTable(all) ? 0 : 1);

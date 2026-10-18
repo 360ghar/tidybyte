@@ -60,7 +60,13 @@ look up — Xcode's literals, this repo's `L10n` calls, and the counted strings 
 Pruning needs `strings.xcode.json`, which `collect-xcode-keys.mjs` writes from
 the build output. Without it a live Xcode key is indistinguishable from a stale
 one, so pruning is skipped and the script says so. `refresh.sh` always runs the
-collector first.
+collector first. That file is gitignored on purpose (the reason is written out in
+`.gitignore`): a stale copy would delete live keys.
+
+The collector is strict about what it reads, because a key set that is quietly too
+small is what triggers a wrong prune. A `.stringsdata` that will not parse is
+fatal, and one whose `source` file no longer exists is skipped and recorded — the
+output lists every file it read, so a collection that shrank is visible.
 
 ### Where the build output comes from
 
@@ -111,17 +117,38 @@ cannot come back. See `scanComputedKeys`.
 ## App Store listing
 
 `docs/appstore/listings.json` holds one entry per language with the six App Store
-fields. `make-listings.mjs` writes it, `check-listings.mjs` validates it:
+fields. `check-listings.mjs` validates it:
 
 ```sh
 node scripts/localization/check-listings.mjs --strict
 ```
 
 `--strict` fails on any language missing a field; without it, only limits are
-checked. The validator enforces the per-field character limits in `_limits`, that
-keywords have no space after a comma, and that no keyword repeats a word already
-in that language's name or subtitle — Apple indexes all three together, so a
-repeat wastes a slot.
+checked. The validator enforces the per-field character limits in `_limits`, the
+fixed language set (a shipped language that disappears, or an unexpected locale,
+both fail), that keywords have no space after a comma, that no keyword repeats
+another, and that no keyword repeats a word already in that language's subtitle —
+Apple indexes name, subtitle and keywords together, so a repeat wastes a slot.
+The keyword checks run for English too, which is the field a human writes by hand.
+
+### `make-listings.mjs` is a scaffold, and it is safe to rerun
+
+```sh
+node scripts/localization/make-listings.mjs [--out <path>] [--force]
+```
+
+It rebuilds the file from the English copy in `docs/APP_STORE_LISTING.md` §1–§4
+and §12. Only the `en` entry comes from the doc. The 20 translated entries are
+read back from the file on disk and carried forward field by field, so rerunning
+it after an English edit leaves every translation untouched. An empty scaffold
+value never replaces text that is already in the file, and `--force` is the only
+way to clear a field on purpose.
+
+That rule is the whole point of the script. Rerunning it is the documented
+workflow (see "Localized listings" in `docs/APP_STORE_LISTING.md`), and an earlier
+version replaced all twenty languages with empty strings when it ran. `--out`
+writes to another path, which is how to test a change without touching the
+tracked file.
 
 **`keywords` is not a translation.** It is the search index, and it is written
 from scratch per language from the terms a speaker would actually type.
@@ -148,6 +175,27 @@ does not exist.
 framework names, the version). Both the extractor and the builder read it, so a
 keep-literal string is neither asked for nor reported as missing.
 
+### Inline tags split sentences, on purpose
+
+The extractor pulls text nodes, and every inline tag is a hard boundary: a
+sentence that wraps a link reaches a translator as fragments ("Open an issue on",
+"or use the contact form on the", "page."). That is deliberate. Keeping the markup
+out of the string is what lets the builder put translations back into the English
+page without parsing HTML, and it keeps a mistranslated href out of the map.
+
+The cost is that fragments cannot be reordered, so an SOV language (Tamil, Telugu,
+Kannada, Malayalam) has to glue them back in English order and the sentence reads
+as translated English. Where word order matters, write the sentence as one full
+sentence inside a single text node instead of splitting it around a link.
+
+Unmatched attribute values (`alt`, `title`, `aria-label`, `placeholder`) fail the
+build exactly like unmatched text nodes do. They used to pass silently, which
+shipped English attributes inside a page that declares another language.
+
+The `<slug>.meta.json` files (localized `<title>` and description) are hand
+maintained input, not generated output. `seo-audit.mjs` enforces their budgets:
+title 65 characters, description 110 to 165.
+
 ### Adding a language
 
 1. Add it to `src/data/languages.ts` (slug, `htmlLang`, endonym, RTL flag).
@@ -162,9 +210,17 @@ and `netlify.toml` drift apart.
 
 ## Translating
 
-Batches are dispatched to translators with a brief in `translations/_batch*.md`.
-Each brief states the key set, the glossary terms, and what stays literal. A
-translator must read the file back from disk and verify counts and placeholder
+Batches were dispatched to translators with a brief in `translations/_batch*.md`
+and a matching insert/verify script under `translations/` or `site/`. Those
+one-shot scripts and briefs have been deleted: their output is committed in
+`translations/*.json` and `site-translations/*.json`, nothing referenced them, and
+several could no longer run at all (a hardcoded absolute repository path, a
+key-count guard that was stale against the source, a baseline that lived in
+`/tmp`). The judgment calls each batch flagged are still readable in git history;
+they are no longer in the working tree, so a native review pass has to start from
+the commit that introduced the translations.
+
+A translator must read the file back from disk and verify counts and placeholder
 parity before reporting — a batch once reported success having written nothing,
 which is why read-back verification is mandatory and not optional.
 
@@ -175,5 +231,4 @@ next batch does not re-decide it.
 **Machine-drafted translations have not had a native review pass.** The
 glossary, placeholder parity, and structural checks catch mechanical errors;
 they cannot catch register, gender agreement, or a term that is technically
-correct but unused in a market. Each batch's brief records the judgment calls
-its translator flagged — those are the places to start a review.
+correct but unused in a market.

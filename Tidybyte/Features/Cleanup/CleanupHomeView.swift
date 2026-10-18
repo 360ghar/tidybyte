@@ -72,7 +72,10 @@ struct CleanupHomeView: View {
     private func section(for category: CleanupToolCategory) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(category.title)
+                // `LocalizedStringKey` so the heading stays a key rather than a
+                // rendered `String`, which would opt out of the `\.locale`
+                // re-render on a language switch. See `RootView`.
+                Text(LocalizedStringKey(category.title))
                     .font(.title3.bold())
 
                 Text(category.subtitle)
@@ -151,7 +154,7 @@ struct CleanupHomeView: View {
 
             HStack(alignment: .bottom, spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(tool.name)
+                    Text(LocalizedStringKey(tool.name))
                         .font(.subheadline.bold())
                         .foregroundStyle(.primary)
                         .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)

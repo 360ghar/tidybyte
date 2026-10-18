@@ -54,14 +54,25 @@ DERIVED="${DERIVED_DATA_PATH:-$ROOT/build/LocalizationDerivedData}"
 DESTINATION="${DESTINATION:-platform=iOS Simulator,name=iPhone 18 Pro}"
 
 echo "==> Building to emit .stringsdata"
-xcodebuild build \
+# The log is kept, not discarded. `set -e` aborts this script on a failed build,
+# so the FAIL branch below is only reachable when the build SUCCEEDED and left no
+# app `.stringsdata`: a case with no compiler error to read, where the useful
+# evidence is the warnings and the Intermediates.noindex layout in this log.
+mkdir -p "$DERIVED"
+BUILD_LOG="$DERIVED/build.log"
+if ! xcodebuild build \
   -project Tidybyte.xcodeproj \
   -scheme Tidybyte \
   -destination "$DESTINATION" \
   -derivedDataPath "$DERIVED" \
   -skipPackagePluginValidation \
   CODE_SIGNING_ALLOWED=NO \
-  > /dev/null
+  > "$BUILD_LOG" 2>&1; then
+  echo "FAIL: xcodebuild failed. Last 40 lines of $BUILD_LOG:" >&2
+  tail -40 "$BUILD_LOG" >&2
+  exit 1
+fi
+echo "    build log: $BUILD_LOG"
 
 echo "==> Syncing Xcode's extraction into the catalog"
 # The widget shares the app's catalog, so both targets' .stringsdata merge into
@@ -94,8 +105,16 @@ fi
 
 if [ -z "$APP_DATA" ]; then
   echo "FAIL: no app .stringsdata under $DERIVED" >&2
-  echo "      Xcode's keys would be missing from the catalog, so stop here" >&2
-  echo "      rather than merge a partial one. Check the build output above." >&2
+  echo "      The build succeeded, so there is no build error to read here. What is" >&2
+  echo "      missing is the compiler's string extraction, which means one of:" >&2
+  echo "        - DERIVED_DATA_PATH points somewhere other than a completed build" >&2
+  echo "        - the Tidybyte app target was not built (only the widget or a test)" >&2
+  echo "        - Intermediates.noindex is missing, so the build output is elsewhere" >&2
+  echo "      Found ${#INTERMEDIATES[@]} Intermediates.noindex dir(s) under $DERIVED." >&2
+  echo "      Xcode's keys would be missing from the catalog, so stop here rather" >&2
+  echo "      than merge a partial one." >&2
+  echo "      Last 40 lines of $BUILD_LOG:" >&2
+  tail -40 "$BUILD_LOG" >&2
   exit 1
 fi
 

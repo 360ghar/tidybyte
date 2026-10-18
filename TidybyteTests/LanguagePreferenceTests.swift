@@ -41,6 +41,20 @@ final class AppLanguageTests: XCTestCase {
         XCTAssertNil(AppLanguage.match(identifier: "zh-HK"))
     }
 
+    func testExplicitSimplifiedScriptOutranksATraditionalRegion() {
+        // These regions imply Traditional on their own, so without the script
+        // check they fell through to the English fallback even though
+        // `zh-Hans` ships.
+        XCTAssertEqual(AppLanguage.match(identifier: "zh-Hans-HK"), .chineseSimplified)
+        XCTAssertEqual(AppLanguage.match(identifier: "zh-Hans-TW"), .chineseSimplified)
+        XCTAssertEqual(AppLanguage.match(identifier: "zh-Hans-MO"), .chineseSimplified)
+        // An explicit Traditional script still loses to nothing: it stays
+        // unsupported, whatever region is attached.
+        XCTAssertNil(AppLanguage.match(identifier: "zh-Hant-TW"))
+        XCTAssertNil(AppLanguage.match(identifier: "zh-Hant-HK"))
+        XCTAssertNil(AppLanguage.match(identifier: "zh_Hant_TW"))
+    }
+
     func testUnshippedLanguageDoesNotMatch() {
         XCTAssertNil(AppLanguage.match(identifier: "th"))
         XCTAssertNil(AppLanguage.match(identifier: "vi"))
@@ -66,7 +80,8 @@ final class AppLanguageTests: XCTestCase {
 
     func testEveryLanguageExceptSystemHasTranslations() {
         // `system` is a mode, not a language, so it must not appear in the
-        // picker or in the translation coverage checks.
+        // picker. That a case really ships translations is asserted in
+        // `LanguageCoverageTests`; this only pins the shape of the list.
         XCTAssertFalse(AppLanguage.concreteLanguages.contains(.system))
         XCTAssertEqual(AppLanguage.concreteLanguages.count, AppLanguage.allCases.count - 1)
     }
@@ -113,6 +128,13 @@ final class LanguagePreferenceStoreTests: XCTestCase {
 
     override func tearDown() {
         suite.removePersistentDomain(forName: suiteName)
+        // `save(_:to:)` mirrors every write into `.standard` and the App Group,
+        // so clearing the scratch suite alone leaves the override behind in the
+        // test host. `L10n.currentOverride` reads App Group then `.standard`, so
+        // the leftover would resolve German for every later `L10n.string` in
+        // this process and for the next run in this simulator. Written through
+        // the store, so both copies are cleared by the code that wrote them.
+        LanguagePreferenceStore.save(nil)
         super.tearDown()
     }
 

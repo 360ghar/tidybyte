@@ -111,6 +111,7 @@
     "Compress Videos": "व्हिडिओ कंप्रेस करा",
     "Compress to save ~%@": "कंप्रेस करून ~%@ वाचवा",
     "Compress videos to save space": "जागा वाचवण्यासाठी व्हिडिओ कंप्रेस करा",
+    "Compressed %lld of %lld. %lld failed.": "%lld पैकी %lld कंप्रेस केले. %lld कंप्रेस करता आले नाहीत.",
     "Compressed photos and videos will appear here.": "कंप्रेस केलेले फोटो आणि व्हिडिओ इथे दिसतील.",
     "Compression History": "कंप्रेशन इतिहास",
     "Continue": "सुरू ठेवा",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo रूपांतरित करा",
     "Convert Live Photo to Still": "Live Photo चे स्टिलमध्ये रूपांतर करा",
     "Convert to stills & save space": "स्टिलमध्ये रूपांतरित करा आणि जागा वाचवा",
+    "Converted %lld of %lld. %lld failed.": "%lld पैकी %lld रूपांतरित केले. %lld रूपांतरित करता आले नाहीत.",
     "Converted to Still": "स्टिलमध्ये रूपांतरित",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "प्रती ठेवल्या. दोन्ही आवृत्त्या तुमच्या लायब्ररीत आहेत; कोणतीही एक फोटो अ‍ॅपमध्ये हटवा.",
     "Copy saved": "प्रत सेव्ह केली",
@@ -207,12 +209,14 @@
     "Failed": "अयशस्वी",
     "Failed to add to album: %@": "अल्बममध्ये जोडता आले नाही: %@",
     "Failed to create album.": "अल्बम तयार करता आला नाही.",
+    "Failed to create album: %@": "अल्बम तयार करता आला नाही: %@",
     "Failed to create export session.": "एक्सपोर्ट सेशन तयार करता आले नाही.",
     "Failed to load the photo.": "फोटो लोड करता आला नाही.",
     "Failed to re-encode the photo.": "फोटो पुन्हा एन्कोड करता आला नाही.",
     "Failed to read file size.": "फाइलचा आकार वाचता आला नाही.",
     "Failed to save compressed photo to library.": "कंप्रेस केलेला फोटो लायब्ररीत सेव्ह करता आला नाही.",
     "Failed to save compressed video to library.": "कंप्रेस केलेला व्हिडिओ लायब्ररीत सेव्ह करता आला नाही.",
+    "Failed to undo album change: %@": "अल्बम बदल पूर्ववत करता आला नाही: %@",
     "Favorite": "आवडते",
     "Feedback": "अभिप्राय",
     "File Size": "फाइलचा आकार",
@@ -720,6 +724,10 @@
     "used": "वापरले"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld अडचण सापडली",
+      "other": "%lld अडचणी सापडल्या"
+    },
     "%lld item": {
       "one": "%lld आयटम",
       "other": "%lld आयटम"

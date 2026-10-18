@@ -103,6 +103,21 @@ final class LargeFilesViewModel {
         L10n.format("Min size: %@", Int64(thresholdMB * 1_000_000).formattedFileSize)
     }
 
+    /// Text for the notice shown when a load or refresh drops picks that fell
+    /// below the slider. Static and pure so the count and the limit are testable
+    /// without a photo library, and so the limit renders through the same byte
+    /// formatter as every other size in this feature: `thresholdMB` is a Double
+    /// in megabytes, so passing it straight to the byte formatter rendered a
+    /// 10 MB limit as "10 bytes".
+    static func droppedSelectionNoticeText(count: Int, thresholdMB: Double) -> String {
+        L10n.format(
+            "%lld pick cleared: below the %@ size limit.",
+            fallback: "%lld picks cleared: below the %@ size limit.",
+            count,
+            Int64(thresholdMB * 1_000_000).formattedFileSize
+        )
+    }
+
     // MARK: - Filtering cache (LF-07)
 
     private var cachedFiltered: [AssetSummary]?
@@ -256,11 +271,9 @@ final class LargeFilesViewModel {
         droppedSelectionNotice = clearedBelowThreshold == 0
             ? nil
             : DroppedSelectionNotice(
-                text: L10n.format(
-                    "%lld pick cleared: below the %@ size limit.",
-                    fallback: "%lld picks cleared: below the %@ size limit.",
-                    clearedBelowThreshold,
-                    Int64(thresholdMB).formattedFileSize
+                text: Self.droppedSelectionNoticeText(
+                    count: clearedBelowThreshold,
+                    thresholdMB: thresholdMB
                 )
             )
         hasLoadedAssets = true

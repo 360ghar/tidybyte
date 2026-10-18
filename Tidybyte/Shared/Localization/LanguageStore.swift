@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 /// The live language and appearance state for the running app.
 ///
@@ -17,8 +18,9 @@ import SwiftUI
 ///    up the new language on the next launch. Settings offers an explicit link
 ///    to the iOS per-app language screen for exactly this reason.
 /// 2. **Other processes.** The widget and scheduled notifications render
-///    outside this app. They read the App Group mirror on their own schedule,
-///    so the widget refreshes at its next timeline reload.
+///    outside this app. They read the App Group mirror, and `setLanguage` asks
+///    WidgetKit to rebuild its timelines so the widget catches up instead of
+///    waiting for its next scheduled refresh.
 @Observable
 @MainActor
 final class LanguageStore {
@@ -77,9 +79,10 @@ final class LanguageStore {
         language = newValue
         LanguagePreferenceStore.save(newValue)
         applyToSystem(newValue)
-        // The widget's own text is in the chosen language; ask WidgetKit to
-        // rebuild so it is not stale until the next scheduled refresh.
-        WidgetRefresh.requestReload()
+        // The widget's own text is in the chosen language, so ask WidgetKit to
+        // rebuild its timelines rather than leaving them stale until the next
+        // scheduled refresh.
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Writes the choice where iOS reads it for app-owned but system-rendered
@@ -87,10 +90,12 @@ final class LanguageStore {
     /// (`Bundle.main`), which is what the permission alert, the Photos picker,
     /// and `UIActivityViewController` consult.
     ///
-    /// This is the documented per-app mechanism: iOS keeps the value in the
-    /// app's own preferences domain, so it is scoped to TidyByte and shows up
-    /// as the app's language in iOS Settings. Removing the key restores
-    /// "follow the device".
+    /// This is the key iOS's own per-app language screen writes, and it is
+    /// app-scoped: it lives in TidyByte's preferences domain, so it shows up as
+    /// the app's language in iOS Settings and is honored on the next launch.
+    /// It is not a documented API for apps to write, and the app's own
+    /// rendering never depends on it: `\.locale` and `L10n` resolve from the
+    /// stored preference above. Removing the key restores "follow the device".
     private func applyToSystem(_ language: AppLanguage) {
         if let code = language.code {
             UserDefaults.standard.set([code], forKey: "AppleLanguages")
@@ -113,27 +118,3 @@ extension ColorSchemeChoice {
     }
 }
 
-/// Asks WidgetKit to reload timelines, without importing WidgetKit into the app
-/// target (the app links WidgetKit for nothing else).
-enum WidgetRefresh {    static func requestReload() {
-        // `WidgetCenter` is available to the app, but reaching it through
-        // NotificationCenter keeps this file free of a WidgetKit import and
-        // keeps the call safe in unit tests where no widget host exists.
-        #if canImport(WidgetKit)
-        Task { @MainActor in
-            WidgetCenterBridge.reload()
-        }
-        #endif
-    }
-}
-
-#if canImport(WidgetKit)
-import WidgetKit
-
-private enum WidgetCenterBridge {
-    @MainActor
-    static func reload() {
-        WidgetCenter.shared.reloadAllTimelines()
-    }
-}
-#endif

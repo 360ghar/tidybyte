@@ -111,6 +111,7 @@
     "Compress Videos": "வீடியோக்களைச் சுருக்கு",
     "Compress to save ~%@": "சுருக்கி ~%@ சேமியுங்கள்",
     "Compress videos to save space": "இடத்தைச் சேமிக்க வீடியோக்களைச் சுருக்கு",
+    "Compressed %lld of %lld. %lld failed.": "%lld-இல் %lld சுருக்கப்பட்டன. %lld சுருக்க முடியவில்லை.",
     "Compressed photos and videos will appear here.": "சுருக்கிய புகைப்படங்களும் வீடியோக்களும் இங்கே தோன்றும்.",
     "Compression History": "சுருக்க வரலாறு",
     "Continue": "தொடர்",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo-ஐ மாற்று",
     "Convert Live Photo to Still": "Live Photo-ஐ நிலைப்படமாக மாற்று",
     "Convert to stills & save space": "நிலைப்படங்களாக மாற்றி இடத்தைச் சேமி",
+    "Converted %lld of %lld. %lld failed.": "%lld-இல் %lld மாற்றப்பட்டன. %lld மாற்ற முடியவில்லை.",
     "Converted to Still": "நிலைப்படமாக மாற்றப்பட்டது",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "நகல்கள் வைக்கப்பட்டன. இரண்டு பதிப்புகளும் உங்கள் நூலகத்தில் உள்ளன; புகைப்படங்களில் ஏதேனும் ஒன்றை நீக்கவும்.",
     "Copy saved": "நகல் சேமிக்கப்பட்டது",
@@ -207,12 +209,14 @@
     "Failed": "தோல்வி",
     "Failed to add to album: %@": "ஆல்பமில் சேர்க்க முடியவில்லை: %@",
     "Failed to create album.": "ஆல்பத்தை உருவாக்க முடியவில்லை.",
+    "Failed to create album: %@": "ஆல்பத்தை உருவாக்க முடியவில்லை: %@",
     "Failed to create export session.": "ஏற்றுமதி அமர்வை உருவாக்க முடியவில்லை.",
     "Failed to load the photo.": "புகைப்படத்தை ஏற்ற முடியவில்லை.",
     "Failed to re-encode the photo.": "புகைப்படத்தை மீண்டும் என்கோட் செய்ய முடியவில்லை.",
     "Failed to read file size.": "கோப்பு அளவைப் படிக்க முடியவில்லை.",
     "Failed to save compressed photo to library.": "சுருக்கிய புகைப்படத்தை நூலகத்தில் சேமிக்க முடியவில்லை.",
     "Failed to save compressed video to library.": "சுருக்கிய வீடியோவை நூலகத்தில் சேமிக்க முடியவில்லை.",
+    "Failed to undo album change: %@": "ஆல்ப மாற்றத்தை மீளச் செய்ய முடியவில்லை: %@",
     "Favorite": "பிடித்தவை",
     "Feedback": "கருத்து",
     "File Size": "கோப்பு அளவு",
@@ -720,6 +724,10 @@
     "used": "பயன்படுத்தப்பட்டது"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld பிரச்சினை கண்டறியப்பட்டது",
+      "other": "%lld பிரச்சினைகள் கண்டறியப்பட்டன"
+    },
     "%lld item": {
       "one": "%lld உருப்படி",
       "other": "%lld உருப்படிகள்"

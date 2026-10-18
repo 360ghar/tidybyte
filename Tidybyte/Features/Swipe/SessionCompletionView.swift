@@ -168,10 +168,11 @@ struct SessionCompletionView: View {
                 ToolErrorBanner(
                     // Already localized at the source: the view model builds it
                     // with `L10n.format` and appends the system's
-                    // `localizedDescription`. The lookup therefore misses and
-                    // falls back to the text as-is, which is what we want.
-                    message: LocalizedStringKey(message),
-                    title: "Deletion Error",
+                    // `localizedDescription`. It is final text, so it renders
+                    // verbatim: a lookup would miss, and `Text` would apply
+                    // Markdown to a file name inside the system's sentence.
+                    message: .runtimeText(message),
+                    title: .key("Deletion Error"),
                     onRetry: {
                         viewModel.deletionErrorMessage = nil
                         Task { await viewModel.commitDeletions() }

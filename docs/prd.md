@@ -727,8 +727,10 @@ shows in Settings, because the surrounding copy tells the user to go look there.
 
 - **Machine-drafted translations ship with a review flag.** The 20 locales were
   drafted by translators and are marked for native review; `check.mjs --strict`
-  tracks coverage, not quality. The batches' flagged judgment calls are recorded in
-  `scripts/localization/translations/_batch*.md`.
+  tracks coverage, not quality. The judgment calls the drafting batches flagged
+  are readable in git history, since the one-shot batch scripts that recorded them
+  were deleted once their output was committed; see
+  `scripts/localization/README.md` for where a native review pass starts.
 - **Blog posts stay English.** A translated post that goes stale is worse for trust
   than an English one that is current. Only the landing page and the App Store
   listing are localized.

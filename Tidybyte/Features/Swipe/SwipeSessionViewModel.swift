@@ -448,7 +448,7 @@ final class SwipeSessionViewModel {
                 currentIndex = max(0, currentIndex - 1)
                 deleteSwipeRecord(for: entry.asset.id)
             } catch {
-                errorMessage = "Failed to undo album change: \(error.localizedDescription)"
+                errorMessage = L10n.format("Failed to undo album change: %@", error.localizedDescription)
             }
         case .skipped:
             undoStack.removeLast()

@@ -111,6 +111,7 @@
     "Compress Videos": "Videos komprimieren",
     "Compress to save ~%@": "Komprimieren und ~%@ sparen",
     "Compress videos to save space": "Komprimiere Videos, um Speicherplatz zu sparen",
+    "Compressed %lld of %lld. %lld failed.": "%lld von %lld komprimiert. %lld konnten nicht komprimiert werden.",
     "Compressed photos and videos will appear here.": "Komprimierte Fotos und Videos erscheinen hier.",
     "Compression History": "Komprimierungsverlauf",
     "Continue": "Weiter",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo konvertieren",
     "Convert Live Photo to Still": "Live Photo in Standbild konvertieren",
     "Convert to stills & save space": "In Standbilder konvertieren und Platz sparen",
+    "Converted %lld of %lld. %lld failed.": "%lld von %lld konvertiert. %lld konnten nicht konvertiert werden.",
     "Converted to Still": "In Standbild konvertiert",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "Kopien behalten. Beide Versionen sind in deiner Mediathek; lösche eine davon in Fotos.",
     "Copy saved": "Kopie gesichert",
@@ -207,12 +209,14 @@
     "Failed": "Fehlgeschlagen",
     "Failed to add to album: %@": "Zum Album hinzufügen fehlgeschlagen: %@",
     "Failed to create album.": "Album konnte nicht erstellt werden.",
+    "Failed to create album: %@": "Album konnte nicht erstellt werden: %@",
     "Failed to create export session.": "Exportsitzung konnte nicht erstellt werden.",
     "Failed to load the photo.": "Das Foto konnte nicht geladen werden.",
     "Failed to re-encode the photo.": "Das Foto konnte nicht neu kodiert werden.",
     "Failed to read file size.": "Dateigröße konnte nicht gelesen werden.",
     "Failed to save compressed photo to library.": "Das komprimierte Foto konnte nicht in der Mediathek gesichert werden.",
     "Failed to save compressed video to library.": "Das komprimierte Video konnte nicht in der Mediathek gesichert werden.",
+    "Failed to undo album change: %@": "Albumänderung konnte nicht rückgängig gemacht werden: %@",
     "Favorite": "Favorit",
     "Feedback": "Feedback",
     "File Size": "Dateigröße",
@@ -720,6 +724,10 @@
     "used": "belegt"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld Problem gefunden",
+      "other": "%lld Probleme gefunden"
+    },
     "%lld item": {
       "one": "%lld Objekt",
       "other": "%lld Objekte"

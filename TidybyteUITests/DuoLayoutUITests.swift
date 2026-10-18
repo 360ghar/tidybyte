@@ -92,10 +92,12 @@ final class DuoLayoutUITests: XCTestCase {
 
     /// Interactive controls whose frame intersects the leading or trailing edge
     /// band (`min(width, height) * 0.08`). Candidates are deduplicated by
-    /// kind+label+frame: the same element is reachable through
-    /// `app.tabBars.buttons` and `app.buttons`, and the more specific
-    /// classification must win, or an allowlisted tab item is re-added as an
-    /// un-allowlisted plain button.
+    /// label+frame, deliberately without the kind: the same element is reachable
+    /// through `app.tabBars.buttons` and again through `app.buttons`, and the
+    /// collection order below visits the more specific containers first, so the
+    /// allowlisted `tabItem` classification wins. Keying on the kind stored the
+    /// plain `button` copy as a second candidate, which is not allowlisted and
+    /// failed the band check on a control this test means to exempt.
     private func edgeBandViolations(in app: XCUIApplication, window: CGRect) -> [String] {
         let band = min(window.width, window.height) * 0.08
         let leading = CGRect(x: window.minX, y: window.minY, width: band, height: window.height)
@@ -107,7 +109,7 @@ final class DuoLayoutUITests: XCTestCase {
             guard element.exists else { return }
             let frame = element.frame
             guard !frame.isEmpty, frame.intersects(window) else { return }
-            guard seen.insert("\(kind)|\(element.label)|\(frame)").inserted else { return }
+            guard seen.insert("\(element.label)|\(frame)").inserted else { return }
             candidates.append((kind, element.label, frame))
         }
         app.tabBars.buttons.allElementsBoundByIndex.forEach { collect($0, kind: "tabItem") }

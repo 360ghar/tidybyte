@@ -71,6 +71,10 @@ struct CardView: View {
     /// card (its fling target); nil for the cards behind. Read only by the
     /// root offset and the stamp overlay, so a drag frame re-renders little.
     var motion: CardMotion? = nil
+    /// True in an Arabic or Hebrew layout. The deck's commit policy mirrors the
+    /// horizontal axis there (see `SwipeDirection.resolve`), so the drag stamps
+    /// must mirror with it or the screen names the wrong action.
+    var isRightToLeft: Bool = false
     /// Incremented by SwipeSessionView's "Zoom" accessibility action; CardView
     /// toggles zoom on change (only the top card receives a non-zero value).
     var zoomToggleRequest: Int = 0
@@ -268,7 +272,7 @@ struct CardView: View {
 
                 // Swipe indicators
                 if let motion {
-                    SwipeStampOverlay(motion: motion)
+                    SwipeStampOverlay(motion: motion, isRightToLeft: isRightToLeft)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
@@ -693,9 +697,16 @@ struct CardView: View {
 /// view so a drag frame re-evaluates only this and the root offset.
 private struct SwipeStampOverlay: View {
     let motion: CardMotion
+    /// Mirrors the DELETE/KEEP pair for Arabic and Hebrew, matching the action
+    /// the deck will commit. The ALBUM stamp below is left alone: up is up in
+    /// both directions.
+    let isRightToLeft: Bool
 
-    private var deleteOpacity: Double { min(max(-Double(motion.offset.width) / 150.0, 0), 1.0) }
-    private var keepOpacity: Double { min(max(Double(motion.offset.width) / 150.0, 0), 1.0) }
+    private var stamps: (delete: Double, keep: Double) {
+        SwipeDirection.stampOpacities(offset: motion.offset, isRightToLeft: isRightToLeft)
+    }
+    private var deleteOpacity: Double { stamps.delete }
+    private var keepOpacity: Double { stamps.keep }
     private var albumOpacity: Double { min(max(-Double(motion.offset.height) / 150.0, 0), 1.0) }
 
     var body: some View {

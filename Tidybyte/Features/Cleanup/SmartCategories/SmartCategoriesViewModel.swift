@@ -225,7 +225,9 @@ final class SmartCategoriesViewModel {
 
         guard scanEpoch == ScanResults.epoch else {
             scanState = .idle
-            errorMessage = "Your library changed during analysis. Scan again for current results."
+            // Same sentence as Blurry Photos, so the two scans share one
+            // catalog entry instead of one of them shipping English.
+            errorMessage = L10n.string("Your library changed during analysis. Scan again for current results.")
             return
         }
         skippedAnalysisCount = max(0, photoCount - results.filter(\.wasAnalyzed).count)

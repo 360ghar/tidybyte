@@ -6,6 +6,7 @@ import {
   htmlToMarkdown,
   plainDescription,
   plainTitle,
+  stripBodyH1,
   urlFor,
 } from "../lib/llms";
 import { renderToolMarkdown } from "../lib/tool-page";
@@ -32,14 +33,18 @@ export const GET: APIRoute = ({ params }) => {
   const body = [
     // The document's H1 should match the page's visible H1. For tools that is
     // the keyword H1, not the SEO title (which carries a "| TidyByte" suffix).
+    // The source content carries its own H1, so the body's copy is stripped
+    // below: the heading here is the page's real title, and two H1s in one
+    // document is what the reviewer flagged.
     `# ${tool ? plain(tool.h1) : plainTitle(meta)}`,
     "",
-    `> ${plainDescription(meta)}`,
-    "",
-    // Tool pages get their comparison table and FAQs rendered from the same
-    // source the HTML uses, so the two can never drift apart.
-    ...(tool ? [renderToolMarkdown(slug), "", "## Full page text", ""] : []),
-    htmlToMarkdown(contentFor(route)),
+    // Tool pages get their description, comparison table and FAQs from
+    // `renderToolMarkdown`, which opens with the same `> description`
+    // blockquote, so emitting it here as well printed it twice.
+    ...(tool
+      ? [renderToolMarkdown(slug), "", "## Full page text", ""]
+      : [`> ${plainDescription(meta)}`, ""]),
+    stripBodyH1(htmlToMarkdown(contentFor(route))),
     "",
     `Canonical URL: ${urlFor(route)}`,
     "",

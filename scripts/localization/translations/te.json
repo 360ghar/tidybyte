@@ -111,6 +111,7 @@
     "Compress Videos": "వీడియోలను కుదించండి",
     "Compress to save ~%@": "కుదించి ~%@ ఆదా చేయండి",
     "Compress videos to save space": "స్థలం ఆదా చేయడానికి వీడియోలను కుదించండి",
+    "Compressed %lld of %lld. %lld failed.": "%lldలో %lld కుదించబడ్డాయి. %lld కుదించలేకపోయాం.",
     "Compressed photos and videos will appear here.": "కుదించిన ఫోటోలు మరియు వీడియోలు ఇక్కడ కనిపిస్తాయి.",
     "Compression History": "కుదింపు చరిత్ర",
     "Continue": "కొనసాగించు",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo మార్చండి",
     "Convert Live Photo to Still": "Live Photoను స్థిర చిత్రంగా మార్చండి",
     "Convert to stills & save space": "స్థిర చిత్రాలుగా మార్చి స్థలం ఆదా చేయండి",
+    "Converted %lld of %lld. %lld failed.": "%lldలో %lld మార్చబడ్డాయి. %lld మార్చలేకపోయాం.",
     "Converted to Still": "స్థిర చిత్రంగా మార్చబడింది",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "కాపీలు ఉంచబడ్డాయి. రెండు వెర్షన్లు మీ లైబ్రరీలో ఉన్నాయి; ఫోటోలలో ఏదైనా ఒకటి తొలగించండి.",
     "Copy saved": "కాపీ సేవ్ అయింది",
@@ -207,12 +209,14 @@
     "Failed": "విఫలమైంది",
     "Failed to add to album: %@": "ఆల్బమ్కు జోడించడం విఫలమైంది: %@",
     "Failed to create album.": "ఆల్బమ్ను సృష్టించలేకపోయాం.",
+    "Failed to create album: %@": "ఆల్బమ్ను సృష్టించలేకపోయాం: %@",
     "Failed to create export session.": "ఎగుమతి సెషన్ను సృష్టించలేకపోయాం.",
     "Failed to load the photo.": "ఫోటోను లోడ్ చేయలేకపోయాం.",
     "Failed to re-encode the photo.": "ఫోటోను మళ్లీ ఎన్కోడ్ చేయలేకపోయాం.",
     "Failed to read file size.": "ఫైల్ పరిమాణాన్ని చదవలేకపోయాం.",
     "Failed to save compressed photo to library.": "కుదించిన ఫోటోను లైబ్రరీలో సేవ్ చేయడం విఫలమైంది.",
     "Failed to save compressed video to library.": "కుదించిన వీడియోను లైబ్రరీలో సేవ్ చేయడం విఫలమైంది.",
+    "Failed to undo album change: %@": "ఆల్బమ్ మార్పును వెనక్కి తీసుకోలేకపోయాం: %@",
     "Favorite": "ఇష్టమైనవి",
     "Feedback": "అభిప్రాయం",
     "File Size": "ఫైల్ పరిమాణం",
@@ -720,6 +724,10 @@
     "used": "వాడబడింది"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld సమస్య కనుగొనబడింది",
+      "other": "%lld సమస్యలు కనుగొనబడ్డాయి"
+    },
     "%lld item": {
       "one": "%lld అంశం",
       "other": "%lld అంశాలు"

@@ -159,8 +159,13 @@ it on surfaces. `plan.mjs` describes the second half.
 | `growth/header-and-search` search | search-results creative | `appStoreVersionLocalization` |
 | `growth/in-app-events` card | `EVENT_CARD_ASSET` | `appEventLocalization` |
 | `growth/in-app-events` details | `EVENT_DETAILS_ASSET` | `appEventLocalization` |
-| `growth/custom-product-pages` | `APP_SCREENSHOT` | `appCustomProductPageLocalization` |
-| `growth/product-page-optimization` | `APP_SCREENSHOT` | `appStoreVersionExperimentTreatmentLocalization` |
+| `growth/custom-product-pages` | search-results creative | `appCustomProductPageLocalization` |
+| `growth/product-page-optimization` | search-results creative | `appStoreVersionExperimentTreatmentLocalization` |
+
+Both of those surfaces render the 3:2 search-results creative, not a screenshot,
+so `plan.mjs` sends `APP_STORE_SEARCH_RESULTS_ASSET` with category
+`CREATIVE_ASSETS`. Sending them as `APP_SCREENSHOT` fails: screenshots are
+validated against device dimensions and 2400x1600 is not one of them.
 
 Placement groups are **never hard-coded**. They name a display target rather than
 a device — Apple's required iPhone row is `IPHONE_DYNAMIC_ISLAND_*`, which Apple

@@ -111,6 +111,7 @@
     "Compress Videos": "ضغط الفيديوهات",
     "Compress to save ~%@": "اضغط لتوفير ~%@",
     "Compress videos to save space": "اضغط الفيديوهات لتوفير المساحة",
+    "Compressed %lld of %lld. %lld failed.": "تم ضغط %lld من أصل %lld. تعذر ضغط %lld.",
     "Compressed photos and videos will appear here.": "ستظهر هنا الصور والفيديوهات المضغوطة.",
     "Compression History": "سجل الضغط",
     "Continue": "متابعة",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "تحويل Live Photo",
     "Convert Live Photo to Still": "تحويل Live Photo إلى صورة ثابتة",
     "Convert to stills & save space": "حوّل إلى صور ثابتة ووفّر المساحة",
+    "Converted %lld of %lld. %lld failed.": "تم تحويل %lld من أصل %lld. تعذر تحويل %lld.",
     "Converted to Still": "تم التحويل إلى صورة ثابتة",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "تم الاحتفاظ بالنسخ. النسختان موجودتان في مكتبتك؛ احذف أيًّا منهما في «الصور».",
     "Copy saved": "تم حفظ النسخة",
@@ -207,12 +209,14 @@
     "Failed": "فشل",
     "Failed to add to album: %@": "فشل الإضافة إلى الألبوم: %@",
     "Failed to create album.": "تعذر إنشاء الألبوم.",
+    "Failed to create album: %@": "تعذر إنشاء الألبوم: %@",
     "Failed to create export session.": "تعذر إنشاء جلسة التصدير.",
     "Failed to load the photo.": "تعذر تحميل الصورة.",
     "Failed to re-encode the photo.": "تعذر إعادة ترميز الصورة.",
     "Failed to read file size.": "تعذر قراءة حجم الملف.",
     "Failed to save compressed photo to library.": "تعذر حفظ الصورة المضغوطة في المكتبة.",
     "Failed to save compressed video to library.": "تعذر حفظ الفيديو المضغوط في المكتبة.",
+    "Failed to undo album change: %@": "تعذر التراجع عن تغيير الألبوم: %@",
     "Favorite": "المفضلة",
     "Feedback": "الملاحظات",
     "File Size": "حجم الملف",
@@ -720,6 +724,14 @@
     "used": "مستخدم"
   },
   "plurals": {
+    "%lld issues found": {
+      "zero": "تم العثور على %lld مشكلات",
+      "one": "تم العثور على %lld مشكلة",
+      "two": "تم العثور على %lld مشكلتين",
+      "few": "تم العثور على %lld مشكلات",
+      "many": "تم العثور على %lld مشكلة",
+      "other": "تم العثور على %lld مشكلة"
+    },
     "%lld item": {
       "zero": "%lld عناصر",
       "one": "%lld عنصر",

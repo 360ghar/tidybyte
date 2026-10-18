@@ -216,6 +216,101 @@ final class SwipeFlowRegressionTests: XCTestCase {
         XCTAssertFalse(vm.hasPendingDeletions)
     }
 
+    // MARK: - RTL stamps: the stamp must name the action that commits
+
+    /// In a left-to-right layout a right-drag keeps the photo, so KEEP is the
+    /// stamp that lights up.
+    func testStampOpacitiesLTRRightDragShowsKeep() {
+        let stamps = SwipeDirection.stampOpacities(offset: CGSize(width: 90, height: 0), isRightToLeft: false)
+        XCTAssertGreaterThan(stamps.keep, 0)
+        XCTAssertEqual(stamps.delete, 0)
+    }
+
+    /// The destructive regression: in Arabic or Hebrew the SAME right-drag
+    /// deletes the photo, because `resolve` mirrors the horizontal axis there.
+    /// Direction-blind stamps showed KEEP while the photo was deleted.
+    func testStampOpacitiesRTLRightDragShowsDelete() {
+        let stamps = SwipeDirection.stampOpacities(offset: CGSize(width: 90, height: 0), isRightToLeft: true)
+        XCTAssertGreaterThan(stamps.delete, 0)
+        XCTAssertEqual(stamps.keep, 0)
+    }
+
+    /// Full strength at 150pt of drag, clamped above it, linear below, and
+    /// nothing lit at rest.
+    func testStampOpacitiesRampAndClamp() {
+        func keep(_ width: CGFloat) -> Double {
+            SwipeDirection.stampOpacities(offset: CGSize(width: width, height: 0), isRightToLeft: false).keep
+        }
+        XCTAssertEqual(keep(75), 0.5)
+        XCTAssertEqual(keep(150), 1.0)
+        XCTAssertEqual(keep(900), 1.0)
+        XCTAssertEqual(
+            SwipeDirection.stampOpacities(offset: .zero, isRightToLeft: true).delete,
+            0,
+            "a drag that has not moved must light no stamp"
+        )
+    }
+
+    /// The guard that matters: for a threshold-crossing drag in either direction
+    /// and either layout direction, the lit stamp names the action `resolve`
+    /// commits. A drag under the threshold has not committed yet, so its stamp
+    /// is only a preview of the side it would commit on.
+    func testStampOpacitiesAgreeWithResolve() {
+        let width: CGFloat = 300 // commit threshold 120
+        for isRightToLeft in [false, true] {
+            for drag in [CGSize(width: 200, height: 0), CGSize(width: -200, height: 0)] {
+                let direction = SwipeDirection.resolve(
+                    translation: drag,
+                    predicted: .zero,
+                    cardWidth: width,
+                    cardHeight: width,
+                    isRightToLeft: isRightToLeft
+                )
+                let stamps = SwipeDirection.stampOpacities(offset: drag, isRightToLeft: isRightToLeft)
+                let lit: SwipeDirection? = stamps.keep > 0 ? .keep : (stamps.delete > 0 ? .delete : nil)
+                XCTAssertEqual(
+                    lit,
+                    direction,
+                    "RTL=\(isRightToLeft) drag=\(drag) must show the action resolve commits"
+                )
+                XCTAssertFalse(
+                    stamps.keep > 0 && stamps.delete > 0,
+                    "DELETE and KEEP must never be lit at the same time"
+                )
+            }
+        }
+    }
+
+    /// A drag that has not reached the commit threshold lights a stamp without
+    /// committing anything. The stamp still has to sit on the mirrored side, so
+    /// the preview never contradicts the release.
+    func testSubThresholdStampPreviewsTheMirroredSide() {
+        let width: CGFloat = 300 // commit threshold 120
+        for isRightToLeft in [false, true] {
+            for drag in [CGSize(width: 60, height: 0), CGSize(width: -60, height: 0)] {
+                XCTAssertNil(
+                    SwipeDirection.resolve(
+                        translation: drag,
+                        predicted: .zero,
+                        cardWidth: width,
+                        cardHeight: width,
+                        isRightToLeft: isRightToLeft
+                    ),
+                    "60pt is under the 120pt threshold"
+                )
+                let stamps = SwipeDirection.stampOpacities(offset: drag, isRightToLeft: isRightToLeft)
+                let lit: SwipeDirection? = stamps.keep > 0 ? .keep : (stamps.delete > 0 ? .delete : nil)
+                let forward = isRightToLeft ? -drag.width : drag.width
+                let expected: SwipeDirection = forward > 0 ? .keep : .delete
+                XCTAssertEqual(
+                    lit,
+                    expected,
+                    "RTL=\(isRightToLeft) drag=\(drag) previews the wrong side"
+                )
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private func makeAsset(id: String) -> AssetSummary {

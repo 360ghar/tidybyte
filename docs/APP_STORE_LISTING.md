@@ -65,6 +65,8 @@ Length: **157 chars** ✅ (Promotional text can be updated anytime without a new
 ```
 TidyByte is the fastest, most private way to clean up your iPhone photo library — and it's completely free.
 
+TidyByte runs on iPhone, iPad, and iPhone Duo — and stays out of your way while it cleans.
+
 Tired of "Storage Almost Full"? TidyByte turns photo cleanup into something you'll actually finish. Swipe left to delete, swipe right to keep — review your whole library one photo at a time, just like a dating app, and reclaim gigabytes in minutes.
 
 Beyond swiping, TidyByte packs a full toolkit of smart cleanup tools that surface exactly what's wasting your space: exact and visual duplicates, near-identical similar shots, blurry or poorly-lit photos, screenshots, screen recordings, chat media saved by messaging apps, burst sequences, and your largest files. Convert Live Photos to stills and compress videos and photos to save even more — without deleting your memories.
@@ -79,7 +81,7 @@ Features:
 • Similar photos — group near-identical shots taken close together
 • Blurry photo detection — find out-of-focus and poorly-exposed shots
 • Screenshot cleaner — round up and clear screenshots
-• Screen recording cleaner — clear the largest forgotten files
+• Screen recording cleaner — clear forgotten screen recordings, largest first
 • Chat media cleaner — review what WhatsApp, Telegram and other messengers saved
 • Burst cleaner — pick the best from burst sequences
 • Smart Categories — sort photos by content type, with on-device AI search in plain words
@@ -334,13 +336,15 @@ App Store Connect's field limits recorded in `_limits` so they cannot drift from
 | `node scripts/localization/check-listings.mjs` | Validates every field: character limits, empty values, keyword hygiene (no space after a comma, no term repeated from the subtitle), and that `name` is `TidyByte` in every language. |
 | `node scripts/localization/check-listings.mjs --strict` | The same, but also fails while any language is untranslated. All 20 languages are translated, and this is what CI runs. |
 
-**Two fields need a human before submission:**
+**Subtitle and keywords carry the ASO weight:**
 
-1. **Subtitle** — this document offers four candidates (§1). `listings.json` currently
-   carries option F, `Photo cleaner, free space`. The choice is load-bearing for ASO:
+1. **Subtitle** — the decision is **closed**: option **I**, `Clean photos, free up storage`
+   (29 chars), ships, and `listings.json` already carries it in all 21 locales. Option I
+   was chosen from the nine candidates listed in §1. The choice is load-bearing for ASO:
    Apple indexes the app name, subtitle, and keyword field together, so whichever
-   subtitle ships decides which words must be removed from the keyword field. Change
-   `en.subtitle` and re-translate that one field in all 20 languages.
+   subtitle ships decides which words must be removed from the keyword field. If the
+   subtitle changes again, change `en.subtitle` and re-translate that one field in all
+   20 languages.
 2. **Keywords** — tuned against the subtitle in use. See §4 for the per-subtitle
    variants and the reasoning.
 

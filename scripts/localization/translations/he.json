@@ -111,6 +111,7 @@
     "Compress Videos": "כווץ סרטונים",
     "Compress to save ~%@": "כווץ כדי לחסוך ~%@",
     "Compress videos to save space": "כווץ סרטונים כדי לפנות מקום",
+    "Compressed %lld of %lld. %lld failed.": "כווצו %lld מתוך %lld. %lld לא ניתן היה לכווץ.",
     "Compressed photos and videos will appear here.": "תמונות וסרטונים מכווצים יופיעו כאן.",
     "Compression History": "היסטוריית כיווץ",
     "Continue": "המשך",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "המר Live Photo",
     "Convert Live Photo to Still": "המר Live Photo לתמונה סטטית",
     "Convert to stills & save space": "המר לתמונות סטטיות ופנה מקום",
+    "Converted %lld of %lld. %lld failed.": "הומרו %lld מתוך %lld. %lld לא ניתן היה להמיר.",
     "Converted to Still": "הומר לתמונה סטטית",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "העותקים נשמרו. שתי הגרסאות נמצאות בספרייה שלך; מחק אחת מהן בתמונות.",
     "Copy saved": "העותק נשמר",
@@ -207,12 +209,14 @@
     "Failed": "נכשל",
     "Failed to add to album: %@": "הוספה לאלבום נכשלה: %@",
     "Failed to create album.": "יצירת האלבום נכשלה.",
+    "Failed to create album: %@": "יצירת האלבום נכשלה: %@",
     "Failed to create export session.": "יצירת סשן הייצוא נכשלה.",
     "Failed to load the photo.": "טעינת התמונה נכשלה.",
     "Failed to re-encode the photo.": "קידוד התמונה מחדש נכשל.",
     "Failed to read file size.": "קריאת גודל הקובץ נכשלה.",
     "Failed to save compressed photo to library.": "שמירת התמונה המכווצת לספרייה נכשלה.",
     "Failed to save compressed video to library.": "שמירת הסרטון המכווץ לספרייה נכשלה.",
+    "Failed to undo album change: %@": "ביטול שינוי האלבום נכשל: %@",
     "Favorite": "מועדפים",
     "Feedback": "משוב",
     "File Size": "גודל קובץ",
@@ -720,6 +724,11 @@
     "used": "בשימוש"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "נמצאה %lld בעיה",
+      "two": "נמצאו %lld בעיות",
+      "other": "נמצאו %lld בעיות"
+    },
     "%lld item": {
       "one": "%lld פריט",
       "two": "%lld פריטים",

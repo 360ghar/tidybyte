@@ -27,8 +27,14 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(AppPreferences.largeFileThresholdMB(in: defaults), 10.0)
         XCTAssertEqual(AppPreferences.defaultCompressionPresetID(in: defaults), "1080p")
         XCTAssertFalse(AppPreferences.remindersEnabled(in: defaults))
-        // APP-13: unset weekday falls back to 1 (Sunday) to match Settings' default.
-        XCTAssertEqual(AppPreferences.reminderWeekday(in: defaults), 1)
+        // APP-13: an unset weekday falls back to the device's first day of the
+        // week, which Settings seeds its picker from on first appear. Asserting
+        // the literal 1 would only hold on a Sunday-first device, so compare
+        // against the same source of truth the fallback uses.
+        XCTAssertEqual(AppPreferences.reminderWeekday(in: defaults), Formatters.firstWeekday())
+        // A stored value outside 1...7 is unset, not a weekday.
+        defaults.set(9, forKey: AppPreferences.Key.reminderWeekday)
+        XCTAssertEqual(AppPreferences.reminderWeekday(in: defaults), Formatters.firstWeekday())
         XCTAssertEqual(AppPreferences.recentAlbumIds(in: defaults), [])
     }
 

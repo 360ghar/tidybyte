@@ -55,6 +55,10 @@
     "one": "%lld iCloud-only photo skipped (not on this device)",
     "other": "%lld iCloud-only photos skipped (not on this device)"
   },
+  "%lld issues found": {
+    "one": "%lld issue found",
+    "other": "%lld issues found"
+  },
   "%lld item": {
     "one": "%lld item",
     "other": "%lld items"

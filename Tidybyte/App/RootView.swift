@@ -30,6 +30,13 @@ struct RootView: View {
         // that Skip performs, so the cover could never be dismissed.
         if ProcessInfo.processInfo.arguments.contains("-uitest-reset-onboarding") {
             UserDefaults.standard.removeObject(forKey: AppPreferences.Key.hasCompletedOnboarding)
+            // The stored language override outranks iOS's `AppleLanguages`,
+            // which the UI tests pin to English for their label lookups. A
+            // simulator left in German by a previous hand-check would render
+            // German and fail every English assertion, so clear it here too.
+            // Written through the store so both stores (App Group and standard)
+            // are cleared by the same code that writes them.
+            LanguagePreferenceStore.save(nil)
         }
         #endif
 
@@ -102,16 +109,25 @@ struct RootView: View {
         // chosen language; verified in the simulator that a child view which
         // never reads the environment still re-renders when this changes.
         //
-        // `.id` is the belt to that suspenders. Views that build their text in
-        // code (`Text(tool.name)`, where `name` is a computed `String`) do not
-        // read `\.locale`, so SwiftUI has no reason to re-run their bodies.
-        // Keying the tree on the language forces a full rebuild on a switch,
-        // which is a rare, deliberate action — and `AppNavigation` lives in
-        // `@State` above this point, so the user's navigation stack and
-        // in-flight selection survive the rebuild.
+        // Text that is built in code (`Text(tool.name)`, where `name` is a
+        // computed `String`) is passed to `Text` as a `LocalizedStringKey` at
+        // its own call site, so it reads the same environment value instead of
+        // selecting the verbatim `String` overload. That is the whole
+        // mechanism: an environment change re-renders the text.
+        //
+        // Deliberately NOT `.id(languageStore.effectiveLanguage)`. Keying the
+        // tree on the language forced a full rebuild of everything below this
+        // point, and that rebuild destroyed child `@State` rather than just
+        // re-rendering it: a live Swipe session's `SwipeSessionViewModel` (and
+        // the deletions it had marked but not committed) was thrown away, and
+        // `SwipeSessionView.onDisappear` never calls `endSession()`, so the
+        // completion review that every other exit path guards was skipped and
+        // the marked photos silently came back as "Not Swiped Yet". The state
+        // above this point (`appNavigation`, `permissionHandler`,
+        // `libraryMonitor`, `languageStore`) was never at risk; the state below
+        // it is what the rebuild cost.
         .environment(\.locale, languageStore.locale)
         .environment(\.layoutDirection, languageStore.layoutDirection)
-        .id(languageStore.effectiveLanguage)
         // `nil` for the default: SwiftUI then keeps following the device's
         // light/dark setting and any automatic schedule, which is the behavior
         // the app had before this setting existed.

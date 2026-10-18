@@ -19,6 +19,11 @@
  * copy. `check-assets.mjs` reads that manifest to validate against Apple's
  * accepted sizes without re-deriving anything.
  *
+ * A `--language` run renders images but writes no manifest: a manifest describes
+ * every language, so a one-language run would leave it claiming a single-language
+ * asset set. `--surface` does write, because it skips the other surfaces entirely
+ * and renders the one it does touch in every language.
+ *
  * ## How the two layers combine
  *
  * The background is Agnes-generated art: text-free, brand-palette, and composed
@@ -50,6 +55,7 @@ import {
   LANGUAGES,
   FONT_STACKS,
   RTL_LANGUAGES,
+  RENDER_SOURCE_PATHS,
   SURFACES,
   SPECS,
   planAssets,
@@ -67,15 +73,25 @@ const FONT_LATIN_EXT = join(ROOT, 'public/assets/fonts/fredoka-var-latin-ext.wof
  * A fake origin for the page's own resources.
  *
  * `page.setContent` gives the page an `about:blank` origin, and Chromium refuses
- * to load `file://` subresources from there — so an `<img src="file://…">` and a
+ * to load `file://` subresources from there, so an `<img src="file://...">` and a
  * `@font-face` pointing at a `file://` URL both fail silently. The first attempt
  * at this renderer produced flat cream cards with no art and a system fallback
  * font, with no error anywhere.
  *
  * So every local file is served over this fake origin instead, through
- * `page.route`. The HTML references `${ORIGIN}/…` paths, and the handler reads
+ * `page.route`. The HTML references `${ORIGIN}/...` paths, and the handler reads
  * them off disk. Nothing is base64-inlined, so a 2.5 MB background does not
  * become a 3.4 MB string.
+ *
+ * What the fake origin buys is an `https` origin whose subresource loads are not
+ * blocked. It is deliberately a different origin from the `about:blank` page, and
+ * that costs nothing: `route.fulfill` writes the response straight into the
+ * request, so the font and image loads never reach the network stack's CORS
+ * check. No `Access-Control-Allow-Origin` header is needed, and adding one would
+ * be superstition. Measured with a probe: fulfilling a cross-origin
+ * `fredoka-var-latin.woff2` into an `about:blank` page yields an `@font-face`
+ * status of `loaded`, a rendered width that differs from the fallback face, no
+ * console errors, and no CORS header on the response.
  */
 const ORIGIN = 'https://growth.local';
 
@@ -297,6 +313,9 @@ async function main() {
   }
 
   const sources = loadSources();
+  // The newest mtime among the copy sources and `manifest.mjs` itself. Read once:
+  // nothing in this run edits them.
+  const sourcesMtime = Math.max(...RENDER_SOURCE_PATHS.map((p) => statSync(p).mtimeMs));
   const browser = await chromium.launch();
   const missing = [];
   const written = [];
@@ -346,7 +365,18 @@ async function main() {
       const fileName = `${asset.group}--${asset.specId}--${language}.png`;
       const outPath = join(dir, fileName);
 
-      if (!force && existsSync(outPath) && statSync(outPath).mtimeMs > statSync(join(ROOT, artPath(asset.art))).mtimeMs) {
+      // The art is not the only input. The copy resolves from the String Catalog
+      // and the listings data, and the layout and font stacks come from
+      // `manifest.mjs`, so a string edit with the art untouched has to invalidate
+      // the cached PNG. Comparing the art alone made `npm run growth` report every
+      // image "unchanged" and keep the old text on disk, which matters because
+      // these PNGs are gitignored: the stale files are exactly what
+      // `publish:media` uploads.
+      const inputMtime = Math.max(
+        statSync(join(ROOT, artPath(asset.art))).mtimeMs,
+        sourcesMtime,
+      );
+      if (!force && existsSync(outPath) && statSync(outPath).mtimeMs > inputMtime) {
         // Already rendered from this art and these sources.
         written.push({ ...asset, language, path: outPath, cached: true });
         continue;
@@ -386,41 +416,55 @@ async function main() {
 
   await browser.close();
 
-  // A per-surface manifest, so `check-assets.mjs` validates what was actually
-  // written rather than re-deriving the plan.
-  for (const surface of SURFACES) {
-    const assets = written.filter((w) => w.surface === surface.id);
-    if (assets.length === 0) continue;
-    const dir = join(OUT_ROOT, surface.id);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      join(dir, 'manifest.json'),
-      JSON.stringify(
-        {
-          surface: surface.id,
-          title: surface.title,
-          purpose: surface.purpose,
-          generatedFrom: {
-            art: [...new Set(assets.map((a) => artPath(a.art)))],
-            copy: 'Tidybyte/Resources/Localizable.xcstrings + docs/appstore/listings.json',
+  // A filtered run must never rewrite a manifest, because a manifest describes
+  // the full language set: `--language hi` would replace 20 languages with 1 and
+  // `check-assets.mjs` would then fail on the 19 it thinks went missing. Nothing
+  // is lost by skipping the write, since the manifest is derived output and the
+  // unfiltered run regenerates it.
+  //
+  // `--surface` is different and still writes: every other surface is skipped
+  // outright by the filter above, and the one that renders renders in all
+  // languages, so its manifest comes out complete.
+  if (languages.length !== LANGUAGES.length) {
+    const asked = onlyLanguage ?? "(no language)";
+    console.log(`\n--language ${asked} ran alone, so no manifest.json was written: a manifest describes all ${LANGUAGES.length} languages.`);
+  } else {
+    // A per-surface manifest, so `check-assets.mjs` validates what was actually
+    // written rather than re-deriving the plan.
+    for (const surface of SURFACES) {
+      const assets = written.filter((w) => w.surface === surface.id);
+      if (assets.length === 0) continue;
+      const dir = join(OUT_ROOT, surface.id);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        join(dir, 'manifest.json'),
+        JSON.stringify(
+          {
+            surface: surface.id,
+            title: surface.title,
+            purpose: surface.purpose,
+            generatedFrom: {
+              art: [...new Set(assets.map((a) => artPath(a.art)))],
+              copy: 'Tidybyte/Resources/Localizable.xcstrings + docs/appstore/listings.json',
+            },
+            assets: assets
+              .map((a) => ({
+                group: a.group,
+                spec: a.specId,
+                specLabel: a.spec.label,
+                ratio: a.spec.ratio,
+                width: a.spec.target.width,
+                height: a.spec.target.height,
+                language: a.language,
+                file: `by-language/${a.group}--${a.specId}--${a.language}.png`,
+              }))
+              .sort((x, y) => x.group.localeCompare(y.group) || x.spec.localeCompare(y.spec) || x.language.localeCompare(y.language)),
           },
-          assets: assets
-            .map((a) => ({
-              group: a.group,
-              spec: a.specId,
-              specLabel: a.spec.label,
-              ratio: a.spec.ratio,
-              width: a.spec.target.width,
-              height: a.spec.target.height,
-              language: a.language,
-              file: `by-language/${a.group}--${a.specId}--${a.language}.png`,
-            }))
-            .sort((x, y) => x.group.localeCompare(y.group) || x.spec.localeCompare(y.spec) || x.language.localeCompare(y.language)),
-        },
-        null,
-        2,
-      ) + '\n',
-    );
+          null,
+          2,
+        ) + '\n',
+      );
+    }
   }
 
   const fresh = written.filter((w) => !w.cached).length;

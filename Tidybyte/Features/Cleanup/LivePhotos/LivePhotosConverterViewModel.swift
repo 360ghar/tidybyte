@@ -284,7 +284,14 @@ final class LivePhotosConverterViewModel {
         // COMP-09: one aggregated message instead of reporting only the last
         // error.
         if totalFailed > 0 {
-            errorMessage = "Converted \(result.committed) of \(pendingIds.count). \(totalFailed) failed."
+            // Through `L10n`, not string interpolation: an interpolated literal
+            // is not a catalog key, so it shipped English in all 20 languages.
+            errorMessage = L10n.format(
+                "Converted %lld of %lld. %lld failed.",
+                result.committed,
+                pendingIds.count,
+                totalFailed
+            )
         }
     }
 

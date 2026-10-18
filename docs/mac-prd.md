@@ -181,13 +181,19 @@ History** with a confirm dialog, and an About section (version, build,
 ## 8. Safety contract
 
 1. Every delete moves to the **Trash**. Nothing is permanently deleted
-   by the app, ever.
+   by the app, ever. The single exception is the user-invoked **Empty
+   Trash** action on the Storage dashboard (§5.6), which is item 6 below.
 2. Destructive batch actions confirm once, stating exactly what happens.
 3. System and app-bundle paths can never appear in any review list.
 4. After any trash batch, a dismissible notice states the count and size
    moved to Trash and how to empty it. Cancelled or failed runs show nothing.
 5. The app holds no accounts and sends no data anywhere; all scanning and
    analysis runs on the device.
+6. **Empty Trash is the one exception, and it sits outside this
+   guarantee.** The user asks for it explicitly from the dashboard card,
+   it carries its own confirmation, and the app never empties the Trash
+   on its own. Every other permanent deletion stays out of scope for v1
+   (§10 item 4).
 
 ---
 

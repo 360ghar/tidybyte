@@ -86,6 +86,27 @@ enum SwipeDirection: Equatable {
         return nil
     }
 
+    /// Opacities for the DELETE and KEEP stamps a live drag shows, mirrored on
+    /// the same axis `resolve` uses so the stamp always names the action that
+    /// will actually be committed. A direction-blind pair here is the one
+    /// destructive mismatch left in the swipe flow: in an RTL layout a
+    /// right-drag showed KEEP while `resolve` returned `.delete`.
+    ///
+    /// 150pt is the drag distance at which a stamp reaches full strength.
+    /// The up-swipe's ALBUM stamp is not here on purpose: up is up in both
+    /// directions, so it has no axis to mirror.
+    static func stampOpacities(
+        offset: CGSize,
+        isRightToLeft: Bool
+    ) -> (delete: Double, keep: Double) {
+        let forward: CGFloat = isRightToLeft ? -1 : 1
+        let horizontal = Double(offset.width * forward)
+        return (
+            delete: min(max(-horizontal / 150.0, 0), 1.0),
+            keep: min(max(horizontal / 150.0, 0), 1.0)
+        )
+    }
+
     /// Off-screen end point for a card leaving in this direction, keeping the
     /// cross-axis position it was released at. Skip leaves downward, matching
     /// its down-arrow key.
@@ -296,6 +317,7 @@ struct SwipeCardDeck: View {
                         renderTarget: renderTarget,
                         reviewReason: isTop ? viewModel.reviewReason : nil,
                         motion: slot.motion,
+                        isRightToLeft: isRightToLeft,
                         zoomToggleRequest: isTop ? zoomToggleRequest : 0,
                         playRequest: isTop ? playRequest : 0,
                         retryRequest: isTop ? retryRequest : 0,
@@ -348,6 +370,13 @@ struct SwipeCardDeck: View {
                 viewModel.updateRenderTarget(
                     CGSize(width: newSize.width * displayScale, height: newSize.height * displayScale)
                 )
+            }
+            .onChange(of: displayScale) { _, _ in
+                // The deck's own size did not change, so the geometry observer
+                // stays silent: a scale-only change (an external display, or a
+                // Stage Manager pane on a different-density screen) would leave
+                // the prefetch and the cache release on the old pixel size.
+                viewModel.updateRenderTarget(renderTarget)
             }
         }
     }

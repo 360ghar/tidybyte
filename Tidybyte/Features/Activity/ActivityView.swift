@@ -204,7 +204,10 @@ struct ActivityView: View {
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(entry.kind.title)
+                // `LocalizedStringKey` so this stays a key rather than a
+                // rendered `String`, which would opt out of the `\.locale`
+                // re-render on a language switch. See `RootView`.
+                Text(LocalizedStringKey(entry.kind.title))
                     .font(.subheadline.bold())
                 Text(L10n.format("%lld item", fallback: "%lld items", entry.count))
                     .font(.caption)
@@ -252,7 +255,7 @@ struct ActivityView: View {
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(event.kind.title)
+                Text(LocalizedStringKey(event.kind.title))
                     .font(.subheadline)
                 Text(event.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption2)

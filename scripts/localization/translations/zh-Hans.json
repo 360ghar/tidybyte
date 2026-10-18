@@ -111,6 +111,7 @@
     "Compress Videos": "压缩视频",
     "Compress to save ~%@": "压缩可节省约 %@",
     "Compress videos to save space": "压缩视频以节省空间",
+    "Compressed %lld of %lld. %lld failed.": "已压缩 %lld 个（共 %lld 个）。%lld 个压缩失败。",
     "Compressed photos and videos will appear here.": "压缩后的照片和视频会显示在这里。",
     "Compression History": "压缩记录",
     "Continue": "继续",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "转换 Live Photo",
     "Convert Live Photo to Still": "将 Live Photo 转换为静帧",
     "Convert to stills & save space": "转换为静帧并节省空间",
+    "Converted %lld of %lld. %lld failed.": "已转换 %lld 个（共 %lld 个）。%lld 个转换失败。",
     "Converted to Still": "已转换为静帧",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "副本已保留。两个版本都在你的图库中，可在“照片”中删除其中一个。",
     "Copy saved": "副本已保存",
@@ -207,12 +209,14 @@
     "Failed": "失败",
     "Failed to add to album: %@": "无法添加到相簿：%@",
     "Failed to create album.": "无法创建相簿。",
+    "Failed to create album: %@": "无法创建相簿：%@",
     "Failed to create export session.": "无法创建导出会话。",
     "Failed to load the photo.": "无法载入照片。",
     "Failed to re-encode the photo.": "无法重新编码照片。",
     "Failed to read file size.": "无法读取文件大小。",
     "Failed to save compressed photo to library.": "无法将压缩后的照片存储到图库。",
     "Failed to save compressed video to library.": "无法将压缩后的视频存储到图库。",
+    "Failed to undo album change: %@": "无法撤销相簿更改：%@",
     "Favorite": "收藏",
     "Feedback": "反馈",
     "File Size": "文件大小",
@@ -720,6 +724,9 @@
     "used": "已用"
   },
   "plurals": {
+    "%lld issues found": {
+      "other": "找到 %lld 个问题"
+    },
     "%lld item": {
       "other": "%lld 个项目"
     },

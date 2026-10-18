@@ -16,8 +16,13 @@ struct DuplicateFinderView: View {
             // screen exactly as it already was.
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: LocalizedStringKey(message),
-                    title: "Duplicates",
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
+                    title: .key("Duplicates"),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)

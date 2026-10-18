@@ -43,6 +43,18 @@ const body = html
 
 const found = new Set();
 
+// Every inline tag is a hard boundary: `>([^<>]+)<` cannot see across an `<a>`,
+// a `<strong>` or a `<span>`. A sentence that wraps a link therefore reaches a
+// translator as fragments ("Open an issue on", "or use the contact form on the",
+// "page."), and that is deliberate: keeping the markup out of the string is what
+// lets the builder put translations back into the English page without parsing
+// HTML, and it keeps a mistranslated href out of the map entirely.
+//
+// The cost is real and is not fixable here: fragments cannot be reordered, so an
+// SOV language (Tamil, Telugu, Kannada, Malayalam) glues them back in English
+// order and the sentence reads as translated English. Where word order matters,
+// write the sentence as one full sentence inside a single text node instead of
+// splitting it around a link.
 for (const match of body.matchAll(/>([^<>]+)</g)) {
   const text = match[1].trim();
   if (isTranslatable(text)) found.add(text);

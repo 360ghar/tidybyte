@@ -111,6 +111,7 @@
     "Compress Videos": "Сжать видео",
     "Compress to save ~%@": "Сжать и сэкономить ~%@",
     "Compress videos to save space": "Сжимайте видео, чтобы освободить место",
+    "Compressed %lld of %lld. %lld failed.": "Сжато %lld из %lld. Не удалось сжать %lld.",
     "Compressed photos and videos will appear here.": "Сжатые фото и видео появятся здесь.",
     "Compression History": "История сжатия",
     "Continue": "Продолжить",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Преобразовать Live Photo",
     "Convert Live Photo to Still": "Преобразовать Live Photo в статичное фото",
     "Convert to stills & save space": "Преобразуйте в статичные фото и освободите место",
+    "Converted %lld of %lld. %lld failed.": "Преобразовано %lld из %lld. Не удалось преобразовать %lld.",
     "Converted to Still": "Преобразовано в статичное фото",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "Копии сохранены. Обе версии есть в вашей медиатеке; удалите любую из них в «Фото».",
     "Copy saved": "Копия сохранена",
@@ -207,12 +209,14 @@
     "Failed": "Не удалось",
     "Failed to add to album: %@": "Не удалось добавить в альбом: %@",
     "Failed to create album.": "Не удалось создать альбом.",
+    "Failed to create album: %@": "Не удалось создать альбом: %@",
     "Failed to create export session.": "Не удалось создать сеанс экспорта.",
     "Failed to load the photo.": "Не удалось загрузить фото.",
     "Failed to re-encode the photo.": "Не удалось повторно закодировать фото.",
     "Failed to read file size.": "Не удалось прочитать размер файла.",
     "Failed to save compressed photo to library.": "Не удалось сохранить сжатое фото в медиатеку.",
     "Failed to save compressed video to library.": "Не удалось сохранить сжатое видео в медиатеку.",
+    "Failed to undo album change: %@": "Не удалось отменить изменение альбома: %@",
     "Favorite": "Избранное",
     "Feedback": "Отзыв",
     "File Size": "Размер файла",
@@ -720,6 +724,12 @@
     "used": "занято"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "Найдена %lld проблема",
+      "few": "Найдено %lld проблемы",
+      "many": "Найдено %lld проблем",
+      "other": "Найдено %lld проблемы"
+    },
     "%lld item": {
       "one": "%lld объект",
       "few": "%lld объекта",

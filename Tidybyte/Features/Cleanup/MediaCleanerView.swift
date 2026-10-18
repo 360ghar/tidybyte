@@ -51,11 +51,14 @@ struct MediaCleanerView: View {
                         .font(.caption).foregroundStyle(.secondary)
                         .padding(.horizontal, Spacing.lg)
                     if let error = viewModel.errorMessage {
-                        // Both are already-localized runtime text: the view
-                        // model's message and the tool's own localized name.
+                        // Both are runtime text, so both render verbatim: the
+                        // view model's message, and the tool's name, which
+                        // `CleanupTool.name` already resolved through `L10n`.
+                        // A lookup would miss and `Text` would Markdown-parse
+                        // the message.
                         ToolErrorBanner(
-                            message: LocalizedStringKey(error),
-                            title: LocalizedStringKey(viewModel.tool.name),
+                            message: .runtimeText(error),
+                            title: .runtimeText(viewModel.tool.name),
                             onDismiss: { viewModel.errorMessage = nil }
                         )
                     }

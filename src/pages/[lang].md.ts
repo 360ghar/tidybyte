@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { SITE_LANGUAGES, languageBySlug } from "../data/languages";
 import { localizedHomeContent, localizedHomeMeta } from "../lib/localized-page";
-import { htmlToMarkdown, plainDescription, plainTitle } from "../lib/llms";
+import { htmlToMarkdown, plainDescription, plainTitle, stripBodyH1 } from "../lib/llms";
 
 // Clean-Markdown alternate for a localized landing page: /de.md beside /de,
 // the same pattern as /photo-cleaner.md. seo-audit.mjs requires a Markdown
@@ -20,7 +20,7 @@ export const GET: APIRoute = ({ params }) => {
     "",
     `> ${plainDescription(meta)}`,
     "",
-    htmlToMarkdown(localizedHomeContent(lang)),
+    stripBodyH1(htmlToMarkdown(localizedHomeContent(lang))),
     "",
     `Canonical URL: ${meta.canonical}`,
     "",

@@ -111,6 +111,7 @@
     "Compress Videos": "ਵੀਡੀਓ ਕੰਪਰੈਸ ਕਰੋ",
     "Compress to save ~%@": "~%@ ਬਚਾਉਣ ਲਈ ਕੰਪ੍ਰੈਸ ਕਰੋ",
     "Compress videos to save space": "ਥਾਂ ਬਚਾਉਣ ਲਈ ਵੀਡੀਓ ਕੰਪਰੈਸ ਕਰੋ",
+    "Compressed %lld of %lld. %lld failed.": "%lld ਵਿੱਚੋਂ %lld ਕੰਪ੍ਰੈਸ ਕੀਤੇ. %lld ਕੰਪ੍ਰੈਸ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ.",
     "Compressed photos and videos will appear here.": "ਕੰਪਰੈਸ ਕੀਤੀਆਂ ਫ਼ੋਟੋਆਂ ਅਤੇ ਵੀਡੀਓ ਇੱਥੇ ਦਿਖਣਗੇ.",
     "Compression History": "ਕੰਪਰੈਸ਼ਨ ਇਤਿਹਾਸ",
     "Continue": "ਜਾਰੀ ਰੱਖੋ",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo ਕਨਵਰਟ ਕਰੋ",
     "Convert Live Photo to Still": "Live Photo ਨੂੰ ਸਥਿਰ ਫ਼ੋਟੋ ਵਿੱਚ ਕਨਵਰਟ ਕਰੋ",
     "Convert to stills & save space": "ਸਥਿਰ ਫ਼ੋਟੋਆਂ ਵਿੱਚ ਕਨਵਰਟ ਕਰੋ ਅਤੇ ਥਾਂ ਬਚਾਓ",
+    "Converted %lld of %lld. %lld failed.": "%lld ਵਿੱਚੋਂ %lld ਕਨਵਰਟ ਕੀਤੇ. %lld ਕਨਵਰਟ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ.",
     "Converted to Still": "ਸਥਿਰ ਫ਼ੋਟੋ ਵਿੱਚ ਕਨਵਰਟ ਹੋਈ",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "ਕਾਪੀਆਂ ਰੱਖੀਆਂ. ਦੋਵੇਂ ਰੂਪ ਤੁਹਾਡੀ ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਹਨ; ਫ਼ੋਟੋਜ਼ ਵਿੱਚੋਂ ਕੋਈ ਇੱਕ ਮਿਟਾ ਦਿਓ.",
     "Copy saved": "ਕਾਪੀ ਸੇਵ ਹੋਈ",
@@ -207,12 +209,14 @@
     "Failed": "ਅਸਫਲ",
     "Failed to add to album: %@": "ਐਲਬਮ ਵਿੱਚ ਜੋੜਨਾ ਅਸਫਲ: %@",
     "Failed to create album.": "ਐਲਬਮ ਬਣਾਈ ਨਹੀਂ ਜਾ ਸਕੀ.",
+    "Failed to create album: %@": "ਐਲਬਮ ਬਣਾਈ ਨਹੀਂ ਜਾ ਸਕੀ: %@",
     "Failed to create export session.": "ਐਕਸਪੋਰਟ ਸੈਸ਼ਨ ਨਹੀਂ ਬਣਾਇਆ ਜਾ ਸਕਿਆ.",
     "Failed to load the photo.": "ਫ਼ੋਟੋ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ.",
     "Failed to re-encode the photo.": "ਫ਼ੋਟੋ ਦੁਬਾਰਾ ਐਨਕੋਡ ਨਹੀਂ ਹੋ ਸਕੀ.",
     "Failed to read file size.": "ਫ਼ਾਈਲ ਦਾ ਆਕਾਰ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ.",
     "Failed to save compressed photo to library.": "ਕੰਪਰੈਸ ਕੀਤੀ ਫ਼ੋਟੋ ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕੀ.",
     "Failed to save compressed video to library.": "ਕੰਪਰੈਸ ਕੀਤਾ ਵੀਡੀਓ ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
+    "Failed to undo album change: %@": "ਐਲਬਮ ਬਦਲਾਅ ਵਾਪਸ ਨਹੀਂ ਲਿਆ ਜਾ ਸਕਿਆ: %@",
     "Favorite": "ਪਸੰਦੀਦਾ",
     "Feedback": "ਫੀਡਬੈਕ",
     "File Size": "ਫ਼ਾਈਲ ਦਾ ਆਕਾਰ",
@@ -720,6 +724,10 @@
     "used": "ਵਰਤੀ"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld ਸਮੱਸਿਆ ਲੱਭੀ",
+      "other": "%lld ਸਮੱਸਿਆਵਾਂ ਲੱਭੀਆਂ"
+    },
     "%lld item": {
       "one": "%lld ਆਈਟਮ",
       "other": "%lld ਆਈਟਮਾਂ"

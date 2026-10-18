@@ -107,9 +107,13 @@ struct LivePhotosConverterView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    // View-model text: already localized where it is built, so the
-                    // lookup misses and falls back to the text itself.
-                    message: LocalizedStringKey(message),
+                    // Runtime text, so it renders verbatim. `errorMessage`
+                    // holds either `error.localizedDescription` or a sentence
+                    // the view model built through `L10n`, including the batch
+                    // summary, which `L10n.format` localizes with a catalog key.
+                    // Nothing here is a key any more, and `Text` must not apply
+                    // Markdown to text that can contain a file name.
+                    message: .runtimeText(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)

@@ -36,14 +36,16 @@ struct LargeFilesView: View {
 
                         Picker("Filter", selection: $viewModel.mediaFilter) {
                             ForEach(LargeFileFilter.allCases, id: \.self) { filter in
-                                Text(filter.displayName).tag(filter)
+                                // Keys, not rendered `String`s, so both control
+                                // labels follow a language switch. See `RootView`.
+                                Text(LocalizedStringKey(filter.displayName)).tag(filter)
                             }
                         }
                         .pickerStyle(.segmented)
 
                         Picker("Sort", selection: $viewModel.sortOrder) {
                             ForEach(LargeFileSortOrder.allCases, id: \.self) { order in
-                                Text(order.displayName).tag(order)
+                                Text(LocalizedStringKey(order.displayName)).tag(order)
                             }
                         }
                         .pickerStyle(.menu)
@@ -154,9 +156,12 @@ struct LargeFilesView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    // View-model text: already localized where it is built, so the
-                    // lookup misses and falls back to the text itself.
-                    message: LocalizedStringKey(message),
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)

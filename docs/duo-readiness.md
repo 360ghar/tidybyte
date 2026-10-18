@@ -46,10 +46,10 @@ Notes:
   678 × 3 = 2034, 669 × 3 = 2007, 951 × 3 = 2853), so a screenshot is the full
   @3x framebuffer with no scaling step.
 - The point sizes and the two known poses are recorded in
-  `TidybyteUITests/DuoLayoutUITests.swift:20-23`.
+  `TidybyteUITests/DuoLayoutUITests.swift:16-19`.
 - The pixel sizes are Apple's accepted list for the Duo entry, recorded in
-  `scripts/growth/shoot-screenshots.mjs:144-158` (outer) and `:159-173` (inner),
-  with the `--duo` capture flag documented at `:42` and `--probe` at `:45`.
+  `scripts/growth/shoot-screenshots.mjs:195-213` (outer) and `:214-233` (inner),
+  with the `--duo` capture flag documented at `:42` and `--probe` at `:46`.
 - **`simctl io <device> enumerate` does not print display names or screen ids.**
   Tested against a booted iPhone 18 Pro on this machine: each `Port:` block
   carries only `UUID`, `Class`, `Port Identifier`, `Power state`, `Display class`,
@@ -66,11 +66,11 @@ Notes:
   the primary path.
 - The capture script therefore resolves a Duo display by **matching the expected
   pixel size to an enumerated port and passing that port's UUID**
-  (`resolveDisplayArg`, `scripts/growth/shoot-screenshots.mjs:345-360`). A rotated
+  (`resolveDisplayArg`, `scripts/growth/shoot-screenshots.mjs:477-498`). A rotated
   match (height × width) is accepted second; then the numeric `screenID` (1 outer,
   3 inner) and `internal`; and if ports parsed but none matches, the run **stops
   with a loud error** rather than screenshotting whatever screen the fallback id
-  happens to be (`displayLookupFailure`, `:362-380`). The post-capture size check
+  happens to be (`displayLookupFailure`, `:501-517`). The post-capture size check
   is exact for a Duo family, so a wrong display cannot land quietly.
 - **Port UUIDs change on every boot (verified 2026-10-18).** After rebooting the
   Duo, `xcrun simctl io <udid> enumerate` returned *new* port UUIDs, and the old
@@ -80,7 +80,7 @@ Notes:
   native portrait orientation, and `internal` is the inner display.
 - `node scripts/growth/shoot-screenshots.mjs --probe <udid>` prints the parsed
   display ports and the resolved `--display=` selector per family, and touches
-  nothing — no build, no boot, no create, no write (`probe()`, `:711-752`). Run it
+  nothing — no build, no boot, no create, no write (`probe()`, `:1369-1429`). Run it
   first on the Duo once the runtime is installed; it is the cheapest way to see
   which selector the capture will use.
 - **Which display is lit in the tent and laptop poses is not documented in
@@ -119,21 +119,21 @@ on both, but not the code-level details in this table.)
 
 | Apple requirement | What the code does today | Where |
 |---|---|---|
-| **Sizing** — render at whatever size the window reports | Grids are width-driven: one `.adaptive` `GridItem` per grid, so the column count follows the *available width* rather than the size class (the stated reason: a wide iPad pane can still report `.regular`) | `Tidybyte/Shared/Extensions/View+Responsive.swift:15-28`; call sites `Features/Cleanup/Screenshots/ScreenshotCleanerView.swift:17`, `Features/Cleanup/BlurryPhotos/BlurryPhotosView.swift:17`, `Features/Cleanup/SmartCategories/SmartCategoriesView.swift:60`, `Features/Cleanup/MediaCleanerView.swift:70`, `Features/Swipe/AlbumPickerSheet.swift:78`, `Shared/Components/SkeletonView.swift:147` |
-| | Text and form content is capped at a readable measure and centred, so a wide window does not stretch it edge to edge | `View+Responsive.swift:44-51`; applied at `Features/Storage/StorageDashboardView.swift:69,148`, `Features/Swipe/SwipeHomeView.swift:150`, `Features/Swipe/SwipeCardDeck.swift:183` (560), `Features/Swipe/SessionCompletionView.swift:118`, `Features/Activity/ActivityView.swift:43`, `Features/Cleanup/LargeFiles/LargeFilesView.swift:52`, `Shared/Components/CleanupToolScaffold.swift:105,203`, `Shared/Components/ActionBarView.swift:25`, `Shared/Components/PhotoPermissionView.swift:78`, `Features/Onboarding/OnboardingView.swift:141,177` |
+| **Sizing** — render at whatever size the window reports | Grids are width-driven: one `.adaptive` `GridItem` per grid, so the column count follows the *available width* rather than the size class (the stated reason: a wide iPad pane can still report `.regular`) | `Tidybyte/Shared/Extensions/View+Responsive.swift:15-28`; call sites `Features/Cleanup/Screenshots/ScreenshotCleanerView.swift:17`, `Features/Cleanup/BlurryPhotos/BlurryPhotosView.swift:17`, `Features/Cleanup/SmartCategories/SmartCategoriesView.swift:60`, `Features/Cleanup/MediaCleanerView.swift:73`, `Features/Swipe/AlbumPickerSheet.swift:78`, `Shared/Components/SkeletonView.swift:147` |
+| | Text and form content is capped at a readable measure and centred, so a wide window does not stretch it edge to edge | `View+Responsive.swift:47-53`; applied at `Features/Storage/StorageDashboardView.swift:69,148`, `Features/Swipe/SwipeHomeView.swift:150`, `Features/Swipe/SwipeCardDeck.swift:227` (560), `Features/Swipe/SessionCompletionView.swift:118`, `Features/Activity/ActivityView.swift:43`, `Features/Cleanup/LargeFiles/LargeFilesView.swift:54`, `Shared/Components/CleanupToolScaffold.swift:105,208`, `Shared/Components/ActionBarView.swift:25`, `Shared/Components/PhotoPermissionView.swift:78`, `Features/Onboarding/OnboardingView.swift:141,177` |
 | | Accessibility text sizes collapse the tool grid to a single column | `Features/Cleanup/CleanupHomeView.swift:19` |
-| | The swipe deck is sized from its container (`GeometryReader`), never from a device size | `Features/Swipe/SwipeCardDeck.swift:262,319-327`, `Features/Swipe/CardView.swift:90,99,104` |
-| | **`Shared/Utilities/ScreenMetrics.swift` was deleted** (uncommitted deletion in the working tree), so there is no screen-metrics abstraction left to read. The swipe session's image target now comes from the deck's own geometry: `SwipeCardDeck` publishes `deckSize × displayScale` (`SwipeCardDeck.swift:157-158`, fed by `.onGeometryChange` at `:320-327`) → `SwipeSessionViewModel.updateRenderTarget` (`SwipeSessionViewModel.swift:568-571`, used for prefetch and cache release at `:605-632`) → `CardView.pixelTarget(for:)` (`CardView.swift:549-552`, consumed at `:368` and `:508`). A fold, unfold or resize re-sizes the decode instead of leaving it pinned to a screen. `displayScale` is read from the environment (`CardView.swift:87`, `SwipeCardDeck.swift:150`), so it follows the window | grep for `UIScreen` across `Tidybyte/` returns nothing |
+| | The swipe deck is sized from its container (`GeometryReader`), never from a device size | `Features/Swipe/SwipeCardDeck.swift:306`, `Features/Swipe/CardView.swift:152` |
+| | **`Shared/Utilities/ScreenMetrics.swift` was deleted** (uncommitted deletion in the working tree), so there is no screen-metrics abstraction left to read. The swipe session's image target now comes from the deck's own geometry: `SwipeCardDeck` publishes `deckSize × displayScale` (`SwipeCardDeck.swift:196-203`, fed by `.onGeometryChange` at `:365-373` and `.onChange(of: displayScale)` at `:374-379`) → `SwipeSessionViewModel.updateRenderTarget` (`SwipeSessionViewModel.swift:568-571`, used for prefetch and cache release at `:607-636`) → `CardView.pixelTarget(for:)` (`CardView.swift:649-651`, consumed at `:434`, `:457` and `:610`). A fold, unfold or resize re-sizes the decode instead of leaving it pinned to a screen. `displayScale` is read from the environment (`CardView.swift:149`, `SwipeCardDeck.swift:194`), so it follows the window | grep for `UIScreen` across `Tidybyte/` returns nothing |
 | | Fixed heights that exist are chart/row internals, not window layout: 140 pt trend chart, 180 × 180 donut | `Features/Activity/ActivityView.swift:166`, `Features/Storage/StorageDashboardView.swift:241` |
-| **Orientation** — declare what each family supports | iPhone: portrait only. iPad: all four | `project.yml:80` (`INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait`), `project.yml:81` (`..._iPad`: portrait, upside-down, landscape left, landscape right), rationale comment at `project.yml:79` |
+| **Orientation** — declare what each family supports | iPhone: portrait only. iPad: all four | `project.yml:82` (`INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait`), `project.yml:83` (`..._iPad`: portrait, upside-down, landscape left, landscape right), rationale comment at `project.yml:80-81` |
 | | iPhone Duo is an iPhone-family device, so it reads the portrait key, not the `~ipad` one. iPhone stays portrait-only by design (the swipe UX is portrait-centric) | same keys; `CLAUDE.md:15`, `AGENTS.md:15` |
-| **Idiom** — stop branching on device | Device family is iPhone + iPad only | `project.yml:13` (base) and `:67`, `:132`, `:148`, `:166` (per target) |
-| | `userInterfaceIdiom` no longer identifies the device, so layout keys off the window: `ResponsiveGrid` above, and `horizontalSizeClass` is read in exactly one place, to gate the iPad-only celebration layout | `TidybyteUITests/DuoLayoutUITests.swift:8-13` (the rationale); `Shared/Components/HappyPathCelebrationModifier.swift:16,55` |
-| | On a wide window the tab bar becomes a sidebar (iOS 18+), so the four sections are reachable without a compact tab bar | `App/RootView.swift:304` (`adaptiveSidebarStyle()`, renamed from `sidebarAdaptableOnPad`), applied to the `TabView` at `App/RootView.swift:91` |
-| **Reserved regions** — never draw under a cutout or a system surface | Safe areas are respected; nothing hardcodes a notch, a cutout or a display dimension. Insets are added where a bar is drawn: bottom notice, top tool bars | `App/RootView.swift:86` (bottom, `RecentlyDeletedNotice`), `Features/Swipe/SwipeSessionView.swift:181`, `Features/Swipe/SessionCompletionView.swift:166`, `Features/Swipe/AlbumPickerSheet.swift:121`, `Features/Cleanup/Screenshots/ScreenshotCleanerView.swift:160`, `Features/Cleanup/Bursts/BurstCleanerView.swift:114`, `Features/Cleanup/LargeFiles/LargeFilesView.swift:154`, `Features/Cleanup/PhotoCompression/PhotoCompressionView.swift:76`, `Features/Cleanup/VideoCompression/VideoCompressionView.swift:66`, `Features/Cleanup/LivePhotos/LivePhotosConverterView.swift:107` |
+| **Idiom** — stop branching on device | Device family is iPhone + iPad only | `project.yml:13` (base) and `:69`, `:134`, `:150`, `:168` (per target) |
+| | `userInterfaceIdiom` no longer identifies the device, so layout keys off the window: `ResponsiveGrid` above, and `horizontalSizeClass` is read in exactly one place, to gate the iPad-only celebration layout | `TidybyteUITests/DuoLayoutUITests.swift:3-10` (the rationale); `Shared/Components/HappyPathCelebrationModifier.swift:16,55` |
+| | On a wide window the tab bar becomes a sidebar (iOS 18+), so the four sections are reachable without a compact tab bar | `App/RootView.swift:320` (`adaptiveSidebarStyle()`, renamed from `sidebarAdaptableOnPad`), applied to the `TabView` at `App/RootView.swift:98` |
+| **Reserved regions** — never draw under a cutout or a system surface | Safe areas are respected; nothing hardcodes a notch, a cutout or a display dimension. Insets are added where a bar is drawn: bottom notice, top tool bars | `App/RootView.swift:93` (bottom, `RecentlyDeletedNotice`), `Features/Swipe/SwipeSessionView.swift:181`, `Features/Swipe/SessionCompletionView.swift:166`, `Features/Swipe/AlbumPickerSheet.swift:121`, `Features/Cleanup/Screenshots/ScreenshotCleanerView.swift:162`, `Features/Cleanup/Bursts/BurstCleanerView.swift:114`, `Features/Cleanup/LargeFiles/LargeFilesView.swift:156`, `Features/Cleanup/PhotoCompression/PhotoCompressionView.swift:76`, `Features/Cleanup/VideoCompression/VideoCompressionView.swift:66`, `Features/Cleanup/LivePhotos/LivePhotosConverterView.swift:107` |
 | | `ignoresSafeArea` appears only where content is meant to bleed: the full-screen media backdrops and the celebration overlay. The two content-level `.ignoresSafeArea(edges: .horizontal)` modifiers that used to sit on the preview content were **removed as part of this work**, so a side-edge system bar cannot overlap the media. The static guard encodes this intent: a bare `.ignoresSafeArea()` (no argument) is the deliberate full-bleed backdrop and is allowed; an argument list that names the horizontal axis — including `[.horizontal, .vertical]`, which also covers the horizontal edge — fails on a content view | `Shared/Components/MediaPreviewView.swift:111`, `Features/Cleanup/LivePhotos/LivePhotoPreviewView.swift:40`, `Shared/Components/HappyPathCelebrationModifier.swift:97` |
-| **Bars** — a system bar can be presented vertically on a side edge in some poses | A tripwire test asserts no interactive control intrudes into the edge band, with a documented allowlist for system-placed controls | `TidybyteUITests/DuoLayoutUITests.swift:188` (test), `:31-38` (allowlist, currently `tabItem` only) |
-| **Full screen** — do not letterbox | A valid `UILaunchScreen` dict is supplied by a seed plist, because the generated build setting emits an invalid nested dict; without it iOS letterboxes | `Tidybyte/Info.plist` (`UILaunchScreen`), rationale at `project.yml:73-78` |
+| **Bars** — a system bar can be presented vertically on a side edge in some poses | A tripwire test asserts no interactive control intrudes into the edge band, with a documented allowlist for system-placed controls | `TidybyteUITests/DuoLayoutUITests.swift:188` (test), `:21-25` (allowlist: `tabItem` and `toolbar`) |
+| **Full screen** — do not letterbox | A valid `UILaunchScreen` dict is supplied by a seed plist, because the generated build setting emits an invalid nested dict; without it iOS letterboxes | `Tidybyte/Info.plist` (`UILaunchScreen`), rationale at `project.yml:72-76` |
 | | No `UIRequiresFullScreen` anywhere | absent from `project.yml` and `Tidybyte/Info.plist` |
 | **Assets** | The app icon is the single-size universal format on `platform: ios` slots — no idiom-specific slots to add for a new display | `CLAUDE.md` "App icon" bullet; `Tidybyte/Resources/Assets.xcassets` |
 
@@ -252,7 +252,7 @@ on the Duo simulator".
 | URL-scheme approval | `simctl openurl tidybyte://…` on iOS 27.1 | — | The first open raises SpringBoard's "Open in TidyByte?" confirmation. Pre-approving the scheme the way `shoot-screenshots.mjs` does **did not suppress it** in this run. The dialog's buttons are exposed to accessibility through Device Hub, so it can be accepted programmatically; until the pipeline handles it, a deep-linked capture is unreliable |
 
 | Duo screenshot capture, both families | `node scripts/growth/shoot-screenshots.mjs --duo --only duoOuter --drive-devicehub` and the same for `duoInner` | `docs/screenshots/duo-outer/` (5 × 1398 × 2034) and `docs/screenshots/duo-inner/` (5 × 2007 × 2853) | Captured through Device Hub pose driving: the outer family folded, the inner family opened and rotated to native portrait. The orchestrator re-checked all ten files independently — every one has real content (distinct colour profiles, none blank) and each file matches the screen named by its filename |
-| Duo layout tests on the Duo | `xcodebuild test … -destination 'platform=iOS Simulator,id=<duo-udid>' -only-testing:TidybyteUITests/DuoLayoutUITests` | — | `Executed 4 tests, with 0 failures in 127.9 s` on a booted Duo in the folded pose. In that pose the window is 466 pt wide so the edge-band assertion is intentionally inert; the same suite ran green on an iPad Pro 13-inch (M5) where it is live |
+| Duo layout tests on the Duo | `xcodebuild test … -destination 'platform=iOS Simulator,id=<duo-udid>' -only-testing:TidybyteUITests/DuoLayoutUITests` | — | `Executed 4 tests, with 0 failures in 127.9 s` on a booted Duo in the folded pose. The same suite also ran green on an iPad Pro 13-inch (M5) in 53.5 s. §5 item 6 records what the folded pose does and does not exercise |
 
 **Explicitly NOT verified in this run — kept `not yet verified`:** anything under
 `publish:*` that talks to the network, the App Store Connect store listing and its
@@ -274,13 +274,11 @@ tests and the tooling work; it is separate from the Duo run above.
 | Publish plumbing | `npm run publish:plan` | Unchanged at 371 placements / 14 files / 2 groups; with `--duo` it **fails loudly** until the group id exists |
 
 **Explicitly not run in the local (18 Pro) pass:** any `publish:*` command that
-talks to the network, and any store upload. The log above is §3 steps 3 and 6 on
-the wrong device (an iPhone 18 Pro), which is why it is labelled as not Duo
-verification. The Duo build/install/launch is recorded separately in the Duo
-simulator verification log above. **The UI test row in §4 has no pass to point at
-yet:** one assertion is currently failing on an ordinary iPhone and is being
-fixed, and step 6 was not part of the 2026-10-18 Duo run, so no UI-test run of
-`DuoLayoutUITests` is recorded.
+talks to the network, and any store upload. The log above is §3 step 3 (the build)
+plus the unit tests and the tooling checks, on the wrong device (an iPhone 18 Pro),
+which is why it is labelled as not Duo verification. The Duo build, install, launch
+and the `DuoLayoutUITests` pass are recorded separately in the Duo simulator
+verification log above.
 
 **Planted fixture for the static guard, recorded verbatim** so the `4 findings`
 count is reproducible. The file is `/tmp/duo-fixture/Planted.swift`:
@@ -324,12 +322,12 @@ precondition is demonstrated by a run recorded in §3.
 | App renders correctly on both Duo displays | Build 8 installed and launched on a booted Duo; outer captured folded, inner captured open at native portrait | New verification row for this document (§3 Duo log) | **verified 2026-10-18 on the Duo simulator** — outer 466 × 678 pt (`/tmp/app-d1.png`, 1398 × 2034 px, nothing clipped, safe areas respected); inner 669 × 951 pt (`/tmp/inner-portrait-app.png`, 2007 × 2853 px, tab bar visible, no letterboxing). Photo library was synthetic `simctl addmedia` images; **photo-library mutations not exercised** |
 | "Now built for iPhone Duo: same cleanup, adapted to both displays." | Same, plus the swipe home and each cleanup tool render on both displays | `docs/appstore/listings.json` → `whatsNew` (21 locales); source `scripts/localization/translations/_notes-1.1.0.mjs` | In copy; **partially verified 2026-10-18** — outer display: all seven surfaces (Swipe, Cleanup, Duplicates, Screenshots, Blurry, Storage, Activity) rendered, each capture distinct, proving the deep links routed. Inner display: five surfaces captured (Swipe, Cleanup hub, Duplicates, Storage, Activity). Still unmet: the **Screenshots and Blurry tool screens** have not been rendered on the inner display, so "each cleanup tool on both displays" is not yet demonstrated. Simulator only; no physical Duo |
 | Hero badge: "Free · iPhone & iPad · iPhone Duo · iOS 17+" | Same | `src/content/pages/index.html:24`, plus the 20 generated `src/content/pages/index.<lang>.html` | In copy; **verified 2026-10-18 on the Duo simulator** (same run as the row above; simulator only) |
-| FAQ: "Does TidyByte work on iPhone Duo?" | Same; the answer claims the layout adapts to both displays | `src/content/pages/index.html` FAQ (+ 20 localized copies), `src/content/pages/support.html:124`, `src/data/tools.ts` (photo-cleaner hub FAQ), FAQPage JSON-LD in `src/data/pages.ts` | In copy; **verified 2026-10-18 on the Duo simulator** — the swipe home, the cleanup hub, Duplicates, Storage and Activity all rendered on both displays (outer at 466 × 678 pt, inner at 669 × 951 pt), and the full set of seven rendered on the outer display. Simulator only |
+| FAQ: "Does TidyByte work on iPhone Duo?" | Same; the answer claims the layout adapts to both displays | `src/content/pages/index.html` FAQ (+ 20 localized copies), `src/content/pages/support.html:130`, `src/data/tools.ts` (photo-cleaner hub FAQ), FAQPage JSON-LD in `src/data/pages.ts` | In copy; **verified 2026-10-18 on the Duo simulator** — the swipe home, the cleanup hub, Duplicates, Storage and Activity all rendered on both displays (outer at 466 × 678 pt, inner at 669 × 951 pt), and the full set of seven rendered on the outer display. Simulator only |
 | Device lines: iPhone (portrait) + iPad + iPhone Duo | Same | `README.md:9`, `CLAUDE.md:15`, `AGENTS.md:15`, `docs/prd.md` §13, `docs/GEO-Playbook.md:17` | In copy; **verified 2026-10-18 on the Duo simulator** (simulator only) |
 | "optimized for iPhone Duo" App Store badge | Duo screenshots captured at both required sizes **and** uploaded to the single Duo group in App Store Connect | Apple's product page, not ours | **Not earned** — the screenshots now exist (5 outer + 5 inner, verified 2026-10-18), but **nothing has been uploaded**: the single Duo group id in App Store Connect is still unknown (§5 item 1) |
 | Duo screenshot row in the listing doc | `node scripts/growth/shoot-screenshots.mjs --duo` on the 27.1 runtime | `docs/APP_STORE_LISTING.md` §11 | Documented; **verified 2026-10-18** — the capture ran on the 27.1 runtime through Device Hub pose driving and produced `docs/screenshots/duo-outer/` (5 × 1398 × 2034) and `docs/screenshots/duo-inner/` (5 × 2007 × 2853), exactly the sizes Apple accepts. The orchestrator re-checked every file: real content (no blank panels), and each file matches the screen named by its filename |
-| Build 8 carries the Duo readiness work | The bump itself is in source; the build/upload are not | `project.yml:18` (`CURRENT_PROJECT_VERSION: 8`) | Bumped in source; build for the Duo destination **verified 2026-10-18** (`CODE_SIGNING_ALLOWED=NO`); **upload not run** |
-| Duo layout tests exist | They compile and pass (they assert window geometry, not Duo-only behaviour) | `TidybyteUITests/DuoLayoutUITests.swift` | Written; **verified 2026-10-18 on the Duo itself** — 4 tests, 0 failures, re-run by the orchestrator on a booted Duo in the folded pose (`Executed 4 tests, with 0 failures in 127.9 s`), and separately on an iPad Pro 13-inch (M5) (53.5 s), which is where the edge-band assertion is live (`window.width >= 600`). Caveat recorded honestly: in the folded pose the Duo window is 466 pt wide, so the edge-band assertion is **intentionally inert** there and the suite has still never exercised it on a Duo panel |
+| Build 8 carries the Duo readiness work | The bump itself is in source; the build/upload are not | `project.yml:20` (`CURRENT_PROJECT_VERSION: 8`) | Bumped in source; build for the Duo destination **verified 2026-10-18** (`CODE_SIGNING_ALLOWED=NO`); **upload not run** |
+| Duo layout tests exist | They compile and pass (they assert window geometry, not Duo-only behaviour) | `TidybyteUITests/DuoLayoutUITests.swift` | Written; **verified 2026-10-18 on the Duo itself** — 4 tests, 0 failures, re-run by the orchestrator on a booted Duo in the folded pose (`Executed 4 tests, with 0 failures in 127.9 s`), and separately on an iPad Pro 13-inch (M5) (53.5 s), which is where the edge-band assertion is live (`window.width >= 600`). §5 item 6 records the folded-pose caveat |
 
 ---
 
@@ -346,7 +344,7 @@ precondition is demonstrated by a run recorded in §3.
    `duo` that reads **both** capture directories — `dirs: ['duo-outer',
    'duo-inner']` (`plan.mjs:180-188`) — with `group: null`, gated by `--duo`, which
    throws rather than uploading to the wrong group (`DUO_GROUP_HELP`,
-   `plan.mjs:217`; gate at `:305-310`). Resolver: run `npm run publish:verify`, find
+   `plan.mjs:252`; gate at `:345-350`). Resolver: run `npm run publish:verify`, find
    the Duo `APP_SCREENSHOT` group in the `appAssetLibraryRefData` dump, then
    `TIDYBYTE_DUO_GROUP_ID=<id> npm run publish:media -- --duo` (or paste the id into
    `duoFamilies` in `plan.mjs`).
@@ -378,12 +376,16 @@ precondition is demonstrated by a run recorded in §3.
    used to boot the Duo for the run in §3. The earlier statement that only 27.0 was
    present is out of date.
 6. **The Duo verification run has now happened** (§3 Duo log, 2026-10-18): the two
-   display sizes and the app rendering on both are `verified`; the app-behaviour
-   rows that were not exercised — screenshot capture across all five surfaces,
-   publishing, the store listing, the UI-test pass — stay `not yet verified`.
-   Simulator only; no physical Duo.
+   display sizes, the app rendering on both displays, the screenshot capture and
+   the `DuoLayoutUITests` pass are `verified`. What was not exercised — anything
+   that talks to the network, i.e. publishing and the App Store Connect store
+   listing with its Duo group id — stays `not yet verified`. Simulator only; no
+   physical Duo. One honest caveat on the layout tests: in the folded pose the Duo
+   window is 466 pt wide, below the test's `edgeBandApplicableMinimumWidth = 600`,
+   so the edge-band assertion is **intentionally inert** there. It is live on the
+   iPad Pro 13-inch (M5) run, and it has never been exercised on a Duo panel.
 7. **Does the Duo's inner display have to support landscape?** The iPhone
-   orientation key locks portrait on both displays (`project.yml:80`), and the
+   orientation key locks portrait on both displays (`project.yml:82`), and the
    2026-10-18 run confirms the inner display comes up **landscape** on open, where
    the portrait-only app letterboxes in a centred column until Device Hub's
    `Rotate Right` is clicked. Whether Apple treats a foldable's inner display as a

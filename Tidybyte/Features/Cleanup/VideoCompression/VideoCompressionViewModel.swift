@@ -457,7 +457,15 @@ final class VideoCompressionViewModel {
         // popping per item mid-loop.
         if failedCount > 0 {
             let attempted = completedCount + failedCount
-            errorMessage = "Compressed \(completedCount) of \(attempted). \(failedCount) failed."
+            // Through `L10n`, not string interpolation: an interpolated literal
+            // is not a catalog key, so it shipped English in all 20 languages.
+            // Shared with the photo path, so both tools read the same sentence.
+            errorMessage = L10n.format(
+                "Compressed %lld of %lld. %lld failed.",
+                completedCount,
+                attempted,
+                failedCount
+            )
         }
     }
 }

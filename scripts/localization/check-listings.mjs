@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LANGUAGES } from './plural-categories.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PATH = join(ROOT, 'docs/appstore/listings.json');
@@ -44,6 +45,30 @@ const REQUIRED = ['subtitle', 'promotionalText', 'description', 'keywords', 'wha
 
 const languages = Object.keys(raw).filter((k) => !k.startsWith('_'));
 
+// The file must carry exactly the shipped set, no more and no less.
+//
+// Checking only "every entry has the required fields" accepted any set of keys,
+// so deleting a shipped language or adding an arbitrary locale both passed:
+// coverage was measured over whatever languages happened to be in the file, and
+// the language that vanished simply stopped being reported. The list is imported
+// from `plural-categories.mjs` so the validator, the builder and the scaffold
+// cannot drift apart.
+const missingLanguages = LANGUAGES.filter((code) => !languages.includes(code));
+const unexpectedLanguages = languages.filter((code) => !LANGUAGES.includes(code));
+
+if (missingLanguages.length > 0 || unexpectedLanguages.length > 0) {
+  console.error('FAIL: listings.json does not carry exactly the shipped language set');
+  console.error(`  shipped  (${LANGUAGES.length}): ${LANGUAGES.join(', ')}`);
+  console.error(`  in file  (${languages.length}): ${languages.join(', ')}`);
+  if (missingLanguages.length > 0) {
+    console.error(`  missing:    ${missingLanguages.join(', ')}`);
+  }
+  if (unexpectedLanguages.length > 0) {
+    console.error(`  unexpected: ${unexpectedLanguages.join(', ')}`);
+  }
+  process.exit(1);
+}
+
 console.log(`listings.json: ${languages.length - 1} languages + en\n`);
 
 // The English listing is the source; everything else is measured against it.
@@ -59,7 +84,57 @@ for (const field of ['name', ...REQUIRED]) {
   }
 }
 
+/**
+ * Keyword-field hygiene for one language.
+ *
+ * Runs for `en` as well. It used to live inside the non-English loop, below a
+ * `continue` for `en`, so the comma-space check, the duplicate check and the
+ * subtitle-overlap check never ran on the one keyword field a human writes by
+ * hand; only the length check covered English.
+ */
+function checkKeywords(language, listing) {
+  // Keywords are comma-separated with no spaces after the commas. A space
+  // wastes a character from a 100-character budget, so it is worth catching.
+  const keywords = listing.keywords;
+  if (typeof keywords !== 'string' || keywords.trim() === '') return;
+
+  if (/,\s/.test(keywords)) {
+    fail(`${language}.keywords has a space after a comma; that wastes the 100-char budget`);
+  }
+
+  const terms = keywords.split(',').filter((t) => t.trim() !== '');
+  const dupes = terms.filter((t, i) => terms.indexOf(t) !== i);
+  if (dupes.length > 0) {
+    fail(`${language}.keywords repeats: ${[...new Set(dupes)].join(', ')}`);
+  }
+
+  // Apple indexes name + subtitle + keywords together, so a word already in
+  // the subtitle earns nothing in the keyword field.
+  //
+  // `\p{M}` (combining marks) has to be in the character class. Splitting on
+  // `\p{L}` and `\p{N}` alone tears a Malayalam, Gujarati or Punjabi word apart
+  // at its vowel signs; every fragment then falls under the three-character
+  // filter, the word set comes out empty, and this check can never fire. Tamil
+  // produced fragments above that filter instead, which is worse: it could fail
+  // a correct listing.
+  const subtitleWords = new Set(
+    (listing.subtitle ?? '')
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}\p{M}]+/u)
+      .filter((w) => w.length > 2),
+  );
+  for (const term of terms) {
+    const single = term.trim().toLowerCase();
+    if (single.includes(' ')) continue;
+    if (subtitleWords.has(single)) {
+      fail(`${language}.keywords repeats the subtitle word ${JSON.stringify(term)}`);
+    }
+  }
+}
+
 const untranslated = new Map();
+
+checkKeywords('en', english);
 
 for (const language of languages) {
   if (language === 'en') continue;
@@ -93,34 +168,7 @@ for (const language of languages) {
     }
   }
 
-  // Keywords are comma-separated with no spaces after the commas. A space
-  // wastes a character from a 100-character budget, so it is worth catching.
-  const keywords = listing.keywords;
-  if (typeof keywords === 'string' && keywords.trim() !== '') {
-    if (/,\s/.test(keywords)) {
-      fail(`${language}.keywords has a space after a comma; that wastes the 100-char budget`);
-    }
-    const terms = keywords.split(',').filter((t) => t.trim() !== '');
-    const dupes = terms.filter((t, i) => terms.indexOf(t) !== i);
-    if (dupes.length > 0) {
-      fail(`${language}.keywords repeats: ${[...new Set(dupes)].join(', ')}`);
-    }
-    // Apple indexes name + subtitle + keywords together, so a word already in
-    // the subtitle earns nothing in the keyword field.
-    const subtitleWords = new Set(
-      (listing.subtitle ?? '')
-        .toLowerCase()
-        .split(/[^\p{L}\p{N}]+/u)
-        .filter((w) => w.length > 2),
-    );
-    for (const term of terms) {
-      const single = term.trim().toLowerCase();
-      if (single.includes(' ') ) continue;
-      if (subtitleWords.has(single)) {
-        fail(`${language}.keywords repeats the subtitle word ${JSON.stringify(term)}`);
-      }
-    }
-  }
+  checkKeywords(language, listing);
 }
 
 // A language present in one listing but missing from another is a mistake the

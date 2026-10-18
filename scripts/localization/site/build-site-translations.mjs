@@ -56,7 +56,14 @@ function translateChunk(chunk, map, stats) {
   const attrPattern = new RegExp(`\\b(${TEXT_ATTRIBUTES.join("|")})="([^"]*)"`, "g");
   out = out.replace(attrPattern, (match, attr, value) => {
     const key = value.trim();
-    if (!key || !(key in map)) return match;
+    if (!key || !(key in map)) {
+      // Recorded exactly like the text-node branch above. Without this an
+      // untranslated `alt`, `title`, `aria-label` or `placeholder` left the
+      // English string on a page that declares another language and the build
+      // stayed green, because `unmatched` is the only failure path.
+      if (key && /[A-Za-z]/.test(key) && !isKeepLiteral(key)) stats.unmatched.add(key);
+      return match;
+    }
     stats.replaced.add(key);
     return `${attr}="${map[key]}"`;
   });
@@ -64,8 +71,21 @@ function translateChunk(chunk, map, stats) {
   return out;
 }
 
-function buildOne(slug) {
-  const map = JSON.parse(readFileSync(join(TRANSLATIONS, `${slug}.json`), "utf8"));
+/// Builds one page from one translation file.
+///
+/// `file` is the basename exactly as it is on disk (`pt-BR.json`,
+/// `zh-Hans.json`), because the read has to survive Linux's case-sensitive
+/// filesystem. The OUTPUT name is the lowercased slug, and that is
+/// load-bearing rather than cosmetic: every consumer of the generated page is
+/// lowercase. `src/data/languages.ts` keys the routes `pt-br` / `zh-hans`,
+/// `src/lib/localized-page.ts` imports `index.${lang.slug}.html`, and the
+/// tracked files are lowercase. Writing `index.pt-BR.html` happens to read
+/// correctly on macOS/APFS (case-insensitive, so the write lands on the tracked
+/// inode) and silently creates a duplicate on Linux CI, where the tracked page
+/// then goes stale. `git diff` cannot see the duplicate because it is untracked.
+function buildOne(file) {
+  const map = JSON.parse(readFileSync(join(TRANSLATIONS, file), "utf8"));
+  const slug = file.replace(/\.json$/, "").toLowerCase();
   const source = readFileSync(SOURCE, "utf8");
   const stats = { replaced: new Set(), unmatched: new Set() };
 
@@ -88,29 +108,28 @@ if (!existsSync(TRANSLATIONS)) {
   process.exit(1);
 }
 
-const slugs = readdirSync(TRANSLATIONS)
+const files = readdirSync(TRANSLATIONS)
   // `*.meta.json` holds the title and description for a page, not the body
   // strings. Without excluding it the slug parses as `ar.meta` and the builder
   // writes a bogus `index.ar.meta.html` alongside the real page.
   .filter((name) => name.endsWith(".json") && !name.endsWith(".meta.json"))
-  .map((name) => name.replace(/\.json$/, ""))
   .sort();
 
-if (slugs.length === 0) {
+if (files.length === 0) {
   console.error("no translation files found");
   process.exit(1);
 }
 
 let failed = false;
 
-for (const slug of slugs) {
-  const result = buildOne(slug);
+for (const file of files) {
+  const result = buildOne(file);
   const notes = [];
   if (result.unused.length) notes.push(`${result.unused.length} unused key(s)`);
   if (result.unmatched.length) notes.push(`${result.unmatched.length} untranslated string(s)`);
 
   const status = notes.length ? `  ${notes.join(", ")}` : "";
-  console.log(`index.${slug}.html: ${result.replaced} strings replaced${status}`);
+  console.log(`index.${result.slug}.html: ${result.replaced} strings replaced${status}`);
 
   for (const key of result.unused) console.log(`    unused:      ${key.slice(0, 78)}`);
   for (const key of result.unmatched) console.log(`    untranslated: ${key.slice(0, 78)}`);
@@ -121,7 +140,7 @@ for (const slug of slugs) {
   if (result.unmatched.length) failed = true;
 }
 
-console.log(`\n${slugs.length} localized page(s) written`);
+console.log(`\n${files.length} localized page(s) written`);
 if (failed) {
   console.error("FAIL: some strings had no translation");
   process.exit(1);

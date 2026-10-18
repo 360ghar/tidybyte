@@ -111,6 +111,7 @@
     "Compress Videos": "वीडियो कंप्रेस करें",
     "Compress to save ~%@": "कंप्रेस करके ~%@ बचाएँ",
     "Compress videos to save space": "जगह बचाने के लिए वीडियो कंप्रेस करें",
+    "Compressed %lld of %lld. %lld failed.": "%lld में से %lld कंप्रेस किए गए. %lld कंप्रेस नहीं हो सके.",
     "Compressed photos and videos will appear here.": "कंप्रेस की गई फ़ोटो और वीडियो यहाँ दिखेंगे.",
     "Compression History": "कंप्रेशन इतिहास",
     "Continue": "जारी रखें",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo कन्वर्ट करें",
     "Convert Live Photo to Still": "Live Photo को स्थिर छवि में कन्वर्ट करें",
     "Convert to stills & save space": "स्थिर छवियों में कन्वर्ट करें और जगह बचाएँ",
+    "Converted %lld of %lld. %lld failed.": "%lld में से %lld कन्वर्ट किए गए. %lld कन्वर्ट नहीं हो सके.",
     "Converted to Still": "स्थिर छवि में कन्वर्ट किया गया",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "कॉपियाँ रखी गईं. दोनों वर्शन आपकी लाइब्रेरी में हैं; फ़ोटो में इनमें से कोई एक हटाएँ.",
     "Copy saved": "कॉपी सहेजी गई",
@@ -207,12 +209,14 @@
     "Failed": "विफल",
     "Failed to add to album: %@": "एल्बम में जोड़ना विफल: %@",
     "Failed to create album.": "एल्बम बनाया नहीं जा सका.",
+    "Failed to create album: %@": "एल्बम बनाया नहीं जा सका: %@",
     "Failed to create export session.": "एक्सपोर्ट सेशन नहीं बन सका.",
     "Failed to load the photo.": "फ़ोटो लोड नहीं हो सकी.",
     "Failed to re-encode the photo.": "फ़ोटो फिर से एनकोड नहीं हो सकी.",
     "Failed to read file size.": "फ़ाइल का आकार पढ़ा नहीं जा सका.",
     "Failed to save compressed photo to library.": "कंप्रेस की गई फ़ोटो लाइब्रेरी में सहेजी नहीं जा सकी.",
     "Failed to save compressed video to library.": "कंप्रेस किया गया वीडियो लाइब्रेरी में सहेजा नहीं जा सका.",
+    "Failed to undo album change: %@": "एल्बम बदलाव पूर्ववत नहीं किया जा सका: %@",
     "Favorite": "पसंदीदा",
     "Feedback": "फ़ीडबैक",
     "File Size": "फ़ाइल का आकार",
@@ -720,6 +724,10 @@
     "used": "इस्तेमाल हुआ"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld समस्या मिली",
+      "other": "%lld समस्याएँ मिलीं"
+    },
     "%lld item": {
       "one": "%lld आइटम",
       "other": "%lld आइटम"

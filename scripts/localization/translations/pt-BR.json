@@ -111,6 +111,7 @@
     "Compress Videos": "Comprimir vídeos",
     "Compress to save ~%@": "Compacte para economizar ~%@",
     "Compress videos to save space": "Comprima vídeos para liberar espaço",
+    "Compressed %lld of %lld. %lld failed.": "Comprimidos %lld de %lld. Não foi possível comprimir %lld.",
     "Compressed photos and videos will appear here.": "Fotos e vídeos comprimidos aparecerão aqui.",
     "Compression History": "Histórico de compressão",
     "Continue": "Continuar",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Converter Live Photo",
     "Convert Live Photo to Still": "Converter Live Photo em foto estática",
     "Convert to stills & save space": "Converta em fotos estáticas e libere espaço",
+    "Converted %lld of %lld. %lld failed.": "Convertidos %lld de %lld. Não foi possível converter %lld.",
     "Converted to Still": "Convertida em foto estática",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "Cópias mantidas. As duas versões estão na sua biblioteca; apague qualquer uma no Fotos.",
     "Copy saved": "Cópia salva",
@@ -207,12 +209,14 @@
     "Failed": "Falhou",
     "Failed to add to album: %@": "Não foi possível adicionar ao álbum: %@",
     "Failed to create album.": "Não foi possível criar o álbum.",
+    "Failed to create album: %@": "Não foi possível criar o álbum: %@",
     "Failed to create export session.": "Falha ao criar a sessão de exportação.",
     "Failed to load the photo.": "Falha ao carregar a foto.",
     "Failed to re-encode the photo.": "Falha ao recodificar a foto.",
     "Failed to read file size.": "Falha ao ler o tamanho do arquivo.",
     "Failed to save compressed photo to library.": "Falha ao salvar a foto comprimida na biblioteca.",
     "Failed to save compressed video to library.": "Falha ao salvar o vídeo comprimido na biblioteca.",
+    "Failed to undo album change: %@": "Não foi possível desfazer a alteração do álbum: %@",
     "Favorite": "Favorito",
     "Feedback": "Feedback",
     "File Size": "Tamanho do arquivo",
@@ -720,6 +724,11 @@
     "used": "usado"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld problema encontrado",
+      "many": "%lld problemas encontrados",
+      "other": "%lld problemas encontrados"
+    },
     "%lld item": {
       "one": "%lld item",
       "many": "%lld itens",

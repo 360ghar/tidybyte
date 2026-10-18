@@ -12,11 +12,11 @@
 <section class="section pt-0">
   <div class="container-prose mx-auto max-w-prose">
     <h2 class="h-section text-2xl sm:text-3xl">How they are detected, and why size comes first</h2>
-    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Screen recordings carry their own media subtype in the photo library, separate from screenshots and from ordinary video. TidyByte reads that flag, so the list it builds is exact: no guessing from resolution, aspect ratio or duration.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Screen recordings carry their own media subtype in the photo library, separate from screenshots and from ordinary video. TidyByte reads that flag, and falls back to the RPReplay_Final filename pattern that iOS writes for recordings, so nothing is guessed from resolution, aspect ratio or duration.</p>
     <ol role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
       <li><strong class="text-ink">Sort by size, largest first.</strong> The top few files are usually the whole win; a single long recording can outweigh everything else in the list.</li>
       <li><strong class="text-ink">Check the total before you delete.</strong> The selection bar shows the combined size, so you know what the confirmation is worth.</li>
-      <li><strong class="text-ink">Export the one you still need.</strong> Multi-select share writes the original file to a folder you choose before it leaves the library.</li>
+      <li><strong class="text-ink">Deselect the one you still need.</strong> Tapping a selected recording takes it out of the deletion, so anything worth keeping stays exactly where it is.</li>
       <li><strong class="text-ink">Delete in one pass.</strong> One iOS confirmation, and everything removed stays in Recently Deleted for 30 days.</li>
     </ol>
     <div class="clay-card mt-8 p-5 sm:p-6">

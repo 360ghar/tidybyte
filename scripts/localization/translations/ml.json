@@ -111,6 +111,7 @@
     "Compress Videos": "വീഡിയോകൾ കംപ്രസ് ചെയ്യുക",
     "Compress to save ~%@": "~%@ ലാഭിക്കാൻ കംപ്രസ് ചെയ്യുക",
     "Compress videos to save space": "സ്ഥലം ലാഭിക്കാൻ വീഡിയോകൾ കംപ്രസ് ചെയ്യുക",
+    "Compressed %lld of %lld. %lld failed.": "%lld ൽ %lld കംപ്രസ് ചെയ്തു. %lld കംപ്രസ് ചെയ്യാനായില്ല.",
     "Compressed photos and videos will appear here.": "കംപ്രസ് ചെയ്ത ഫോട്ടോകളും വീഡിയോകളും ഇവിടെ കാണാം.",
     "Compression History": "കംപ്രഷൻ ചരിത്രം",
     "Continue": "തുടരുക",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo കൺവേർട്ട് ചെയ്യുക",
     "Convert Live Photo to Still": "Live Photo സ്റ്റിൽ ആക്കി മാറ്റുക",
     "Convert to stills & save space": "സ്റ്റിലുകളാക്കി മാറ്റി സ്ഥലം ലാഭിക്കുക",
+    "Converted %lld of %lld. %lld failed.": "%lld ൽ %lld കൺവേർട്ട് ചെയ്തു. %lld കൺവേർട്ട് ചെയ്യാനായില്ല.",
     "Converted to Still": "സ്റ്റിൽ ആക്കി മാറ്റി",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "പകർപ്പുകൾ നിലനിർത്തി. രണ്ട് പതിപ്പുകളും നിങ്ങളുടെ ലൈബ്രറിയിലുണ്ട്; ഫോട്ടോകൾ ആപ്പിൽ ഏതെങ്കിലും ഒന്ന് ഇല്ലാതാക്കുക.",
     "Copy saved": "പകർപ്പ് സേവ് ചെയ്തു",
@@ -207,12 +209,14 @@
     "Failed": "പരാജയപ്പെട്ടു",
     "Failed to add to album: %@": "ആൽബത്തിലേക്ക് ചേർക്കാനായില്ല: %@",
     "Failed to create album.": "ആൽബം സൃഷ്ടിക്കാനായില്ല.",
+    "Failed to create album: %@": "ആൽബം സൃഷ്ടിക്കാനായില്ല: %@",
     "Failed to create export session.": "എക്സ്പോർട്ട് സെഷൻ സൃഷ്ടിക്കാനായില്ല.",
     "Failed to load the photo.": "ഫോട്ടോ ലോഡ് ചെയ്യാനായില്ല.",
     "Failed to re-encode the photo.": "ഫോട്ടോ വീണ്ടും എൻകോഡ് ചെയ്യാനായില്ല.",
     "Failed to read file size.": "ഫയൽ വലിപ്പം വായിക്കാനായില്ല.",
     "Failed to save compressed photo to library.": "കംപ്രസ് ചെയ്ത ഫോട്ടോ ലൈബ്രറിയിൽ സേവ് ചെയ്യാനായില്ല.",
     "Failed to save compressed video to library.": "കംപ്രസ് ചെയ്ത വീഡിയോ ലൈബ്രറിയിൽ സേവ് ചെയ്യാനായില്ല.",
+    "Failed to undo album change: %@": "ആൽബം മാറ്റം പഴയപടിയാക്കാനായില്ല: %@",
     "Favorite": "പ്രിയപ്പെട്ടത്",
     "Feedback": "ഫീഡ്ബാക്ക്",
     "File Size": "ഫയൽ വലിപ്പം",
@@ -720,6 +724,10 @@
     "used": "ഉപയോഗിച്ചു"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld പ്രശ്നം കണ്ടെത്തി",
+      "other": "%lld പ്രശ്നങ്ങൾ കണ്ടെത്തി"
+    },
     "%lld item": {
       "one": "%lld ഇനം",
       "other": "%lld ഇനങ്ങൾ"

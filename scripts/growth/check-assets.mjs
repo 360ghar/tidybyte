@@ -20,6 +20,9 @@
  *      card, which passes every size check and is worthless.
  *
  * `--strict` turns the coverage and opacity warnings into failures, for CI.
+ * Without it they are printed as `WARN:` lines and the run still exits 0, so a
+ * local run reports the gap without blocking. Everything else (dimensions, the
+ * aspect ratio, alpha, an unreadable file) fails in both modes.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -108,6 +111,12 @@ for (const surface of SURFACES) {
   }
 
   // Coverage: every (group, spec) pair must have every language.
+  //
+  // A warning, not a failure, so a local run without `--strict` reports the gap
+  // and still exits 0. CI runs `--strict` (see `check:growth`), which promotes it
+  // to a failure. Both findings here and the blank check below used to be pushed
+  // straight into `problems`, which made `warn()` unreachable and `--strict` a
+  // no-op.
   const byGroupSpec = new Map();
   for (const asset of assets) {
     const key = `${asset.group}--${asset.spec}`;
@@ -117,7 +126,7 @@ for (const surface of SURFACES) {
   for (const [key, langs] of byGroupSpec) {
     const missing = LANGUAGES.filter((l) => !langs.has(l));
     if (missing.length > 0) {
-      problems.push(`${surface.id}: ${key} is missing ${missing.length} language(s): ${missing.join(', ')}`);
+      warn(`${surface.id}: ${key} is missing ${missing.length} language(s): ${missing.join(', ')}`);
     }
   }
 
@@ -177,7 +186,7 @@ for (const surface of SURFACES) {
     }
 
     if (looksBlank(path)) {
-      problems.push(
+      warn(
         `${surface.id}: ${asset.file} looks blank (${(info.bytes / 1024).toFixed(0)} KB for `
         + `${info.width}x${info.height}) — the background art probably failed to load`,
       );
@@ -202,5 +211,11 @@ console.log('');
 if (failures > 0) {
   console.error(`${failures} problem(s) found.`);
   process.exit(1);
+}
+if (warnings > 0) {
+  // Non-strict: the warning is the outcome. The all-clear line below is not
+  // printed, because it claims every language is present.
+  console.log(`${warnings} warning(s). These fail the build under --strict, which is what CI runs.`);
+  process.exit(0);
 }
 console.log(`Growth assets OK — every asset is inside Apple's accepted size, opaque, and present in all ${LANGUAGES.length} languages.`);

@@ -735,7 +735,7 @@ export const TOOLS: Tool[] = [
     lede:
       "A ten-second burst is thirty photos, and twenty-nine of them are waste. Group them, keep the best frame, clear the rest.",
     quickAnswer:
-      "TidyByte is a free burst photo cleaner for iPhone. It groups every burst sequence, picks the sharpest and best-exposed frame as the keeper, leaves the remaining frames pre-selected for deletion, and lets you change the pick or deselect anything before you confirm.",
+      "TidyByte is a free burst photo cleaner for iPhone. It groups every burst sequence, picks a keeper for each one from a fixed ladder (your starred frame, then the frame the iPhone picked, then a favourite, then the highest resolution, then the most recent), leaves the remaining frames pre-selected for deletion, and lets you change the pick or deselect anything before you confirm.",
     keywords: [
       "burst photo cleaner",
       "delete burst photos iphone",
@@ -758,7 +758,7 @@ export const TOOLS: Tool[] = [
         },
         {
           label: "Picks the keeper automatically",
-          cells: ["Sharpness, exposure, resolution", "Favourite or first frame", "No"],
+          cells: ["Your star, favourite, resolution", "Favourite or first frame", "No"],
         },
         {
           label: "Pre-selects the rest for deletion",
@@ -793,7 +793,7 @@ export const TOOLS: Tool[] = [
       },
       {
         q: "How does TidyByte choose the best frame in a burst?",
-        a: "Each frame is scored for sharpness, exposure and resolution using on-device analysis, and the highest scorer is recommended as the keeper. There is no hidden preference for the first frame, and you can override the choice with one tap before anything is deleted.",
+        a: "The keeper is chosen by a fixed ladder: your starred frame first, then the frame the iPhone picked, then a favourite, then the frame with the most pixels, then the most recent one. Sharpness and exposure scoring belongs to the Similar Photos tool, not this one. You can override the pick with one tap before anything is deleted.",
       },
       {
         q: "Will my choices survive if I run the tool again?",
@@ -1281,7 +1281,7 @@ export const TOOLS: Tool[] = [
     lede:
       "Screen recordings are the largest files nobody remembers making. Find every one, see its size, and clear them in a single pass.",
     quickAnswer:
-      "TidyByte is a free screen recording cleaner for iPhone. It detects screen recordings by their media subtype, lists them with real file sizes and dates, and deletes the ones you select after review. Screen recordings are usually 50 to 200 MB each, so clearing them returns space faster than deleting photos.",
+      "TidyByte is a free screen recording cleaner for iPhone. It detects screen recordings by their media subtype, falling back to the filename pattern iOS writes for them, lists them with real file sizes and dates, and deletes the ones you select after review. Screen recordings are usually 50 to 200 MB each, so clearing them returns space faster than deleting photos.",
     keywords: [
       "screen recording cleaner",
       "delete screen recordings iphone",
@@ -1300,7 +1300,7 @@ export const TOOLS: Tool[] = [
       rows: [
         {
           label: "Finds screen recordings specifically",
-          cells: ["Yes, by media subtype", "Mixed into a Screenshots album", "Rarely separated"],
+          cells: ["Yes, by media subtype and filename", "Mixed into a Screenshots album", "Rarely separated"],
         },
         {
           label: "Shows each file's real size",
@@ -1327,7 +1327,7 @@ export const TOOLS: Tool[] = [
     faqs: [
       {
         q: "How do I find screen recordings on my iPhone?",
-        a: "Open TidyByte's Screen Recordings tool. Recordings are detected by their media subtype in the photo library, so the list is exact rather than a guess from dimensions or dates. Each entry shows its real size and duration, and sorting by size puts the biggest offenders first.",
+        a: "Open TidyByte's Screen Recordings tool. Recordings are found by their media subtype in the photo library, with a fallback to the RPReplay_Final filename pattern iOS writes, so nothing is guessed from dimensions or dates. Each entry shows its real size and duration, and sorting by size puts the biggest offenders first.",
       },
       {
         q: "How much space do screen recordings take up?",

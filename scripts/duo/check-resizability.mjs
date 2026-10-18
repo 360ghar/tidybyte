@@ -225,18 +225,57 @@ for (const root of searchRoots) {
  * Blank out comments and string literals, preserving every newline so line
  * numbers stay exact. Bans must not trip on a doc comment that names them, nor
  * on a string that happens to contain "390x844".
+ *
+ * A string interpolation (`\(...)`) is code, so its body is scanned rather than
+ * blanked: `let w = "\(UIScreen.main.bounds.width)"` reaches a banned API
+ * through the literal. On `\(` the text state is pushed and the body resumes as
+ * code until the `)` that matches it, tracking paren depth and any nested
+ * strings on the way.
+ *
+ * Multiline strings stay blanked whole, interpolations included.
  */
 function blankCommentsAndStrings(src) {
   const out = src.split("");
   let state = "code";
   let i = 0;
+  // Parens opened inside the interpolation currently being scanned, and the
+  // state each open literal resumes when it ends (a nested string inside an
+  // interpolation resumes "interp").
+  let interpParens = 0;
+  const returnTo = [];
   const blank = (idx) => {
     if (src[idx] !== "\n") out[idx] = " ";
+  };
+  const pushReturn = (from) => returnTo.push({ state: from, interpParens });
+  const popReturn = (fallback) => {
+    const frame = returnTo.pop();
+    state = frame ? frame.state : fallback;
+    interpParens = frame ? frame.interpParens : 0;
   };
   while (i < src.length) {
     const c = src[i];
     const n = src[i + 1];
-    if (state === "code") {
+    if (state === "code" || state === "interp") {
+      if (state === "interp") {
+        if (c === "(") {
+          interpParens += 1;
+          i += 1;
+          continue;
+        }
+        if (c === ")") {
+          if (interpParens > 0) {
+            interpParens -= 1;
+            i += 1;
+            continue;
+          }
+          // The interpolation's own close paren: the string literal resumes and
+          // its remaining characters are literal text again.
+          blank(i);
+          i += 1;
+          popReturn("code");
+          continue;
+        }
+      }
       if (c === "/" && n === "/") {
         while (i < src.length && src[i] !== "\n") {
           blank(i);
@@ -248,6 +287,7 @@ function blankCommentsAndStrings(src) {
         blank(i);
         blank(i + 1);
         i += 2;
+        pushReturn(state);
         state = "block";
         continue;
       }
@@ -258,6 +298,7 @@ function blankCommentsAndStrings(src) {
       }
       if (c === '"') {
         i += 1;
+        pushReturn(state);
         state = "string";
         continue;
       }
@@ -269,7 +310,7 @@ function blankCommentsAndStrings(src) {
         blank(i);
         blank(i + 1);
         i += 2;
-        state = "code";
+        popReturn("code");
         continue;
       }
       blank(i);
@@ -277,6 +318,16 @@ function blankCommentsAndStrings(src) {
       continue;
     }
     if (state === "string") {
+      if (c === "\\" && n === "(") {
+        // Interpolation: keep the body. Only the two intro characters are text.
+        blank(i);
+        blank(i + 1);
+        i += 2;
+        pushReturn("string");
+        interpParens = 0;
+        state = "interp";
+        continue;
+      }
       if (c === "\\") {
         blank(i);
         blank(i + 1);
@@ -284,11 +335,15 @@ function blankCommentsAndStrings(src) {
         continue;
       }
       if (c === '"') {
-        state = "code";
         i += 1;
+        popReturn("code");
         continue;
       }
       if (c === "\n") {
+        // Unterminated string: the rest of the file is treated as code, and the
+        // pushed frames no longer describe anything real.
+        returnTo.length = 0;
+        interpParens = 0;
         state = "code";
         i += 1;
         continue;

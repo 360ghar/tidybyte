@@ -144,9 +144,14 @@ struct ToolScanningView: View {
     let progress: Float
     /// Trailing detail after the percentage, e.g. "37 items found".
     ///
-    /// A `String`, not a key: the callers build this from view-model state
-    /// ("12 of 340 reviewed"), so it is composed text rather than a fixed
-    /// sentence. Pass nil (not "") when there is nothing to report.
+    /// A `String`, and the caller owns localizing it: every call site builds
+    /// this with `L10n.format` and a counted catalog key, so the number and the
+    /// noun around it come from the language's own entry. An interpolated
+    /// literal here would ship English in all 20 languages: an interpolation
+    /// cannot be a catalog key unless `Text` is what performs it, and the
+    /// rendering below is verbatim on purpose (a runtime string must not go
+    /// through Markdown parsing). Pass nil (not "") when there is nothing to
+    /// report.
     var detail: String?
     var cancelTitle: LocalizedStringKey = "Cancel"
     let onCancel: () -> Void
@@ -161,7 +166,7 @@ struct ToolScanningView: View {
     ///
     /// Two `Text` views joined with `+` keep each side intact: the percent is
     /// verbatim (a number needs no translation) and the detail renders exactly
-    /// as the caller built it.
+    /// as the caller built it, already localized; see `detail`.
     private var progressLine: Text {
         guard let detail, !detail.isEmpty else {
             return Text(verbatim: percentLabel)

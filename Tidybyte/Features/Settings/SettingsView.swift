@@ -219,7 +219,7 @@ struct SettingsView: View {
             Section("Appearance") {
                 Picker("Appearance", selection: appearanceBinding) {
                     ForEach(AppAppearance.allCases) { option in
-                        Text(option.displayName).tag(option.rawValue)
+                        Text(LocalizedStringKey(option.displayName)).tag(option.rawValue)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -244,7 +244,7 @@ struct SettingsView: View {
             Section("Swipe") {
                 Picker("Default Filter", selection: $defaultSwipeFilter) {
                     ForEach(DefaultSwipeFilterPreference.allCases, id: \.self) { filter in
-                        Text(filter.title).tag(filter.rawValue)
+                        Text(LocalizedStringKey(filter.title)).tag(filter.rawValue)
                     }
                 }
             }
@@ -268,7 +268,7 @@ struct SettingsView: View {
                     Text("Blur Detection Sensitivity")
                     Picker("Blur Detection Sensitivity", selection: $blurSensitivity) {
                         ForEach(BlurSensitivity.allCases, id: \.self) { level in
-                            Text(level.displayName).tag(level.rawValue)
+                            Text(LocalizedStringKey(level.displayName)).tag(level.rawValue)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -279,7 +279,7 @@ struct SettingsView: View {
                     Text("Smart Category Sensitivity")
                     Picker("Smart Category Sensitivity", selection: $smartCategorySensitivity) {
                         ForEach(CategorySensitivity.allCases, id: \.self) { level in
-                            Text(level.displayName).tag(level.rawValue)
+                            Text(LocalizedStringKey(level.displayName)).tag(level.rawValue)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -351,6 +351,18 @@ struct SettingsView: View {
                     Picker("Reminder Day", selection: $reminderWeekday) {
                         ForEach(weekdays, id: \.weekday) { day in
                             Text(day.name).tag(day.weekday)
+                        }
+                    }
+                    .onAppear {
+                        // A fresh install has nothing stored, so the picker's own
+                        // default (1, Sunday) disagreed with the scheduler, which
+                        // falls back to the device's first weekday (Monday in
+                        // India, Germany and Brazil). Seeding the stored value
+                        // makes both read the same day, and lets the user pick
+                        // that first weekday at all: a picker already showing it
+                        // fires no change, so the pick was unreachable.
+                        if UserDefaults.standard.object(forKey: AppPreferences.Key.reminderWeekday) == nil {
+                            reminderWeekday = AppPreferences.reminderWeekday()
                         }
                     }
                     .onChange(of: reminderWeekday) { _, newDay in

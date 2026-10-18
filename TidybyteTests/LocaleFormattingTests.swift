@@ -241,4 +241,62 @@ final class LocaleFormattingTests: XCTestCase {
             """
         )
     }
+
+    // MARK: - Code-built cleanup strings
+
+    /// The sentences the cleanup tools assemble in code rather than as `Text`
+    /// literals, pinned to German.
+    ///
+    /// The three batch summaries were raw interpolation
+    /// (`"Compressed \(done) of \(total)."`), and an interpolated literal is not
+    /// a catalog key, so every one of them shipped the English sentence in all
+    /// 20 languages while the coverage gate reported 100%. The scan-progress
+    /// details are here for the same reason: the tool scaffold renders them
+    /// verbatim, so the sentence has to be finished before it gets there.
+    ///
+    /// Asserting the German word, not just "differs from English", is what makes
+    /// this a regression test: a key that loses its translations falls back to
+    /// the English text and fails here.
+    func testCodeBuiltCleanupStringsResolveToTheChosenLanguage() {
+        let issues = L10n.format(
+            "%lld issues found",
+            language: .german,
+            fallback: "%lld issues found",
+            3
+        )
+        XCTAssertTrue(issues.contains("Probleme"), "expected the German noun, got: \(issues)")
+        XCTAssertFalse(issues.contains("issues"), "still English: \(issues)")
+
+        // The Smart Categories scan detail, which the tool scaffold renders
+        // verbatim, so the sentence has to be finished before it gets there.
+        let photos = L10n.format("%lld photos", language: .german, fallback: "%lld photo", 5)
+        XCTAssertEqual(photos, "5 Fotos", "scan detail stayed English: \(photos)")
+
+        let compressed = L10n.format(
+            "Compressed %lld of %lld. %lld failed.",
+            language: .german,
+            8, 10, 2
+        )
+        XCTAssertTrue(compressed.contains("komprimiert"), "got: \(compressed)")
+        // The three counts must land in the order the English sentence reads:
+        // all three are `%lld`, so a reordered translation would still pass the
+        // placeholder-parity gate and print the wrong numbers.
+        XCTAssertEqual(
+            compressed.split(whereSeparator: { !$0.isNumber }).map(String.init).filter { !$0.isEmpty },
+            ["8", "10", "2"],
+            "counts out of order: \(compressed)"
+        )
+
+        let converted = L10n.format(
+            "Converted %lld of %lld. %lld failed.",
+            language: .german,
+            8, 10, 2
+        )
+        XCTAssertTrue(converted.contains("konvertiert"), "got: \(converted)")
+        XCTAssertEqual(
+            converted.split(whereSeparator: { !$0.isNumber }).map(String.init).filter { !$0.isEmpty },
+            ["8", "10", "2"],
+            "counts out of order: \(converted)"
+        )
+    }
 }

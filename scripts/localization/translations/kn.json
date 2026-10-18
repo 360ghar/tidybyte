@@ -111,6 +111,7 @@
     "Compress Videos": "ವೀಡಿಯೊಗಳನ್ನು ಸಂಕುಚಿಸಿ",
     "Compress to save ~%@": "~%@ ಉಳಿಸಲು ಕಂಪ್ರೆಸ್ ಮಾಡಿ",
     "Compress videos to save space": "ಜಾಗ ಉಳಿಸಲು ವೀಡಿಯೊಗಳನ್ನು ಸಂಕುಚಿಸಿ",
+    "Compressed %lld of %lld. %lld failed.": "%lld ರಲ್ಲಿ %lld ಸಂಕುಚಿಸಲಾಗಿದೆ. %lld ಸಂಕುಚಿಸಲಾಗಲಿಲ್ಲ.",
     "Compressed photos and videos will appear here.": "ಸಂಕುಚಿಸಿದ ಫೋಟೋಗಳು ಮತ್ತು ವೀಡಿಯೊಗಳು ಇಲ್ಲಿ ಕಾಣುತ್ತವೆ.",
     "Compression History": "ಸಂಕೋಚನ ಇತಿಹಾಸ",
     "Continue": "ಮುಂದುವರಿಸಿ",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo ಪರಿವರ್ತಿಸಿ",
     "Convert Live Photo to Still": "Live Photo ಅನ್ನು ಸ್ಟಿಲ್ ಆಗಿ ಪರಿವರ್ತಿಸಿ",
     "Convert to stills & save space": "ಸ್ಟಿಲ್ಗಳಾಗಿ ಪರಿವರ್ತಿಸಿ ಮತ್ತು ಜಾಗ ಉಳಿಸಿ",
+    "Converted %lld of %lld. %lld failed.": "%lld ರಲ್ಲಿ %lld ಪರಿವರ್ತಿಸಲಾಗಿದೆ. %lld ಪರಿವರ್ತಿಸಲಾಗಲಿಲ್ಲ.",
     "Converted to Still": "ಸ್ಟಿಲ್ ಆಗಿ ಪರಿವರ್ತಿಸಲಾಗಿದೆ",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "ಪ್ರತಿಗಳನ್ನು ಇರಿಸಲಾಗಿದೆ. ಎರಡೂ ಆವೃತ್ತಿಗಳು ನಿಮ್ಮ ಲೈಬ್ರರಿಯಲ್ಲಿವೆ; ಫೋಟೋಗಳ ಆ್ಯಪ್ನಲ್ಲಿ ಒಂದನ್ನು ಅಳಿಸಿ.",
     "Copy saved": "ಪ್ರತಿ ಉಳಿಸಲಾಗಿದೆ",
@@ -207,12 +209,14 @@
     "Failed": "ವಿಫಲವಾಗಿದೆ",
     "Failed to add to album: %@": "ಆಲ್ಬಮ್ಗೆ ಸೇರಿಸಲು ವಿಫಲವಾಗಿದೆ: %@",
     "Failed to create album.": "ಆಲ್ಬಮ್ ರಚಿಸಲಾಗಲಿಲ್ಲ.",
+    "Failed to create album: %@": "ಆಲ್ಬಮ್ ರಚಿಸಲಾಗಲಿಲ್ಲ: %@",
     "Failed to create export session.": "ಎಕ್ಸ್ಪೋರ್ಟ್ ಸೆಷನ್ ರಚಿಸಲಾಗಲಿಲ್ಲ.",
     "Failed to load the photo.": "ಫೋಟೋ ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ.",
     "Failed to re-encode the photo.": "ಫೋಟೋವನ್ನು ಮತ್ತೆ ಎನ್ಕೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ.",
     "Failed to read file size.": "ಫೈಲ್ ಗಾತ್ರ ಓದಲಾಗಲಿಲ್ಲ.",
     "Failed to save compressed photo to library.": "ಸಂಕುಚಿಸಿದ ಫೋಟೋವನ್ನು ಲೈಬ್ರರಿಯಲ್ಲಿ ಉಳಿಸಲಾಗಲಿಲ್ಲ.",
     "Failed to save compressed video to library.": "ಸಂಕುಚಿಸಿದ ವೀಡಿಯೊವನ್ನು ಲೈಬ್ರರಿಯಲ್ಲಿ ಉಳಿಸಲಾಗಲಿಲ್ಲ.",
+    "Failed to undo album change: %@": "ಆಲ್ಬಮ್ ಬದಲಾವಣೆಯನ್ನು ಹಿಂತಿರುಗಿಸಲಾಗಲಿಲ್ಲ: %@",
     "Favorite": "ಮೆಚ್ಚಿನ",
     "Feedback": "ಪ್ರತಿಕ್ರಿಯೆ",
     "File Size": "ಫೈಲ್ ಗಾತ್ರ",
@@ -720,6 +724,10 @@
     "used": "ಬಳಸಲಾಗಿದೆ"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld ಸಮಸ್ಯೆ ಸಿಕ್ಕಿತು",
+      "other": "%lld ಸಮಸ್ಯೆಗಳು ಸಿಕ್ಕಿವೆ"
+    },
     "%lld item": {
       "one": "%lld ಐಟಂ",
       "other": "%lld ಐಟಂಗಳು"

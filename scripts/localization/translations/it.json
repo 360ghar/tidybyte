@@ -111,6 +111,7 @@
     "Compress Videos": "Comprimi video",
     "Compress to save ~%@": "Comprimi per risparmiare ~%@",
     "Compress videos to save space": "Comprimi i video per risparmiare spazio",
+    "Compressed %lld of %lld. %lld failed.": "Compressi %lld su %lld. Impossibile comprimere %lld.",
     "Compressed photos and videos will appear here.": "Le foto e i video compressi compariranno qui.",
     "Compression History": "Cronologia compressioni",
     "Continue": "Continua",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Converti Live Photo",
     "Convert Live Photo to Still": "Converti Live Photo in foto statica",
     "Convert to stills & save space": "Converti in foto statiche e risparmia spazio",
+    "Converted %lld of %lld. %lld failed.": "Convertiti %lld su %lld. Impossibile convertire %lld.",
     "Converted to Still": "Convertita in foto statica",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "Copie conservate. Entrambe le versioni sono nella tua libreria; elimina quella che preferisci in Foto.",
     "Copy saved": "Copia salvata",
@@ -207,12 +209,14 @@
     "Failed": "Non riuscito",
     "Failed to add to album: %@": "Impossibile aggiungere all'album: %@",
     "Failed to create album.": "Impossibile creare l'album.",
+    "Failed to create album: %@": "Impossibile creare l'album: %@",
     "Failed to create export session.": "Impossibile creare la sessione di esportazione.",
     "Failed to load the photo.": "Impossibile caricare la foto.",
     "Failed to re-encode the photo.": "Impossibile ricodificare la foto.",
     "Failed to read file size.": "Impossibile leggere la dimensione del file.",
     "Failed to save compressed photo to library.": "Impossibile salvare la foto compressa nella libreria.",
     "Failed to save compressed video to library.": "Impossibile salvare il video compresso nella libreria.",
+    "Failed to undo album change: %@": "Impossibile annullare la modifica dell'album: %@",
     "Favorite": "Preferito",
     "Feedback": "Feedback",
     "File Size": "Dimensione file",
@@ -720,6 +724,11 @@
     "used": "usato"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld problema trovato",
+      "many": "%lld problemi trovati",
+      "other": "%lld problemi trovati"
+    },
     "%lld item": {
       "one": "%lld elemento",
       "many": "%lld elementi",

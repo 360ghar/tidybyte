@@ -111,6 +111,7 @@
     "Compress Videos": "ビデオを圧縮",
     "Compress to save ~%@": "圧縮して約%@節約",
     "Compress videos to save space": "ビデオを圧縮して容量を節約",
+    "Compressed %lld of %lld. %lld failed.": "%lld個中%lld個を圧縮しました。%lld個は圧縮できませんでした。",
     "Compressed photos and videos will appear here.": "圧縮した写真とビデオがここに表示されます。",
     "Compression History": "圧縮履歴",
     "Continue": "続ける",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photoを変換",
     "Convert Live Photo to Still": "Live Photoを静止画に変換",
     "Convert to stills & save space": "静止画に変換して容量を節約",
+    "Converted %lld of %lld. %lld failed.": "%lld個中%lld個を変換しました。%lld個は変換できませんでした。",
     "Converted to Still": "静止画に変換しました",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "コピーは残しました。両方のバージョンがライブラリにあります。どちらか一方を「写真」で削除してください。",
     "Copy saved": "コピーを保存しました",
@@ -207,12 +209,14 @@
     "Failed": "失敗",
     "Failed to add to album: %@": "アルバムに追加できませんでした: %@",
     "Failed to create album.": "アルバムを作成できませんでした。",
+    "Failed to create album: %@": "アルバムを作成できませんでした: %@",
     "Failed to create export session.": "書き出しセッションを作成できませんでした。",
     "Failed to load the photo.": "写真を読み込めませんでした。",
     "Failed to re-encode the photo.": "写真を再エンコードできませんでした。",
     "Failed to read file size.": "ファイルサイズを読み取れませんでした。",
     "Failed to save compressed photo to library.": "圧縮した写真をライブラリに保存できませんでした。",
     "Failed to save compressed video to library.": "圧縮したビデオをライブラリに保存できませんでした。",
+    "Failed to undo album change: %@": "アルバムの変更を取り消せませんでした: %@",
     "Favorite": "お気に入り",
     "Feedback": "フィードバック",
     "File Size": "ファイルサイズ",
@@ -720,6 +724,9 @@
     "used": "使用中"
   },
   "plurals": {
+    "%lld issues found": {
+      "other": "%lld個の問題が見つかりました"
+    },
     "%lld item": {
       "other": "%lld個の項目"
     },

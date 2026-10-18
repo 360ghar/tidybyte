@@ -28,8 +28,13 @@
  *
  * so the key set is readable directly, with no need to interpret Xcode's state
  * machine. Files are matched to the two targets that share the catalog.
+ *
+ * The collection is deliberately strict about its inputs. A `.stringsdata` that
+ * cannot be parsed is fatal, and one whose source file no longer exists is
+ * skipped and recorded: both cases otherwise produce a key set that is quietly
+ * too small, and the catalog builder prunes against it.
  */
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -80,13 +85,36 @@ function main() {
 
   const keys = new Set();
   const perFile = [];
+  const skipped = [];
   for (const path of found) {
     let data;
     try {
       data = JSON.parse(readFileSync(path, 'utf8'));
-    } catch {
+    } catch (error) {
+      // Fatal rather than skipped. A file left out of the collection shrinks
+      // the live key set, and `build-catalog.mjs` then prunes every catalog key
+      // whose only source was that file: the strings vanish from 20 languages
+      // and every coverage number still reads 100%.
+      console.error(`FAIL: ${relative(ROOT, path)} is not valid JSON: ${error.message}`);
+      console.error('      a partial key set makes the catalog builder prune live keys.');
+      process.exit(1);
+    }
+
+    // A `.stringsdata` whose source file is gone belongs to a deleted or
+    // renamed Swift file, so its keys are stale by definition. Xcode leaves
+    // these in the build directory forever, which is why the pruner needs this
+    // to ever remove them.
+    //
+    // Only absolute paths are tested. `ExtractedAppShortcutsMetadata.stringsdata`
+    // puts the table name (`ExtractedAppShortcutsMetadata`) in `source` instead
+    // of a path, and a blind existsSync on that value would throw away the Siri
+    // phrases.
+    const source = data.source;
+    if (typeof source === 'string' && source.startsWith('/') && !existsSync(source)) {
+      skipped.push({ file: relative(ROOT, path), source });
       continue;
     }
+
     let count = 0;
     for (const table of Object.values(data.tables ?? {})) {
       for (const entry of table ?? []) {
@@ -101,6 +129,20 @@ function main() {
     perFile.push({ file: relative(ROOT, path), keys: count });
   }
 
+  // Never write a collection that lost everything to the skip above. A
+  // `build/` directory copied from another checkout records that checkout's
+  // absolute paths, so every file is skipped at once, the key set comes out
+  // empty, and `build-catalog.mjs` would then prune the entire catalog down to
+  // the code-built keys. A stale DerivedData must fail here instead.
+  if (keys.size === 0) {
+    console.error(`FAIL: no keys collected from ${found.length} .stringsdata file(s)`);
+    if (skipped.length > 0) {
+      console.error(`      all ${skipped.length} were skipped because their source file is gone,`);
+      console.error('      which means this DerivedData belongs to a different checkout.');
+    }
+    process.exit(1);
+  }
+
   writeFileSync(
     OUT,
     JSON.stringify(
@@ -109,6 +151,14 @@ function main() {
         total: keys.size,
         // Kept so a stale collection is obvious: this is what the build saw.
         files: perFile.length,
+        // The file list, not just the count. An incremental build that skipped a
+        // target leaves fewer entries here, which is visible in the diff; a bare
+        // count only says "something changed" and the shrink is what enables the
+        // pruning above.
+        collectedFrom: perFile.map((entry) => entry.file),
+        // Dead-source files are recorded rather than quietly dropped, so the
+        // next person can tell a stale artifact from a missing one.
+        skipped: skipped.map((entry) => `${entry.file} <- ${entry.source}`),
       },
       null,
       2,
@@ -116,6 +166,9 @@ function main() {
   );
 
   console.log(`Xcode keys collected: ${keys.size} (from ${perFile.length} .stringsdata files)`);
+  for (const entry of skipped) {
+    console.log(`  skipped (source is gone): ${entry.file} <- ${entry.source}`);
+  }
 }
 
 main();

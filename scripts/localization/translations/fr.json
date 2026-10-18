@@ -111,6 +111,7 @@
     "Compress Videos": "Compresser les vidéos",
     "Compress to save ~%@": "Compresser pour économiser ~%@",
     "Compress videos to save space": "Compressez les vidéos pour libérer de l'espace",
+    "Compressed %lld of %lld. %lld failed.": "%lld sur %lld compressés. %lld n'ont pas pu être compressés.",
     "Compressed photos and videos will appear here.": "Les photos et vidéos compressées apparaîtront ici.",
     "Compression History": "Historique de compression",
     "Continue": "Continuer",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Convertir la Live Photo",
     "Convert Live Photo to Still": "Convertir la Live Photo en photo fixe",
     "Convert to stills & save space": "Convertissez en photos fixes et libérez de l'espace",
+    "Converted %lld of %lld. %lld failed.": "%lld sur %lld convertis. %lld n'ont pas pu être convertis.",
     "Converted to Still": "Convertie en photo fixe",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "Copies conservées. Les deux versions sont dans votre photothèque ; supprimez celle que vous voulez dans Photos.",
     "Copy saved": "Copie enregistrée",
@@ -207,12 +209,14 @@
     "Failed": "Échec",
     "Failed to add to album: %@": "Échec de l'ajout à l'album : %@",
     "Failed to create album.": "Impossible de créer l'album.",
+    "Failed to create album: %@": "Impossible de créer l'album : %@",
     "Failed to create export session.": "Impossible de créer la session d'exportation.",
     "Failed to load the photo.": "Impossible de charger la photo.",
     "Failed to re-encode the photo.": "Impossible de réencoder la photo.",
     "Failed to read file size.": "Impossible de lire la taille du fichier.",
     "Failed to save compressed photo to library.": "Impossible d'enregistrer la photo compressée dans la photothèque.",
     "Failed to save compressed video to library.": "Impossible d'enregistrer la vidéo compressée dans la photothèque.",
+    "Failed to undo album change: %@": "Impossible d'annuler la modification de l'album : %@",
     "Favorite": "Favori",
     "Feedback": "Commentaires",
     "File Size": "Taille du fichier",
@@ -720,6 +724,11 @@
     "used": "utilisé"
   },
   "plurals": {
+    "%lld issues found": {
+      "one": "%lld problème détecté",
+      "many": "%lld problèmes détectés",
+      "other": "%lld problèmes détectés"
+    },
     "%lld item": {
       "one": "%lld élément",
       "many": "%lld éléments",

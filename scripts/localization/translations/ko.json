@@ -111,6 +111,7 @@
     "Compress Videos": "동영상 압축",
     "Compress to save ~%@": "압축하여 약 %@ 절약",
     "Compress videos to save space": "동영상을 압축해 공간 절약",
+    "Compressed %lld of %lld. %lld failed.": "%lld개 중 %lld개를 압축했습니다. %lld개는 압축하지 못했습니다.",
     "Compressed photos and videos will appear here.": "압축한 사진과 동영상이 여기에 표시됩니다.",
     "Compression History": "압축 기록",
     "Continue": "계속",
@@ -122,6 +123,7 @@
     "Convert Live Photo": "Live Photo 변환",
     "Convert Live Photo to Still": "Live Photo를 정지 사진으로 변환",
     "Convert to stills & save space": "정지 사진으로 변환해 공간 절약",
+    "Converted %lld of %lld. %lld failed.": "%lld개 중 %lld개를 변환했습니다. %lld개는 변환하지 못했습니다.",
     "Converted to Still": "정지 사진으로 변환됨",
     "Copies kept. Both versions are in your library; delete either one in Photos.": "복사본은 남겨 두었습니다. 두 버전 모두 사진 보관함에 있으니, 사진 앱에서 하나를 삭제하세요.",
     "Copy saved": "복사본 저장됨",
@@ -207,12 +209,14 @@
     "Failed": "실패",
     "Failed to add to album: %@": "앨범에 추가하지 못했습니다: %@",
     "Failed to create album.": "앨범을 생성하지 못했습니다.",
+    "Failed to create album: %@": "앨범을 생성하지 못했습니다: %@",
     "Failed to create export session.": "내보내기 세션을 생성하지 못했습니다.",
     "Failed to load the photo.": "사진을 불러오지 못했습니다.",
     "Failed to re-encode the photo.": "사진을 다시 인코딩하지 못했습니다.",
     "Failed to read file size.": "파일 크기를 읽지 못했습니다.",
     "Failed to save compressed photo to library.": "압축한 사진을 사진 보관함에 저장하지 못했습니다.",
     "Failed to save compressed video to library.": "압축한 동영상을 사진 보관함에 저장하지 못했습니다.",
+    "Failed to undo album change: %@": "앨범 변경을 실행 취소하지 못했습니다: %@",
     "Favorite": "즐겨찾기",
     "Feedback": "피드백",
     "File Size": "파일 크기",
@@ -720,6 +724,9 @@
     "used": "사용됨"
   },
   "plurals": {
+    "%lld issues found": {
+      "other": "%lld개의 문제 발견"
+    },
     "%lld item": {
       "other": "%lld개 항목"
     },

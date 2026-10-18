@@ -12,7 +12,7 @@
   <div class="container-prose mx-auto max-w-prose">
     <h2 class="h-section text-2xl sm:text-3xl">How the app finds and groups bursts</h2>
     <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Bursts carry an identifier in the photo library metadata, so TidyByte groups frames by that identifier rather than by guessing from timestamps. Every sequence in your library appears as one row, with the frame count and the combined size.</p>
-    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Within each sequence, frames are scored for sharpness, exposure and resolution, and the best one is marked as the keeper. The remaining frames are pre-selected for deletion, which is the useful default: you almost never want the frame where someone blinked.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Within each sequence the keeper is chosen by a fixed ladder: your starred frame first, then the frame the iPhone picked, then a favorite, then the frame with the most pixels, then the most recent one. The remaining frames are pre-selected for deletion, which is the useful default: you almost never want the frame where someone blinked.</p>
     <div class="clay-card mt-8 p-5 sm:p-6">
       <h3 class="font-display text-base font-semibold text-ink">Your choices are sticky</h3>
       <p class="muted mt-3 text-sm leading-relaxed">If you explicitly keep a frame the app did not recommend, it stays kept. Re-running the tool later will not re-arm it for deletion, and it will not quietly undo a decision you already made.</p>
@@ -25,7 +25,7 @@
   <div class="container-prose mx-auto max-w-prose">
     <h2 class="h-section text-2xl sm:text-3xl">Reviewing a burst in seconds</h2>
     <ol role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
-      <li><strong class="text-ink">Open the sequence.</strong> The frames are shown together with their scores, so the sharpest one is obvious.</li>
+      <li><strong class="text-ink">Open the sequence.</strong> The frames are shown together with the keeper marked and a one-line reason, such as &ldquo;Kept: favorite&rdquo; or &ldquo;Kept: highest resolution&rdquo;, so you can see why that frame was chosen.</li>
       <li><strong class="text-ink">Change the keeper if you disagree.</strong> One tap promotes a different frame and re-selecting the rest.</li>
       <li><strong class="text-ink">Keep a second frame when it matters.</strong> Two frames from a group photo where different people smiled are both worth keeping, and deselecting one is enough.</li>
       <li><strong class="text-ink">Delete the rest in one pass.</strong> The keeper stays in place, in the same album, with its original date.</li>

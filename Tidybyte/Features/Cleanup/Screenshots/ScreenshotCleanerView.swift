@@ -61,7 +61,9 @@ struct ScreenshotCleanerView: View {
 
                         Picker("Sort", selection: $viewModel.sortOrder) {
                             ForEach(ScreenshotSortOrder.allCases, id: \.self) { order in
-                                Text(order.displayName).tag(order)
+                                // A key, not a rendered `String`, so the menu
+                                // label follows a language switch. See `RootView`.
+                                Text(LocalizedStringKey(order.displayName)).tag(order)
                             }
                         }
                         .pickerStyle(.menu)
@@ -160,9 +162,12 @@ struct ScreenshotCleanerView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    // View-model text: already localized where it is built, so the
-                    // lookup misses and falls back to the text itself.
-                    message: LocalizedStringKey(message),
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)

@@ -25,9 +25,16 @@ struct BlurryPhotosView: View {
             // screen exactly as it already was.
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    // View-model text: already localized where it is built, so the
-                    // lookup misses and falls back to the text itself.
-                    message: LocalizedStringKey(message),
+                    // Runtime text, so it renders verbatim. The view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and either is already
+                    // in the user's language, so looking it up as a key would
+                    // miss, and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
+                    // The tool's own name, which `CleanupTool.name` already
+                    // resolved. A banner that says only "Something went wrong"
+                    // loses the one piece of context the screen provides.
+                    title: .runtimeText(CleanupTool.blurry.name),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -186,7 +193,11 @@ struct BlurryPhotosView: View {
             tint: CleanupTool.blurry.color,
             title: "Analyzing photos...",
             progress: progress,
-            detail: "\(viewModel.analyzedPhotos.count) issues found",
+            detail: L10n.format(
+                "%lld issues found",
+                fallback: "%lld issues found",
+                viewModel.analyzedPhotos.count
+            ),
             onCancel: {
                 HapticHelper.impact(.light)
                 viewModel.cancelScan()

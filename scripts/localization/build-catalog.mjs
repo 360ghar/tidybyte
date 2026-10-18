@@ -19,7 +19,7 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LANGUAGES, pluralCategories } from './plural-categories.mjs';
 
@@ -46,12 +46,33 @@ function readJSON(path, fallback) {
   }
 }
 
+/**
+ * The translations file for one language.
+ *
+ * A file that is absent is normal (a language not started yet) and yields `{}`.
+ * A file that is present but does not parse is fatal: swallowing it produced
+ * exactly the same `{}`, so a trailing comma in `translations/ml.json` rewrote
+ * all 500-odd keys for Malayalam as `needs_review` and looked like a language
+ * nobody had translated. `check.mjs` cannot see the difference either, because
+ * the catalog it reads was already built wrong.
+ */
+function translationFile(language) {
+  const path = join(TRANSLATIONS_DIR, `${language}.json`);
+  if (!existsSync(path)) return {};
+  const file = readJSON(path, undefined);
+  if (file === undefined) {
+    throw new Error(
+      `${relative(ROOT, path)} exists but is not valid JSON; fix it before building the catalog`,
+    );
+  }
+  return file;
+}
+
 function loadTranslations() {
   const byLanguage = new Map();
   for (const language of LANGUAGES) {
     if (language === 'en') continue;
-    const path = join(TRANSLATIONS_DIR, `${language}.json`);
-    const file = existsSync(path) ? readJSON(path, {}) : {};
+    const file = translationFile(language);
     byLanguage.set(language, {
       strings: file.strings ?? {},
       plurals: file.plurals ?? {},
@@ -112,7 +133,14 @@ function positionalize(english, translated) {
     return translated;
   }
   // Ambiguous when a type repeats: cannot map one occurrence onto another.
-  const englishTypes = englishTokens.map((token) => token.token);
+  //
+  // `%%` is a literal percent, not an argument, so it is excluded from the base
+  // the index is looked up in. Leaving it in shifted every placeholder after a
+  // `%%` by one: "100%% of %@ saved by %lld MB" gave `%3$lld` and `%2$@` for a
+  // translation that had swapped only the two real arguments.
+  const englishTypes = englishTokens
+    .filter((token) => token.token !== '%%')
+    .map((token) => token.token);
   if (new Set(englishTypes).size !== englishTypes.length) return translated;
 
   // Walk the translated string, replacing each placeholder with the positional

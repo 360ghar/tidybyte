@@ -114,9 +114,12 @@ struct BurstCleanerView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    // View-model text: already localized where it is built, so the
-                    // lookup misses and falls back to the text itself.
-                    message: LocalizedStringKey(message),
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
                     onRetry: {
                         viewModel.errorMessage = nil
                         Task { await viewModel.deleteSelected() }

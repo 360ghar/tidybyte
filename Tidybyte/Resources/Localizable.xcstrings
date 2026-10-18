@@ -8621,6 +8621,436 @@
         }
       }
     },
+    "%lld issues found": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld issue found"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld issues found"
+                }
+              }
+            }
+          }
+        },
+        "hi": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld समस्या मिली"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld समस्याएँ मिलीं"
+                }
+              }
+            }
+          }
+        },
+        "bn": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld সমস্যা পাওয়া গেছে"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld সমস্যা পাওয়া গেছে"
+                }
+              }
+            }
+          }
+        },
+        "ta": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld பிரச்சினை கண்டறியப்பட்டது"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld பிரச்சினைகள் கண்டறியப்பட்டன"
+                }
+              }
+            }
+          }
+        },
+        "te": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld సమస్య కనుగొనబడింది"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld సమస్యలు కనుగొనబడ్డాయి"
+                }
+              }
+            }
+          }
+        },
+        "mr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld अडचण सापडली"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld अडचणी सापडल्या"
+                }
+              }
+            }
+          }
+        },
+        "gu": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld સમસ્યા મળી"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld સમસ્યાઓ મળી"
+                }
+              }
+            }
+          }
+        },
+        "kn": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ಸಮಸ್ಯೆ ಸಿಕ್ಕಿತು"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ಸಮಸ್ಯೆಗಳು ಸಿಕ್ಕಿವೆ"
+                }
+              }
+            }
+          }
+        },
+        "ml": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld പ്രശ്നം കണ്ടെത്തി"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld പ്രശ്നങ്ങൾ കണ്ടെത്തി"
+                }
+              }
+            }
+          }
+        },
+        "pa": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ਸਮੱਸਿਆ ਲੱਭੀ"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ਸਮੱਸਿਆਵਾਂ ਲੱਭੀਆਂ"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problema encontrado"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problemas encontrados"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problemas encontrados"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problème détecté"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problèmes détectés"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problèmes détectés"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Problem gefunden"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Probleme gefunden"
+                }
+              }
+            }
+          }
+        },
+        "pt-BR": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problema encontrado"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problemas encontrados"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problemas encontrados"
+                }
+              }
+            }
+          }
+        },
+        "it": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problema trovato"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problemi trovati"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld problemi trovati"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld個の問題が見つかりました"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld개의 문제 발견"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "找到 %lld 个问题"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Найдена %lld проблема"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Найдено %lld проблемы"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Найдено %lld проблем"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Найдено %lld проблемы"
+                }
+              }
+            }
+          }
+        },
+        "ar": {
+          "variations": {
+            "plural": {
+              "zero": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "تم العثور على %lld مشكلات"
+                }
+              },
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "تم العثور على %lld مشكلة"
+                }
+              },
+              "two": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "تم العثور على %lld مشكلتين"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "تم العثور على %lld مشكلات"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "تم العثور على %lld مشكلة"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "تم العثور على %lld مشكلة"
+                }
+              }
+            }
+          }
+        },
+        "he": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "נמצאה %lld בעיה"
+                }
+              },
+              "two": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "נמצאו %lld בעיות"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "נמצאו %lld בעיות"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld item": {
       "localizations": {
         "en": {
@@ -32701,6 +33131,136 @@
         }
       }
     },
+    "Compressed %lld of %lld. %lld failed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compressed %lld of %lld. %lld failed."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld में से %lld कंप्रेस किए गए. %lld कंप्रेस नहीं हो सके."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldটির মধ্যে %lld কমপ্রেস করা হয়েছে. %lld কমপ্রেস করা যায়নি."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld-இல் %lld சுருக்கப்பட்டன. %lld சுருக்க முடியவில்லை."
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldలో %lld కుదించబడ్డాయి. %lld కుదించలేకపోయాం."
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld पैकी %lld कंप्रेस केले. %lld कंप्रेस करता आले नाहीत."
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld માંથી %lld કોમ્પ્રેસ કર્યા. %lld કોમ્પ્રેસ કરી શકાયા નથી."
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ರಲ್ಲಿ %lld ಸಂಕುಚಿಸಲಾಗಿದೆ. %lld ಸಂಕುಚಿಸಲಾಗಲಿಲ್ಲ."
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ൽ %lld കംപ്രസ് ചെയ്തു. %lld കംപ്രസ് ചെയ്യാനായില്ല."
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ਵਿੱਚੋਂ %lld ਕੰਪ੍ਰੈਸ ਕੀਤੇ. %lld ਕੰਪ੍ਰੈਸ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se comprimieron %lld de %lld. No se pudieron comprimir %lld."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sur %lld compressés. %lld n'ont pas pu être compressés."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld von %lld komprimiert. %lld konnten nicht komprimiert werden."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprimidos %lld de %lld. Não foi possível comprimir %lld."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compressi %lld su %lld. Impossibile comprimere %lld."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld個中%lld個を圧縮しました。%lld個は圧縮できませんでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개 중 %lld개를 압축했습니다. %lld개는 압축하지 못했습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已压缩 %lld 个（共 %lld 个）。%lld 个压缩失败。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сжато %lld из %lld. Не удалось сжать %lld."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم ضغط %lld من أصل %lld. تعذر ضغط %lld."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כווצו %lld מתוך %lld. %lld לא ניתן היה לכווץ."
+          }
+        }
+      }
+    },
     "Compressed photos and videos will appear here.": {
       "localizations": {
         "en": {
@@ -34127,6 +34687,136 @@
           "stringUnit": {
             "state": "translated",
             "value": "המר לתמונות סטטיות ופנה מקום"
+          }
+        }
+      }
+    },
+    "Converted %lld of %lld. %lld failed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Converted %lld of %lld. %lld failed."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld में से %lld कन्वर्ट किए गए. %lld कन्वर्ट नहीं हो सके."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldটির মধ্যে %lld রূপান্তর করা হয়েছে. %lld রূপান্তর করা যায়নি."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld-இல் %lld மாற்றப்பட்டன. %lld மாற்ற முடியவில்லை."
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldలో %lld మార్చబడ్డాయి. %lld మార్చలేకపోయాం."
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld पैकी %lld रूपांतरित केले. %lld रूपांतरित करता आले नाहीत."
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld માંથી %lld કન્વર્ટ કર્યા. %lld કન્વર્ટ કરી શકાયા નથી."
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ರಲ್ಲಿ %lld ಪರಿವರ್ತಿಸಲಾಗಿದೆ. %lld ಪರಿವರ್ತಿಸಲಾಗಲಿಲ್ಲ."
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ൽ %lld കൺവേർട്ട് ചെയ്തു. %lld കൺവേർട്ട് ചെയ്യാനായില്ല."
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ਵਿੱਚੋਂ %lld ਕਨਵਰਟ ਕੀਤੇ. %lld ਕਨਵਰਟ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se convirtieron %lld de %lld. No se pudieron convertir %lld."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sur %lld convertis. %lld n'ont pas pu être convertis."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld von %lld konvertiert. %lld konnten nicht konvertiert werden."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Convertidos %lld de %lld. Não foi possível converter %lld."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Convertiti %lld su %lld. Impossibile convertire %lld."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld個中%lld個を変換しました。%lld個は変換できませんでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개 중 %lld개를 변환했습니다. %lld개는 변환하지 못했습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已转换 %lld 个（共 %lld 个）。%lld 个转换失败。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Преобразовано %lld из %lld. Не удалось преобразовать %lld."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم تحويل %lld من أصل %lld. تعذر تحويل %lld."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הומרו %lld מתוך %lld. %lld לא ניתן היה להמיר."
           }
         }
       }
@@ -48191,6 +48881,136 @@
         }
       }
     },
+    "Failed to create album: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to create album: %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एल्बम बनाया नहीं जा सका: %@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "অ্যালবাম তৈরি করা যায়নি: %@"
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ஆல்பத்தை உருவாக்க முடியவில்லை: %@"
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ఆల్బమ్ను సృష్టించలేకపోయాం: %@"
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अल्बम तयार करता आला नाही: %@"
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "આલ્બમ બનાવી શકાયું નથી: %@"
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಆಲ್ಬಮ್ ರಚಿಸಲಾಗಲಿಲ್ಲ: %@"
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ആൽബം സൃഷ്ടിക്കാനായില്ല: %@"
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਐਲਬਮ ਬਣਾਈ ਨਹੀਂ ਜਾ ਸਕੀ: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo crear el álbum: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de créer l'album : %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Album konnte nicht erstellt werden: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível criar o álbum: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile creare l'album: %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アルバムを作成できませんでした: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앨범을 생성하지 못했습니다: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法创建相簿：%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось создать альбом: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر إنشاء الألبوم: %@"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "יצירת האלבום נכשלה: %@"
+          }
+        }
+      }
+    },
     "Failed to create export session.": {
       "localizations": {
         "en": {
@@ -49397,6 +50217,136 @@
           "stringUnit": {
             "state": "translated",
             "value": "שמירת הסרטון המכווץ לספרייה נכשלה."
+          }
+        }
+      }
+    },
+    "Failed to undo album change: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to undo album change: %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एल्बम बदलाव पूर्ववत नहीं किया जा सका: %@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "অ্যালবাম পরিবর্তন ফিরিয়ে আনা যায়নি: %@"
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ஆல்ப மாற்றத்தை மீளச் செய்ய முடியவில்லை: %@"
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ఆల్బమ్ మార్పును వెనక్కి తీసుకోలేకపోయాం: %@"
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अल्बम बदल पूर्ववत करता आला नाही: %@"
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "આલ્બમ ફેરફાર પૂર્વવત્ કરી શકાયો નથી: %@"
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಆಲ್ಬಮ್ ಬದಲಾವಣೆಯನ್ನು ಹಿಂತಿರುಗಿಸಲಾಗಲಿಲ್ಲ: %@"
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ആൽബം മാറ്റം പഴയപടിയാക്കാനായില്ല: %@"
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਐਲਬਮ ਬਦਲਾਅ ਵਾਪਸ ਨਹੀਂ ਲਿਆ ਜਾ ਸਕਿਆ: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo deshacer el cambio de álbum: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'annuler la modification de l'album : %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Albumänderung konnte nicht rückgängig gemacht werden: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível desfazer a alteração do álbum: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile annullare la modifica dell'album: %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アルバムの変更を取り消せませんでした: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앨범 변경을 실행 취소하지 못했습니다: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法撤销相簿更改：%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось отменить изменение альбома: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر التراجع عن تغيير الألبوم: %@"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ביטול שינוי האלבום נכשל: %@"
           }
         }
       }
