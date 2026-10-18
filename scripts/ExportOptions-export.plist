@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Export only. The archive is written to build/archive/export/Tidybyte.ipa
+	  and nothing is sent to Apple.
+
+	  This is what `npm run archive` uses, so building works with no account
+	  signed in and no network. Uploading is a separate, deliberate step:
+	  `npm run publish:build`.
+
+	  Do not change `destination` to `upload` here. That is what
+	  ExportOptions.plist does, and it fails with "Failed to Use Accounts"
+	  unless Xcode has a signed-in Apple ID — which is exactly the dependency
+	  the API-key path exists to remove.
+	-->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>teamID</key>
+	<string>HMWGCVU4SV</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!--
+	  The build number comes from project.yml. Letting Xcode pick one would make
+	  the archive non-reproducible and would silently disagree with the value
+	  `verify` reads back from App Store Connect.
+	-->
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+	<key>uploadSymbols</key>
+	<true/>
+</dict>
+</plist>

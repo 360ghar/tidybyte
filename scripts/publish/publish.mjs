@@ -24,6 +24,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { createInterface } from 'node:readline/promises';
 import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -95,6 +96,22 @@ async function findEditableVersion(client, appId) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Where altool looks for a key named by `--apiKey`.
+ *
+ * altool does not accept a path: given a Key ID it searches a fixed list of
+ * directories for `AuthKey_<KEYID>.p8`. A key at an arbitrary path — which is
+ * where `ASC_KEY_PATH` usually points — is not found, and the error says the
+ * key is missing rather than that it was never searched for. Checking this
+ * first turns that into a specific instruction.
+ */
+const ALTOOL_KEY_DIRECTORIES = [
+  join(homedir(), 'private_keys'),
+  join(process.cwd(), 'private_keys'),
+  join(homedir(), '.appstoreconnect', 'private_keys'),
+  join(process.cwd(), '.appstoreconnect', 'private_keys'),
+];
+
+/**
  * Uploads the IPA with altool.
  *
  * The App Store Connect API can read build metadata but not create a build, so
@@ -110,7 +127,27 @@ async function cmdBuild() {
   const size = (statSync(ipa).size / 1024 / 1024).toFixed(1);
   console.log(`  ${basename(ipa)}  ${size} MB`);
 
-  const { keyId, issuerId } = credentialsFromEnv();
+  const { keyId, issuerId, keyPath } = credentialsFromEnv();
+
+  // altool finds the key by searching fixed directories, not by path.
+  const expectedName = `AuthKey_${keyId}.p8`;
+  const searchResult = ALTOOL_KEY_DIRECTORIES.map((dir) => join(dir, expectedName));
+  const found = searchResult.find((candidate) => existsSync(candidate));
+
+  if (!found) {
+    console.log('\n  altool cannot find the private key.');
+    console.log(`  It searches for a file named ${expectedName} in:`);
+    for (const dir of ALTOOL_KEY_DIRECTORIES) console.log(`    ${dir}`);
+    console.log(`\n  Your key is at ${keyPath}`);
+    console.log('  altool takes a Key ID, not a path, so make it findable:');
+    console.log(`\n    mkdir -p ~/.appstoreconnect/private_keys`);
+    console.log(`    cp "${keyPath}" ~/.appstoreconnect/private_keys/${expectedName}`);
+    console.log('\n  Then re-run. This is a copy, not a move, so ASC_KEY_PATH keeps working.');
+    if (!dryRun) return;
+  } else {
+    console.log(`  key discoverable at ${found}`);
+  }
+
   const altoolArgs = [
     'altool', '--upload-app',
     '-f', ipa,
@@ -709,6 +746,84 @@ const COMMANDS = {
   details: cmdDetails,
   media: cmdMedia,
   submit: cmdSubmit,
+  /**
+   * Reports credential state without making an API call.
+   *
+   * Run this first after setting up a key: it distinguishes "no credentials" from
+   * "credentials that do not parse" from "credentials Apple rejects", which are
+   * three different problems with three different fixes. Pass --live to add the
+   * last of those, which is the only step that touches the network.
+   */
+  async doctor() {
+    const { loadEnvFile, redact } = await import('./asc.mjs');
+    const live = args.includes('--live');
+
+    heading('Credential source');
+    const envPath = join(ROOT, '.env');
+    const fromFile = existsSync(envPath);
+    console.log(`  ${envPath}`);
+    console.log(`  ${fromFile ? 'present' : 'absent (export the variables instead)'}`);
+    if (fromFile) {
+      // Confirm the file cannot be committed, since it holds a live credential.
+      try {
+        execFileSync('git', ['check-ignore', '-q', '.env'], { cwd: ROOT });
+        console.log('  gitignored: yes');
+      } catch {
+        console.log('  gitignored: NO -- add .env to .gitignore before putting a key in it');
+      }
+    }
+
+    const env = loadEnvFile(envPath, { ...process.env });
+    heading('Values');
+    console.log(`  ASC_KEY_ID      ${redact(env.ASC_KEY_ID)}`);
+    console.log(`  ASC_ISSUER_ID   ${redact(env.ASC_ISSUER_ID)}`);
+    console.log(`  ASC_KEY_PATH    ${env.ASC_KEY_PATH ?? '(unset)'}`);
+
+    heading('Private key');
+    if (!env.ASC_KEY_PATH) {
+      console.log('  cannot check: ASC_KEY_PATH is unset');
+      return;
+    }
+    if (!existsSync(env.ASC_KEY_PATH)) {
+      console.log(`  NOT FOUND at ${env.ASC_KEY_PATH}`);
+      console.log('  Apple lets you download a key once. If it is gone, revoke it and make a new one.');
+      return;
+    }
+    try {
+      const { createPrivateKey } = await import('node:crypto');
+      const key = createPrivateKey(readFileSync(env.ASC_KEY_PATH, 'utf8'));
+      console.log(`  parses as ${key.asymmetricKeyType} (${key.asymmetricKeyDetails?.namedCurve ?? 'unknown curve'})`);
+      if (key.asymmetricKeyType !== 'ec' || key.asymmetricKeyDetails?.namedCurve !== 'prime256v1') {
+        console.log('  WARNING: App Store Connect requires an EC P-256 key. This is not one.');
+      } else {
+        console.log('  correct type for App Store Connect');
+      }
+    } catch (error) {
+      console.log(`  DOES NOT PARSE: ${error.message}`);
+      return;
+    }
+
+    if (!live) {
+      console.log('\nCredentials look usable. Re-run with --live to check them against Apple.');
+      return;
+    }
+
+    heading('Live check');
+    const client = createClient({ ...credentialsFromEnv(), log: () => {} });
+    try {
+      const app = await findApp(client, BUNDLE_ID);
+      console.log(`  authenticated; found "${app.attributes.name}" (${app.id})`);
+      const version = await findEditableVersion(client, app.id);
+      console.log(`  editable version: ${version.attributes.versionString}`);
+      const library = await client.get(`/v1/apps/${app.id}/assetLibrary`);
+      console.log(`  asset library: ${library?.data?.id ?? '(none)'}`);
+      console.log('\nReady. Next: npm run publish:build');
+    } catch (error) {
+      console.log(`  REJECTED: ${error.message}`);
+      console.log('\n  A 401 here usually means the key ID and the .p8 do not match,');
+      console.log('  or the key was revoked. A 403 means the key\'s role is too low.');
+    }
+  },
   /** Prints the plan without touching the network, so it works offline. */
   async plan() {
     const { summarisePlan } = await import('./plan.mjs');

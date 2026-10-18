@@ -5,25 +5,90 @@ Connect, without the web UI.
 
 ## What you need first
 
-An **App Store Connect API key**. Create one at:
+An **App Store Connect API key**. It can only be created from your account —
+there is no API for creating API keys, so this is the one step that cannot be
+automated.
 
-> App Store Connect → Users and Access → Integrations → App Store Connect API
+### 1. Create the key
 
-The key needs **Admin** or **App Manager** access, because it uploads media and
-edits metadata. Download the `.p8` once — Apple lets you download it a single
-time — and note the Key ID beside it and the Issuer ID above the list.
+**Team key** (needs an Admin account, works for any app on the team):
 
-Then export three values. Nothing in this directory writes them anywhere, and no
-code path logs the key or the token it signs.
+> App Store Connect → **Users and Access** → **Integrations** tab →
+> **App Store Connect API** → **Team Keys** → **+** → name it, pick a role → **Generate**
+
+**Individual key** (works with any account; access follows your own role):
+
+> App Store Connect → click your **profile** (top right) → scroll to
+> **Individual API Key** → **Generate API Key**
+
+Use a **Team key with the App Manager role** if you can. App Manager covers
+everything the pipeline does — upload builds, edit App Store details, create
+in-app events, submit apps — without the user-management power that Admin adds.
+Individual keys cannot use the provisioning, sales-and-finance, or `notaryTool`
+endpoints; this pipeline needs none of those, so an individual key is a fine
+fallback.
+
+### 2. Download the private key — once
+
+The download link appears only until you click it. **Apple keeps no copy**, so if
+the `.p8` is lost the key must be revoked and replaced. Move it somewhere outside
+the repo, for example:
 
 ```sh
-export ASC_KEY_ID=XXXXXXXXXX
-export ASC_ISSUER_ID=00000000-0000-0000-0000-000000000000
-export ASC_KEY_PATH=~/Downloads/AuthKey_XXXXXXXXXX.p8
+mkdir -p ~/.appstoreconnect/private_keys
+mv ~/Downloads/AuthKey_XXXXXXXXXX.p8 ~/.appstoreconnect/private_keys/
 ```
 
-Add those to your shell profile if you publish regularly. Do not commit the
-`.p8`; it is already covered by `.gitignore` (`*.p8`).
+### 3. Give the pipeline the three values
+
+Three values are needed: the **Key ID** (beside the key in the list), the
+**Issuer ID** (above the list, shared by all team keys), and the **path** to the
+`.p8`.
+
+Put them in a `.env` at the repo root. This file is gitignored, and `.p8` files
+are gitignored too, so neither can be committed:
+
+```sh
+cat > .env <<'EOF'
+ASC_KEY_ID=XXXXXXXXXX
+ASC_ISSUER_ID=00000000-0000-0000-0000-000000000000
+ASC_KEY_PATH=/Users/you/.appstoreconnect/private_keys/AuthKey_XXXXXXXXXX.p8
+EOF
+```
+
+A `.env` file is the recommended route rather than `export`, because **each
+command here runs in a fresh shell** — a variable exported in one terminal does
+not reach the next command. `asc.mjs` reads `.env` automatically. Real
+environment variables still win over the file, so a one-off override works:
+
+```sh
+ASC_KEY_ID=OTHERKEYID npm run publish:verify
+```
+
+### 4. Check it before using it
+
+```sh
+npm run publish:doctor           # validates the values and parses the key, offline
+npm run publish:doctor -- --live # adds one real call to confirm Apple accepts it
+```
+
+`doctor` distinguishes the three failures that otherwise look alike: no
+credentials at all, credentials that do not parse, and credentials Apple
+rejects. It never prints a secret — the Key ID and Issuer ID are masked.
+
+### If you would rather not hand over a key
+
+Two options, both fine:
+
+- **Scope it down.** A Team key with the **Marketing** or **Developer** role can
+  read but not publish, which is enough to run `publish:verify` and see exactly
+  what the pipeline would do.
+- **Drive it yourself.** Everything here is a normal command. Run `publish:verify`,
+  then `publish:build`, and so on, and nothing is shared.
+
+Revoke the key when you are done: **Users and Access → Integrations → App Store
+Connect API →** select the key **→ Revoke**. Revocation is immediate, and a
+revoked key cannot be un-revoked.
 
 ## The commands
 
@@ -32,6 +97,7 @@ would make and writes nothing.
 
 ```sh
 npm run publish:selftest   # offline: verifies JWT signing and the plan
+npm run publish:doctor     # offline: validates credentials
 npm run publish:verify     # read-only: reports the live account state
 
 npm run archive            # builds and exports the signed IPA
@@ -106,7 +172,32 @@ creative. `plan.mjs` lists candidate names and the upload step resolves the firs
 one that exists in the live catalog; if none match it prints every name Apple
 does expose and refuses to upload, rather than silently placing nothing.
 
-## What is not automated
+## What the API covers, and what it does not
+
+Reachable through the API, and handled here:
+
+| Listing field | Where it lives | Command |
+|---|---|---|
+| Subtitle | `appInfoLocalization` | `details` |
+| Description, keywords, promotional text, what's new | `appStoreVersionLocalization` | `details` |
+| Screenshots | asset library placements | `media` |
+| Product page header, search creative | asset library placements | `media` |
+| In-app event cards and details | asset library placements | `media` |
+| Custom product page screenshots | asset library placements | `media` |
+| PPO experiment screenshots | asset library placements | `media` |
+| Age rating declaration | `ageRatingDeclaration` | *not yet wired* |
+| Availability and pricing | `appAvailability`, `appPriceSchedules` | *not yet wired* |
+| Review submission | `reviewSubmissions` | `submit` |
+
+**Not reachable through the API at all**, so these stay in the web UI:
+
+- **App Privacy details** (the "nutrition label"). No API. fastlane's action for
+  this still drives the old iTunes Portal and needs 2FA. Answer it by hand at
+  **App Store Connect → your app → App Privacy**; the answers for TidyByte are
+  already written out in `docs/APP_STORE_LISTING.md` §8.
+- **Agreements, tax, and banking.** Account Holder only, web UI only.
+- **App Review contact details and attachments**, if a human reviewer needs to
+  reach you.
 
 **Containers are not created.** In-app events, custom product pages, and product
 page optimization experiments carry their own copy and review requirements.

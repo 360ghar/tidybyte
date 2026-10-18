@@ -20,7 +20,8 @@
 
 import { createPrivateKey, sign as signPayload } from 'node:crypto';
 import { closeSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const BASE = 'https://api.appstoreconnect.apple.com';
 const AUDIENCE = 'appstoreconnect-v1';
@@ -61,8 +62,60 @@ export function createToken({ keyId, issuerId, privateKey }) {
   return `${signingInput}.${signature.toString('base64url')}`;
 }
 
+/**
+ * Loads a gitignored `.env` from the repo root, without a dependency.
+ *
+ * This exists for a specific reason: each command this repo runs gets a fresh
+ * shell, so `export ASC_KEY_ID=...` in one terminal does not reach the next
+ * command. A file on disk does. Values already present in the real environment
+ * always win, so exporting a variable for one command still overrides the file.
+ *
+ * Only the three names below are read. Nothing is written back, and no value is
+ * ever logged or echoed — `redact` exists so callers can report *that* a
+ * credential is set without reporting what it is.
+ */
+const ENV_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '.env');
+
+export function loadEnvFile(path = ENV_FILE, env = process.env) {
+  let contents;
+  try {
+    contents = readFileSync(path, 'utf8');
+  } catch {
+    return env; // No file is a normal state, not an error.
+  }
+
+  for (const line of contents.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    const equals = trimmed.indexOf('=');
+    if (equals === -1) continue;
+
+    const name = trimmed.slice(0, equals).trim();
+    let value = trimmed.slice(equals + 1).trim();
+    // Strip one layer of matching quotes, so a path with spaces can be quoted.
+    if (value.length >= 2
+      && ((value.startsWith('"') && value.endsWith('"'))
+        || (value.startsWith("'") && value.endsWith("'")))) {
+      value = value.slice(1, -1);
+    }
+    // A real environment variable wins over the file.
+    if (!env[name]) env[name] = value;
+  }
+
+  return env;
+}
+
+/** Shows enough of a value to confirm it is the right one, never the whole. */
+export function redact(value) {
+  if (!value) return '(unset)';
+  if (value.length <= 8) return '*'.repeat(value.length);
+  return `${value.slice(0, 4)}${'*'.repeat(Math.max(4, value.length - 8))}${value.slice(-4)}`;
+}
+
 /** Reads credentials from the environment, failing loudly when one is absent. */
 export function credentialsFromEnv(env = process.env) {
+  loadEnvFile(ENV_FILE, env);
+
   const keyId = env.ASC_KEY_ID;
   const issuerId = env.ASC_ISSUER_ID;
   const keyPath = env.ASC_KEY_PATH;
@@ -75,7 +128,8 @@ export function credentialsFromEnv(env = process.env) {
     throw new Error(
       `Missing ${missing.join(', ')}. Create an App Store Connect API key at\n`
       + '  App Store Connect -> Users and Access -> Integrations -> App Store Connect API\n'
-      + 'then export ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_PATH (the .p8 file).',
+      + 'then either export ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_PATH (the .p8 file),\n'
+      + `or put them in ${ENV_FILE} (gitignored).`,
     );
   }
 
