@@ -25,8 +25,16 @@ struct CompressionHistoryView: View {
     }
 
     /// Readable preset names instead of raw ids ("balanced", "still").
+    ///
+    /// The video and photo labels come from `CompressionPreset` / 
+    /// `PhotoCompressionPreset`, which already resolve through `L10n`. The
+    /// "still" id has no preset of its own — it is written by the Live Photos
+    /// converter (`LivePhotosConverterViewModel`) — so its label is resolved
+    /// here. That one literal was previously returned raw and reached the UI
+    /// through `Text(presetLabel(...))`, which renders a `String` verbatim: the
+    /// row read "Still image" in every language.
     static func presetLabel(_ id: String) -> String {
-        if id == "still" { return "Still image" }
+        if id == "still" { return L10n.string("Still image") }
         if let video = CompressionPreset.presets.first(where: { $0.id == id }) { return video.label }
         if let photo = PhotoCompressionPreset.presets.first(where: { $0.id == id }) { return photo.label }
         return id

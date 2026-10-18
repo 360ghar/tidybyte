@@ -29,7 +29,15 @@
       "file": "Tidybyte/Features/Cleanup/MediaCleanerView.swift"
     },
     {
+      "key": "%@ and %@",
+      "file": "Tidybyte/AppIntents/CleanupIntents.swift"
+    },
+    {
       "key": "%@ available",
+      "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
+    },
+    {
+      "key": "%@ cleaned up",
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
     {
@@ -49,6 +57,10 @@
       "file": "Tidybyte/Features/Swipe/SwipeSessionView.swift"
     },
     {
+      "key": "%@ total",
+      "file": "Tidybyte/Features/Storage/StorageDashboardViewModel.swift"
+    },
+    {
       "key": "%@ used",
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
@@ -59,6 +71,10 @@
     {
       "key": "%@: %lld items",
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
+    },
+    {
+      "key": "%@. %@ available.",
+      "file": "Tidybyte/Shared/Components/ToastBanner.swift"
     },
     {
       "key": "%@. Now %@.",
@@ -143,7 +159,7 @@
     {
       "key": "%lld large file",
       "fallback": "%lld large files",
-      "file": "Tidybyte/Services/NotificationService.swift"
+      "file": "Tidybyte/AppIntents/CleanupIntents.swift"
     },
     {
       "key": "%lld Live Photos",
@@ -201,9 +217,13 @@
       "file": "Tidybyte/Features/Cleanup/Bursts/BurstCleanerView.swift"
     },
     {
+      "key": "%lld saved from apps",
+      "file": "Tidybyte/Features/Storage/StorageDashboardViewModel.swift"
+    },
+    {
       "key": "%lld screenshot",
       "fallback": "%lld screenshots",
-      "file": "Tidybyte/Services/NotificationService.swift"
+      "file": "Tidybyte/AppIntents/CleanupIntents.swift"
     },
     {
       "key": "%lld screenshots · %@",
@@ -228,6 +248,10 @@
     {
       "key": "%lld total · %lld removable · %@",
       "file": "Tidybyte/Features/Cleanup/Bursts/BurstCleanerView.swift"
+    },
+    {
+      "key": "%lld videos over %lld MB",
+      "file": "Tidybyte/Features/Storage/StorageDashboardViewModel.swift"
     },
     {
       "key": "%llds",
@@ -358,6 +382,10 @@
       "file": "Tidybyte/Features/Settings/SettingsView.swift"
     },
     {
+      "key": "Apps, system & other",
+      "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
+    },
+    {
       "key": "Auto-Clean",
       "file": "Tidybyte/Features/Cleanup/Bursts/BurstCleanerView.swift"
     },
@@ -438,6 +466,10 @@
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
     {
+      "key": "Camera",
+      "file": "Tidybyte/Features/Storage/StorageDashboardViewModel.swift"
+    },
+    {
       "key": "Camera Formats",
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
@@ -470,28 +502,12 @@
       "file": "Tidybyte/Features/Cleanup/CleanupTool.swift"
     },
     {
-      "key": "Check free space with %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
-    },
-    {
-      "key": "Check my storage with %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
-    },
-    {
       "key": "Choose a filter to start reviewing your photos",
       "file": "Tidybyte/Features/Swipe/SwipeHomeView.swift"
     },
     {
-      "key": "Clean screenshots with %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
-    },
-    {
       "key": "Clean up burst sequences",
       "file": "Tidybyte/Features/Cleanup/CleanupTool.swift"
-    },
-    {
-      "key": "Clean up photos with %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
     },
     {
       "key": "cleaned %lld burst photo",
@@ -571,6 +587,10 @@
     {
       "key": "Compress Photos",
       "file": "Tidybyte/Features/Cleanup/PhotoCompression/PhotoCompressionView.swift"
+    },
+    {
+      "key": "Compress to save ~%@",
+      "file": "Tidybyte/Features/Storage/StorageDashboardViewModel.swift"
     },
     {
       "key": "Compress Videos",
@@ -921,6 +941,10 @@
       "file": "Tidybyte/Features/Cleanup/LivePhotos/LivePhotosConverterView.swift"
     },
     {
+      "key": "estimated",
+      "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
+    },
+    {
       "key": "Exact",
       "file": "Tidybyte/Features/Cleanup/Duplicates/DuplicateFinderViewModel.swift"
     },
@@ -939,6 +963,10 @@
     {
       "key": "Failed",
       "file": "Tidybyte/Features/Cleanup/VideoCompression/CompressionHistoryView.swift"
+    },
+    {
+      "key": "Failed to add to album: %@",
+      "file": "Tidybyte/Features/Swipe/SwipeSessionViewModel.swift"
     },
     {
       "key": "Failed to create album.",
@@ -1002,6 +1030,10 @@
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
     {
+      "key": "Free up %@",
+      "file": "Tidybyte/Features/Storage/StorageDashboardViewModel.swift"
+    },
+    {
       "key": "Free Up Space",
       "file": "Tidybyte/Features/Cleanup/CleanupTool.swift"
     },
@@ -1012,6 +1044,10 @@
     {
       "key": "Go to Cleanup Tools",
       "file": "Tidybyte/Features/Swipe/SessionCompletionView.swift"
+    },
+    {
+      "key": "Good",
+      "file": "Tidybyte/Shared/Components/GroupComparisonView.swift"
     },
     {
       "key": "Good quality, moderate savings",
@@ -1036,10 +1072,6 @@
     {
       "key": "History",
       "file": "Tidybyte/Features/Cleanup/VideoCompression/CompressionHistoryView.swift"
-    },
-    {
-      "key": "How much can I free with %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
     },
     {
       "key": "I just %@",
@@ -1084,7 +1116,7 @@
     },
     {
       "key": "items",
-      "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
+      "file": "Tidybyte/AppIntents/CleanupIntents.swift"
     },
     {
       "key": "Items in Recently Deleted still use space until Photos empties it, so \"Apps, system & other\" can grow right after a cleanup.",
@@ -1221,6 +1253,14 @@
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
     {
+      "key": "Library grew by %@ %@",
+      "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
+    },
+    {
+      "key": "Library shrank by %@ %@",
+      "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
+    },
+    {
       "key": "Library Size",
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
@@ -1347,6 +1387,10 @@
     {
       "key": "No accessible user albums.",
       "file": "Tidybyte/Features/Cleanup/MediaCleanerView.swift"
+    },
+    {
+      "key": "No change %@",
+      "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
     {
       "key": "No data available",
@@ -1517,6 +1561,10 @@
       "file": "Tidybyte/Features/Cleanup/CleanupTool.swift"
     },
     {
+      "key": "Overexposed",
+      "file": "Tidybyte/Shared/Components/GroupComparisonView.swift"
+    },
+    {
       "key": "Page %lld of %lld",
       "file": "Tidybyte/Features/Onboarding/OnboardingView.swift"
     },
@@ -1527,6 +1575,10 @@
     {
       "key": "Pets",
       "file": "Tidybyte/Features/Cleanup/SmartCategories/SmartCategoriesView.swift"
+    },
+    {
+      "key": "Photo",
+      "file": "Tidybyte/Features/Swipe/SwipeCardDeck.swift"
     },
     {
       "key": "Photo Access Is Off",
@@ -1559,6 +1611,10 @@
     {
       "key": "Photos",
       "file": "Tidybyte/Features/Cleanup/LargeFiles/LargeFilesViewModel.swift"
+    },
+    {
+      "key": "Photos & Videos",
+      "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
     {
       "key": "Photos Before a Date",
@@ -1788,6 +1844,10 @@
       "file": "Tidybyte/Features/Swipe/SessionCompletionView.swift"
     },
     {
+      "key": "Save ~%@ by converting",
+      "file": "Tidybyte/Features/Storage/StorageDashboardViewModel.swift"
+    },
+    {
       "key": "Save failed: %@",
       "file": "Tidybyte/Services/PhotoCompressionService.swift"
     },
@@ -1880,14 +1940,6 @@
       "file": "Tidybyte/Features/Cleanup/Similar/SimilarPhotosView.swift"
     },
     {
-      "key": "Show my savings in %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
-    },
-    {
-      "key": "Show storage in %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
-    },
-    {
       "key": "Similar Photo Time Window",
       "file": "Tidybyte/Features/Settings/SettingsView.swift"
     },
@@ -1956,10 +2008,6 @@
       "file": "Tidybyte/Features/Swipe/SwipeHomeView.swift"
     },
     {
-      "key": "Start a cleanup session with %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
-    },
-    {
       "key": "Start Another Session",
       "file": "Tidybyte/Features/Swipe/SessionCompletionView.swift"
     },
@@ -1986,6 +2034,10 @@
     {
       "key": "Still adding — please wait a moment and try again.",
       "file": "Tidybyte/Features/Swipe/SwipeSessionViewModel.swift"
+    },
+    {
+      "key": "Still image",
+      "file": "Tidybyte/Features/Cleanup/VideoCompression/CompressionHistoryView.swift"
     },
     {
       "key": "Stop",
@@ -2161,10 +2213,6 @@
       "file": "Tidybyte/Features/Cleanup/Bursts/BurstCleanerView.swift"
     },
     {
-      "key": "Tidy my photos with %@",
-      "file": "Tidybyte/AppIntents/TidybyteShortcuts.swift"
-    },
-    {
       "key": "TidyByte",
       "file": "Tidybyte/Features/Settings/SettingsView.swift"
     },
@@ -2231,6 +2279,10 @@
     {
       "key": "today",
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
+    },
+    {
+      "key": "Too dark",
+      "file": "Tidybyte/Shared/Components/GroupComparisonView.swift"
     },
     {
       "key": "Total saved: %@",
@@ -2307,6 +2359,10 @@
     {
       "key": "Vibration feedback when you swipe, tap, and finish a cleanup.",
       "file": "Tidybyte/Features/Settings/SettingsView.swift"
+    },
+    {
+      "key": "Video",
+      "file": "Tidybyte/Features/Swipe/SwipeCardDeck.swift"
     },
     {
       "key": "Video Compression",
@@ -2413,5 +2469,5 @@
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     }
   ],
-  "total": 596
+  "total": 610
 }

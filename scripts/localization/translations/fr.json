@@ -6,14 +6,18 @@
     " known · %lld sizes unavailable": " connu · %lld tailles indisponibles",
     "%@ (%@)": "%@ (%@)",
     "%@ (%lld)": "%@ (%lld)",
+    "%@ and %@": "%@ et %@",
     "%@ available": "%@ disponible",
+    "%@ cleaned up": "%@ libérés",
     "%@ cleaned up in the last 30 days": "%@ libérés ces 30 derniers jours",
     "%@ marked for deletion · %@": "%@ marqués pour suppression · %@",
     "%@ of %lld": "%@ sur %lld",
     "%@ of %lld reviewed": "%@ sur %lld examinés",
+    "%@ total": "%@ au total",
     "%@ used": "%@ utilisés",
     "%@ with TidyByte — a private, on-device photo cleanup app. %@": "%@ avec TidyByte — une app privée de nettoyage de photos sur l'appareil. %@",
     "%@%@, %@": "%@%@, %@",
+    "%@. %@ available.": "%@. %@ disponible.",
     "%@. Now %@.": "%@. Maintenant %@.",
     "%lld": "%lld",
     "%lld %@": "%lld %@",
@@ -60,6 +64,7 @@
     "Analyzing photos...": "Analyse des photos...",
     "App": "App",
     "Appearance": "Apparence",
+    "Apps, system & other": "Apps, système et autres",
     "Auto-Clean": "Nettoyage auto",
     "Auto-Clean All Bursts": "Nettoyer toutes les rafales automatiquement",
     "Automatic": "Automatique",
@@ -82,6 +87,7 @@
     "Burst Photos": "Photos en rafale",
     "By Source": "Par source",
     "By Year": "Par année",
+    "Camera": "Appareil photo",
     "Camera Formats": "Formats de l'appareil photo",
     "Cancel": "Annuler",
     "Cancel compression": "Annuler la compression",
@@ -90,14 +96,10 @@
     "Category": "Catégorie",
     "Chat Media": "Éléments de messagerie",
     "Chat albums": "Albums de messagerie",
-    "Check free space with %@": "Vérifie l’espace libre avec %@",
-    "Check my storage with %@": "Vérifie mon stockage avec %@",
     "Choose a filter to start reviewing your photos": "Choisissez un filtre pour commencer à examiner vos photos",
     "Choose albums or change your filters.": "Choisissez des albums ou modifiez vos filtres.",
     "Clean Screenshots": "Nettoyer les captures d'écran",
-    "Clean screenshots with %@": "Nettoie les captures d’écran avec %@",
     "Clean up burst sequences": "Nettoyez les séquences en rafale",
-    "Clean up photos with %@": "Nettoie les photos avec %@",
     "Cleaned up %@ so far": "%@ libérés jusqu'à présent",
     "Cleanup": "Nettoyage",
     "Cleanup Reminders": "Rappels de nettoyage",
@@ -107,6 +109,7 @@
     "Compress": "Compresser",
     "Compress Photos": "Compresser les photos",
     "Compress Videos": "Compresser les vidéos",
+    "Compress to save ~%@": "Compresser pour économiser ~%@",
     "Compress videos to save space": "Compressez les vidéos pour libérer de l'espace",
     "Compressed photos and videos will appear here.": "Les photos et vidéos compressées apparaîtront ici.",
     "Compression History": "Historique de compression",
@@ -202,6 +205,7 @@
     "Exported file was empty.": "Le fichier exporté était vide.",
     "Exposure": "Exposition",
     "Failed": "Échec",
+    "Failed to add to album: %@": "Échec de l'ajout à l'album : %@",
     "Failed to create album.": "Impossible de créer l'album.",
     "Failed to create export session.": "Impossible de créer la session d'exportation.",
     "Failed to load the photo.": "Impossible de charger la photo.",
@@ -223,9 +227,11 @@
     "Food": "Nourriture",
     "For smaller future captures, open Settings → Camera → Formats and review High Efficiency, ProRAW, and ProRes where available. This does not change existing media.": "Pour que vos prochaines prises de vue soient plus légères, ouvrez Réglages → Appareil photo → Formats et vérifiez Haute efficacité, ProRAW et ProRes lorsqu'ils sont disponibles. Cela ne modifie pas les éléments existants.",
     "Free Up Space": "Libérer de l'espace",
+    "Free up %@": "Libérer %@",
     "Freed": "Libéré",
     "Full Access": "Accès complet",
     "Go to Cleanup Tools": "Aller aux outils de nettoyage",
+    "Good": "Bonne",
     "Good quality, moderate savings": "Bonne qualité, économies modérées",
     "Group photos into memes, documents, food, pets, nature, selfies and media saved from other apps.": "Regroupez les photos en mèmes, documents, nourriture, animaux, nature, selfies et éléments enregistrés depuis d'autres apps.",
     "Grouping similar photos...": "Regroupement des photos similaires...",
@@ -237,7 +243,6 @@
     "History": "Historique",
     "How Much Can I Free Up?": "Combien d'espace puis-je libérer ?",
     "How Much Can I Free?": "Combien puis-je libérer ?",
-    "How much can I free with %@": "Combien puis-je libérer avec %@ ?",
     "I just %@": "Je viens de %@",
     "I'm cleaning up my photo library": "Je nettoie ma photothèque",
     "In iCloud.": "Dans iCloud.",
@@ -277,6 +282,8 @@
     "Library Size": "Taille de la photothèque",
     "Library breakdown": "Répartition de la photothèque",
     "Library figures below cover only the photos you selected; device totals cover the whole device.": "Les chiffres de la photothèque ci-dessous ne couvrent que les photos que vous avez sélectionnées ; les totaux de l'appareil couvrent tout l'appareil.",
+    "Library grew by %@ %@": "La photothèque a augmenté de %@ %@",
+    "Library shrank by %@ %@": "La photothèque a diminué de %@ %@",
     "Library size chart": "Graphique de la taille de la photothèque",
     "Light": "Clair",
     "Limited Access": "Accès limité",
@@ -330,6 +337,7 @@
     "No accessible user albums.": "Aucun album utilisateur accessible.",
     "No activity": "Aucune activité",
     "No albums with photos were found.": "Aucun album contenant des photos n'a été trouvé.",
+    "No change %@": "Aucun changement %@",
     "No data available": "Aucune donnée disponible",
     "No email account is set up on this device. Please email us at %@.": "Aucun compte de messagerie n'est configuré sur cet appareil. Écrivez-nous à %@.",
     "No files larger than %lld MB. Lower the threshold to see more.": "Aucun fichier de plus de %lld MB. Abaissez le seuil pour en voir plus.",
@@ -401,9 +409,11 @@
     "Originals Kept": "Originaux conservés",
     "Other": "Autres",
     "Out-of-focus & poorly lit": "Floues et mal éclairées",
+    "Overexposed": "Surexposée",
     "Page %lld of %lld": "Page %lld sur %lld",
     "Permissions": "Autorisations",
     "Pets": "Animaux",
+    "Photo": "Photo",
     "Photo Access Is Off": "L'accès aux photos est désactivé",
     "Photo Access Is On": "L'accès aux photos est activé",
     "Photo Access Is Restricted": "L'accès aux photos est restreint",
@@ -412,6 +422,7 @@
     "Photo not found.": "Photo introuvable.",
     "Photo size unknown (iCloud-only) — skipped.": "Taille de la photo inconnue (iCloud uniquement) — ignorée.",
     "Photos": "Photos",
+    "Photos & Videos": "Photos et vidéos",
     "Photos Before a Date": "Photos avant une date",
     "Photos not organized into your albums": "Photos non classées dans vos albums",
     "Photos taken close together": "Photos prises à peu d'intervalle",
@@ -477,6 +488,7 @@
     "Review whether you still need this screenshot.": "Vérifiez si vous avez encore besoin de cette capture d'écran.",
     "Review with Swipe": "Examiner en balayant",
     "Save failed: %@": "Échec de l'enregistrement : %@",
+    "Save ~%@ by converting": "Économisez ~%@ en convertissant",
     "Saved %@": "%@ économisés",
     "Saved from Apps": "Enregistrées depuis des apps",
     "Scan Again": "Relancer l'analyse",
@@ -520,8 +532,6 @@
     "Show My Savings": "Afficher mes économies",
     "Show Savings": "Afficher les économies",
     "Show Storage": "Afficher le stockage",
-    "Show my savings in %@": "Affiche mes économies dans %@",
-    "Show storage in %@": "Affiche le stockage dans %@",
     "Shows the next page": "Affiche la page suivante",
     "Similar Photo Time Window": "Intervalle des photos similaires",
     "Similar Photos": "Photos similaires",
@@ -554,13 +564,13 @@
     "Start Scan": "Démarrer l'analyse",
     "Start a Cleanup Session": "Démarrer une session de nettoyage",
     "Start a Swipe Session": "Démarrer une session de balayage",
-    "Start a cleanup session with %@": "Démarre une session de nettoyage avec %@",
     "Start here": "Commencez ici",
     "Start here. ": "Commencez ici. ",
     "Start with %@": "Commencer par %@",
     "Step 1 of 2 · Saving copy %lld of %lld": "Étape 1 sur 2 · Enregistrement de la copie %lld sur %lld",
     "Step 2 of 2 · Confirm in the iOS alert to delete the originals": "Étape 2 sur 2 · Confirmez dans l'alerte iOS pour supprimer les originaux",
     "Still adding — please wait a moment and try again.": "Ajout en cours — patientez un instant et réessayez.",
+    "Still image": "Photo fixe",
     "Stop": "Arrêter",
     "Storage": "Stockage",
     "Storage %lld percent used": "Stockage utilisé à %lld pour cent",
@@ -605,7 +615,6 @@
     "This will delete %@ of media. %@": "Cela supprimera %@ d'éléments. %@",
     "This will delete %@. %@": "Cela supprimera %@. %@",
     "This will delete the selected burst frames and keep your chosen best photos. %@": "Cela supprimera les images de rafale sélectionnées et conservera les meilleures photos que vous avez choisies. %@",
-    "Tidy my photos with %@": "Range mes photos avec %@",
     "TidyByte": "TidyByte",
     "TidyByte Can't Start": "TidyByte ne peut pas démarrer",
     "TidyByte Needs Your Photos": "TidyByte a besoin de vos photos",
@@ -642,6 +651,7 @@
     "Using label search across scanned photos.": "Utilisation de la recherche par étiquettes sur les photos analysées.",
     "Version": "Version",
     "Vibration feedback when you swipe, tap, and finish a cleanup.": "Retour par vibration lorsque vous balayez, touchez et terminez un nettoyage.",
+    "Video": "Vidéo",
     "Video Compression": "Compression vidéo",
     "Video not found.": "Vidéo introuvable.",
     "Video preview playing": "Lecture de l'aperçu vidéo",
@@ -690,6 +700,7 @@
     "cleaned up since you started using TidyByte": "libérés depuis que vous utilisez TidyByte",
     "est. ~%@": "est. ~%@",
     "est. ~%@ savings": "économies est. ~%@",
+    "estimated": "estimé",
     "iCloud Only": "iCloud uniquement",
     "iCloud Status": "État iCloud",
     "iOS asks for photo access only once, and this is that ask. TidyByte then reviews your library on this device. Nothing is uploaded, and nothing changes without your review.": "iOS ne demande l'accès aux photos qu'une seule fois, et c'est cette demande. TidyByte examine ensuite votre photothèque sur cet appareil. Rien n'est envoyé, et rien ne change sans votre examen.",
@@ -711,267 +722,343 @@
   "plurals": {
     "%lld item": {
       "one": "%lld élément",
+      "many": "%lld éléments",
       "other": "%lld éléments"
     },
     "%lld items": {
       "one": "%lld élément",
+      "many": "%lld éléments",
       "other": "%lld éléments"
     },
     "%lld item marked for deletion": {
       "one": "%lld élément marqué pour suppression",
+      "many": "%lld éléments marqués pour suppression",
       "other": "%lld éléments marqués pour suppression"
     },
     "%lld items with unknown size are not listed": {
       "one": "%lld élément de taille inconnue n'est pas listé",
+      "many": "%lld éléments de taille inconnue ne sont pas listés",
       "other": "%lld éléments de taille inconnue ne sont pas listés"
     },
     "%lld items · %@": {
       "one": "%lld élément · %@",
+      "many": "%lld éléments · %@",
       "other": "%lld éléments · %@"
     },
     "%@ · %lld items cleaned": {
       "one": "%@ · %lld élément nettoyé",
+      "many": "%@ · %lld éléments nettoyés",
       "other": "%@ · %lld éléments nettoyés"
     },
     "%@: %lld items": {
       "one": "%@ : %lld élément",
+      "many": "%@ : %lld éléments",
       "other": "%@ : %lld éléments"
     },
     "%lld large file": {
       "one": "%lld fichier volumineux",
+      "many": "%lld fichiers volumineux",
       "other": "%lld fichiers volumineux"
     },
     "%lld screenshot": {
       "one": "%lld capture d'écran",
+      "many": "%lld captures d'écran",
       "other": "%lld captures d'écran"
     },
     "%lld screenshots · %@": {
       "one": "%lld capture d'écran · %@",
+      "many": "%lld captures d'écran · %@",
       "other": "%lld captures d'écran · %@"
     },
     "%lld screenshots skipped · covered by the Screenshots tool": {
       "one": "%lld capture d'écran ignorée · prise en charge par l'outil Captures d'écran",
+      "many": "%lld captures d'écran ignorées · prises en charge par l'outil Captures d'écran",
       "other": "%lld captures d'écran ignorées · prises en charge par l'outil Captures d'écran"
     },
     "%lld photo could not be scored from a local image.": {
       "one": "%lld photo n'a pas pu être évaluée à partir d'une image locale.",
+      "many": "%lld photos n'ont pas pu être évaluées à partir d'une image locale.",
       "other": "%lld photos n'ont pas pu être évaluées à partir d'une image locale."
     },
     "%lld photo had no local analysis image.": {
       "one": "%lld photo n'avait pas d'image d'analyse locale.",
+      "many": "%lld photos n'avaient pas d'image d'analyse locale.",
       "other": "%lld photos n'avaient pas d'image d'analyse locale."
     },
     "Lens analysis skipped %lld photo.": {
       "one": "L'analyse de l'objectif a ignoré %lld photo.",
+      "many": "L'analyse de l'objectif a ignoré %lld photos.",
       "other": "L'analyse de l'objectif a ignoré %lld photos."
     },
     "%lld photos could not be indexed from a local image.": {
       "one": "%lld photo n'a pas pu être indexée à partir d'une image locale.",
+      "many": "%lld photos n'ont pas pu être indexées à partir d'une image locale.",
       "other": "%lld photos n'ont pas pu être indexées à partir d'une image locale."
     },
     "%lld iCloud-only photo skipped (not on this device)": {
       "one": "%lld photo iCloud uniquement ignorée (absente de cet appareil)",
+      "many": "%lld photos iCloud uniquement ignorées (absentes de cet appareil)",
       "other": "%lld photos iCloud uniquement ignorées (absentes de cet appareil)"
     },
     "%lld photos": {
       "one": "%lld photo",
+      "many": "%lld photos",
       "other": "%lld photos"
     },
     "%lld photos · %@": {
       "one": "%lld photo · %@",
+      "many": "%lld photos · %@",
       "other": "%lld photos · %@"
     },
     "%lld photos over 2 MB that can shrink": {
       "one": "%lld photo de plus de 2 MB qui peut être réduite",
+      "many": "%lld photos de plus de 2 MB qui peuvent être réduites",
       "other": "%lld photos de plus de 2 MB qui peuvent être réduites"
     },
     "%lld Live Photos": {
       "one": "%lld Live Photo",
+      "many": "%lld Live Photos",
       "other": "%lld Live Photos"
     },
     "%lld burst groups": {
       "one": "%lld groupe de rafale",
+      "many": "%lld groupes de rafale",
       "other": "%lld groupes de rafale"
     },
     "%lld groups": {
       "one": "%lld groupe",
+      "many": "%lld groupes",
       "other": "%lld groupes"
     },
     "%lld groups found": {
       "one": "%lld groupe trouvé",
+      "many": "%lld groupes trouvés",
       "other": "%lld groupes trouvés"
     },
     "%lld compressions": {
       "one": "%lld compression",
+      "many": "%lld compressions",
       "other": "%lld compressions"
     },
     "%lld frames": {
       "one": "%lld image",
+      "many": "%lld images",
       "other": "%lld images"
     },
     "%lld megabytes": {
       "one": "%lld mégaoctet",
+      "many": "%lld mégaoctets",
       "other": "%lld mégaoctets"
     },
     "%lld seconds": {
       "one": "%lld seconde",
+      "many": "%lld secondes",
       "other": "%lld secondes"
     },
     "%lld pick cleared: below the %@ size limit.": {
       "one": "%lld sélection effacée : sous la limite de %@.",
+      "many": "%lld sélections effacées : sous la limite de %@.",
       "other": "%lld sélections effacées : sous la limite de %@."
     },
     "in %lld day": {
       "one": "dans %lld jour",
+      "many": "dans %lld jours",
       "other": "dans %lld jours"
     },
     "%lld active day, 30 days": {
       "one": "%lld jour actif, 30 jours",
+      "many": "%lld jours actifs, 30 jours",
       "other": "%lld jours actifs, 30 jours"
     },
     "Failed to delete %lld photo": {
       "one": "Échec de la suppression de %lld photo",
+      "many": "Échec de la suppression de %lld photos",
       "other": "Échec de la suppression de %lld photos"
     },
     "Delete %lld item": {
       "one": "Supprimer %lld élément",
+      "many": "Supprimer %lld éléments",
       "other": "Supprimer %lld éléments"
     },
     "Delete %lld": {
       "one": "Supprimer %lld",
+      "many": "Supprimer %lld",
       "other": "Supprimer %lld"
     },
     "Delete %lld Files": {
       "one": "Supprimer %lld fichier",
+      "many": "Supprimer %lld fichiers",
       "other": "Supprimer %lld fichiers"
     },
     "Delete %lld Items": {
       "one": "Supprimer %lld élément",
+      "many": "Supprimer %lld éléments",
       "other": "Supprimer %lld éléments"
     },
     "Delete %lld Photos": {
       "one": "Supprimer %lld photo",
+      "many": "Supprimer %lld photos",
       "other": "Supprimer %lld photos"
     },
     "Delete %lld Screenshots": {
       "one": "Supprimer %lld capture d'écran",
+      "many": "Supprimer %lld captures d'écran",
       "other": "Supprimer %lld captures d'écran"
     },
     "Delete %lld items from Photos?": {
       "one": "Supprimer %lld élément de Photos ?",
+      "many": "Supprimer %lld éléments de Photos ?",
       "other": "Supprimer %lld éléments de Photos ?"
     },
     "Compress %lld Photos": {
       "one": "Compresser %lld photo",
+      "many": "Compresser %lld photos",
       "other": "Compresser %lld photos"
     },
     "Compress %lld Videos": {
       "one": "Compresser %lld vidéo",
+      "many": "Compresser %lld vidéos",
       "other": "Compresser %lld vidéos"
     },
     "This will delete %lld duplicate items. %@": {
       "one": "Cela supprimera %lld doublon. %@",
+      "many": "Cela supprimera %lld doublons. %@",
       "other": "Cela supprimera %lld doublons. %@"
     },
     "%lld extras · %@ selected": {
       "one": "%lld en plus · %@ sélectionnés",
+      "many": "%lld en plus · %@ sélectionnés",
       "other": "%lld en plus · %@ sélectionnés"
     },
     "%lld duplicates · %@ selected": {
       "one": "%lld doublon · %@ sélectionnés",
+      "many": "%lld doublons · %@ sélectionnés",
       "other": "%lld doublons · %@ sélectionnés"
     },
     "%lld files · %@": {
       "one": "%lld fichier · %@",
+      "many": "%lld fichiers · %@",
       "other": "%lld fichiers · %@"
     },
     "%lld selected": {
       "one": "%lld sélectionnés",
+      "many": "%lld sélectionnés",
       "other": "%lld sélectionnés"
     },
     "%lld selected · %@": {
       "one": "%lld sélectionnés · %@",
+      "many": "%lld sélectionnés · %@",
       "other": "%lld sélectionnés · %@"
     },
     "%lld selected (%lld not shown) · %@": {
       "one": "%lld sélectionnés (%lld non affichés) · %@",
+      "many": "%lld sélectionnés (%lld non affichés) · %@",
       "other": "%lld sélectionnés (%lld non affichés) · %@"
     },
     "%lld selected (%lld on other tabs) · %@": {
       "one": "%lld sélectionnés (%lld dans d'autres onglets) · %@",
+      "many": "%lld sélectionnés (%lld dans d'autres onglets) · %@",
       "other": "%lld sélectionnés (%lld dans d'autres onglets) · %@"
     },
     "%lld selected · %@ (%lld hidden by filter)": {
       "one": "%lld sélectionnés · %@ (%lld masqués par le filtre)",
+      "many": "%lld sélectionnés · %@ (%lld masqués par le filtre)",
       "other": "%lld sélectionnés · %@ (%lld masqués par le filtre)"
     },
     "%lld total · %lld removable · %@": {
       "one": "%lld au total · %lld supprimables · %@",
+      "many": "%lld au total · %lld supprimables · %@",
       "other": "%lld au total · %lld supprimables · %@"
     },
     "%lld removable": {
       "one": "%lld supprimable",
+      "many": "%lld supprimables",
       "other": "%lld supprimables"
     },
     "cleared %lld photo": {
       "one": "nettoyer %lld photo",
+      "many": "nettoyer %lld photos",
       "other": "nettoyer %lld photos"
     },
     "cleared %lld blurry photo": {
       "one": "nettoyer %lld photo floue",
+      "many": "nettoyer %lld photos floues",
       "other": "nettoyer %lld photos floues"
     },
     "cleared %lld screenshot": {
       "one": "nettoyer %lld capture d'écran",
+      "many": "nettoyer %lld captures d'écran",
       "other": "nettoyer %lld captures d'écran"
     },
     "cleared %lld large file": {
       "one": "nettoyer %lld fichier volumineux",
+      "many": "nettoyer %lld fichiers volumineux",
       "other": "nettoyer %lld fichiers volumineux"
     },
     "cleared %lld burst frame": {
       "one": "nettoyer %lld image de rafale",
+      "many": "nettoyer %lld images de rafale",
       "other": "nettoyer %lld images de rafale"
     },
     "cleared %lld item (%@)": {
       "one": "nettoyer %lld élément (%@)",
+      "many": "nettoyer %lld éléments (%@)",
       "other": "nettoyer %lld éléments (%@)"
     },
     "removed %lld duplicate": {
       "one": "supprimer %lld doublon",
+      "many": "supprimer %lld doublons",
       "other": "supprimer %lld doublons"
     },
     "removed %lld similar photo": {
       "one": "supprimer %lld photo similaire",
+      "many": "supprimer %lld photos similaires",
       "other": "supprimer %lld photos similaires"
     },
     "compressed %lld photo": {
       "one": "compresser %lld photo",
+      "many": "compresser %lld photos",
       "other": "compresser %lld photos"
     },
     "compressed %lld video": {
       "one": "compresser %lld vidéo",
+      "many": "compresser %lld vidéos",
       "other": "compresser %lld vidéos"
     },
     "cleaned %lld burst photo": {
       "one": "nettoyer %lld photo en rafale",
+      "many": "nettoyer %lld photos en rafale",
       "other": "nettoyer %lld photos en rafale"
     },
     "converted %lld Live Photo": {
       "one": "convertir %lld Live Photo",
+      "many": "convertir %lld Live Photos",
       "other": "convertir %lld Live Photos"
     },
     "reviewed %lld item": {
       "one": "examiner %lld élément",
+      "many": "examiner %lld éléments",
       "other": "examiner %lld éléments"
     },
     "%lld exact copies": {
       "one": "%lld copie exacte",
+      "many": "%lld copies exactes",
       "other": "%lld copies exactes"
     },
     "%lld look-alike photos": {
       "one": "%lld photo visuellement similaire",
+      "many": "%lld photos visuellement similaires",
       "other": "%lld photos visuellement similaires"
+    },
+    "%lld saved from apps": {
+      "one": "%lld enregistrée depuis une app",
+      "many": "%lld enregistrées depuis des apps",
+      "other": "%lld enregistrées depuis des apps"
+    },
+    "%lld videos over %lld MB": {
+      "one": "%lld vidéo de plus de %lld MB",
+      "many": "%lld vidéos de plus de %lld MB",
+      "other": "%lld vidéos de plus de %lld MB"
     }
   }
 }

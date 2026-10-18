@@ -9,7 +9,10 @@
     "build": "astro build && tailwindcss -i ./src/input.css -o ./dist/assets/css/styles.css --minify && node scripts/hash-assets.mjs",
     "preview": "astro preview",
     "check": "node scripts/hash-assets.mjs --check && node scripts/seo-audit.mjs && node scripts/og-cards.mjs --check",
-    "og": "node scripts/og-cards.mjs"
+    "og": "node scripts/og-cards.mjs",
+    "screenshots": "node scripts/growth/shoot-screenshots.mjs",
+    "growth": "node scripts/growth/build-assets.mjs",
+    "check:growth": "node scripts/growth/check-assets.mjs --strict"
   },
   "devDependencies": {
     "@astrojs/sitemap": "^3.7.4",

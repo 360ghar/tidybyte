@@ -14,15 +14,28 @@
 #      localizable keys, with the placeholder types the compiler inferred.
 #      This is the authority for `Text`/`Label`/`Button` literals.
 #   2. `extract.mjs` — our scanner. Covers what Xcode cannot see: the `L10n.*`
-#      calls that build strings in code, plus the display properties
-#      (`CleanupTool.name`, `PhotoCategory.title`, …) that return English text.
-#   3. `build-catalog.mjs` — merges translations into the catalog, expands
-#      plural variations, and pins reordered placeholders positionally.
-#   4. `check.mjs` — fails on missing languages, placeholder mismatches, and
-#      wrong plural categories.
+#      calls that build strings in code, the display properties
+#      (`CleanupTool.name`, `PhotoCategory.title`, …) that return English text,
+#      the display properties outside that curated list (Guard A), the
+#      `Text(variable)` call sites where the variable is provably English
+#      (Guard B), and the Siri phrases in the App Shortcuts provider.
+#   3. `collect-xcode-keys.mjs` — the compiler's key set, so the builder can tell
+#      a live key from one whose source text no longer exists.
+#   4. `build-catalog.mjs` — merges translations into the catalog, expands
+#      plural variations, pins reordered placeholders positionally, prunes dead
+#      keys, and writes `AppShortcuts.xcstrings` for the Siri phrases.
+#   5. `check.mjs` — fails on missing languages, placeholder mismatches, wrong
+#      plural categories, and Siri phrases that lost their app-name token.
 #
 # Steps 1 and 2 both write into the catalog, so the order matters: sync must run
 # first, or the merge would drop the compiler-found keys.
+#
+# There are two catalogs, and they are not interchangeable. `Localizable.xcstrings`
+# serves everything the app draws. `AppShortcuts.xcstrings` serves the Siri
+# phrases, which App Intents looks up in a table named `AppShortcuts` — a phrase
+# put in the app catalog instead is never read, and the app catalog still reports
+# 100% coverage. `build-catalog.mjs` writes the second one from
+# `translations/_app-shortcuts.json`; there is nothing to `sync` for it.
 
 set -euo pipefail
 

@@ -37,9 +37,17 @@ jobs:
       # builds and runs, it just shows English where a translation exists, and
       # nobody notices until a user reports it.
       #
+      # There are two catalogs, and they are not interchangeable.
+      # `Localizable.xcstrings` serves everything the app draws.
+      # `AppShortcuts.xcstrings` serves the Siri phrases, which App Intents
+      # looks up in a table named `AppShortcuts`. A phrase put in the app
+      # catalog instead is never read, and the app catalog still reports 100%
+      # coverage — that mistake shipped once, so both files are diffed here.
+      #
       # `refresh.sh` also runs `check.mjs`, which enforces language coverage,
-      # placeholder parity, CLDR plural categories, and that every
-      # `INFOPLIST_KEY_*UsageDescription` in project.yml has a catalog entry.
+      # placeholder parity, CLDR plural categories, the App Shortcuts app-name
+      # token, and that every `INFOPLIST_KEY_*UsageDescription` in project.yml
+      # has a catalog entry.
       #
       # `DESTINATION` is passed explicitly and matches the simulator the build
       # and test steps use. Left to its default the script picks a different
@@ -51,6 +59,7 @@ jobs:
           ./scripts/localization/refresh.sh
           git diff --exit-code -- \
             Tidybyte/Resources/Localizable.xcstrings \
+            Tidybyte/Resources/AppShortcuts.xcstrings \
             Tidybyte/InfoPlist.xcstrings
 
       # Catches the class of bug the catalog sync cannot see: user-facing text
@@ -59,7 +68,7 @@ jobs:
       # parameter or built in a view model is not, so it renders raw English in
       # every language while every coverage number still reads 100%.
       #
-      # Three scans, each for a shape that hides a string completely:
+      # Four scans, each for a shape that hides a string completely:
       #   - `L10n.string(rawValue)` — a key computed from an enum, invisible to
       #     any literal scan. Seven enums had this shape; 16 keys were missing.
       #   - a literal nested in an interpolation, e.g.
@@ -67,6 +76,9 @@ jobs:
       #     the inner `String` verbatim, so every language kept the English
       #     fragment. The German template read "load dieses video …".
       #   - prose in a `String` parameter that no call site localizes.
+      #   - Siri phrases missing from `AppShortcuts.xcstrings`, or that lost
+      #     their `${applicationName}` token, which stops Siri matching the
+      #     shortcut at all.
       - name: Check for unlocalized user-facing strings
         run: node scripts/localization/extract.mjs --check
 
@@ -131,3 +143,19 @@ jobs:
         run: |
           npm run build
           npm run check
+
+      # The App Store growth creatives — In-App Events, Custom Product Pages,
+      # Asset Library, Product Page Optimization, and the header/search assets.
+      #
+      # These are checked in rather than generated here, because they are
+      # reviewed by hand before upload and a regenerated file would be a new
+      # asset nobody looked at. So the job verifies what is committed: every
+      # image is inside Apple's accepted size for its surface, carries no alpha
+      # channel (App Store Connect rejects transparency, and Playwright writes
+      # RGBA by default), and exists in all 21 languages — Apple requires asset
+      # text localized for every language the app supports.
+      #
+      # `--strict` also fails on a render that came out blank, which is what a
+      # silently-failed background load produces.
+      - name: Validate App Store growth creatives
+        run: npm run check:growth

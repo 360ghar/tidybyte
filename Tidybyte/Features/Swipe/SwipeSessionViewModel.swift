@@ -373,7 +373,7 @@ final class SwipeSessionViewModel {
             advance()
             return nil
         } catch {
-            return "Failed to add to album: \(error.localizedDescription)"
+            return L10n.format("Failed to add to album: %@", error.localizedDescription)
         }
     }
 

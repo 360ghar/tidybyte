@@ -39,7 +39,27 @@ enum Formatters {
         guard let resolvedRegion = region ?? Locale.current.region else {
             return Locale(identifier: languageCode)
         }
-        return Locale(identifier: "\(languageCode)_\(resolvedRegion.identifier)")
+
+        // Built from components, NOT by joining strings.
+        //
+        // A language identifier can itself carry subtags: `pt-BR` has a region
+        // and `zh-Hans` a script. Concatenating a region onto it produced
+        // `pt-BR_US`, which is not a valid identifier — Foundation parses the
+        // `pt` and the `BR`, then silently discards the `_US`. So for exactly
+        // the two languages that carry a subtag, the device region was ignored
+        // and a Brazilian-Portuguese user on a US device got `15/11/2023` and
+        // `1.234,5`, contradicting the rule this function documents.
+        //
+        // Parsing the identifier and then *replacing* its region keeps the
+        // script (`zh-Hans` stays `zh-Hans_US`) and applies the device region as
+        // the contract requires. The surrounding components come from the device
+        // locale so calendar overrides survive.
+        var languageComponents = Locale.Language.Components(identifier: languageCode)
+        languageComponents.region = resolvedRegion
+
+        var components = Locale.Components(locale: .current)
+        components.languageComponents = languageComponents
+        return Locale(components: components)
     }
 
     // MARK: - File Sizes

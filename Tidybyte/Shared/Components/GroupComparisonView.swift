@@ -250,7 +250,7 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
                 if asset.id == group.bestAssetId {
                     statusPill(icon: "star.fill", text: descriptor.bestPillText(group), color: .green)
                 } else if selectedForDeletion.contains(asset.id) {
-                    statusPill(icon: "trash.fill", text: "Delete", color: .red)
+                    statusPill(icon: "trash.fill", text: L10n.string("Delete"), color: .red)
                 }
             }
             .padding(.horizontal, Spacing.lg)
@@ -265,7 +265,7 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
                 if let names = albumNames[asset.id], !names.isEmpty {
                     MetadataRow(label: "Albums", value: names.joined(separator: ", "))
                 } else {
-                    MetadataRow(label: "Albums", value: "None")
+                    MetadataRow(label: "Albums", value: L10n.string("None"))
                 }
                 extraDetail(asset)
             }
@@ -353,9 +353,9 @@ struct ComparisonQualitySection: View {
     }
 
     private func exposureLabel(_ quality: AssetQuality) -> String {
-        if quality.isTooDark { return "Too dark" }
-        if quality.isOverexposed { return "Overexposed" }
-        return "Good"
+        if quality.isTooDark { return L10n.string("Too dark") }
+        if quality.isOverexposed { return L10n.string("Overexposed") }
+        return L10n.string("Good")
     }
 
     private func exposureColor(_ quality: AssetQuality) -> Color {

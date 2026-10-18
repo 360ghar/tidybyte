@@ -172,4 +172,73 @@ final class LocaleFormattingTests: XCTestCase {
             XCTAssertEqual(Formatters.orderedWeekdays(language: language).count, 7)
         }
     }
+
+    // MARK: - Plurals
+
+    /// True when the text contains a Cyrillic letter (U+0400–U+04FF).
+    ///
+    /// `Character` has no `isCyrillic`, so this checks the scalars directly.
+    private func containsCyrillic(_ text: String) -> Bool {
+        text.unicodeScalars.contains { (0x0400...0x04FF).contains($0.value) }
+    }
+
+    /// The half of plural handling that does work: the *variants* are the chosen
+    /// language's, because they come from that language's `.stringsdict`.
+    ///
+    /// This runs under whatever `Locale.current` the test host has, so it must
+    /// not assert a category-dependent form — see the next test for why.
+    func testPluralVariantsComeFromTheChosenLanguage() {
+        // 5 is `many` in Russian and `other` in English. English rules select
+        // `other` for 5, so under an English test host this renders the Russian
+        // `other` form. Asserting the *script* proves the variant is Russian
+        // without depending on which category got selected.
+        let russian = L10n.format("%lld items", language: .russian, 5)
+        XCTAssertTrue(
+            containsCyrillic(russian),
+            "Expected a Russian form, got: \(russian)"
+        )
+        XCTAssertTrue(russian.contains("5"), "Expected the count, got: \(russian)")
+    }
+
+    /// Documents a known limitation rather than asserting correct behaviour.
+    ///
+    /// `String.localizedStringWithFormat` picks the CLDR plural category with
+    /// `Locale.current`, and no Foundation API accepts a locale for that. When
+    /// the app language and the device language differ, the wrong category can
+    /// be selected even though the variants themselves are right.
+    ///
+    /// The test asserts the *current* behaviour so the day someone lands real
+    /// category selection, this fails and points at the fix. It is deliberately
+    /// not written as "assert correct" — that would fail today and be muted.
+    func testPluralCategoryFollowsTheDeviceLocaleNotTheAppLanguage() throws {
+        // Only meaningful when the host is not already Russian.
+        try XCTSkipIf(
+            Locale.current.language.languageCode == "ru",
+            "Host is Russian, so the wrong category would not be observable."
+        )
+
+        let counts = [1, 2, 5, 21]
+        let rendered = counts.map { L10n.format("%lld items", language: .russian, $0) }
+
+        // The variants are Russian in every case — the language half works.
+        for (count, text) in zip(counts, rendered) {
+            XCTAssertTrue(
+                containsCyrillic(text),
+                "\(count) did not render a Russian form: \(text)"
+            )
+        }
+
+        // And the known gap: under a non-Russian device locale, Russian's `many`
+        // form is never selected, so 5 does not read "5 объектов". (English
+        // rules pick `other` for 5; Russian `many` is `%lld объектов`.)
+        let five = L10n.format("%lld items", language: .russian, 5)
+        XCTAssertNotEqual(
+            five, "5 объектов",
+            """
+            Russian plural categories now resolve correctly under a foreign \
+            device locale. Remove the limitation note on L10n.format and \
+            tighten this test into a real assertion.
+            """
+        )
+    }
 }

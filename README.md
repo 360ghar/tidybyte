@@ -6,20 +6,28 @@
 
 A native iOS app that helps users clean up their photo library. Core UX is a Tinder-style swipe interface for reviewing media.
 
-- **Swift/SwiftUI**, iOS 17+, iPhone only
+- **Swift/SwiftUI**, iOS 17+, iPhone + iPad
 - **No backend** — all processing on-device
 - **No third-party dependencies** — Apple frameworks only
 - MVVM + Actors + SwiftData architecture
+- **21 languages** (including RTL) across the app, the App Store listing, the
+  site, and the Siri phrases
 
 ## Screenshots
 
+Captured by `npm run screenshots`, which drives the simulator and writes both
+required App Store device classes with alpha stripped.
+
 <p align="center">
-  <img src="docs/screenshots/01-swipe-home.png" width="19%" />
-  <img src="docs/screenshots/05-swipe-session.png" width="19%" />
-  <img src="docs/screenshots/07-session-complete.png" width="19%" />
-  <img src="docs/screenshots/02-cleanup-tools.png" width="19%" />
-  <img src="docs/screenshots/03-storage-dashboard.png" width="19%" />
+  <img src="docs/screenshots/iphone/01-swipe-home.png" width="19%" />
+  <img src="docs/screenshots/iphone/02-cleanup-tools.png" width="19%" />
+  <img src="docs/screenshots/iphone/06-storage-dashboard.png" width="19%" />
+  <img src="docs/screenshots/ipad/01-swipe-home.png" width="19%" />
+  <img src="docs/screenshots/ipad/06-storage-dashboard.png" width="19%" />
 </p>
+
+The flat `docs/screenshots/*.png` files are legacy, carry an alpha channel that
+App Store Connect rejects, and must not be uploaded.
 
 ## Features
 
@@ -62,6 +70,49 @@ Tidybyte/
 ```
 
 Configuration lives in `project.yml` (XcodeGen). The `.xcodeproj` is generated and not checked into version control.
+
+## Localization
+
+The app, the App Store listing, the marketing site, and the Siri phrases are all
+translated into 21 languages. Two String Catalogs, and they are not
+interchangeable:
+
+| Catalog | Serves |
+|---|---|
+| `Tidybyte/Resources/Localizable.xcstrings` | everything the app draws |
+| `Tidybyte/Resources/AppShortcuts.xcstrings` | the Siri phrases, which App Intents looks up in a table named `AppShortcuts` |
+
+A Siri phrase put in the app catalog instead is never read, and the app catalog
+still reports 100% coverage. That mistake shipped once.
+
+```bash
+./scripts/localization/refresh.sh        # rebuild both catalogs from source
+node scripts/localization/extract.mjs --check   # find text that never reaches a catalog
+node scripts/localization/check.mjs --strict    # coverage, placeholders, plural categories
+```
+
+`refresh.sh` is deterministic — running it twice produces byte-identical files,
+which is what makes the CI gate a `git diff --exit-code`. See
+[`scripts/localization/README.md`](scripts/localization/README.md) for the
+pipeline and the bug classes each scan exists to catch.
+
+## Growth & marketing assets
+
+App Store creatives for In-App Events, Custom Product Pages, the Asset Library,
+Product Page Optimization, and the header/search surfaces — 357 images across 21
+languages.
+
+```bash
+npm run growth          # render every asset for every language
+npm run check:growth    # validate sizes, alpha, coverage, blank renders
+npm run screenshots     # capture iPhone + iPad screenshots
+```
+
+Background art is generated with AI and is deliberately text-free; the text layer
+is rendered by Chromium from the app's own translated strings, because Apple
+requires asset text localized for every supported language and a diffusion model
+cannot render 20 scripts reliably. See
+[`docs/growth/README.md`](docs/growth/README.md).
 
 ## License
 

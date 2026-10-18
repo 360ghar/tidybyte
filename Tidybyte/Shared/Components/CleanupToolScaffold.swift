@@ -232,12 +232,19 @@ struct ToolScanningView: View {
 /// stopped, and one whose fetch is a single awaited call cannot. Passing nil
 /// omits the button rather than showing one that does nothing.
 struct ToolLoadingView<Skeleton: View>: View {
-    var cancelTitle: String = "Cancel"
+    /// `LocalizedStringKey`, not `String`.
+    ///
+    /// The sibling scaffold above declares the same property this way, and this
+    /// one did not: `Text(cancelTitle)` on a `String` renders it verbatim, so
+    /// the Cancel button on every tool's loading state read "Cancel" in all 21
+    /// languages. No call site passes this explicitly, so the default is the
+    /// only value that ever reaches the screen.
+    var cancelTitle: LocalizedStringKey = "Cancel"
     var onCancel: (() -> Void)?
     @ViewBuilder let skeleton: () -> Skeleton
 
     init(
-        cancelTitle: String = "Cancel",
+        cancelTitle: LocalizedStringKey = "Cancel",
         onCancel: (() -> Void)? = nil,
         @ViewBuilder skeleton: @escaping () -> Skeleton
     ) {

@@ -19,25 +19,42 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LANGUAGES, pluralCategories, pluralCategoriesDisagree } from './plural-categories.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CATALOG_PATH = join(ROOT, 'Tidybyte/Resources/Localizable.xcstrings');
+const APP_SHORTCUTS_CATALOG_PATH = join(ROOT, 'Tidybyte/Resources/AppShortcuts.xcstrings');
 const PLURAL_KEYS_PATH = join(ROOT, 'scripts/localization/translations/_plural-keys.json');
 const INFO_PLIST_CATALOG_PATH = join(ROOT, 'Tidybyte/InfoPlist.xcstrings');
 const PROJECT_YML_PATH = join(ROOT, 'project.yml');
 
-/** Must match `build-catalog.mjs`; asserted below so the two cannot drift. */
-const LANGUAGES = [
-  'en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa',
-  'es', 'fr', 'de', 'pt-BR', 'it', 'ja', 'ko', 'zh-Hans', 'ru', 'ar', 'he',
-];
+/**
+ * Shared with `build-catalog.mjs`, and derived from ICU rather than written out.
+ *
+ * This was a hand-maintained table duplicated in both scripts. Both copies were
+ * missing the CLDR `many` category for Spanish, French, Italian, and Portuguese,
+ * so the builder wrote a partial set and this checker validated against the same
+ * wrong expectation — the two agreed with each other and were both wrong. See
+ * `plural-categories.mjs`.
+ */
+const PLURAL_CATEGORIES = pluralCategories();
 
-const PLURAL_CATEGORIES = {
+/**
+ * The category set this script expects, snapshotted so a future ICU or CLDR
+ * release cannot silently change what the catalog must contain.
+ *
+ * `pluralCategories()` is derived at runtime, which is what stops the builder
+ * and checker from drifting. That is also the risk: a Node or ICU upgrade that
+ * adds a category would change the expectation, and the check would fail on
+ * every language with a confusing message. Comparing against this snapshot
+ * turns that into a clear, actionable failure instead.
+ */
+const EXPECTED_CATEGORIES = {
   en: ['one', 'other'], hi: ['one', 'other'], bn: ['one', 'other'],
   ta: ['one', 'other'], te: ['one', 'other'], mr: ['one', 'other'],
   gu: ['one', 'other'], kn: ['one', 'other'], ml: ['one', 'other'],
-  pa: ['one', 'other'], es: ['one', 'other'], fr: ['one', 'other'],
-  de: ['one', 'other'], 'pt-BR': ['one', 'other'], it: ['one', 'other'],
+  pa: ['one', 'other'], es: ['one', 'many', 'other'], fr: ['one', 'many', 'other'],
+  de: ['one', 'other'], 'pt-BR': ['one', 'many', 'other'], it: ['one', 'many', 'other'],
   ja: ['other'], ko: ['other'], 'zh-Hans': ['other'],
   ru: ['one', 'few', 'many', 'other'],
   ar: ['zero', 'one', 'two', 'few', 'many', 'other'],
@@ -320,7 +337,127 @@ function checkInfoPlistCatalog() {
   }
 }
 
+/**
+ * Validates `AppShortcuts.xcstrings` — the catalog Siri phrases resolve through.
+ *
+ * This is a separate catalog from `Localizable.xcstrings`, and it needs its own
+ * gate because a mistake here is invisible everywhere else. When the phrases
+ * were written into the app catalog instead, the app catalog reported 100%
+ * coverage in all 20 languages and Siri still answered in English. Nothing in
+ * the app's own checks could see it.
+ *
+ * Three checks, each of which fails silently at runtime:
+ *
+ * 1. **Coverage** — every phrase has every language. A missing language falls
+ *    back to English, so the user hears English from a translated app.
+ * 2. **The app-name token** — every phrase must contain `${applicationName}`.
+ *    Apple requires it; a phrase without it never matches, so the shortcut
+ *    silently disappears from Siri rather than misbehaving visibly.
+ * 3. **Alternate count** — a language must offer as many utterances as English.
+ *    Fewer means the user has fewer ways to trigger the shortcut, which is a
+ *    real functional loss even though the primary phrase still works.
+ */
+function checkAppShortcutsCatalog() {
+  const label = 'App Shortcuts';
+  let catalog;
+  try {
+    catalog = JSON.parse(readFileSync(APP_SHORTCUTS_CATALOG_PATH, 'utf8'));
+  } catch {
+    fail(`${label}: ${APP_SHORTCUTS_CATALOG_PATH} is missing or unreadable`);
+    return;
+  }
+
+  const strings = catalog.strings ?? {};
+  const keys = Object.keys(strings);
+  if (keys.length === 0) {
+    fail(`${label}: catalog has no phrases`);
+    return;
+  }
+
+  const token = '${applicationName}';
+  let incomplete = 0;
+  for (const key of keys) {
+    const localizations = strings[key].localizations ?? {};
+    const english = localizations.en?.stringSet?.values ?? [];
+    if (english.length === 0) {
+      fail(`${label}: "${key}" has no English phrases`);
+      continue;
+    }
+    if (!english[0].includes(token)) {
+      fail(`${label}: the English key "${key}" is missing ${token}`);
+    }
+
+    for (const language of LANGUAGES) {
+      const entry = localizations[language]?.stringSet;
+      if (!entry) {
+        fail(`${label}: "${key}" is missing language ${language}`);
+        incomplete += 1;
+        continue;
+      }
+      if (entry.state === 'needs_review') incomplete += 1;
+      if (entry.values.length !== english.length) {
+        fail(
+          `${label}: "${key}" [${language}] offers ${entry.values.length} phrase(s), `
+          + `English offers ${english.length}`,
+        );
+      }
+      for (const phrase of entry.values) {
+        if (!phrase.includes(token)) {
+          fail(
+            `${label}: "${key}" [${language}] phrase ${JSON.stringify(phrase)} `
+            + `does not contain ${token} — Siri will not offer the shortcut`,
+          );
+        }
+        if (/%@|%\d+\$/.test(phrase)) {
+          fail(
+            `${label}: "${key}" [${language}] phrase ${JSON.stringify(phrase)} `
+            + 'contains a format specifier — nothing substitutes it here',
+          );
+        }
+      }
+    }
+  }
+
+  const total = keys.length * LANGUAGES.length;
+  const done = total - incomplete;
+  const pct = total > 0 ? ((done / total) * 100).toFixed(0) : '100';
+  console.log(`  phrases    ${String(done).padStart(4)}/${total}  ${pct.padStart(3)}%  ${incomplete === 0 ? 'ok' : 'needs work'}`);
+  if (strict && incomplete > 0) {
+    fail(`${label}: ${incomplete} phrase(s) fall back to English`);
+  }
+}
+
+/**
+ * Fails loudly if ICU's plural rules no longer match what this repo expects.
+ *
+ * The categories come from `Intl.PluralRules` at runtime, which is what makes
+ * the builder and the checker agree by construction. The cost is that a Node or
+ * ICU upgrade could change the expectation and produce a wall of per-key
+ * category failures that reads like a translation problem. This turns that into
+ * one clear message naming the language and both sets.
+ */
+function checkPluralRulesMatchICU() {
+  let drifted = 0;
+  for (const language of LANGUAGES) {
+    if (pluralCategoriesDisagree(PLURAL_CATEGORIES[language], EXPECTED_CATEGORIES[language])) {
+      fail(
+        `${language}: ICU reports plural categories [${(PLURAL_CATEGORIES[language] ?? []).join(', ')}] `
+        + `but this repo expects [${(EXPECTED_CATEGORIES[language] ?? []).join(', ')}]. `
+        + 'A Node/ICU upgrade changed the rules — update EXPECTED_CATEGORIES and add the new forms.',
+      );
+      drifted += 1;
+    }
+  }
+  if (drifted === 0) {
+    console.log(`Plural rules: ICU matches the expected category set for all ${LANGUAGES.length} languages.`);
+  }
+}
+
+checkPluralRulesMatchICU();
 checkCatalog(CATALOG_PATH, 'App');
+console.log('');
+console.log('App Shortcuts:');
+checkAppShortcutsCatalog();
 checkInfoPlistCatalog();
 
 console.log('');

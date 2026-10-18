@@ -1,0 +1,434 @@
+{
+  "surface": "header-and-search",
+  "title": "Header and Search Results",
+  "purpose": "The two Creative Assets that frame the product page: the 21:9 header that sits above the gallery, and the 3:2 creative shown in search results.",
+  "generatedFrom": {
+    "art": [
+      "docs/growth/art/cleanup.png",
+      "docs/growth/art/search.png"
+    ],
+    "copy": "Tidybyte/Resources/Localizable.xcstrings + docs/appstore/listings.json"
+  },
+  "assets": [
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "ar",
+      "file": "by-language/header--productPageHeader--ar.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "bn",
+      "file": "by-language/header--productPageHeader--bn.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "de",
+      "file": "by-language/header--productPageHeader--de.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "en",
+      "file": "by-language/header--productPageHeader--en.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "es",
+      "file": "by-language/header--productPageHeader--es.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "fr",
+      "file": "by-language/header--productPageHeader--fr.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "gu",
+      "file": "by-language/header--productPageHeader--gu.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "he",
+      "file": "by-language/header--productPageHeader--he.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "hi",
+      "file": "by-language/header--productPageHeader--hi.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "it",
+      "file": "by-language/header--productPageHeader--it.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "ja",
+      "file": "by-language/header--productPageHeader--ja.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "kn",
+      "file": "by-language/header--productPageHeader--kn.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "ko",
+      "file": "by-language/header--productPageHeader--ko.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "ml",
+      "file": "by-language/header--productPageHeader--ml.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "mr",
+      "file": "by-language/header--productPageHeader--mr.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "pa",
+      "file": "by-language/header--productPageHeader--pa.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "pt-BR",
+      "file": "by-language/header--productPageHeader--pt-BR.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "ru",
+      "file": "by-language/header--productPageHeader--ru.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "ta",
+      "file": "by-language/header--productPageHeader--ta.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "te",
+      "file": "by-language/header--productPageHeader--te.png"
+    },
+    {
+      "group": "header",
+      "spec": "productPageHeader",
+      "specLabel": "Product page header",
+      "ratio": "21:9",
+      "width": 3840,
+      "height": 1646,
+      "language": "zh-Hans",
+      "file": "by-language/header--productPageHeader--zh-Hans.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ar",
+      "file": "by-language/search--searchResults--ar.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "bn",
+      "file": "by-language/search--searchResults--bn.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "de",
+      "file": "by-language/search--searchResults--de.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "en",
+      "file": "by-language/search--searchResults--en.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "es",
+      "file": "by-language/search--searchResults--es.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "fr",
+      "file": "by-language/search--searchResults--fr.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "gu",
+      "file": "by-language/search--searchResults--gu.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "he",
+      "file": "by-language/search--searchResults--he.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "hi",
+      "file": "by-language/search--searchResults--hi.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "it",
+      "file": "by-language/search--searchResults--it.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ja",
+      "file": "by-language/search--searchResults--ja.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "kn",
+      "file": "by-language/search--searchResults--kn.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ko",
+      "file": "by-language/search--searchResults--ko.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ml",
+      "file": "by-language/search--searchResults--ml.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "mr",
+      "file": "by-language/search--searchResults--mr.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "pa",
+      "file": "by-language/search--searchResults--pa.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "pt-BR",
+      "file": "by-language/search--searchResults--pt-BR.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ru",
+      "file": "by-language/search--searchResults--ru.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ta",
+      "file": "by-language/search--searchResults--ta.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "te",
+      "file": "by-language/search--searchResults--te.png"
+    },
+    {
+      "group": "search",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "zh-Hans",
+      "file": "by-language/search--searchResults--zh-Hans.png"
+    }
+  ]
+}

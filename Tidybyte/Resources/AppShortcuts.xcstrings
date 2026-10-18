@@ -1,0 +1,955 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Start a cleanup session with ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Start a cleanup session with ${applicationName}",
+              "Clean up photos with ${applicationName}",
+              "Tidy my photos with ${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} से क्लीनअप सेशन शुरू करें",
+              "${applicationName} से फ़ोटो साफ़ करें",
+              "${applicationName} से मेरी फ़ोटो व्यवस्थित करें"
+            ]
+          }
+        },
+        "bn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} দিয়ে পরিষ্কারের সেশন শুরু করুন",
+              "${applicationName} দিয়ে ফটো পরিষ্কার করুন",
+              "${applicationName} দিয়ে আমার ফটো গুছিয়ে নিন"
+            ]
+          }
+        },
+        "ta": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} மூலம் சுத்த அமர்வைத் தொடங்கு",
+              "${applicationName} மூலம் புகைப்படங்களைச் சுத்தம் செய்",
+              "${applicationName} மூலம் என் புகைப்படங்களை ஒழுங்குபடுத்து"
+            ]
+          }
+        },
+        "te": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} తో క్లీన్అప్ సెషన్ ప్రారంభించండి",
+              "${applicationName} తో ఫోటోలను శుభ్రం చేయండి",
+              "${applicationName} తో నా ఫోటోలను సర్దుబాటు చేయండి"
+            ]
+          }
+        },
+        "mr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ने क्लीनअप सत्र सुरू करा",
+              "${applicationName} ने फोटो साफ करा",
+              "${applicationName} ने माझे फोटो नीट लावा"
+            ]
+          }
+        },
+        "gu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} થી ક્લીનઅપ સત્ર શરૂ કરો",
+              "${applicationName} થી ફોટા સાફ કરો",
+              "${applicationName} થી મારા ફોટા ગોઠવો"
+            ]
+          }
+        },
+        "kn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ನಿಂದ ಕ್ಲೀನ್ಅಪ್ ಸೆಷನ್ ಪ್ರಾರಂಭಿಸಿ",
+              "${applicationName} ನಿಂದ ಫೋಟೋಗಳನ್ನು ಸ್ವಚ್ಛಗೊಳಿಸಿ",
+              "${applicationName} ನಿಂದ ನನ್ನ ಫೋಟೋಗಳನ್ನು ಜೋಡಿಸಿ"
+            ]
+          }
+        },
+        "ml": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ഉപയോഗിച്ച് ക്ലീനപ്പ് സെഷൻ ആരംഭിക്കുക",
+              "${applicationName} ഉപയോഗിച്ച് ഫോട്ടോകൾ ക്ലീൻ ചെയ്യുക",
+              "${applicationName} ഉപയോഗിച്ച് എന്റെ ഫോട്ടോകൾ ക്രമീകരിക്കുക"
+            ]
+          }
+        },
+        "pa": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ਨਾਲ ਸਫ਼ਾਈ ਸੈਸ਼ਨ ਸ਼ੁਰੂ ਕਰੋ",
+              "${applicationName} ਨਾਲ ਫ਼ੋਟੋ ਸਾਫ਼ ਕਰੋ",
+              "${applicationName} ਨਾਲ ਮੇਰੀਆਂ ਫ਼ੋਟੋਆਂ ਸੈੱਟ ਕਰੋ"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Iniciar una sesión de limpieza con ${applicationName}",
+              "Limpiar las fotos con ${applicationName}",
+              "Ordenar mis fotos con ${applicationName}"
+            ]
+          }
+        },
+        "fr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Démarrer une session de nettoyage avec ${applicationName}",
+              "Nettoyer les photos avec ${applicationName}",
+              "Ranger mes photos avec ${applicationName}"
+            ]
+          }
+        },
+        "de": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Bereinigungssitzung mit ${applicationName} starten",
+              "Fotos mit ${applicationName} aufräumen",
+              "Meine Fotos mit ${applicationName} sortieren"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Iniciar uma sessão de limpeza com ${applicationName}",
+              "Limpar as fotos com ${applicationName}",
+              "Organizar minhas fotos com ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Iniziare una sessione di pulizia con ${applicationName}",
+              "Pulire le foto con ${applicationName}",
+              "Riordinare le mie foto con ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}でクリーンアップセッションを開始",
+              "${applicationName}で写真を整理",
+              "${applicationName}で写真を片付ける"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}로 정리 세션 시작",
+              "${applicationName}로 사진 정리하기",
+              "${applicationName}로 내 사진 정돈하기"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "用${applicationName}开始清理会话",
+              "用${applicationName}清理照片",
+              "用${applicationName}整理我的照片"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Начать сеанс очистки с ${applicationName}",
+              "Очистить фото с ${applicationName}",
+              "Привести мои фото в порядок с ${applicationName}"
+            ]
+          }
+        },
+        "ar": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "ابدأ جلسة تنظيف مع ${applicationName}",
+              "نظّف الصور مع ${applicationName}",
+              "رتّب صوري مع ${applicationName}"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "התחל הפעלת ניקוי עם ${applicationName}",
+              "נקה תמונות עם ${applicationName}",
+              "סדר את התמונות שלי עם ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Show storage in ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Show storage in ${applicationName}",
+              "Check my storage with ${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} में स्टोरेज दिखाएँ",
+              "${applicationName} से मेरा स्टोरेज देखें"
+            ]
+          }
+        },
+        "bn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}-এ স্টোরেজ দেখান",
+              "${applicationName} দিয়ে আমার স্টোরেজ দেখুন"
+            ]
+          }
+        },
+        "ta": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} இல் சேமிப்பகத்தைக் காட்டு",
+              "${applicationName} மூலம் என் சேமிப்பகத்தைப் பார்"
+            ]
+          }
+        },
+        "te": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} లో నిల్వ చూపించు",
+              "${applicationName} తో నా నిల్వను చూడండి"
+            ]
+          }
+        },
+        "mr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} मध्ये स्टोरेज दाखवा",
+              "${applicationName} ने माझे स्टोरेज पहा"
+            ]
+          }
+        },
+        "gu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} માં સ્ટોરેજ બતાવો",
+              "${applicationName} થી મારું સ્ટોરેજ જુઓ"
+            ]
+          }
+        },
+        "kn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ನಲ್ಲಿ ಸಂಗ್ರಹಣೆ ತೋರಿಸಿ",
+              "${applicationName} ನಿಂದ ನನ್ನ ಸಂಗ್ರಹಣೆ ನೋಡಿ"
+            ]
+          }
+        },
+        "ml": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ൽ സ്റ്റോറേജ് കാണിക്കുക",
+              "${applicationName} ഉപയോഗിച്ച് എന്റെ സ്റ്റോറേജ് നോക്കുക"
+            ]
+          }
+        },
+        "pa": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ਵਿੱਚ ਸਟੋਰੇਜ ਦਿਖਾਓ",
+              "${applicationName} ਨਾਲ ਮੇਰਾ ਸਟੋਰੇਜ ਵੇਖੋ"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ver el almacenamiento en ${applicationName}",
+              "Consultar mi almacenamiento con ${applicationName}"
+            ]
+          }
+        },
+        "fr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Afficher le stockage dans ${applicationName}",
+              "Vérifier mon stockage avec ${applicationName}"
+            ]
+          }
+        },
+        "de": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Speicher in ${applicationName} anzeigen",
+              "Meinen Speicher mit ${applicationName} prüfen"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mostrar o armazenamento no ${applicationName}",
+              "Conferir meu armazenamento com ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mostrare l'archiviazione in ${applicationName}",
+              "Controllare la mia archiviazione con ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}でストレージを表示",
+              "${applicationName}でストレージを確認"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}에서 저장 공간 보기",
+              "${applicationName}로 내 저장 공간 확인하기"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "在${applicationName}中显示存储空间",
+              "用${applicationName}查看我的存储空间"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Показать хранилище в ${applicationName}",
+              "Проверить моё хранилище с ${applicationName}"
+            ]
+          }
+        },
+        "ar": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "اعرض التخزين في ${applicationName}",
+              "تحقق من تخزيني مع ${applicationName}"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "הצג אחסון ב-${applicationName}",
+              "בדוק את האחסון שלי עם ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Clean screenshots with ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Clean screenshots with ${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} से स्क्रीनशॉट साफ़ करें"
+            ]
+          }
+        },
+        "bn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} দিয়ে স্ক্রিনশট পরিষ্কার করুন"
+            ]
+          }
+        },
+        "ta": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} மூலம் ஸ்கிரீன்ஷாட்களைச் சுத்தம் செய்"
+            ]
+          }
+        },
+        "te": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} తో స్క్రీన్షాట్లను శుభ్రం చేయండి"
+            ]
+          }
+        },
+        "mr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ने स्क्रीनशॉट स्वच्छ करा"
+            ]
+          }
+        },
+        "gu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} થી સ્ક્રીનશોટ સાફ કરો"
+            ]
+          }
+        },
+        "kn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ನಿಂದ ಸ್ಕ್ರೀನ್ಶಾಟ್ಗಳನ್ನು ಸ್ವಚ್ಛಗೊಳಿಸಿ"
+            ]
+          }
+        },
+        "ml": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ഉപയോഗിച്ച് സ്ക്രീൻഷോട്ടുകൾ ക്ലീൻ ചെയ്യുക"
+            ]
+          }
+        },
+        "pa": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ਨਾਲ ਸਕਰੀਨਸ਼ਾਟ ਸਾਫ਼ ਕਰੋ"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Limpiar las capturas de pantalla con ${applicationName}"
+            ]
+          }
+        },
+        "fr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Nettoyer les captures d'écran avec ${applicationName}"
+            ]
+          }
+        },
+        "de": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Screenshots mit ${applicationName} bereinigen"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Limpar as capturas de tela com ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Pulire le istantanee con ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}でスクリーンショットを整理"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}로 스크린샷 정리"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "用${applicationName}清理截屏"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Очистить скриншоты с ${applicationName}"
+            ]
+          }
+        },
+        "ar": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "نظّف لقطات الشاشة مع ${applicationName}"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "נקה צילומי מסך עם ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "How much can I free with ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "How much can I free with ${applicationName}",
+              "Check free space with ${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} से मैं कितनी जगह खाली कर सकता हूँ",
+              "${applicationName} से खाली जगह देखें"
+            ]
+          }
+        },
+        "bn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} দিয়ে আমি কতটা খালি করতে পারি",
+              "${applicationName} দিয়ে খালি জায়গা দেখুন"
+            ]
+          }
+        },
+        "ta": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} மூலம் நான் எவ்வளவு காலி செய்ய முடியும்",
+              "${applicationName} மூலம் காலி இடத்தைப் பார்"
+            ]
+          }
+        },
+        "te": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} తో నేను ఎంత ఖాళీ చేయగలను",
+              "${applicationName} తో ఖాళీ స్థలాన్ని చూడండి"
+            ]
+          }
+        },
+        "mr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ने मी किती जागा मोकळी करू शकतो",
+              "${applicationName} ने मोकळी जागा पहा"
+            ]
+          }
+        },
+        "gu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} થી હું કેટલી જગ્યા ખાલી કરી શકું",
+              "${applicationName} થી ખાલી જગ્યા જુઓ"
+            ]
+          }
+        },
+        "kn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ನಿಂದ ನಾನು ಎಷ್ಟು ಜಾಗ ಖಾಲಿ ಮಾಡಬಹುದು",
+              "${applicationName} ನಿಂದ ಖಾಲಿ ಜಾಗ ನೋಡಿ"
+            ]
+          }
+        },
+        "ml": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ഉപയോഗിച്ച് എത്ര സ്ഥലം ഒഴിവാക്കാനാകും",
+              "${applicationName} ഉപയോഗിച്ച് ഒഴിവുള്ള സ്ഥലം നോക്കുക"
+            ]
+          }
+        },
+        "pa": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ਨਾਲ ਮੈਂ ਕਿੰਨੀ ਥਾਂ ਖਾਲੀ ਕਰ ਸਕਦਾ ਹਾਂ",
+              "${applicationName} ਨਾਲ ਖਾਲੀ ਥਾਂ ਵੇਖੋ"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "¿Cuánto espacio puedo liberar con ${applicationName}?",
+              "Consultar el espacio libre con ${applicationName}"
+            ]
+          }
+        },
+        "fr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Combien d'espace puis-je libérer avec ${applicationName}",
+              "Vérifier l'espace libre avec ${applicationName}"
+            ]
+          }
+        },
+        "de": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Wie viel kann ich mit ${applicationName} freigeben",
+              "Freien Speicher mit ${applicationName} prüfen"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Quanto posso liberar com ${applicationName}",
+              "Conferir o espaço livre com ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Quanto spazio posso liberare con ${applicationName}",
+              "Controllare lo spazio libero con ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}でどれくらい空けられますか",
+              "${applicationName}で空き容量を確認"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}로 얼마나 확보할 수 있나요",
+              "${applicationName}로 남은 공간 확인하기"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "用${applicationName}能释放多少空间",
+              "用${applicationName}查看可用空间"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Сколько места можно освободить с ${applicationName}",
+              "Проверить свободное место с ${applicationName}"
+            ]
+          }
+        },
+        "ar": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "كم يمكنني تحريره مع ${applicationName}",
+              "تحقق من المساحة الفارغة مع ${applicationName}"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "כמה מקום אפשר לפנות עם ${applicationName}",
+              "בדוק מקום פנוי עם ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Show my savings in ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Show my savings in ${applicationName}"
+            ]
+          }
+        },
+        "hi": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} में मेरी बचत दिखाएँ"
+            ]
+          }
+        },
+        "bn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}-এ আমার সঞ্চয় দেখান"
+            ]
+          }
+        },
+        "ta": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} இல் என் சேமிப்பைக் காட்டு"
+            ]
+          }
+        },
+        "te": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} లో నా పొదుపు చూపించు"
+            ]
+          }
+        },
+        "mr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} मध्ये माझी बचत दाखवा"
+            ]
+          }
+        },
+        "gu": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} માં મારી બચત બતાવો"
+            ]
+          }
+        },
+        "kn": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ನಲ್ಲಿ ನನ್ನ ಉಳಿತಾಯ ತೋರಿಸಿ"
+            ]
+          }
+        },
+        "ml": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ൽ എന്റെ ലാഭം കാണിക്കുക"
+            ]
+          }
+        },
+        "pa": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName} ਵਿੱਚ ਮੇਰੀ ਬਚਤ ਦਿਖਾਓ"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Ver mis ahorros en ${applicationName}"
+            ]
+          }
+        },
+        "fr": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Afficher mes économies dans ${applicationName}"
+            ]
+          }
+        },
+        "de": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Meine Einsparungen in ${applicationName} anzeigen"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mostrar minha economia no ${applicationName}"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mostrare i miei risparmi in ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}で節約量を表示"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "${applicationName}에서 내 절약 보기"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "在${applicationName}中显示我的节省"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Показать мою экономию в ${applicationName}"
+            ]
+          }
+        },
+        "ar": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "اعرض توفيري في ${applicationName}"
+            ]
+          }
+        },
+        "he": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "הצג את החיסכון שלי ב-${applicationName}"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

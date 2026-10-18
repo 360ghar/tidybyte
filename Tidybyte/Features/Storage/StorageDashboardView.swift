@@ -478,11 +478,19 @@ struct StorageDashboardView: View {
         }
     }
 
-    /// "X freed" when a size is known, otherwise an honest size-free label.
+    /// "X cleaned up" when a size is known, otherwise an honest size-free label.
+    ///
+    /// Both branches resolve through `L10n`. The call site is
+    /// `Text("\(savingsHeadline) · \(count) items cleaned")`, which localizes
+    /// its own template but substitutes this value as a `%@` argument — so a
+    /// raw `String` here stayed English inside an otherwise-translated
+    /// sentence. `"Sizes unavailable"` reuses the existing key that
+    /// `MediaCleanerViewModel` already resolves, so both screens say the same
+    /// thing in every language.
     private var savingsHeadline: String {
         viewModel.lifetimeFreedBytes > 0
-            ? "\(viewModel.lifetimeFreedBytes.formattedFileSize) cleaned up"
-            : "Sizes unavailable"
+            ? L10n.format("%@ cleaned up", viewModel.lifetimeFreedBytes.formattedFileSize)
+            : L10n.string("Sizes unavailable")
     }
 
     // MARK: - Recently Deleted
@@ -698,8 +706,8 @@ struct StorageDashboardView: View {
                     .frame(height: 16)
 
                     VStack(spacing: Spacing.sm) {
-                        legendRow(style: Color.accentColor, title: "Photos & Videos", note: "estimated", bytes: viewModel.onDeviceMediaSize)
-                        legendRow(style: Color.otherCategory, title: "Apps, system & other", note: "estimated", bytes: viewModel.appsAndOtherSize)
+                        legendRow(style: Color.accentColor, title: L10n.string("Photos & Videos"), note: L10n.string("estimated"), bytes: viewModel.onDeviceMediaSize)
+                        legendRow(style: Color.otherCategory, title: L10n.string("Apps, system & other"), note: L10n.string("estimated"), bytes: viewModel.appsAndOtherSize)
                     }
 
                     Text("Items in Recently Deleted still use space until Photos empties it, so \"Apps, system & other\" can grow right after a cleanup.")
@@ -924,10 +932,10 @@ struct StorageDashboardView: View {
                     let last = viewModel.snapshots.last!
                     let delta = last.totalBytes - first.totalBytes
                     let summary = delta == 0
-                        ? "No change \(trendSpanLabel)"
+                        ? L10n.format("No change %@", trendSpanLabel)
                         : delta > 0
-                        ? "Library grew by \(delta.formattedFileSize) \(trendSpanLabel)"
-                        : "Library shrank by \(abs(delta).formattedFileSize) \(trendSpanLabel)"
+                        ? L10n.format("Library grew by %@ %@", delta.formattedFileSize, trendSpanLabel)
+                        : L10n.format("Library shrank by %@ %@", abs(delta).formattedFileSize, trendSpanLabel)
 
                     Chart(viewModel.snapshots) { snapshot in
                         LineMark(

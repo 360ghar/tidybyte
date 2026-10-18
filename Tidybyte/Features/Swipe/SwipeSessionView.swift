@@ -69,7 +69,7 @@ struct SwipeSessionView: View {
                         ? L10n.string("Marked for deletion. Nothing is deleted until you confirm at the end.")
                         : L10n.string("Marked for deletion")
                     undoHintCount += 1
-                    toast = ToastMessage(text: text, systemImage: "trash", actionTitle: "Undo") {
+                    toast = ToastMessage(text: text, systemImage: "trash", actionTitle: L10n.string("Undo")) {
                         // Verify before clearing: a stale tap must not silently
                         // dismiss the hint while the photo stays pending-delete.
                         // The pending check comes first because `undoStack` is
@@ -360,7 +360,7 @@ struct SwipeSessionView: View {
 
     /// Filled primary button for the empty state, matching the styling of the
     /// other empty-state actions.
-    private func emptyStateButtonLabel(_ title: String) -> some View {
+    private func emptyStateButtonLabel(_ title: LocalizedStringKey) -> some View {
         Text(title)
             .font(.headline)
             .padding(.horizontal, Spacing.xxxl)

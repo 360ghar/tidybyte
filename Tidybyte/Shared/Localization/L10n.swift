@@ -54,6 +54,27 @@ enum L10n {
     /// `String(format:)` so plural rules from the String Catalog are applied:
     /// the catalog compiles plural variations into a `.stringsdict`, and only
     /// `localizedStringWithFormat` consults it.
+    ///
+    /// - Important: **Known limitation.** The plural *variants* come from the
+    ///   right language's `.stringsdict`, but the *category selection* uses
+    ///   `Locale.current`, and no Foundation API takes a locale for that. So a
+    ///   user who picks a language in Settings that differs from their device
+    ///   language gets the device language's plural rules applied to the chosen
+    ///   language's forms.
+    ///
+    ///   Verified on macOS/iOS 27 with a hand-built `.stringsdict`: with an
+    ///   English device locale and a Russian app language, `5` renders
+    ///   `5 элемента` (the `few` form) instead of `5 элементов` (the `many`
+    ///   form English rules never select). Arabic and Hebrew are affected the
+    ///   same way. Japanese, Korean, and Simplified Chinese are **not**: their
+    ///   `.stringsdict` carries only `other`, so a rule that selects `one`
+    ///   falls back to `other` and the output is correct.
+    ///
+    ///   Fixing this needs CLDR category selection in Swift plus reading the
+    ///   variant out of the shipped `.stringsdict` (which is a plain plist in
+    ///   the bundle). That is a real subsystem, and a hand-rolled plural engine
+    ///   that is wrong for some count is worse than this limitation, so it is
+    ///   documented rather than half-implemented.
     static func format(_ key: String, language: AppLanguage? = nil, fallback: String? = nil, _ arguments: CVarArg...) -> String {
         let template = string(key, language: language, fallback: fallback)
         return String.localizedStringWithFormat(template, arguments)

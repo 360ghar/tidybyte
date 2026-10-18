@@ -115,7 +115,7 @@ private struct ToastPresenter: ViewModifier {
                 // actionable one is reachable by focus.
                 // Actionable toasts are announced too, naming the action.
                 guard newValue != nil, let message else { return }
-                let spoken = message.actionTitle.map { "\(message.text). \($0) available." } ?? message.text
+                let spoken = message.actionTitle.map { L10n.format("%@. %@ available.", message.text, $0) } ?? message.text
                 UIAccessibility.post(notification: .announcement, argument: spoken)
             }
     }

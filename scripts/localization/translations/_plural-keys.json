@@ -119,6 +119,10 @@
     "one": "%lld removable",
     "other": "%lld removable"
   },
+  "%lld saved from apps": {
+    "one": "%lld saved from app",
+    "other": "%lld saved from apps"
+  },
   "%lld screenshot": {
     "one": "%lld screenshot",
     "other": "%lld screenshots"
@@ -158,6 +162,10 @@
   "%lld total · %lld removable · %@": {
     "one": "%lld total · %lld removable · %@",
     "other": "%lld total · %lld removable · %@"
+  },
+  "%lld videos over %lld MB": {
+    "one": "%lld video over %lld MB",
+    "other": "%lld videos over %lld MB"
   },
   "Compress %lld Photos": {
     "one": "Compress %lld Photo",

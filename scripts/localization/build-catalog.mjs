@@ -21,48 +21,22 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LANGUAGES, pluralCategories } from './plural-categories.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CATALOG_PATH = join(ROOT, 'Tidybyte/Resources/Localizable.xcstrings');
+const APP_SHORTCUTS_CATALOG_PATH = 'Tidybyte/Resources/AppShortcuts.xcstrings';
 const TRANSLATIONS_DIR = join(ROOT, 'scripts/localization/translations');
-
-/** The shipped languages, in the order the Settings picker shows them. */
-const LANGUAGES = [
-  'en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa',
-  'es', 'fr', 'de', 'pt-BR', 'it', 'ja', 'ko', 'zh-Hans', 'ru', 'ar', 'he',
-];
 
 /**
  * Plural categories each language actually uses, per CLDR.
  *
- * Only the ones listed are written, so the catalog does not carry meaningless
- * `zero`/`two` forms for English or a `many` form for Japanese. This list is
- * also what `check.mjs` validates against, so a language whose rules change
- * cannot silently keep the wrong set.
+ * Derived from ICU — see `plural-categories.mjs` for why the hand-written table
+ * this replaced was a trap: it was duplicated in `check.mjs`, so both the
+ * builder and the validator were wrong in the same way and no gate could catch
+ * a missing category.
  */
-const PLURAL_CATEGORIES = {
-  en: ['one', 'other'],
-  hi: ['one', 'other'],
-  bn: ['one', 'other'],
-  ta: ['one', 'other'],
-  te: ['one', 'other'],
-  mr: ['one', 'other'],
-  gu: ['one', 'other'],
-  kn: ['one', 'other'],
-  ml: ['one', 'other'],
-  pa: ['one', 'other'],
-  es: ['one', 'other'],
-  fr: ['one', 'other'],
-  de: ['one', 'other'],
-  'pt-BR': ['one', 'other'],
-  it: ['one', 'other'],
-  ja: ['other'],
-  ko: ['other'],
-  'zh-Hans': ['other'],
-  ru: ['one', 'few', 'many', 'other'],
-  ar: ['zero', 'one', 'two', 'few', 'many', 'other'],
-  he: ['one', 'two', 'other'],
-};
+const PLURAL_CATEGORIES = pluralCategories();
 
 function readJSON(path, fallback) {
   try {
@@ -232,9 +206,78 @@ function localizationsFor(key, pluralForms, translations) {
   return localizations;
 }
 
+/**
+ * Writes `AppShortcuts.xcstrings` — the catalog Siri phrases resolve through.
+ *
+ * This is a separate file from `Localizable.xcstrings`, and that separation is
+ * the whole point. App Intents looks phrases up in a table named `AppShortcuts`,
+ * which the compiler emits into `ExtractedAppShortcutsMetadata.stringsdata`.
+ * Keys written into the app catalog instead are never looked up: the catalog
+ * then reports 100% coverage for strings nothing can reach, and Siri speaks
+ * English in every language. That is not hypothetical — it is the bug this
+ * function exists to prevent.
+ *
+ * The shape is a `stringSet`, not a `stringUnit`. Each key carries a `values`
+ * array holding every phrase for that shortcut, with the key itself repeated as
+ * the first element. Those alternates are additional utterances Siri matches,
+ * not separate keys, so a language with a missing alternate loses a way to
+ * trigger the shortcut rather than breaking the lookup.
+ *
+ * `en` comes from the same file as the translations, and `extract.mjs` checks it
+ * against the Swift source, so the Swift file stays the source of truth.
+ */
+function writeAppShortcutsCatalog() {
+  const source = readJSON(join(TRANSLATIONS_DIR, '_app-shortcuts.json'), null);
+  if (!source) {
+    console.log('App Shortcuts: no _app-shortcuts.json, catalog not written');
+    return;
+  }
+
+  const english = source.en ?? {};
+  const keys = Object.keys(english).filter((key) => !key.startsWith('_'));
+  const strings = {};
+  let missing = 0;
+
+  for (const key of keys) {
+    const englishPhrases = english[key];
+    const localizations = {
+      en: { stringSet: { state: 'translated', values: englishPhrases } },
+    };
+
+    for (const language of LANGUAGES) {
+      if (language === 'en') continue;
+      const phrases = source[language]?.[key];
+      if (Array.isArray(phrases) && phrases.length === englishPhrases.length) {
+        localizations[language] = { stringSet: { state: 'translated', values: phrases } };
+      } else {
+        // Fall back to the English set rather than dropping the language, so
+        // the key still resolves. `state: 'needs_review'` is what makes Xcode
+        // and `check.mjs` show it as outstanding work.
+        localizations[language] = { stringSet: { state: 'needs_review', values: englishPhrases } };
+        missing += 1;
+      }
+    }
+
+    strings[key] = { extractionState: 'extracted_with_value', localizations };
+  }
+
+  writeFileSync(
+    join(ROOT, APP_SHORTCUTS_CATALOG_PATH),
+    JSON.stringify({ sourceLanguage: 'en', strings, version: '1.0' }, null, 2) + '\n',
+  );
+
+  const total = keys.length * (LANGUAGES.length - 1);
+  const done = total - missing;
+  const pct = total > 0 ? ((done / total) * 100).toFixed(0) : '100';
+  console.log(
+    `App Shortcuts catalog: ${keys.length} phrase(s), ${done}/${total} translations (${pct}%)`,
+  );
+}
+
 function main() {
   const catalog = readJSON(CATALOG_PATH, { sourceLanguage: 'en', strings: {}, version: '1.0' });
   const found = readJSON(join(ROOT, 'scripts/localization/strings.found.json'), { keys: [] });
+
   const xcode = readJSON(join(ROOT, 'scripts/localization/strings.xcode.json'), null);
   const translations = loadTranslations();
   const plurals = loadPlurals();
@@ -306,6 +349,8 @@ function main() {
     const pct = ((translated / Object.keys(strings).length) * 100).toFixed(0);
     console.log(`  ${language.padEnd(8)} ${String(translated).padStart(4)}/${Object.keys(strings).length}  ${pct}%`);
   }
+
+  writeAppShortcutsCatalog();
 }
 
 main();

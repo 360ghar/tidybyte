@@ -81,3 +81,14 @@ dist/
 
 # Landing-page visual QA screenshots (scripts/shoot-landing.mjs)
 .preview-shots/
+
+# Growth & Marketing renders (scripts/growth/build-assets.mjs)
+#
+# 357 PNGs across 21 languages, ~628 MB — too large to carry in git, and
+# unnecessary: the pipeline is deterministic. `npm run growth` re-renders them
+# byte-for-byte from the committed art in docs/growth/art/ plus the copy in
+# Tidybyte/Resources/Localizable.xcstrings and docs/appstore/listings.json.
+#
+# The art (4 PNGs), the generator, and the App Store screenshots are all
+# committed. Only this derived output is ignored.
+docs/growth/*/by-language/

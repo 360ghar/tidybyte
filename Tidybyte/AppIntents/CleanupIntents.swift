@@ -75,16 +75,26 @@ struct FreeSpaceIntent: AppIntent {
             return .result(dialog: "Your library looks tidy. Nothing obvious to clean up.")
         }
 
-        var parts: [String] = []
-        if snapshot.screenshotCount > 0 {
-            parts.append("\(snapshot.screenshotCount) screenshots")
-        }
-        if snapshot.largeFileCount > 0 {
-            parts.append("\(snapshot.largeFileCount) large files")
+        // Each counted phrase is localized on its own (with CLDR plural
+        // forms), and the join is a template too — " and " is English-only.
+        let screenshots = snapshot.screenshotCount
+        let largeFiles = snapshot.largeFileCount
+        let detail: String
+        if screenshots > 0, largeFiles > 0 {
+            detail = L10n.format(
+                "%@ and %@",
+                L10n.format("%lld screenshot", screenshots),
+                L10n.format("%lld large file", largeFiles)
+            )
+        } else if screenshots > 0 {
+            detail = L10n.format("%lld screenshot", screenshots)
+        } else if largeFiles > 0 {
+            detail = L10n.format("%lld large file", largeFiles)
+        } else {
+            detail = L10n.string("items")
         }
 
         let reclaimable = snapshot.reclaimableBytes.formattedFileSize
-        let detail = parts.isEmpty ? "items" : parts.joined(separator: " and ")
 
         return .result(
             dialog: "You can free up to \(reclaimable) on this iPhone. Review \(detail) in TidyByte."
