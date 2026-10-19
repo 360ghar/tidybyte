@@ -1045,30 +1045,84 @@ async function cmdMedia() {
 // submit
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolves `--build=` to a build resource id.
+ *
+ * Accepts the resource id (a UUID) or the build number. The id is what the API
+ * relationship needs, but it is a UUID that appears nowhere in this repo, while
+ * the number is what `project.yml` and `publish:verify` show — so the obvious
+ * thing to pass used to be the wrong thing.
+ */
+async function resolveBuildId(client, appId, value) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuid.test(value)) return value;
+
+  const builds = await client.getAll(
+    `/v1/builds?filter[app]=${appId}&limit=50&fields[builds]=version,processingState`,
+  );
+  const match = builds.find((b) => b.attributes.version === value);
+  if (!match) {
+    const known = builds
+      .map((b) => `${b.attributes.version} (${b.attributes.processingState})`)
+      .join(', ');
+    throw new Error(`No build "${value}" on this app. Present: ${known || 'none'}.`);
+  }
+  return match.id;
+}
+
 /** Creates a review submission containing the version, then submits it. */
 async function cmdSubmit() {
   const { client, appId } = await connect();
   const version = await ensureEditableVersion(client, appId);
   heading(`Submit ${version.attributes.versionString} for review`);
 
-  const build = args.find((a) => a.startsWith('--build='))?.split('=')[1];
+  const buildArg = args.find((a) => a.startsWith('--build='))?.split('=')[1];
+  const buildId = buildArg ? await resolveBuildId(client, appId, buildArg) : null;
 
   if (dryRun) {
-    plan('POST', '/v1/reviewSubmissions', 'create submission');
+    if (buildId) {
+      plan('PATCH', '/v1/appStoreVersions/{id}/relationships/build', `attach build ${buildArg}`);
+    }
+    plan('POST', '/v1/reviewSubmissions', 'create submission, or reuse the open one');
     plan('POST', '/v1/reviewSubmissionItems', `add version ${version.attributes.versionString}`);
     plan('PATCH', '/v1/reviewSubmissions/{id}', 'submitted: true');
     return;
   }
 
-  const created = await client.post('/v1/reviewSubmissions', {
-    data: {
-      type: 'reviewSubmissions',
-      attributes: { platform: version.attributes.platform },
-      relationships: { app: { data: { type: 'apps', id: appId } } },
-    },
-  });
-  const submissionId = created.data.id;
-  console.log(`  submission ${submissionId}`);
+  // The build attaches to the version *before* the version joins a submission.
+  // Apple validates the version when the submission item is created, and a
+  // version with no build cannot be reviewed: attaching afterwards fails the
+  // item POST with STATE_ERROR.ENTITY_STATE_INVALID, which names no cause and
+  // points at nothing. That is how the first 1.1.1 submission attempt failed.
+  if (buildId) {
+    await client.patch(`/v1/appStoreVersions/${version.id}/relationships/build`, {
+      data: { type: 'builds', id: buildId },
+    });
+    console.log(`  attached build ${buildArg}`);
+  }
+
+  // Reuse an open draft rather than creating a second one. A submission that was
+  // created but never submitted stays open, and a failed attempt leaves one
+  // behind, so the next run would otherwise collide with it.
+  const submissions = await client.getAll(
+    `/v1/reviewSubmissions?filter[app]=${appId}&limit=20&fields[reviewSubmissions]=state`,
+  );
+  const open = submissions.find((s) => s.attributes.state === 'READY_FOR_REVIEW');
+  let submissionId;
+  if (open) {
+    submissionId = open.id;
+    console.log(`  reusing open submission ${submissionId}`);
+  } else {
+    const created = await client.post('/v1/reviewSubmissions', {
+      data: {
+        type: 'reviewSubmissions',
+        attributes: { platform: version.attributes.platform },
+        relationships: { app: { data: { type: 'apps', id: appId } } },
+      },
+    });
+    submissionId = created.data.id;
+    console.log(`  submission ${submissionId}`);
+  }
 
   await client.post('/v1/reviewSubmissionItems', {
     data: {
@@ -1080,13 +1134,6 @@ async function cmdSubmit() {
     },
   });
   console.log('  version added to the submission');
-
-  if (build) {
-    await client.patch(`/v1/appStoreVersions/${version.id}/relationships/build`, {
-      data: { type: 'builds', id: build },
-    });
-    console.log(`  attached build ${build}`);
-  }
 
   if (!(await confirm('Submit this version to App Review?'))) {
     console.log(`  left as a draft submission (${submissionId}). Submit it from App Store Connect.`);

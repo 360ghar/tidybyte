@@ -174,12 +174,19 @@ ordering for placements that already exist. `media` sets the order itself as its
 final step, so this is a repair tool for when ordering fails or placements are
 added outside the pipeline — not part of the normal flow.
 
-**`submit`** creates a review submission, adds the version, and submits it. Pass
-`--build=<id>` to attach a specific build at the same time:
+**`submit`** attaches the build, adds the version to a review submission, and
+submits it. Pass `--build=` to name the build; it takes either the build number
+or the App Store Connect resource id:
 
 ```sh
 npm run publish:submit -- --build=8
 ```
+
+The build attaches to the version **before** the version joins the submission.
+Apple validates the version when the submission item is created, and a version
+with no build cannot be reviewed — attaching afterwards fails the item POST with
+`STATE_ERROR.ENTITY_STATE_INVALID`, which names no cause. An open draft from an
+earlier attempt is reused rather than duplicated.
 
 ## How media maps onto Apple's model
 
