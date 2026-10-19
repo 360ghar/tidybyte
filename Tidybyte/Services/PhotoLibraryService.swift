@@ -27,6 +27,7 @@ actor PhotoLibraryService {
     private static let requestTimeoutSeconds: TimeInterval = 20
 
     private let imageManager = PHCachingImageManager()
+    private let summaryBuilder = SummaryBuilder()
     private var changeObserverHelper: PhotoLibraryChangeObserverHelper?
 
     /// Baseline for incremental change details (SHARED-08): the broadest
@@ -79,13 +80,33 @@ actor PhotoLibraryService {
             changeBaselineFetch = details.fetchResultAfterChanges
             let removedIds = details.removedObjects.map(\.localIdentifier)
             let changedIds = details.changedObjects.map(\.localIdentifier)
+            summaryBuilder.resources.remove(removedIds + changedIds)
             for id in removedIds + changedIds {
                 await ImageCache.shared.removeAllVariants(of: id)
             }
         } else {
+            // No purge of `summaryBuilder.resources`: an asset's resources
+            // change only with an edit (a new modification date) or an iCloud
+            // download or offload (`ResourceCache.maxAge`). PhotoKit sends
+            // these changes often on an iCloud library, and purging on each
+            // one made every scan read the whole library again.
             await ImageCache.shared.removeAll()
         }
         onLibraryChange?()
+    }
+
+    /// Drops every cached resource read, so the next library build reads
+    /// every asset again. For pull-to-refresh and permission changes.
+    /// Isolated so it can't fall between a fetch and its stamp.
+    func discardCachedResources() {
+        summaryBuilder.resources.removeAll()
+    }
+
+    /// Reading an original can download it from iCloud, which changes its
+    /// resources without a library change. Called whether or not the read
+    /// succeeded: a failed or timed-out request may still have downloaded.
+    private func forgetResources(of assetId: String) {
+        summaryBuilder.resources.remove([assetId])
     }
 
     /// Records a fetch result as the change-details baseline. Keeps the
@@ -182,11 +203,11 @@ actor PhotoLibraryService {
 
     // MARK: - Asset Fetching
 
-    func fetchAssets(filter: SwipeFilter) -> [AssetSummary] {
+    func fetchAssets(filter: SwipeFilter) async -> [AssetSummary] {
         switch filter {
         case .allMedia:
             let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .allMediaBefore(let cutoffDate):
             // Same options (and therefore ordering) as All Media, narrowed to
@@ -194,12 +215,12 @@ actor PhotoLibraryService {
             let options = allAssetsFetchOptions()
             options.predicate = NSPredicate(format: "creationDate <= %@", cutoffDate as NSDate)
             let fetchResult = PHAsset.fetchAssets(with: options)
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .notInAnyAlbum:
             let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
             let assetsInAlbums = collectAssetsInUserAlbums()
-            return extractSummaries(from: allAssets, excluding: assetsInAlbums)
+            return await extractSummaries(from: allAssets, excluding: assetsInAlbums)
 
         case .specificAlbum(let albumId):
             guard let collection = PHAssetCollection.fetchAssetCollections(
@@ -208,34 +229,34 @@ actor PhotoLibraryService {
                 return []
             }
             let fetchResult = PHAsset.fetchAssets(in: collection, options: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .notSwipedYet:
             // Swipe history lives in SwiftData, not PhotoKit — the session view
             // model filters it out after the fetch.
             let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .worstShots:
-            return fetchAllPhotos()
+            return await fetchAllPhotos()
 
         case .screenshots:
             let options = allAssetsFetchOptions()
             options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
             let fetchResult = PHAsset.fetchAssets(with: options)
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .customAssetIds(let ids):
             let assets = PHAsset.fetchAssets(withLocalIdentifiers: Array(ids), options: nil)
-            return extractSummaries(from: assets)
+            return await extractSummaries(from: assets)
         }
     }
 
-    func fetchAssetsByMediaType(_ mediaType: PHAssetMediaType) -> [AssetSummary] {
+    func fetchAssetsByMediaType(_ mediaType: PHAssetMediaType) async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "mediaType = %d", mediaType.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     nonisolated static func isScreenRecordingFilename(_ filename: String) -> Bool {
@@ -271,18 +292,18 @@ actor PhotoLibraryService {
         return unchanged
     }
 
-    func fetchScreenshots() -> [AssetSummary] {
+    func fetchScreenshots() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
-    func fetchLivePhotos() -> [AssetSummary] {
+    func fetchLivePhotos() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoLive.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     /// Groups burst frames by `burstIdentifier` alone and drops single-frame
@@ -290,14 +311,23 @@ actor PhotoLibraryService {
     /// set on every frame (vs. only the representative), so requiring it made
     /// the tool silently empty on some devices (LF-03). Frames are sorted by
     /// creation date within each group.
-    func fetchBurstPhotos() -> [String: [AssetSummary]] {
+    func fetchBurstPhotos() async -> [String: [AssetSummary]] {
         let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
 
-        var groups: [String: [AssetSummary]] = [:]
+        // Only the burst frames' summaries are needed; they are built on
+        // `summaryBuilder` like every other scan, so the frames' resource
+        // reads don't hold up image requests.
+        var frameIds: [String] = []
         for index in 0..<allAssets.count {
             let asset = allAssets.object(at: index)
-            if let burstId = asset.burstIdentifier {
-                let summary = Self.makeSummary(from: asset)
+            if asset.burstIdentifier != nil {
+                frameIds.append(asset.localIdentifier)
+            }
+        }
+        let frames = PHAsset.fetchAssets(withLocalIdentifiers: frameIds, options: allAssetsFetchOptions())
+        var groups: [String: [AssetSummary]] = [:]
+        for summary in await extractSummaries(from: frames, sort: false) {
+            if let burstId = summary.burstIdentifier {
                 groups[burstId, default: []].append(summary)
             }
         }
@@ -307,11 +337,11 @@ actor PhotoLibraryService {
         return groups.filter { $0.value.count > 1 }
     }
 
-    func fetchAllPhotos() -> [AssetSummary] {
+    func fetchAllPhotos() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     // MARK: - Image Loading
@@ -795,7 +825,7 @@ actor PhotoLibraryService {
         guard let resource = preferredPrimaryResource(from: resources) else {
             return nil
         }
-        return await withCheckedContinuation { continuation in
+        let hash: String? = await withCheckedContinuation { continuation in
             let resumer = ContinuationResumer<String?>(continuation)
             var hasher = SHA256()
             let options = PHAssetResourceRequestOptions()
@@ -830,6 +860,8 @@ actor PhotoLibraryService {
                 }
             }
         }
+        forgetResources(of: asset.localIdentifier)
+        return hash
     }
 
     nonisolated func getPHAsset(for identifier: String) -> PHAsset? {
@@ -866,7 +898,7 @@ actor PhotoLibraryService {
     /// `PHAsset` overload so compression batches can resolve a whole batch
     /// with one `phAssetsById` fetch instead of one identifier lookup per item.
     func loadFullImageData(for asset: PHAsset) async -> Data? {
-        return await withCheckedContinuation { continuation in
+        let data: Data? = await withCheckedContinuation { continuation in
             let resumer = ContinuationResumer<Data?>(continuation)
 
             let options = PHImageRequestOptions()
@@ -900,6 +932,8 @@ actor PhotoLibraryService {
                 }
             }
         }
+        forgetResources(of: asset.localIdentifier)
+        return data
     }
 
     /// Writes full-resolution representations of the given assets to temporary
@@ -944,6 +978,7 @@ actor PhotoLibraryService {
         let options = PHAssetResourceRequestOptions()
         options.isNetworkAccessAllowed = true
 
+        let assetId = asset.localIdentifier
         return await withCheckedContinuation { continuation in
             let resumer = ContinuationResumer<URL?>(continuation)
 
@@ -971,6 +1006,9 @@ actor PhotoLibraryService {
                     AppLog.photo.error("Share export write failed: \(error.localizedDescription, privacy: .public)")
                     resumer.resume(nil)
                 } else {
+                    // Here rather than after the await: the write carries on
+                    // after a timeout, and can still download the original.
+                    Task { await self.forgetResources(of: assetId) }
                     resumer.resume(fileURL)
                 }
             }
@@ -1011,12 +1049,23 @@ actor PhotoLibraryService {
         return sizes.reduce(0, +)
     }
 
-    nonisolated private static func makeSummary(from asset: PHAsset) -> AssetSummary {
+    /// Reads the summary fields that come from the asset's resources: one
+    /// Photos database round trip per asset, the slow part of a library build.
+    nonisolated static func readResources(of asset: PHAsset) -> ResourceFacts {
         let resources = PHAssetResource.assetResources(for: asset)
-        let isLocal = resources.allSatisfy { resource in
-            guard resource.responds(to: NSSelectorFromString("locallyAvailable")) else { return true }
-            return (resource.value(forKey: "locallyAvailable") as? Bool) ?? true
-        }
+        return ResourceFacts(
+            fileSize: Self.estimateFileSize(from: resources),
+            filename: resources.first?.originalFilename,
+            isLocallyAvailable: resources.allSatisfy { resource in
+                guard resource.responds(to: NSSelectorFromString("locallyAvailable")) else { return true }
+                return (resource.value(forKey: "locallyAvailable") as? Bool) ?? true
+            },
+            hasScreenRecordingFilename: resources.contains { Self.isScreenRecordingFilename($0.originalFilename) }
+        )
+    }
+
+    nonisolated private static func makeSummary(from asset: PHAsset, resources: ResourceFacts? = nil) -> AssetSummary {
+        let resources = resources ?? readResources(of: asset)
 
         let mediaType: MediaType
         switch asset.mediaType {
@@ -1038,20 +1087,20 @@ actor PhotoLibraryService {
             pixelWidth: asset.pixelWidth,
             pixelHeight: asset.pixelHeight,
             duration: asset.duration,
-            fileSize: Self.estimateFileSize(from: resources),
-            filename: resources.first?.originalFilename,
+            fileSize: resources.fileSize,
+            filename: resources.filename,
             isFavorite: asset.isFavorite,
             isBurst: asset.representsBurst,
             burstIdentifier: asset.burstIdentifier,
             isLivePhoto: asset.mediaSubtypes.contains(.photoLive),
             isScreenshot: asset.mediaSubtypes.contains(.photoScreenshot),
-            isLocallyAvailable: isLocal,
-            assetOrigin: Self.detectOrigin(for: asset, filename: resources.first?.originalFilename),
+            isLocallyAvailable: resources.isLocallyAvailable,
+            assetOrigin: Self.detectOrigin(for: asset, filename: resources.filename),
             burstPick: asset.burstSelectionTypes.contains(.userPick) ? .user
                 : asset.burstSelectionTypes.contains(.autoPick) ? .iPhone : .none,
             isScreenRecording: asset.mediaType == .video && (
                 asset.mediaSubtypes.contains(.videoScreenRecording)
-                || resources.contains { Self.isScreenRecordingFilename($0.originalFilename) }
+                || resources.hasScreenRecordingFilename
             ),
             isCinematic: asset.mediaSubtypes.contains(.videoCinematic),
             isSpatial: asset.mediaSubtypes.contains(.spatialMedia)
@@ -1092,17 +1141,27 @@ actor PhotoLibraryService {
         return asset.mediaType == .image ? .savedFromApp : .unknown
     }
 
-    private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+    /// Builds the summaries on `summaryBuilder`, not on this actor. Reading
+    /// every asset's resources takes minutes on a large library, and while
+    /// that ran here, every thumbnail and card image request queued behind it.
+    private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) async -> [AssetSummary] {
         retainChangeBaseline(fetchResult)
-        return Self.buildSummaries(from: fetchResult, excluding: excluding, sort: sort)
+        // Stamp in the same actor turn as the fetch: the fetch keeps its
+        // assets as they were when it was made, however long it waits for
+        // the builder.
+        let stamp = summaryBuilder.resources.stamp()
+        return await summaryBuilder.build(from: UncheckedSendableBox(fetchResult), excluding: excluding, sort: sort, stamp: stamp)
     }
 
-    nonisolated private static func buildSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+    nonisolated fileprivate static func buildSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true, cache: ResourceCache, stamp: Int) -> [AssetSummary] {
         var summaries: [AssetSummary] = []
         summaries.reserveCapacity(fetchResult.count)
         fetchResult.enumerateObjects { asset, _, _ in
             if !excluding.contains(asset.localIdentifier) {
-                summaries.append(Self.makeSummary(from: asset))
+                let resources = cache.resources(id: asset.localIdentifier, modifiedAt: asset.modificationDate, stamp: stamp) {
+                    Self.readResources(of: asset)
+                }
+                summaries.append(Self.makeSummary(from: asset, resources: resources))
             }
         }
         if sort {
@@ -1194,6 +1253,125 @@ enum PhotoServiceError: LocalizedError {
         }
     }
 
+}
+
+// MARK: - Summary Builder
+
+/// Runs the library-wide summary builds one at a time, as they ran when they
+/// were on `PhotoLibraryService` itself, without holding that actor.
+private actor SummaryBuilder {
+    /// The launch scan, Storage and Cleanup each build the whole library.
+    /// Reading every asset's resources is what takes minutes, so only the
+    /// first build does it; later builds reuse what it read.
+    nonisolated let resources = ResourceCache()
+
+    func build(from fetchResult: UncheckedSendableBox<PHFetchResult<PHAsset>>, excluding: Set<String>, sort: Bool, stamp: Int) -> [AssetSummary] {
+        defer { resources.release(stamp) }
+        return PhotoLibraryService.buildSummaries(from: fetchResult.value, excluding: excluding, sort: sort, cache: resources, stamp: stamp)
+    }
+}
+
+/// The summary fields that come from an asset's resources.
+struct ResourceFacts: Sendable, Equatable {
+    var fileSize: Int64
+    var filename: String?
+    var isLocallyAvailable: Bool
+    var hasScreenRecordingFilename: Bool
+}
+
+/// Resource reads from earlier builds, by asset id, reused while the asset's
+/// modification date is unchanged. `handleLibraryChange` drops the assets a
+/// change touched. A lock rather than an actor, so a change takes effect at
+/// once instead of waiting for a running build to finish.
+final class ResourceCache: @unchecked Sendable {
+    /// Downloading or offloading an iCloud original changes
+    /// `isLocallyAvailable` without always producing a library change, so no
+    /// read is reused for longer than this.
+    static let maxAge: TimeInterval = 30 * 60
+
+    private let lock = NSLock()
+    private let now: @Sendable () -> Date
+    private var entries: [String: (facts: ResourceFacts, modifiedAt: Date?, readAt: Date)] = [:]
+    /// Ticks on every removal; `removedAt` and `clearedAt` record the tick. A
+    /// build keeps nothing it read for an asset removed after its fetch was
+    /// made: the fetch may hold that asset as it was before the change.
+    private var tick = 0
+    private var removedAt: [String: Int] = [:]
+    private var clearedAt = 0
+    /// Stamps handed out and not yet released, by count. A removal only
+    /// matters to fetches stamped before it, so `removedAt` keeps only what
+    /// the oldest open stamp still needs.
+    private var openStamps: [Int: Int] = [:]
+
+    init(now: @escaping @Sendable () -> Date = { Date() }) {
+        self.now = now
+    }
+
+    /// Take when making the fetch a build will enumerate, pass to
+    /// `resources(id:modifiedAt:stamp:orRead:)`, and `release` when the build
+    /// is done.
+    func stamp() -> Int {
+        lock.withLock {
+            openStamps[tick, default: 0] += 1
+            return tick
+        }
+    }
+
+    func release(_ stamp: Int) {
+        lock.withLock {
+            if let count = openStamps[stamp], count > 1 {
+                openStamps[stamp] = count - 1
+            } else {
+                openStamps[stamp] = nil
+            }
+            pruneRemovals()
+        }
+    }
+
+    func resources(id: String, modifiedAt modificationDate: Date?, stamp: Int, orRead read: () -> ResourceFacts) -> ResourceFacts {
+        let cached = lock.withLock { entries[id] }
+        if let cached, cached.modifiedAt == modificationDate,
+           now().timeIntervalSince(cached.readAt) < Self.maxAge {
+            return cached.facts
+        }
+        let readAt = now()
+        let facts = read()
+        lock.withLock {
+            if clearedAt <= stamp, removedAt[id, default: 0] <= stamp {
+                entries[id] = (facts, modificationDate, readAt)
+            }
+        }
+        return facts
+    }
+
+    func remove(_ ids: [String]) {
+        lock.withLock {
+            tick += 1
+            for id in ids {
+                entries[id] = nil
+                removedAt[id] = tick
+            }
+            pruneRemovals()
+        }
+    }
+
+    func removeAll() {
+        lock.withLock {
+            tick += 1
+            entries.removeAll()
+            removedAt.removeAll()
+            clearedAt = tick
+        }
+    }
+
+    /// Call with `lock` held.
+    private func pruneRemovals() {
+        guard let oldest = openStamps.keys.min() else {
+            removedAt.removeAll()
+            return
+        }
+        removedAt = removedAt.filter { $0.value > oldest }
+    }
 }
 
 // MARK: - Change Observer Helper
