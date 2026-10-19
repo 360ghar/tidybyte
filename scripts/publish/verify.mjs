@@ -108,13 +108,18 @@ async function main() {
   }
 
   heading('In-App Events');
+  // `eventType` is not a field on appEvents. Asking for it fails the whole
+  // request with PARAMETER_ERROR.INVALID, which is what used to kill this report
+  // here — before the asset-library dump, so the Duo group id was never printed.
+  // The event's kind is not exposed as an attribute at all, so state and name
+  // are what there is to show.
   const events = await client.getAll(
-    `/v1/apps/${appId}/appEvents?limit=200&fields[appEvents]=referenceName,eventState,eventType`,
+    `/v1/apps/${appId}/appEvents?limit=200&fields[appEvents]=referenceName,eventState`,
   );
   if (events.length === 0) console.log('  (none)');
   for (const event of events) {
     const a = event.attributes ?? {};
-    console.log(`  ${String(a.eventState).padEnd(22)} ${String(a.eventType).padEnd(12)} ${a.referenceName}  ${event.id}`);
+    console.log(`  ${String(a.eventState).padEnd(22)} ${String(a.referenceName).padEnd(30)} ${event.id}`);
   }
 
   heading('Custom product pages');

@@ -115,6 +115,37 @@ const SURFACE_TARGETS = {
 };
 
 /**
+ * The App Store Connect placement group for the iPhone Duo display, and the help
+ * for a half-set split. Both are declared above `SCREENSHOT_FAMILIES`, which
+ * calls `duoFamilies()` while the module loads, so neither can move below it.
+ */
+export const DUO_GROUP_ID = 'IPHONE_DUO_PROFILE';
+
+/**
+ * What to do when exactly one of the two split ids is set.
+ *
+ * The single-group route is the default, because that is what Apple's spec
+ * describes and what the live catalog shows: one `IPHONE_DUO_PROFILE` group
+ * carrying both displays' sizes. The two-id split exists only for the case the
+ * catalog turns out to show two groups, and a half-set pair means one of the two
+ * names is wrong, so it is refused rather than guessed at.
+ */
+export const DUO_SPLIT_HELP = [
+  'The iPhone Duo split needs both group ids, but only one is set.',
+  '',
+  '  The default model is a single Duo group, `IPHONE_DUO_PROFILE`, which is what',
+  '  the live catalog shows. To split the two displays into separate groups, set',
+  '  both ids:',
+  '',
+  '       TIDYBYTE_DUO_OUTER_GROUP_ID=<outer-id> \\',
+  '         TIDYBYTE_DUO_INNER_GROUP_ID=<inner-id> \\',
+  '         npm run publish:media -- --duo',
+  '',
+  '  To go back to the single group, unset both. `npm run publish:verify` prints',
+  '  every group identifier Apple currently exposes.',
+].join('\n');
+
+/**
  * The device family each screenshot set targets, and the group it belongs to.
  *
  * Apple names placement groups after the display, not the device. The iPhone
@@ -139,26 +170,27 @@ const SURFACE_TARGETS = {
  * The capture script still writes them per display, because a display is a
  * capture concern; the upload collapses them into one row.
  *
- * **The group id itself is still unknown offline.** Apple's reference data is
- * the only place it exists, and reading it needs an API key: the one in this repo
- * is empty, so `publish:verify` has never dumped a catalog containing the Duo
- * row. A guessed id would either fail loudly anyway or — worse — collide with an
- * existing group, so it defaults to null and the family is skipped unless `--duo`
- * is passed. With `--duo` and no id, `loadPlan` throws rather than uploading to
- * the wrong display.
+ * The group id is `IPHONE_DUO_PROFILE`. It was read from the live catalog with
+ * `npm run publish:verify`, which prints every group Apple exposes, and it is
+ * pinned below as the default because the plan has to build offline. The id is
+ * still checked against the catalog before anything is uploaded, so an Apple
+ * rename fails loudly rather than landing media on the wrong display. The
+ * environment variable overrides the default, and the Duo family stays out of
+ * the plan entirely unless `--duo` is passed.
  *
  * Escape hatch, for the case the live catalog disagrees with the published spec:
  * set **both** `TIDYBYTE_DUO_OUTER_GROUP_ID` and `TIDYBYTE_DUO_INNER_GROUP_ID`
- * and the model splits into two families, one directory each, exactly as it was
- * before. Setting only one of the two is not a split — it falls back to the
- * single-group model, which then has no id and fails loudly. A half-split is
- * never taken by accident. `npm run publish:verify` is what settles which shape
- * is real.
+ * and the model splits into two families, one directory each. Setting only one
+ * of the two is a mistake rather than a preference — it means one of the two
+ * names is wrong — so it throws instead of quietly uploading to the single
+ * group. `npm run publish:verify` is what settles which shape is real.
  */
 function duoFamilies() {
-  const single = process.env.TIDYBYTE_DUO_GROUP_ID || null;
+  const single = process.env.TIDYBYTE_DUO_GROUP_ID || DUO_GROUP_ID;
   const outer = process.env.TIDYBYTE_DUO_OUTER_GROUP_ID || null;
   const inner = process.env.TIDYBYTE_DUO_INNER_GROUP_ID || null;
+
+  if (Boolean(outer) !== Boolean(inner)) throw new Error(DUO_SPLIT_HELP);
 
   if (outer && inner) {
     return {
@@ -242,39 +274,6 @@ export function duoCapHelp({ count, label }) {
 }
 
 /**
- * What to do when `--duo` is passed before the Duo group id is known.
- *
- * The single-group route leads, because that is what Apple's spec describes. The
- * two-id split is named as the fallback, not as an equal option: it exists for
- * the case the catalog shows two groups, and choosing it before checking would
- * be guessing.
- */
-export const DUO_GROUP_HELP = [
-  'iPhone Duo screenshots are enabled (--duo), but the App Store Connect group id',
-  'for the Duo display is not known yet, and it cannot be discovered offline.',
-  '',
-  '  1. Run:   npm run publish:verify',
-  '  2. In the `appAssetLibraryRefData` dump it prints, find the APP_SCREENSHOT group',
-  '     for the Duo display. It looks like:',
-  '',
-  '       <group-id>                                        IOS   <display-class>',
-  '',
-  '  3. Export the id and re-run:',
-  '',
-  '       TIDYBYTE_DUO_GROUP_ID=<id> npm run publish:media -- --duo',
-  '',
-  '  Apple\'s screenshot spec lists one iPhone Duo entry with all four sizes, so one',
-  '  group is expected. If the dump really shows two APP_SCREENSHOT groups for the',
-  '  Duo displays, use the split instead:',
-  '',
-  '       TIDYBYTE_DUO_OUTER_GROUP_ID=<outer-id> \\',
-  '         TIDYBYTE_DUO_INNER_GROUP_ID=<inner-id> \\',
-  '         npm run publish:media -- --duo',
-  '',
-  '  (or paste the id(s) into scripts/publish/plan.mjs, in `duoFamilies`)',
-].join('\n');
-
-/**
  * What to do when `--duo` is passed but no Duo screenshot exists on disk.
  */
 export const DUO_EMPTY_HELP = [
@@ -342,13 +341,10 @@ function readJson(path) {
  * see `duoCapHelp`.
  */
 export function loadPlan({ duo = process.argv.includes('--duo') } = {}) {
-  if (duo) {
-    const unresolved = Object.entries(SCREENSHOT_FAMILIES)
-      .filter(([, meta]) => meta.duo && !meta.group)
-      .map(([key]) => key);
-    if (unresolved.length > 0) throw new Error(DUO_GROUP_HELP);
-  }
-
+  // Every Duo family now carries a group id — pinned, or from the environment —
+  // so there is no unresolved-id case left to catch here: `duoFamilies` refuses
+  // a half-set split before this runs. The family is still left out unless
+  // `--duo` is passed, by the `meta.duo && !duo` filter below.
   const items = [];
 
   for (const [surface, target] of Object.entries(SURFACE_TARGETS)) {

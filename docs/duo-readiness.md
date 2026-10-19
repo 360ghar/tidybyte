@@ -320,43 +320,40 @@ precondition is demonstrated by a run recorded in §3.
 |---|---|---|---|
 | "TidyByte runs on iPhone, iPad, and iPhone Duo — and stays out of your way while it cleans." | Build 8 compiles against the iOS 27.1 SDK and launches on the Duo simulator | `docs/appstore/listings.json` → `description`, all 21 locales (new paragraph after the opening paragraph) | In copy; **verified 2026-10-18 on the Duo simulator** — the 27.1 build succeeded for the Duo destination, and the app installed, launched and rendered on both displays (§3 Duo log). Simulator only; no physical Duo |
 | App renders correctly on both Duo displays | Build 8 installed and launched on a booted Duo; outer captured folded, inner captured open at native portrait | New verification row for this document (§3 Duo log) | **verified 2026-10-18 on the Duo simulator** — outer 466 × 678 pt (`/tmp/app-d1.png`, 1398 × 2034 px, nothing clipped, safe areas respected); inner 669 × 951 pt (`/tmp/inner-portrait-app.png`, 2007 × 2853 px, tab bar visible, no letterboxing). Photo library was synthetic `simctl addmedia` images; **photo-library mutations not exercised** |
-| "Now built for iPhone Duo: same cleanup, adapted to both displays." | Same, plus the swipe home and each cleanup tool render on both displays | `docs/appstore/listings.json` → `whatsNew` (21 locales); source `scripts/localization/translations/_notes-1.1.0.mjs` | In copy; **partially verified 2026-10-18** — outer display: all seven surfaces (Swipe, Cleanup, Duplicates, Screenshots, Blurry, Storage, Activity) rendered, each capture distinct, proving the deep links routed. Inner display: five surfaces captured (Swipe, Cleanup hub, Duplicates, Storage, Activity). Still unmet: the **Screenshots and Blurry tool screens** have not been rendered on the inner display, so "each cleanup tool on both displays" is not yet demonstrated. Simulator only; no physical Duo |
+| "Now built for iPhone Duo: same cleanup, adapted to both displays." | Same, plus the swipe home and each cleanup tool render on both displays | `docs/appstore/listings.json` → `whatsNew` (21 locales); source `scripts/localization/translations/_notes-1.1.1.mjs` | Ships with 1.1.1. **Partially verified 2026-10-18** — outer display: all seven surfaces (Swipe, Cleanup, Duplicates, Screenshots, Blurry, Storage, Activity) rendered, each capture distinct, proving the deep links routed. Inner display: five surfaces captured (Swipe, Cleanup hub, Duplicates, Storage, Activity). Still unmet: the **Screenshots and Blurry tool screens** have not been rendered on the inner display, so "each cleanup tool on both displays" is not yet demonstrated. Simulator only; no physical Duo. The wording says "built for", not "tested on", which is what this ledger supports |
 | Hero badge: "Free · iPhone & iPad · iPhone Duo · iOS 17+" | Same | `src/content/pages/index.html:24`, plus the 20 generated `src/content/pages/index.<lang>.html` | In copy; **verified 2026-10-18 on the Duo simulator** (same run as the row above; simulator only) |
 | FAQ: "Does TidyByte work on iPhone Duo?" | Same; the answer claims the layout adapts to both displays | `src/content/pages/index.html` FAQ (+ 20 localized copies), `src/content/pages/support.html:130`, `src/data/tools.ts` (photo-cleaner hub FAQ), FAQPage JSON-LD in `src/data/pages.ts` | In copy; **verified 2026-10-18 on the Duo simulator** — the swipe home, the cleanup hub, Duplicates, Storage and Activity all rendered on both displays (outer at 466 × 678 pt, inner at 669 × 951 pt), and the full set of seven rendered on the outer display. Simulator only |
 | Device lines: iPhone (portrait) + iPad + iPhone Duo | Same | `README.md:9`, `CLAUDE.md:15`, `AGENTS.md:15`, `docs/prd.md` §13, `docs/GEO-Playbook.md:17` | In copy; **verified 2026-10-18 on the Duo simulator** (simulator only) |
-| "optimized for iPhone Duo" App Store badge | Duo screenshots captured at both required sizes **and** uploaded to the single Duo group in App Store Connect | Apple's product page, not ours | **Not earned** — the screenshots now exist (5 outer + 5 inner, verified 2026-10-18), but **nothing has been uploaded**: the single Duo group id in App Store Connect is still unknown (§5 item 1) |
+| "optimized for iPhone Duo" App Store badge | Duo screenshots captured at both required sizes **and** uploaded to the single Duo group in App Store Connect | Apple's product page, not ours | **Pending upload.** The screenshots exist (5 outer + 5 inner, verified 2026-10-18) and the group id is now known — `IPHONE_DUO_PROFILE`, resolved 2026-10-19 (§5 item 1) — but the upload has not run. It goes with the 1.1.1 submission: `npm run publish:media -- --duo --replace` |
 | Duo screenshot row in the listing doc | `node scripts/growth/shoot-screenshots.mjs --duo` on the 27.1 runtime | `docs/APP_STORE_LISTING.md` §11 | Documented; **verified 2026-10-18** — the capture ran on the 27.1 runtime through Device Hub pose driving and produced `docs/screenshots/duo-outer/` (5 × 1398 × 2034) and `docs/screenshots/duo-inner/` (5 × 2007 × 2853), exactly the sizes Apple accepts. The orchestrator re-checked every file: real content (no blank panels), and each file matches the screen named by its filename |
-| Build 8 carries the Duo readiness work | The bump itself is in source; the build/upload are not | `project.yml:20` (`CURRENT_PROJECT_VERSION: 8`) | Bumped in source; build for the Duo destination **verified 2026-10-18** (`CODE_SIGNING_ALLOWED=NO`); **upload not run** |
+| Build 8 carries the Duo readiness work | The bump itself is in source; the build/upload are not | `project.yml` (`CURRENT_PROJECT_VERSION: 8`, `MARKETING_VERSION: 1.1.1`) | Build for the Duo destination **verified 2026-10-18** (`CODE_SIGNING_ALLOWED=NO`). Build 8 is what 1.1.1 ships as; it was still free because 1.1.0 went out as build 7 |
 | Duo layout tests exist | They compile and pass (they assert window geometry, not Duo-only behaviour) | `TidybyteUITests/DuoLayoutUITests.swift` | Written; **verified 2026-10-18 on the Duo itself** — 4 tests, 0 failures, re-run by the orchestrator on a booted Duo in the folded pose (`Executed 4 tests, with 0 failures in 127.9 s`), and separately on an iPad Pro 13-inch (M5) (53.5 s), which is where the edge-band assertion is live (`window.width >= 600`). §5 item 6 records the folded-pose caveat |
 
 ---
 
 ## 5. Open items
 
-1. **App Store Connect Duo group id is unresolved.** Apple's published screenshot
-   specification lists **one** "iPhone Duo" entry carrying all four accepted sizes
-   (1398 × 2034 / 2034 × 1398 outer, 2007 × 2853 / 2853 × 2007 inner) under a
-   single heading, with no per-display requirement note, and the 5 October news
-   post describes submitting Duo screenshots as earning **one** badge. So the model
-   is one Duo group, not two. The id itself still exists only in Apple's live
-   reference data, and the ASC API key in this repo is empty, so it cannot be read
-   offline. `scripts/publish/plan.mjs` therefore defaults to a single family named
-   `duo` that reads **both** capture directories — `dirs: ['duo-outer',
-   'duo-inner']` (`plan.mjs:180-188`) — with `group: null`, gated by `--duo`, which
-   throws rather than uploading to the wrong group (`DUO_GROUP_HELP`,
-   `plan.mjs:252`; gate at `:345-350`). Resolver: run `npm run publish:verify`, find
-   the Duo `APP_SCREENSHOT` group in the `appAssetLibraryRefData` dump, then
-   `TIDYBYTE_DUO_GROUP_ID=<id> npm run publish:media -- --duo` (or paste the id into
-   `duoFamilies` in `plan.mjs`).
+1. **Resolved 2026-10-19: the Duo group id is `IPHONE_DUO_PROFILE`.** Apple's
+   published screenshot specification lists **one** "iPhone Duo" entry carrying all
+   four accepted sizes (1398 × 2034 / 2034 × 1398 outer, 2007 × 2853 / 2853 × 2007
+   inner) under a single heading, and the live catalog agrees: `publish:verify`
+   prints exactly one `APP_SCREENSHOT` group for display class `IPHONE_DUO`, with
+   `screenDimensions: ["2853x2007","2034x1398"]`. The blocker was the empty API key,
+   which has since been filled, so the `appAssetLibraryRefData` dump now runs.
+   `scripts/publish/plan.mjs` pins the id as `DUO_GROUP_ID` and still checks it
+   against the catalog before uploading, so an Apple rename fails loudly rather than
+   landing media on the wrong display. The single family reads **both** capture
+   directories — `dirs: ['duo-outer', 'duo-inner']` — and is still gated by `--duo`.
+   No environment variable is needed for the normal path.
 2. **Two-group split exists only as an escape hatch, if the live catalog disagrees.**
    Setting **both** `TIDYBYTE_DUO_OUTER_GROUP_ID` and `TIDYBYTE_DUO_INNER_GROUP_ID`
-   splits the model into two families, one directory each — exactly the old shape
-   (`plan.mjs:164-178`). Setting only one of the two is not a split: it falls back
-   to the single-group model, which then has no id and fails loudly, so a half-split
-   is never taken by accident. This is a documented fallback for the case where
-   `publish:verify` really does show two `APP_SCREENSHOT` groups for the Duo
-   displays; the published spec says one, so one is the default. Resolver: the same
-   `npm run publish:verify` dump.
+   splits the model into two families, one directory each. Setting only one of the
+   two now **throws** (`DUO_SPLIT_HELP`, `plan.mjs`): with the single-group id pinned
+   as a default it would otherwise upload to the single group and silently ignore the
+   id that was supplied, where before it fell back and failed for lack of any id.
+   This remains a documented fallback for the case where `publish:verify` really does
+   show two `APP_SCREENSHOT` groups for the Duo displays; the live catalog shows one,
+   so one is the default.
 3. **Hinge poses ARE drivable in the simulator (verified 2026-10-18) — tent and
    laptop remain unverified.** `simctl` still has no fold/pose/hinge subcommand
    (verified on Xcode 27.1), but poses are driven from Device Hub

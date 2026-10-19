@@ -102,6 +102,9 @@ npm run publish:verify     # read-only: reports the live account state
 
 npm run archive            # builds and exports the signed IPA
 npm run publish:build      # uploads the IPA
+
+node scripts/publish/publish.mjs prepare
+                           # creates the editable version + its localizations
 npm run publish:details    # pushes subtitle, keywords, description, what's new
 npm run publish:media      # uploads assets and creates placements
 npm run publish:submit     # submits the version for review
@@ -109,6 +112,16 @@ npm run publish:submit     # submits the version for review
 
 `node scripts/publish/publish.mjs plan` prints the media plan offline, with no
 credentials and no network.
+
+**`prepare` has no `npm run` alias, and it is not optional.** `details` and
+`media` both resolve their version through `ensureEditableVersion`, which throws
+unless a version in `PREPARE_FOR_SUBMISSION` exists. A released version can never
+be reopened, so every new release needs `prepare` to create one first. The version
+string comes from `project.yml` (`MARKETING_VERSION`), not from the command line.
+
+`prepare` creates the version with `releaseType: AFTER_APPROVAL`: it goes live as
+soon as App Review approves, with no manual hold. Change that constant in
+`publish.mjs` for a release that has to be held back after approval.
 
 ## What each step actually does
 
@@ -142,7 +155,31 @@ by path: 42 of the creatives here are the same bytes on two surfaces, so the
 library stores them once. Assets are named by their hash, which makes a re-run
 resume instead of duplicating.
 
-**`submit`** creates a review submission, adds the version, and submits it.
+Pass **`--replace`** on the first media run of a new version. Creating a version
+copies the previous version's screenshots onto it, and those inherited placements
+count against the per-group limit of 10 — so a full inherited set leaves no room
+and the new uploads are rejected with a limit error that never mentions the
+inherited media. `--replace` clears the groups this plan manages (every
+`APP_SCREENSHOT` group, plus the creative groups it writes to) before creating
+anything, so the gallery ends up as exactly the new set. It resolves its targets
+through the **editable version's** localizations, so it cannot touch a version that
+has already been released.
+
+```sh
+npm run publish:media -- --duo --replace
+```
+
+**`order`** (`node scripts/publish/publish.mjs order`) re-posts the gallery
+ordering for placements that already exist. `media` sets the order itself as its
+final step, so this is a repair tool for when ordering fails or placements are
+added outside the pipeline — not part of the normal flow.
+
+**`submit`** creates a review submission, adds the version, and submits it. Pass
+`--build=<id>` to attach a specific build at the same time:
+
+```sh
+npm run publish:submit -- --build=8
+```
 
 ## How media maps onto Apple's model
 
@@ -282,7 +319,7 @@ group**, fed by both capture directories:
 
 | Family | Directories | Group source |
 |---|---|---|
-| `duo` (default) | `docs/screenshots/duo-outer/` + `docs/screenshots/duo-inner/` | `TIDYBYTE_DUO_GROUP_ID` |
+| `duo` (default) | `docs/screenshots/duo-outer/` + `docs/screenshots/duo-inner/` | `IPHONE_DUO_PROFILE`, pinned; `TIDYBYTE_DUO_GROUP_ID` overrides |
 | `duoOuter` / `duoInner` (escape hatch) | one directory each | `TIDYBYTE_DUO_OUTER_GROUP_ID` + `TIDYBYTE_DUO_INNER_GROUP_ID` |
 
 Capture stays per display — a display is a capture concern. Only the upload
@@ -293,48 +330,32 @@ separate rows** instead of one. Each split family then gets its **own** 10-file
 cap, so up to 7 per display is fine there — but the split is chosen only after
 `publish:verify` shows two Duo groups, never guessed.
 
-### What is still unknown
+### The group id
 
-**The group id.** Apple names placement groups after the display. The iPhone row
-is `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE`, the iPad row `IPAD_13_PROFILE`, and
-the Duo row has a name this repo has never seen. The API key here is empty, so
-`publish:verify` has never dumped a catalog that contains it. A guessed id would
-either fail the upload or — worse — collide with an existing group, so it is not
-guessed.
+**`IPHONE_DUO_PROFILE`**, pinned as `DUO_GROUP_ID` in `plan.mjs`. Apple names
+placement groups after the display — the iPhone row is
+`IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE`, the iPad row `IPAD_13_PROFILE` — and the
+Duo row is `IPHONE_DUO_PROFILE`, which is what `npm run publish:verify` prints for
+display class `IPHONE_DUO`. It is pinned rather than looked up at runtime because
+the plan has to build offline; the id is still checked against the catalog before
+anything is uploaded, so an Apple rename fails loudly rather than landing media on
+the wrong display.
 
-Apple's published spec says one row, so one group is the working assumption. If
-the live catalog turns out to disagree, `publish:verify` is what settles it — it
-prints every `APP_SCREENSHOT` group it exposes.
+The live catalog confirms Apple's published spec: **one** Duo group, not two. So
+`npm run publish:media -- --duo` needs no environment variable.
+`TIDYBYTE_DUO_GROUP_ID` overrides the pinned default if that ever changes.
 
-### Resolving it
-
-```sh
-npm run publish:verify
-```
-
-Find the `appAssetLibraryRefData` section of the dump. It lists every placement
-group as `<group-id>  <platform>  <display-class>`. Take the `APP_SCREENSHOT`
-group for the Duo display and export it for one run:
-
-```sh
-TIDYBYTE_DUO_GROUP_ID=<id> npm run publish:media -- --duo
-```
-
-or paste it into `duoFamilies()` in `plan.mjs`, which makes `--duo` permanent.
-Until one of those is done, `--duo` fails loudly rather than uploading to the
-wrong display.
-
-**If the dump shows two Duo groups** (the unlikely case — the published spec says
-one row), use the split instead: set **both** of
+**If the catalog ever shows two Duo groups**, use the split instead: set **both** of
 
 ```sh
 TIDYBYTE_DUO_OUTER_GROUP_ID=<outer-id> TIDYBYTE_DUO_INNER_GROUP_ID=<inner-id> \
   npm run publish:media -- --duo
 ```
 
-and the plan becomes two families, one directory each. Setting only one of the
-two is not a split: it falls back to the single-group model, which has no id, and
-fails loudly. A half-split cannot happen by accident.
+and the plan becomes two families, one directory each. Setting only one of the two
+now **throws** (`DUO_SPLIT_HELP`, `plan.mjs`): with the single-group id pinned as a
+default it would otherwise upload to the single group and silently ignore the id
+that was supplied. A half-split cannot happen by accident.
 
 ### Capturing them
 

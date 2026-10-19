@@ -123,7 +123,7 @@ async function cmdPrepare() {
   if (already) {
     console.log(`  ${marketingVersion()} already exists and is editable`);
   } else if (dryRun) {
-    plan('POST', '/v1/appStoreVersions', `create ${marketingVersion()} (IOS, MANUAL release)`);
+    plan('POST', '/v1/appStoreVersions', `create ${marketingVersion()} (IOS, AFTER_APPROVAL release)`);
   }
 
   const version = dryRun && !already
@@ -217,9 +217,10 @@ async function ensureEditableVersion(client, appId, { create = false } = {}) {
       attributes: {
         platform: 'IOS',
         versionString: wanted,
-        // Hold the release until it is released by hand, so a submission cannot
-        // go live while it is still being checked.
-        releaseType: 'MANUAL',
+        // Release the moment App Review approves, with no manual hold. Set this
+        // back to 'MANUAL' for a release that has to be held after approval,
+        // which is only possible on a version that has not been submitted yet.
+        releaseType: 'AFTER_APPROVAL',
       },
       relationships: { app: { data: { type: 'apps', id: appId } } },
     },

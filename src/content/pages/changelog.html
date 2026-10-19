@@ -9,11 +9,61 @@
       <div class="mx-auto mt-16 max-w-3xl">
         <article>
           <header class="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 class="h-section text-2xl sm:text-3xl">v1.1.1 &mdash; iPhone Duo, and the review fixes</h2>
+            <time class="muted text-sm" datetime="2026-10">October 2026</time>
+          </header>
+          <p class="muted mt-2 inline-flex items-center gap-2 text-sm">
+            <span class="badge">Latest</span>
+            <span>Adapts to both iPhone Duo displays, and fixes what a full review of 1.1.0 turned up.</span>
+          </p>
+
+          <h3 class="mt-6 text-base font-semibold text-ink">Highlights</h3>
+          <ul class="muted mt-3 space-y-2 text-base">
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-clay-pink" aria-hidden="true"></span><span><strong class="text-ink">iPhone Duo.</strong> TidyByte now runs on the foldable and lays out for both displays &mdash; the swipe deck, the cleanup hub, Duplicates, Storage and Activity each render on the outer and inner screens.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-clay-pink" aria-hidden="true"></span><span><strong class="text-ink">Swipe correctness in Arabic and Hebrew.</strong> A right-drag could show the green Keep stamp and delete the photo anyway: the drag stamp mirrored the horizontal axis for right-to-left layout, but the commit did not. The stamp decision now mirrors the same axis as the commit.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-clay-pink" aria-hidden="true"></span><span><strong class="text-ink">Language switching no longer loses work.</strong> Changing language mid-session rebuilt the whole tab tree, which destroyed a live swipe session and silently dropped its uncommitted deletions before the completion review could run.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-clay-pink" aria-hidden="true"></span><span><strong class="text-ink">English text in 20 languages.</strong> Five view-model summaries and the scan-progress line rendered in English whatever language you chose; they now go through the string catalog.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-clay-pink" aria-hidden="true"></span><span>Four checks that could not fail now fail on the case they exist for: an empty App Store screenshot set, a banned API inside a string interpolation, a stale growth-render cache, and keyword rules skipped for English.</span></li>
+          </ul>
+
+          <h3 class="mt-8 text-base font-semibold text-ink">Release notes</h3>
+          <p class="muted mt-3 text-base leading-relaxed">
+            TidyByte 1.1.1 is the release that finally ships the iPhone Duo work and the fixes a full review of 1.1.0 turned up. It restores correct swipe behaviour in right-to-left languages, keeps a live swipe session alive across a language change, and moves the last of the hard-coded English into the string catalog. Everything still runs on your device, with no account, no ads and no subscription.
+          </p>
+        </article>
+
+        <hr class="my-12 border-hairline">
+
+        <article>
+          <header class="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 class="h-section text-2xl sm:text-3xl">v1.1.0 &mdash; 20 languages</h2>
+            <time class="muted text-sm" datetime="2026-10">October 2026</time>
+          </header>
+          <p class="muted mt-2 inline-flex items-center gap-2 text-sm">
+            <span>TidyByte speaks 20 languages, with full right-to-left layout.</span>
+          </p>
+
+          <h3 class="mt-6 text-base font-semibold text-ink">Highlights</h3>
+          <ul class="muted mt-3 space-y-2 text-base">
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-clay-pink" aria-hidden="true"></span><span><strong class="text-ink">20 languages.</strong> The whole app is translated, and so is the App Store listing, with full right-to-left layout for Arabic and Hebrew.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-clay-pink" aria-hidden="true"></span><span><strong class="text-ink">Region-aware formatting.</strong> Dates, sizes and counts follow your region rather than a fixed format.</span></li>
+            <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-clay-pink" aria-hidden="true"></span><span><strong class="text-ink">Siri shortcuts in your language.</strong> The phrases are localized, not just the labels they trigger.</span></li>
+          </ul>
+
+          <h3 class="mt-8 text-base font-semibold text-ink">Release notes</h3>
+          <p class="muted mt-3 text-base leading-relaxed">
+            TidyByte now speaks 20 languages, with full right-to-left layout for Arabic and Hebrew. Dates, sizes and counts follow your region, and Siri shortcuts work in your language. Everything still runs on your device, with no account, no ads and no subscription.
+          </p>
+        </article>
+
+        <hr class="my-12 border-hairline">
+
+        <article>
+          <header class="flex flex-wrap items-baseline justify-between gap-3">
             <h2 class="h-section text-2xl sm:text-3xl">v1.0.5 &mdash; On-device AI photo search</h2>
             <time class="muted text-sm" datetime="2026-09">September 2026</time>
           </header>
           <p class="muted mt-2 inline-flex items-center gap-2 text-sm">
-            <span class="badge">Latest</span>
             <span>AI photo search, screen recording cleanup, chat media cleanup, and smarter reminders.</span>
           </p>
 
