@@ -291,14 +291,23 @@ actor PhotoLibraryService {
     /// set on every frame (vs. only the representative), so requiring it made
     /// the tool silently empty on some devices (LF-03). Frames are sorted by
     /// creation date within each group.
-    func fetchBurstPhotos() -> [String: [AssetSummary]] {
+    func fetchBurstPhotos() async -> [String: [AssetSummary]] {
         let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
 
-        var groups: [String: [AssetSummary]] = [:]
+        // Only the burst frames' summaries are needed; they are built on
+        // `summaryBuilder` like every other scan, so the frames' resource
+        // reads don't hold up image requests.
+        var frameIds: [String] = []
         for index in 0..<allAssets.count {
             let asset = allAssets.object(at: index)
-            if let burstId = asset.burstIdentifier {
-                let summary = Self.makeSummary(from: asset)
+            if asset.burstIdentifier != nil {
+                frameIds.append(asset.localIdentifier)
+            }
+        }
+        let frames = PHAsset.fetchAssets(withLocalIdentifiers: frameIds, options: allAssetsFetchOptions())
+        var groups: [String: [AssetSummary]] = [:]
+        for summary in await extractSummaries(from: frames, sort: false) {
+            if let burstId = summary.burstIdentifier {
                 groups[burstId, default: []].append(summary)
             }
         }
