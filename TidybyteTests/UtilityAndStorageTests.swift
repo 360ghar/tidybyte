@@ -189,19 +189,20 @@ final class UtilityAndStorageTests: XCTestCase {
         XCTAssertEqual(reads, 0)
     }
 
-    /// A released fetch no longer holds back what it read: removals that
-    /// came after it stop mattering once no older fetch is open.
-    func testResourceCacheReleasedFetchesNoLongerBlockStores() {
+    /// Pruning removals (on later removals and on releases) must keep the
+    /// ones a still-open fetch needs: its stale read of "a" is not kept.
+    func testResourceCachePruningKeepsRemovalsAnOpenFetchNeeds() {
         let cache = ResourceCache()
-        let old = cache.stamp()
+        let open = cache.stamp()
         cache.remove(["a"])
-        cache.release(old)
-        let next = cache.stamp()
-        _ = cache.resources(id: "a", modifiedAt: nil, stamp: next) { facts() }
-        cache.release(next)
+        for index in 0..<100 { cache.remove(["other-\(index)"]) }
+        cache.release(cache.stamp())
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: open) { facts() }
+        cache.release(open)
+
         var reads = 0
         _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { reads += 1; return facts() }
-        XCTAssertEqual(reads, 0)
+        XCTAssertEqual(reads, 1)
     }
 
     private final class TestClock: @unchecked Sendable {
