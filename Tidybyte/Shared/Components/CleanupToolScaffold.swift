@@ -19,12 +19,14 @@ import SwiftUI
 struct ToolIdleView<Options: View>: View {
     let icon: String
     let tint: Color
-    let title: String
-    let message: String
-    let primaryTitle: String
+    /// `LocalizedStringKey` so the literal copy every tool passes here
+    /// localizes. See `EmptyStateView` for the reasoning.
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey
+    let primaryTitle: LocalizedStringKey
     let primaryAction: () -> Void
-    var primaryHint: String?
-    var footnote: String?
+    var primaryHint: LocalizedStringKey?
+    var footnote: LocalizedStringKey?
     /// Tool-specific controls between the copy and the button, e.g. the
     /// duplicate scan-type picker.
     @ViewBuilder let options: () -> Options
@@ -32,11 +34,11 @@ struct ToolIdleView<Options: View>: View {
     init(
         icon: String,
         tint: Color,
-        title: String,
-        message: String,
-        primaryTitle: String,
-        primaryHint: String? = nil,
-        footnote: String? = nil,
+        title: LocalizedStringKey,
+        message: LocalizedStringKey,
+        primaryTitle: LocalizedStringKey,
+        primaryHint: LocalizedStringKey? = nil,
+        footnote: LocalizedStringKey? = nil,
         primaryAction: @escaping () -> Void,
         @ViewBuilder options: @escaping () -> Options
     ) {
@@ -109,11 +111,11 @@ extension ToolIdleView where Options == EmptyView {
     init(
         icon: String,
         tint: Color,
-        title: String,
-        message: String,
-        primaryTitle: String,
-        primaryHint: String? = nil,
-        footnote: String? = nil,
+        title: LocalizedStringKey,
+        message: LocalizedStringKey,
+        primaryTitle: LocalizedStringKey,
+        primaryHint: LocalizedStringKey? = nil,
+        footnote: LocalizedStringKey? = nil,
         primaryAction: @escaping () -> Void
     ) {
         self.init(
@@ -138,18 +140,44 @@ extension ToolIdleView where Options == EmptyView {
 struct ToolScanningView: View {
     let icon: String
     let tint: Color
-    let title: String
+    let title: LocalizedStringKey
     let progress: Float
-    /// Trailing detail after the percentage, e.g. "37 items found". Tools with
-    /// nothing to report pass nil and the line is just the percentage.
+    /// Trailing detail after the percentage, e.g. "37 items found".
+    ///
+    /// A `String`, and the caller owns localizing it: every call site builds
+    /// this with `L10n.format` and a counted catalog key, so the number and the
+    /// noun around it come from the language's own entry. An interpolated
+    /// literal here would ship English in all 20 languages: an interpolation
+    /// cannot be a catalog key unless `Text` is what performs it, and the
+    /// rendering below is verbatim on purpose (a runtime string must not go
+    /// through Markdown parsing). Pass nil (not "") when there is nothing to
+    /// report.
     var detail: String?
-    var cancelTitle: String = "Cancel"
+    var cancelTitle: LocalizedStringKey = "Cancel"
     let onCancel: () -> Void
 
-    private var progressLabel: String {
-        let percent = "\(Int(progress * 100))%"
-        guard let detail, !detail.isEmpty else { return percent }
-        return "\(percent) \u{00B7} \(detail)"
+    /// The percentage alone. Language-independent, so it stays out of the
+    /// catalog: a bare number is the same everywhere and needs no translation.
+    private var percentLabel: String {
+        "\(Int(progress * 100))%"
+    }
+
+    /// Percent plus detail, composed as text rather than concatenated strings.
+    ///
+    /// Two `Text` views joined with `+` keep each side intact: the percent is
+    /// verbatim (a number needs no translation) and the detail renders exactly
+    /// as the caller built it, already localized; see `detail`.
+    private var progressLine: Text {
+        guard let detail, !detail.isEmpty else {
+            return Text(verbatim: percentLabel)
+        }
+        return Text(verbatim: percentLabel) + Text(verbatim: " \u{00B7} ") + Text(verbatim: detail)
+    }
+
+    /// The same content as a plain string, for the accessibility value.
+    private var progressAccessibilityValue: String {
+        guard let detail, !detail.isEmpty else { return percentLabel }
+        return "\(percentLabel) \u{00B7} \(detail)"
     }
 
     var body: some View {
@@ -170,7 +198,7 @@ struct ToolScanningView: View {
                 ProgressView(value: progress)
                     .tint(tint)
 
-                Text(progressLabel)
+                progressLine
                     .font(.title3.bold().monospacedDigit())
                     .foregroundStyle(tint)
                     .contentTransition(.numericText())
@@ -183,7 +211,7 @@ struct ToolScanningView: View {
             // to hunt for the changed value.
             .accessibilityElement(children: .combine)
             .accessibilityLabel(title)
-            .accessibilityValue(progressLabel)
+            .accessibilityValue(progressAccessibilityValue)
 
             Button(role: .destructive, action: onCancel) {
                 Text(cancelTitle)
@@ -209,12 +237,19 @@ struct ToolScanningView: View {
 /// stopped, and one whose fetch is a single awaited call cannot. Passing nil
 /// omits the button rather than showing one that does nothing.
 struct ToolLoadingView<Skeleton: View>: View {
-    var cancelTitle: String = "Cancel"
+    /// `LocalizedStringKey`, not `String`.
+    ///
+    /// The sibling scaffold above declares the same property this way, and this
+    /// one did not: `Text(cancelTitle)` on a `String` renders it verbatim, so
+    /// the Cancel button on every tool's loading state read "Cancel" in all 21
+    /// languages. No call site passes this explicitly, so the default is the
+    /// only value that ever reaches the screen.
+    var cancelTitle: LocalizedStringKey = "Cancel"
     var onCancel: (() -> Void)?
     @ViewBuilder let skeleton: () -> Skeleton
 
     init(
-        cancelTitle: String = "Cancel",
+        cancelTitle: LocalizedStringKey = "Cancel",
         onCancel: (() -> Void)? = nil,
         @ViewBuilder skeleton: @escaping () -> Skeleton
     ) {

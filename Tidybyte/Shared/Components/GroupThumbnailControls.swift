@@ -66,15 +66,25 @@ struct SelectToggle: View {
 }
 
 /// Plain "Keep" line under the keeper. No pill behind it.
+///
+/// `reason` arrives already localized (see `BestReason.displayName`), so the
+/// label is assembled through `L10n` rather than `Text("...")`: `Text`'s
+/// `String` initializer renders verbatim, and a raw literal here stayed English
+/// in all 20 languages while every coverage number read 100%.
 struct KeeperMark: View {
     var reason: String?
+
+    private var label: String {
+        guard let reason else { return L10n.string("Keep") }
+        return L10n.format("Keep: %@", reason)
+    }
 
     var body: some View {
         HStack(spacing: 2) {
             Image(systemName: "star.fill")
                 .foregroundStyle(.yellow)
                 .accessibilityHidden(true)
-            Text(reason.map { "Keep: \($0)" } ?? "Keep")
+            Text(label)
                 .foregroundStyle(.primary)
         }
         .font(.caption2.bold())

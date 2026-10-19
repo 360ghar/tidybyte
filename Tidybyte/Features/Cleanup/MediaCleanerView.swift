@@ -36,12 +36,12 @@ struct MediaCleanerView: View {
                     filterLayout {
                         if viewModel.tool == .chatMedia {
                             Picker("Media", selection: $viewModel.mediaFilter) {
-                                ForEach(LargeFileFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                                ForEach(LargeFileFilter.allCases, id: \.self) { Text($0.displayName).tag($0) }
                             }
                         }
                         if !dynamicTypeSize.isAccessibilitySize { Spacer() }
                         Picker("Sort", selection: $viewModel.sortOrder) {
-                            ForEach(LargeFileSortOrder.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                            ForEach(LargeFileSortOrder.allCases, id: \.self) { Text($0.displayName).tag($0) }
                         }
                         .pickerStyle(.menu)
                         .accessibilityIdentifier("mediaSort")
@@ -51,14 +51,24 @@ struct MediaCleanerView: View {
                         .font(.caption).foregroundStyle(.secondary)
                         .padding(.horizontal, Spacing.lg)
                     if let error = viewModel.errorMessage {
-                        ToolErrorBanner(message: error, title: viewModel.tool.name, onDismiss: { viewModel.errorMessage = nil })
+                        // Both are runtime text, so both render verbatim: the
+                        // view model's message, and the tool's name, which
+                        // `CleanupTool.name` already resolved through `L10n`.
+                        // A lookup would miss and `Text` would Markdown-parse
+                        // the message.
+                        ToolErrorBanner(
+                            message: .runtimeText(error),
+                            title: .runtimeText(viewModel.tool.name),
+                            onDismiss: { viewModel.errorMessage = nil }
+                        )
                     }
                     if viewModel.isLoading && viewModel.assets.isEmpty {
                         ProgressView("Loading media").padding(Spacing.xl)
                     } else {
                         if viewModel.filteredAssets.isEmpty {
-                            EmptyStateView(icon: viewModel.tool.icon, title: "No matching media",
-                                           message: viewModel.tool == .chatMedia ? "Choose albums or change your filters." : "No screen recordings were found.")
+                            EmptyStateView(icon: viewModel.tool.icon,
+                                           title: "No matching media",
+                                           message: emptyMessage)
                         }
                         LazyVGrid(columns: ResponsiveGrid.photo(), spacing: Spacing.xs) {
                             ForEach(viewModel.filteredAssets) { asset in cell(asset) }
@@ -78,7 +88,7 @@ struct MediaCleanerView: View {
                 }
             }
         }
-        .navigationTitle(viewModel.tool.name)
+        .localizedNavigationTitle(viewModel.tool.nameKey)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 SelectAllToolbarButton(allSelected: viewModel.allVisibleSelected,
@@ -120,7 +130,7 @@ struct MediaCleanerView: View {
                     }
                 }
                 .overlay { if viewModel.albums.isEmpty { Text("No accessible user albums.") } }
-                .navigationTitle("Chat albums")
+                .localizedNavigationTitle("Chat albums")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showAlbums = false } }
                     ToolbarItem(placement: .confirmationAction) {
@@ -133,6 +143,22 @@ struct MediaCleanerView: View {
                 }
             }
         }
+    }
+
+    /// Why the grid is empty. Chat-media and screen-recordings tools share this
+    /// view, and "no results" means something different in each: the chat tool
+    /// is album-filtered, the recordings tool has no filter to change.
+    ///
+    /// Written as a `LocalizedStringKey` computed property rather than
+    /// `LocalizedStringKey(someString)` at the call site. The initializer takes
+    /// a `String`, so it hides both literals from the compiler's string
+    /// extractor and neither sentence reaches the catalog. Here each branch is
+    /// a literal in a `LocalizedStringKey` context, which is what the extractor
+    /// looks for.
+    private var emptyMessage: LocalizedStringKey {
+        viewModel.tool == .chatMedia
+            ? "Choose albums or change your filters."
+            : "No screen recordings were found."
     }
 
     private func cell(_ asset: AssetSummary) -> some View {
@@ -148,8 +174,8 @@ struct MediaCleanerView: View {
                     }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Preview \(asset.filename ?? "media"), \(asset.displaySize)")
-            SelectToggle(isSelected: viewModel.selectedIDs.contains(asset.id), itemName: asset.filename ?? "media") {
+            .accessibilityLabel("Preview \(asset.filename ?? L10n.string("media")), \(asset.displaySize)")
+            SelectToggle(isSelected: viewModel.selectedIDs.contains(asset.id), itemName: asset.filename ?? L10n.string("media")) {
                 viewModel.selectedIDs.toggle(asset.id)
             }
             .disabled(viewModel.isDeleting)

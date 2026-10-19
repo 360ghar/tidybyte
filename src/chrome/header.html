@@ -8,38 +8,45 @@
 
     <nav aria-label="Primary" class="hidden items-center gap-1 md:flex">
       <a href="#features" class="nav-link">Features</a>
+      <a href="/photo-cleaner" class="nav-link">Tools</a>
       <a href="#how-it-works" class="nav-link">How it works</a>
       <a href="/blog" class="nav-link">Blog</a>
       <a href="#faq" class="nav-link">FAQ</a>
-      <a href="/changelog" class="nav-link">Changelog</a>
       <a href="/support" class="nav-link">Support</a>
       <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="nav-link" aria-label="TidyByte on GitHub">
         <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
       </a>
     </nav>
 
-    <div class="flex items-center gap-1 sm:gap-1.5">
+    <!-- `relative` is what the language switcher's panel anchors to: the
+         control group ends at the viewport edge, so a panel anchored to the
+         globe button alone would run off-screen on a phone. -->
+    <div class="relative flex items-center gap-1 sm:gap-1.5">
+      <!-- Language switcher: rendered per page by src/layouts/build-page.ts,
+           which knows which language is current. -->
+      <!-- lang-switcher -->
+
       <!-- Theme toggle: Light / Dark / System -->
       <div class="relative">
         <button type="button" data-theme-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Change color theme" class="icon-btn inline-flex h-9 w-9 items-center justify-center rounded-full text-body transition hover:bg-surface-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
           <svg data-theme-icon="sun" aria-hidden="true" focusable="false" class="block dark:hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           <svg data-theme-icon="moon" aria-hidden="true" focusable="false" class="hidden dark:block" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
         </button>
-        <div data-theme-menu role="menu" aria-label="Color theme" class="hidden absolute right-0 top-11 z-50 w-36 rounded-xl border border-hairline bg-surface-card p-1 shadow-pop">
-          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="light" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
+        <div data-theme-menu role="menu" aria-label="Color theme" class="hidden absolute end-0 top-11 z-50 w-36 rounded-xl border border-hairline bg-surface-card p-1 shadow-pop">
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="light" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-start text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
             <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
             Light
-            <span data-theme-dot aria-hidden="true" class="ml-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
+            <span data-theme-dot aria-hidden="true" class="ms-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
           </button>
-          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="dark" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="dark" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-start text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
             <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
             Dark
-            <span data-theme-dot aria-hidden="true" class="ml-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
+            <span data-theme-dot aria-hidden="true" class="ms-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
           </button>
-          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="system" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-option="system" class="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-start text-sm text-body transition hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay-pink/50">
             <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
             System
-            <span data-theme-dot aria-hidden="true" class="ml-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
+            <span data-theme-dot aria-hidden="true" class="ms-auto h-1.5 w-1.5 rounded-full bg-clay-pink opacity-0"></span>
           </button>
         </div>
       </div>
@@ -63,6 +70,7 @@
     <div data-drawer>
       <nav aria-label="Mobile" class="container-prose flex flex-col gap-1 py-3 text-sm">
         <a href="#features" class="nav-link">Features</a>
+        <a href="/photo-cleaner" class="nav-link">Tools</a>
         <a href="#how-it-works" class="nav-link">How it works</a>
         <a href="/blog" class="nav-link">Blog</a>
         <a href="#faq" class="nav-link">FAQ</a>

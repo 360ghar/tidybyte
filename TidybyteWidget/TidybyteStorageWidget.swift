@@ -37,11 +37,40 @@ struct TidybyteStorageWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StorageProvider()) { entry in
             StorageWidgetView(entry: entry)
+                // The widget is its own process with its own bundle, so a
+                // `Text` literal here resolves against the *extension's*
+                // language rather than the app's. When the user overrides the
+                // language in TidyByte's Settings, the app writes
+                // `AppleLanguages` into the app's preferences domain, which the
+                // extension does not read — so the app would be German and the
+                // widget English.
+                //
+                // Injecting the stored choice explicitly closes that gap, and
+                // matches what `RootView` does for the app. Both read the same
+                // App Group value, so the two can never disagree.
+                .environment(\.locale, Self.widgetLocale)
+                .environment(\.layoutDirection, Self.widgetLayoutDirection)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Storage & Cleanup")
         .description("See storage used and how much you can clean up.")
         .supportedFamilies([.systemSmall, .systemMedium])
+    }
+
+    /// The stored language as a `Locale`, or the device locale when the user
+    /// left the choice on Automatic. Region always comes from the device, so a
+    /// US user who picks German still sees US date and number conventions —
+    /// the same rule `Formatters.locale(for:)` applies.
+    private static var widgetLocale: Locale {
+        Formatters.locale(for: LanguagePreferenceStore.stored())
+    }
+
+    /// Arabic and Hebrew mirror the widget's layout; every other language reads
+    /// left to right. Without this the widget stays LTR in those languages
+    /// while the app mirrors.
+    private static var widgetLayoutDirection: LayoutDirection {
+        let resolved = LanguagePreferenceStore.stored() ?? AppLanguage.matchingDeviceLanguage()
+        return resolved?.isRightToLeft == true ? .rightToLeft : .leftToRight
     }
 }
 

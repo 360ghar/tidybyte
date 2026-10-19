@@ -15,6 +15,24 @@ import XCTest
 /// content size category at launch.
 final class DynamicTypeUITests: XCTestCase {
 
+    /// Pins the app to English for the duration of the test.
+    ///
+    /// These assertions match on English labels ("Swipe Through Your Library",
+    /// "Continue"), and the app now ships 20 languages and follows the device
+    /// by default. A simulator left in German — which is what happens after
+    /// anyone checks the German UI by hand — would fail every test here for a
+    /// reason that has nothing to do with layout, which is what they exist to
+    /// measure.
+    ///
+    /// `-AppleLanguages` is the documented launch-argument override, and it
+    /// beats the device setting because `UserDefaults` reads the argument
+    /// domain first. It does not beat the in-app picker: `LanguageStore` reads
+    /// the stored `appLanguagePreference` override before iOS's `AppleLanguages`,
+    /// so a German choice left in the App Group still renders German. The
+    /// `-uitest-reset-onboarding` reset in `RootView` clears that stored
+    /// override, which is why every launch below passes it.
+    static let englishLaunchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+
     /// The largest accessibility size. Anything that survives this survives
     /// every smaller size, because each control's growth is monotonic.
     private static let accessibilityXXXL = "UICTContentSizeCategoryAccessibilityXXXL"
@@ -28,12 +46,14 @@ final class DynamicTypeUITests: XCTestCase {
 
     private func launchAtOnboarding(contentSize: String?) -> XCUIApplication {
         let app = XCUIApplication()
-        // Clears the persisted first-run flag at launch so every test starts
-        // from the same state, independent of what an earlier test left behind.
+        // Clears the persisted first-run flag and the stored language override
+        // at launch so every test starts from the same state, independent of
+        // what an earlier test or a manual language check left behind.
         app.launchArguments = ["-uitest-reset-onboarding"]
         if let contentSize {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", contentSize]
         }
+        app.launchArguments += Self.englishLaunchArguments
         app.launch()
         return app
     }

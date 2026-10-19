@@ -17,9 +17,17 @@ enum AppStoreLinks {
 
     /// Pre-filled share message. `statLine` is what the user accomplished,
     /// e.g. "removed 24 duplicates"; `nil` falls back to generic copy.
+    ///
+    /// Built from `L10n` keys rather than string interpolation: `ShareLink`
+    /// takes a plain `String`, so an interpolated literal here is invisible to
+    /// the extractor and every share would post English.
     static func shareMessage(statLine: String?) -> String {
-        let deed = statLine.map { "I just \($0)" } ?? "I'm cleaning up my photo library"
-        return "\(deed) with TidyByte — a private, on-device photo cleanup app. \(appStoreURL.absoluteString)"
+        let deed = statLine.map { L10n.format("I just %@", $0) } ?? L10n.string("I'm cleaning up my photo library")
+        return L10n.format(
+            "%@ with TidyByte — a private, on-device photo cleanup app. %@",
+            deed,
+            appStoreURL.absoluteString
+        )
     }
 }
 
@@ -164,7 +172,7 @@ struct HappyPathPromptCard: View {
 
     private var question: some View {
         Group {
-            heading("Enjoying TidyByte?", detail: statLine.map { "You just \($0)." })
+            heading("Enjoying TidyByte?", detail: statLine.map { L10n.format("You just %@.", $0) })
             choiceRow(
                 secondary: ("Not really", { step = .feedback }),
                 primary: ("Yes", answerYes)
@@ -174,7 +182,7 @@ struct HappyPathPromptCard: View {
 
     private var rated: some View {
         Group {
-            heading("Thanks for the support", detail: "Your rating helps other people find TidyByte.")
+            heading("Thanks for the support", detail: L10n.string("Your rating helps other people find TidyByte."))
             choiceButton("Done", prominent: true, action: onClose)
             // Fallback: iOS may suppress the rating sheet with no signal.
             ViewThatFits(in: .horizontal) {
@@ -203,14 +211,17 @@ struct HappyPathPromptCard: View {
 
     /// What the feedback step explains: the failure from the last attempt wins,
     /// then the no-account fallback, then the plain ask.
+    ///
+    /// `L10n` rather than `Text`: the address is interpolated at runtime, so
+    /// the sentence is built here as a `String`.
     private var feedbackDetail: String {
         if mailSendFailed {
-            return "The message couldn't be sent. Try again, or email us at \(FeedbackMail.address)."
+            return L10n.format("The message couldn't be sent. Try again, or email us at %@.", FeedbackMail.address)
         }
         if mailUnavailable {
-            return "No mail account is set up on this device. Email us at \(FeedbackMail.address)."
+            return L10n.format("No mail account is set up on this device. Email us at %@.", FeedbackMail.address)
         }
-        return "Tell us what got in the way."
+        return L10n.string("Tell us what got in the way.")
     }
 
     private var feedback: some View {
@@ -250,7 +261,10 @@ struct HappyPathPromptCard: View {
 
     // MARK: - Building Blocks
 
-    private func heading(_ title: String, detail: String?) -> some View {
+    /// `title` is a key because every call site passes a literal. `detail`
+    /// stays a `String`: the question and feedback steps build theirs at
+    /// runtime, so those literals go through `L10n` instead.
+    private func heading(_ title: LocalizedStringKey, detail: String?) -> some View {
         VStack(spacing: Spacing.sm) {
             Text(title)
                 .font(.title3.bold())
@@ -267,9 +281,12 @@ struct HappyPathPromptCard: View {
 
     /// Two equal-width filled buttons; stacks vertically when the text is too
     /// large to fit side by side.
+    ///
+    /// Titles are keys, not `String`s: every call site passes a literal (the
+    /// send button picks between two), and a `String` would render it raw.
     private func choiceRow(
-        secondary: (title: String, action: () -> Void),
-        primary: (title: String, action: () -> Void)
+        secondary: (title: LocalizedStringKey, action: () -> Void),
+        primary: (title: LocalizedStringKey, action: () -> Void)
     ) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: Spacing.md) {
@@ -283,7 +300,7 @@ struct HappyPathPromptCard: View {
         }
     }
 
-    private func choiceButton(_ title: String, prominent: Bool, action: @escaping () -> Void) -> some View {
+    private func choiceButton(_ title: LocalizedStringKey, prominent: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.headline)

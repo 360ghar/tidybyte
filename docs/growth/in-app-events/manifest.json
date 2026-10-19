@@ -1,0 +1,1275 @@
+{
+  "surface": "in-app-events",
+  "title": "In-App Events",
+  "purpose": "Timed events shown on the product page, in search, and in the Today-style event feed. Each event needs a card image and a details image, and both must be localized. Apple allows 10 live events at a time.",
+  "generatedFrom": {
+    "art": [
+      "docs/growth/art/duplicates.png",
+      "docs/growth/art/screenshots.png",
+      "docs/growth/art/cleanup.png"
+    ],
+    "copy": "Tidybyte/Resources/Localizable.xcstrings + docs/appstore/listings.json"
+  },
+  "assets": [
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ar",
+      "file": "by-language/duplicate-finder--eventCard--ar.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "bn",
+      "file": "by-language/duplicate-finder--eventCard--bn.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "de",
+      "file": "by-language/duplicate-finder--eventCard--de.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "en",
+      "file": "by-language/duplicate-finder--eventCard--en.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "es",
+      "file": "by-language/duplicate-finder--eventCard--es.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "fr",
+      "file": "by-language/duplicate-finder--eventCard--fr.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "gu",
+      "file": "by-language/duplicate-finder--eventCard--gu.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "he",
+      "file": "by-language/duplicate-finder--eventCard--he.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "hi",
+      "file": "by-language/duplicate-finder--eventCard--hi.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "it",
+      "file": "by-language/duplicate-finder--eventCard--it.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ja",
+      "file": "by-language/duplicate-finder--eventCard--ja.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "kn",
+      "file": "by-language/duplicate-finder--eventCard--kn.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ko",
+      "file": "by-language/duplicate-finder--eventCard--ko.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ml",
+      "file": "by-language/duplicate-finder--eventCard--ml.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "mr",
+      "file": "by-language/duplicate-finder--eventCard--mr.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "pa",
+      "file": "by-language/duplicate-finder--eventCard--pa.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "pt-BR",
+      "file": "by-language/duplicate-finder--eventCard--pt-BR.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ru",
+      "file": "by-language/duplicate-finder--eventCard--ru.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ta",
+      "file": "by-language/duplicate-finder--eventCard--ta.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "te",
+      "file": "by-language/duplicate-finder--eventCard--te.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "zh-Hans",
+      "file": "by-language/duplicate-finder--eventCard--zh-Hans.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ar",
+      "file": "by-language/duplicate-finder--eventDetails--ar.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "bn",
+      "file": "by-language/duplicate-finder--eventDetails--bn.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "de",
+      "file": "by-language/duplicate-finder--eventDetails--de.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "en",
+      "file": "by-language/duplicate-finder--eventDetails--en.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "es",
+      "file": "by-language/duplicate-finder--eventDetails--es.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "fr",
+      "file": "by-language/duplicate-finder--eventDetails--fr.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "gu",
+      "file": "by-language/duplicate-finder--eventDetails--gu.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "he",
+      "file": "by-language/duplicate-finder--eventDetails--he.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "hi",
+      "file": "by-language/duplicate-finder--eventDetails--hi.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "it",
+      "file": "by-language/duplicate-finder--eventDetails--it.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ja",
+      "file": "by-language/duplicate-finder--eventDetails--ja.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "kn",
+      "file": "by-language/duplicate-finder--eventDetails--kn.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ko",
+      "file": "by-language/duplicate-finder--eventDetails--ko.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ml",
+      "file": "by-language/duplicate-finder--eventDetails--ml.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "mr",
+      "file": "by-language/duplicate-finder--eventDetails--mr.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "pa",
+      "file": "by-language/duplicate-finder--eventDetails--pa.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "pt-BR",
+      "file": "by-language/duplicate-finder--eventDetails--pt-BR.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ru",
+      "file": "by-language/duplicate-finder--eventDetails--ru.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ta",
+      "file": "by-language/duplicate-finder--eventDetails--ta.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "te",
+      "file": "by-language/duplicate-finder--eventDetails--te.png"
+    },
+    {
+      "group": "duplicate-finder",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "zh-Hans",
+      "file": "by-language/duplicate-finder--eventDetails--zh-Hans.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ar",
+      "file": "by-language/screenshot-cleanup--eventCard--ar.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "bn",
+      "file": "by-language/screenshot-cleanup--eventCard--bn.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "de",
+      "file": "by-language/screenshot-cleanup--eventCard--de.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "en",
+      "file": "by-language/screenshot-cleanup--eventCard--en.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "es",
+      "file": "by-language/screenshot-cleanup--eventCard--es.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "fr",
+      "file": "by-language/screenshot-cleanup--eventCard--fr.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "gu",
+      "file": "by-language/screenshot-cleanup--eventCard--gu.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "he",
+      "file": "by-language/screenshot-cleanup--eventCard--he.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "hi",
+      "file": "by-language/screenshot-cleanup--eventCard--hi.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "it",
+      "file": "by-language/screenshot-cleanup--eventCard--it.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ja",
+      "file": "by-language/screenshot-cleanup--eventCard--ja.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "kn",
+      "file": "by-language/screenshot-cleanup--eventCard--kn.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ko",
+      "file": "by-language/screenshot-cleanup--eventCard--ko.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ml",
+      "file": "by-language/screenshot-cleanup--eventCard--ml.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "mr",
+      "file": "by-language/screenshot-cleanup--eventCard--mr.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "pa",
+      "file": "by-language/screenshot-cleanup--eventCard--pa.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "pt-BR",
+      "file": "by-language/screenshot-cleanup--eventCard--pt-BR.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ru",
+      "file": "by-language/screenshot-cleanup--eventCard--ru.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ta",
+      "file": "by-language/screenshot-cleanup--eventCard--ta.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "te",
+      "file": "by-language/screenshot-cleanup--eventCard--te.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "zh-Hans",
+      "file": "by-language/screenshot-cleanup--eventCard--zh-Hans.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ar",
+      "file": "by-language/screenshot-cleanup--eventDetails--ar.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "bn",
+      "file": "by-language/screenshot-cleanup--eventDetails--bn.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "de",
+      "file": "by-language/screenshot-cleanup--eventDetails--de.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "en",
+      "file": "by-language/screenshot-cleanup--eventDetails--en.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "es",
+      "file": "by-language/screenshot-cleanup--eventDetails--es.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "fr",
+      "file": "by-language/screenshot-cleanup--eventDetails--fr.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "gu",
+      "file": "by-language/screenshot-cleanup--eventDetails--gu.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "he",
+      "file": "by-language/screenshot-cleanup--eventDetails--he.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "hi",
+      "file": "by-language/screenshot-cleanup--eventDetails--hi.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "it",
+      "file": "by-language/screenshot-cleanup--eventDetails--it.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ja",
+      "file": "by-language/screenshot-cleanup--eventDetails--ja.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "kn",
+      "file": "by-language/screenshot-cleanup--eventDetails--kn.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ko",
+      "file": "by-language/screenshot-cleanup--eventDetails--ko.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ml",
+      "file": "by-language/screenshot-cleanup--eventDetails--ml.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "mr",
+      "file": "by-language/screenshot-cleanup--eventDetails--mr.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "pa",
+      "file": "by-language/screenshot-cleanup--eventDetails--pa.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "pt-BR",
+      "file": "by-language/screenshot-cleanup--eventDetails--pt-BR.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ru",
+      "file": "by-language/screenshot-cleanup--eventDetails--ru.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ta",
+      "file": "by-language/screenshot-cleanup--eventDetails--ta.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "te",
+      "file": "by-language/screenshot-cleanup--eventDetails--te.png"
+    },
+    {
+      "group": "screenshot-cleanup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "zh-Hans",
+      "file": "by-language/screenshot-cleanup--eventDetails--zh-Hans.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ar",
+      "file": "by-language/storage-checkup--eventCard--ar.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "bn",
+      "file": "by-language/storage-checkup--eventCard--bn.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "de",
+      "file": "by-language/storage-checkup--eventCard--de.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "en",
+      "file": "by-language/storage-checkup--eventCard--en.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "es",
+      "file": "by-language/storage-checkup--eventCard--es.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "fr",
+      "file": "by-language/storage-checkup--eventCard--fr.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "gu",
+      "file": "by-language/storage-checkup--eventCard--gu.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "he",
+      "file": "by-language/storage-checkup--eventCard--he.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "hi",
+      "file": "by-language/storage-checkup--eventCard--hi.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "it",
+      "file": "by-language/storage-checkup--eventCard--it.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ja",
+      "file": "by-language/storage-checkup--eventCard--ja.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "kn",
+      "file": "by-language/storage-checkup--eventCard--kn.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ko",
+      "file": "by-language/storage-checkup--eventCard--ko.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ml",
+      "file": "by-language/storage-checkup--eventCard--ml.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "mr",
+      "file": "by-language/storage-checkup--eventCard--mr.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "pa",
+      "file": "by-language/storage-checkup--eventCard--pa.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "pt-BR",
+      "file": "by-language/storage-checkup--eventCard--pt-BR.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ru",
+      "file": "by-language/storage-checkup--eventCard--ru.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "ta",
+      "file": "by-language/storage-checkup--eventCard--ta.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "te",
+      "file": "by-language/storage-checkup--eventCard--te.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventCard",
+      "specLabel": "In-App Event card",
+      "ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "language": "zh-Hans",
+      "file": "by-language/storage-checkup--eventCard--zh-Hans.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ar",
+      "file": "by-language/storage-checkup--eventDetails--ar.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "bn",
+      "file": "by-language/storage-checkup--eventDetails--bn.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "de",
+      "file": "by-language/storage-checkup--eventDetails--de.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "en",
+      "file": "by-language/storage-checkup--eventDetails--en.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "es",
+      "file": "by-language/storage-checkup--eventDetails--es.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "fr",
+      "file": "by-language/storage-checkup--eventDetails--fr.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "gu",
+      "file": "by-language/storage-checkup--eventDetails--gu.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "he",
+      "file": "by-language/storage-checkup--eventDetails--he.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "hi",
+      "file": "by-language/storage-checkup--eventDetails--hi.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "it",
+      "file": "by-language/storage-checkup--eventDetails--it.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ja",
+      "file": "by-language/storage-checkup--eventDetails--ja.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "kn",
+      "file": "by-language/storage-checkup--eventDetails--kn.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ko",
+      "file": "by-language/storage-checkup--eventDetails--ko.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ml",
+      "file": "by-language/storage-checkup--eventDetails--ml.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "mr",
+      "file": "by-language/storage-checkup--eventDetails--mr.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "pa",
+      "file": "by-language/storage-checkup--eventDetails--pa.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "pt-BR",
+      "file": "by-language/storage-checkup--eventDetails--pt-BR.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ru",
+      "file": "by-language/storage-checkup--eventDetails--ru.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "ta",
+      "file": "by-language/storage-checkup--eventDetails--ta.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "te",
+      "file": "by-language/storage-checkup--eventDetails--te.png"
+    },
+    {
+      "group": "storage-checkup",
+      "spec": "eventDetails",
+      "specLabel": "In-App Event details",
+      "ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "language": "zh-Hans",
+      "file": "by-language/storage-checkup--eventDetails--zh-Hans.png"
+    }
+  ]
+}

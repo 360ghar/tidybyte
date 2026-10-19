@@ -92,7 +92,9 @@ struct PhotoPermissionView: View {
         .glassCard()
     }
 
-    private func capability(icon: String, text: String) -> some View {
+    /// `LocalizedStringKey`, not `String`: the bullets are literals passed
+    /// straight to `Text`, and a `String` parameter would render them raw.
+    private func capability(icon: String, text: LocalizedStringKey) -> some View {
         HStack(spacing: Spacing.md) {
             Image(systemName: icon)
                 .font(.subheadline)
@@ -142,7 +144,9 @@ struct PhotoPermissionView: View {
         }
     }
 
-    private func primaryLabel(_ title: String, icon: String) -> some View {
+    /// Same reason as `capability`: `Label(String, systemImage:)` does not
+    /// localize, so the title has to stay a key.
+    private func primaryLabel(_ title: LocalizedStringKey, icon: String) -> some View {
         Label(title, systemImage: icon)
             .font(.headline)
             .frame(maxWidth: .infinity)

@@ -2,16 +2,79 @@ import SwiftUI
 import AVFoundation
 import AVKit
 
+/// Image-request policy for one swipe card: how many pixels to ask for, and
+/// when a resize invalidates the decode that is already on screen.
+///
+/// Pure value logic so both rules are unit-testable. The alternative proof —
+/// folding the device mid-session — needs a foldable runtime, which is not
+/// installed in this environment.
+enum CardImageRequest {
+    /// Floor for every request. Both inputs can be unmeasured on the first
+    /// layout pass (the deck has not published a target, the card has not
+    /// reported its frame), and a `.zero` target is a degenerate
+    /// `PHImageManager` request that can return nothing at all. 64 px is far
+    /// below any real card, and the true target replaces it on the next pass.
+    static let minimumPixels: CGFloat = 64
+
+    /// Targets within this many pixels of each other are the same decode. The
+    /// deck's rect and a card's rect are one rect reported by two geometry
+    /// observers, so they can differ in the last fraction of a point; without
+    /// the tolerance that rounding would trigger a redundant reload whose only
+    /// effect is a second cached lookup.
+    static let targetTolerance: CGFloat = 0.5
+
+    /// Pixel size to request this card's image at. The deck's published target
+    /// is preferred: the session prefetches the same pixels, so one decode
+    /// serves both. Before the deck has measured itself, this card's own frame
+    /// is the same rect (the deck forces every card to its own size), so the
+    /// fallback cannot disagree with it. Either way the result is floored, so a
+    /// request is never degenerate.
+    static func size(deckTarget: CGSize, frame: CGSize, displayScale: CGFloat) -> CGSize {
+        let target = deckTarget != .zero
+            ? deckTarget
+            : CGSize(width: frame.width * displayScale, height: frame.height * displayScale)
+        return CGSize(
+            width: max(target.width, minimumPixels),
+            height: max(target.height, minimumPixels)
+        )
+    }
+
+    /// Whether the on-screen image is stale because the render target moved
+    /// under it. False when nothing is on screen yet (the first load is the
+    /// `.task`'s job), false for an unmeasured target, and false when the
+    /// target is the one the visible image was decoded at — so an ordinary
+    /// layout pass, which republishes the same target, cannot restart the load.
+    static func shouldReload(
+        currentTarget: CGSize,
+        lastRequestedTarget: CGSize,
+        hasImage: Bool
+    ) -> Bool {
+        guard hasImage, currentTarget != .zero else { return false }
+        return abs(currentTarget.width - lastRequestedTarget.width) > targetTolerance
+            || abs(currentTarget.height - lastRequestedTarget.height) > targetTolerance
+    }
+}
+
 struct CardView: View {
     let asset: AssetSummary
     let photoService: PhotoLibraryService
     let isTopCard: Bool
+    /// Pixel size of this card's render area, published by `SwipeCardDeck`
+    /// (deck size × display scale). The session prefetch requests the same
+    /// pixels, so the card's own load reuses that cached decode instead of
+    /// fetching its own. `.zero` until the deck has measured itself, in which
+    /// case this card's own frame is the same rect (see `pixelTarget(for:)`).
+    var renderTarget: CGSize = .zero
     var reviewReason: String? = nil
 
     /// Drag position for the top card (the deck's live motion) or a departing
     /// card (its fling target); nil for the cards behind. Read only by the
     /// root offset and the stamp overlay, so a drag frame re-renders little.
     var motion: CardMotion? = nil
+    /// True in an Arabic or Hebrew layout. The deck's commit policy mirrors the
+    /// horizontal axis there (see `SwipeDirection.resolve`), so the drag stamps
+    /// must mirror with it or the screen names the wrong action.
+    var isRightToLeft: Bool = false
     /// Incremented by SwipeSessionView's "Zoom" accessibility action; CardView
     /// toggles zoom on change (only the top card receives a non-zero value).
     var zoomToggleRequest: Int = 0
@@ -33,7 +96,7 @@ struct CardView: View {
     /// put a different card on top, and the deck must drop the gesture rather
     /// than apply it to the wrong photo.
     var onSwipeDragChanged: ((String, CGSize) -> Void)? = nil
-    var onSwipeDragEnded: ((String, DragGesture.Value, CGFloat) -> Void)? = nil
+    var onSwipeDragEnded: ((String, DragGesture.Value, CGSize) -> Void)? = nil
     /// Called with the asset id once the card image is on screen. The deck
     /// blocks Delete until then, so the user never deletes a photo they did
     /// not see.
@@ -70,7 +133,20 @@ struct CardView: View {
     /// (mirrors `panStartOffset`; `MagnifyGesture` restarts at 1.0).
     @State private var pinchStartScale: CGFloat?
 
+    /// This card's own frame, tracked so the non-body call sites (the full-res
+    /// swap) and a live resize can work from the current rect rather than a
+    /// captured one.
+    @State private var cardFrame: CGSize = .zero
+    /// The render target the image on screen was decoded at. `.zero` until the
+    /// first load lands; compared against the deck's live target so a resize
+    /// re-requests the decode instead of leaving the visible photo soft until
+    /// the card leaves the deck.
+    @State private var loadedTarget: CGSize = .zero
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Pixel density of this card's window, for the image request size. From
+    /// the environment, so it follows the window instead of the screen.
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         GeometryReader { geometry in
@@ -196,7 +272,7 @@ struct CardView: View {
 
                 // Swipe indicators
                 if let motion {
-                    SwipeStampOverlay(motion: motion)
+                    SwipeStampOverlay(motion: motion, isRightToLeft: isRightToLeft)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
@@ -221,9 +297,22 @@ struct CardView: View {
                 guard zoomToggleRequest > 0 else { return }
                 toggleZoom(frame: geometry.size)
             }
+            // The load lives inside the reader because its target is this card's
+            // own frame: issuing it from outside would race the first layout and
+            // could request a zero-size image.
+            .task {
+                await loadImage(frame: geometry.size)
+            }
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { newSize in
+                cardFrame = newSize
+                reflowZoom(to: newSize)
+            }
         }
-        .task {
-            await loadImage()
+        .onChange(of: renderTarget) { _, newTarget in
+            // The deck resized and republished its render target: the image on
+            // screen was decoded for the old rect, so fetch the new one now
+            // rather than leaving it soft until the card leaves the deck.
+            reloadImageIfTargetMoved(to: newTarget)
         }
         .onDisappear {
             // The card left the deck — tear down playback so the player item
@@ -333,7 +422,7 @@ struct CardView: View {
         }
     }
 
-    private func loadImage() async {
+    private func loadImage(frame: CGSize) async {
         // Serialize: a retry while the initial load is still in flight is
         // ignored instead of racing it with two unordered completions.
         guard !isLoadingImage else { return }
@@ -342,26 +431,79 @@ struct CardView: View {
             isLoadingImage = false
             imageLoadTask = nil
         }
-        // Full-screen pixel size matches the swipe session's prefetch target so the
-        // cached image is reused instead of re-fetched. Avoids deprecated UIScreen.main.
-        let loaded = await photoService.loadImage(for: asset.id, targetSize: ScreenMetrics.pixelSize)
-        // The card may have left the deck (or been cancelled) while loading —
-        // a late success must not show, or report the image as shown off-deck.
-        guard !Task.isCancelled else { return }
-        withAnimation(.easeIn(duration: 0.3)) {
-            image = loaded
-            loadFailed = loaded == nil
+        var requested = pixelTarget(for: frame)
+        while true {
+            // Card-sized pixels, the same target the session prefetches, so the
+            // cached decode is reused instead of re-fetched.
+            let loaded = await photoService.loadImage(for: asset.id, targetSize: requested)
+            // The card may have left the deck (or been cancelled) while loading —
+            // a late success must not show, or report the image as shown off-deck.
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeIn(duration: 0.3)) {
+                image = loaded
+                loadFailed = loaded == nil
+            }
+            if loaded != nil {
+                loadedTarget = requested
+                onImageShown?(asset.id)
+            }
+            // A resize that landed while the request was in flight (a fold,
+            // unfold, or any container change) leaves the image decoded for the
+            // old rect. Re-request the target the card renders at now, inside
+            // this same task, rather than waiting for the card to leave the
+            // deck. This also covers a resize that arrives between the deck's
+            // republish and this check, which the `renderTarget` observer alone
+            // would drop while `isLoadingImage` was set.
+            let current = pixelTarget(for: cardFrame)
+            guard CardImageRequest.shouldReload(
+                currentTarget: current,
+                lastRequestedTarget: requested,
+                hasImage: loaded != nil
+            ) else { return }
+            requested = current
         }
-        if loaded != nil {
-            onImageShown?(asset.id)
-        }
+    }
+
+    /// Re-requests the image when a resize moved the render target under an
+    /// already-displayed one. Silent while nothing is on screen (the first load
+    /// owns that) and while a load is in flight (that load's own loop re-checks
+    /// the target when it lands), so an ordinary layout pass — which republishes
+    /// the same target — cannot restart anything. A failed load is left to the
+    /// user's Try Again, exactly as before.
+    private func reloadImageIfTargetMoved(to newTarget: CGSize) {
+        guard CardImageRequest.shouldReload(
+            currentTarget: newTarget,
+            lastRequestedTarget: loadedTarget,
+            hasImage: image != nil
+        ) else { return }
+        imageLoadTask?.cancel()
+        imageLoadTask = Task { await loadImage(frame: cardFrame) }
     }
 
     private func retryLoad() {
         guard image == nil, loadFailed, !isLoadingImage else { return }
         loadFailed = false
         imageLoadTask?.cancel()
-        imageLoadTask = Task { await loadImage() }
+        // The card has been on screen (and so measured) since the first attempt.
+        imageLoadTask = Task { await loadImage(frame: cardFrame) }
+    }
+
+    /// The failure headline, as four whole sentences rather than one assembled
+    /// from fragments.
+    ///
+    /// The original built it from five pieces (`"load"`, `"video"`, `" from
+    /// iCloud"`, …) interpolated into `"Couldn't %@ this %@%@."`. That template
+    /// is in the catalog, so it *looks* localized, but its German form is
+    /// `"%@ dieses %@%@ nicht möglich."` — the fragments go in unchanged, so a
+    /// German user read "load dieses video nicht möglich." No language can
+    /// reorder a sentence it never sees whole.
+    private var loadFailureMessage: String {
+        switch (asset.isLocallyAvailable, asset.mediaType == .video) {
+        case (true, false): L10n.string("Couldn't load this photo.")
+        case (true, true): L10n.string("Couldn't load this video.")
+        case (false, false): L10n.string("Couldn't download this photo from iCloud.")
+        case (false, true): L10n.string("Couldn't download this video from iCloud.")
+        }
     }
 
     private var loadFailedView: some View {
@@ -369,7 +511,7 @@ struct CardView: View {
             Image(systemName: asset.isLocallyAvailable ? "exclamationmark.triangle" : "icloud.slash")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
-            Text("Couldn't \(asset.isLocallyAvailable ? "load" : "download") this \(asset.mediaType == .video ? "video" : "photo")\(asset.isLocallyAvailable ? "" : " from iCloud").")
+            Text(loadFailureMessage)
                 .font(.headline)
                 .multilineTextAlignment(.center)
             Text("You can keep or skip it. Delete is off until it shows.")
@@ -433,7 +575,7 @@ struct CardView: View {
                 if zoomState.isZoomed {
                     panStartOffset = nil
                 } else {
-                    onSwipeDragEnded?(asset.id, value, frame.width)
+                    onSwipeDragEnded?(asset.id, value, frame)
                 }
             }
     }
@@ -462,7 +604,10 @@ struct CardView: View {
         guard longest > 0 else { return }
         let factor = min(1.0, maxDimension / longest)
         let target = CGSize(width: width * factor, height: height * factor)
-        guard target.width > ScreenMetrics.pixelSize.width else { return }
+        // Upsample gate: both sides are the card's own render size now, so a
+        // deck that is short or narrow relative to the screen can no longer
+        // disable the swap and leave deep zoom soft.
+        guard target.width > pixelTarget(for: cardFrame).width else { return }
         fullResTask = Task { @MainActor in
             let loaded = await photoService.loadImage(for: asset.id, targetSize: target)
             guard !Task.isCancelled else { return }
@@ -496,6 +641,26 @@ struct CardView: View {
         } else {
             return CGSize(width: frame.width, height: frame.width / aspect)
         }
+    }
+
+    /// Pixel size to request this card's image at. See `CardImageRequest` for
+    /// the deck-target preference, the frame fallback, and the floor that keeps
+    /// a first-layout request from being degenerate.
+    private func pixelTarget(for frame: CGSize) -> CGSize {
+        CardImageRequest.size(deckTarget: renderTarget, frame: frame, displayScale: displayScale)
+    }
+
+    /// A live resize (fold/unfold, Split View, Stage Manager) invalidates the
+    /// frame the zoom offset was clamped against — a pan can be left hanging
+    /// past an edge the card no longer has. Re-clamp against the new frame, and
+    /// drop the captured gesture bases so a pan straddling the resize restarts
+    /// from the re-clamped offset instead of adding deltas measured in the old
+    /// frame. Scale is untouched (the photo is not resized, the card is).
+    private func reflowZoom(to frame: CGSize) {
+        guard zoomState.isZoomed else { return }
+        panStartOffset = nil
+        pinchStartScale = nil
+        zoomState.setScale(zoomState.scale, frame: frame, contentSize: renderedContentSize(for: frame))
     }
 
     private func startPlayback() {
@@ -532,9 +697,16 @@ struct CardView: View {
 /// view so a drag frame re-evaluates only this and the root offset.
 private struct SwipeStampOverlay: View {
     let motion: CardMotion
+    /// Mirrors the DELETE/KEEP pair for Arabic and Hebrew, matching the action
+    /// the deck will commit. The ALBUM stamp below is left alone: up is up in
+    /// both directions.
+    let isRightToLeft: Bool
 
-    private var deleteOpacity: Double { min(max(-Double(motion.offset.width) / 150.0, 0), 1.0) }
-    private var keepOpacity: Double { min(max(Double(motion.offset.width) / 150.0, 0), 1.0) }
+    private var stamps: (delete: Double, keep: Double) {
+        SwipeDirection.stampOpacities(offset: motion.offset, isRightToLeft: isRightToLeft)
+    }
+    private var deleteOpacity: Double { stamps.delete }
+    private var keepOpacity: Double { stamps.keep }
     private var albumOpacity: Double { min(max(-Double(motion.offset.height) / 150.0, 0), 1.0) }
 
     var body: some View {

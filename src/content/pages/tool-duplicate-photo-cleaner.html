@@ -1,0 +1,50 @@
+<!-- 01 · Where duplicates come from -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Where iPhone duplicate photos actually come from</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Nobody takes the same photo twice on purpose. Duplicates are created by the machinery around your library, and once you know the six usual sources, a library full of them stops being mysterious.</p>
+    <ul role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Backup restores.</strong> Restoring from an iCloud or computer backup can re-import photos that were already in the library, producing byte-identical copies.</li>
+      <li><strong class="text-ink">iCloud sync conflicts.</strong> Turning iCloud Photos off and on again, or moving between devices, can leave the service holding two records of the same asset.</li>
+      <li><strong class="text-ink">Messaging apps.</strong> WhatsApp, Telegram and others auto-save received images into your library, including photos you took yourself and sent.</li>
+      <li><strong class="text-ink">Editing apps.</strong> Exporting from an editor often saves a new file next to the original rather than replacing it.</li>
+      <li><strong class="text-ink">Older HDR behaviour.</strong> iPhones before the XS could save both the standard and the merged HDR exposure of a shot.</li>
+      <li><strong class="text-ink">Third-party downloads.</strong> Anything that saves images &mdash; a scanner, a browser, a social app &mdash; can add a second copy of a photo you already had.</li>
+    </ul>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">A five-year-old library has usually accumulated duplicates from three or more of those sources, which is why manual cleanup feels endless: you are looking for a needle in a haystack that keeps refilling.</p>
+  </div>
+</section>
+
+<!-- 02 · Exact vs visual -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Exact duplicates versus similar photos</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Two photos can look the same and be different files, and the distinction decides how confident you are allowed to be.</p>
+    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-ink">Exact duplicates</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">Identical file data. TidyByte streams each file through SHA-256 and pairs only true matches, so a &ldquo;duplicate&rdquo; is not a guess based on file name or date. These are always safe to collapse to one copy.</p>
+      </div>
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-ink">Visually similar</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">Different files of the same moment: the same shot re-saved at another size, or two frames from a burst. TidyByte compares Apple Vision feature prints, then shows each group so you can choose the keeper.</p>
+      </div>
+    </div>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Because the two cases carry different risk, they are separate tools in the app. Clear the exact duplicates without thinking, then take a minute over the similar shots. The combined view, when you want it, lists both without double-counting an asset.</p>
+  </div>
+</section>
+
+<!-- 03 · Reviewing a group -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">How the review screen keeps you out of trouble</h2>
+    <ol role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Groups, not a list.</strong> Each duplicate set is shown together with thumbnails and metadata, so you are deciding within a group rather than scrolling a flat list.</li>
+      <li><strong class="text-ink">A recommended keeper.</strong> Resolution, file size and favourite status pick the best copy, and you can override it with a tap.</li>
+      <li><strong class="text-ink">Per-group control.</strong> Delete one group, select everything, or skip the groups you are unsure about. There is no all-or-nothing button.</li>
+      <li><strong class="text-ink">A single confirmation.</strong> Deletion runs as one Photos change request, so iOS asks once and the operation is atomic.</li>
+      <li><strong class="text-ink">A 30-day undo.</strong> Everything removed goes to Recently Deleted, exactly as if you had deleted it in Photos.</li>
+    </ol>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">One honest caveat: photos that exist only in iCloud take time to download, so the scan reports how many it skipped instead of silently stalling. If a large share of your library is cloud-only, downloading it first gives a more complete scan.</p>
+  </div>
+</section>

@@ -178,11 +178,11 @@ final class StorageDashboardViewModel {
     /// PhotoKit; the widget/scan use the same `MediaLibraryStats` builder).
     nonisolated static func makeCategories(from stats: MediaLibraryStats) -> [StorageCategory] {
         [
-            StorageCategory(id: "photos", name: "Photos", bytes: stats.photoBytes, count: stats.photoCount, color: .blue),
-            StorageCategory(id: "videos", name: "Videos", bytes: stats.videoBytes, count: stats.videoCount, color: .purple),
-            StorageCategory(id: "screenshots", name: "Screenshots", bytes: stats.screenshotBytes, count: stats.screenshotCount, color: .yellow),
-            StorageCategory(id: "livePhotos", name: "Live Photos", bytes: stats.livePhotoBytes, count: stats.livePhotoCount, color: .teal),
-            StorageCategory(id: "other", name: "Other", bytes: stats.otherBytes, count: stats.otherCount, color: .gray),
+            StorageCategory(id: "photos", name: L10n.string("Photos"), bytes: stats.photoBytes, count: stats.photoCount, color: .blue),
+            StorageCategory(id: "videos", name: L10n.string("Videos"), bytes: stats.videoBytes, count: stats.videoCount, color: .purple),
+            StorageCategory(id: "screenshots", name: L10n.string("Screenshots"), bytes: stats.screenshotBytes, count: stats.screenshotCount, color: .yellow),
+            StorageCategory(id: "livePhotos", name: L10n.string("Live Photos"), bytes: stats.livePhotoBytes, count: stats.livePhotoCount, color: .teal),
+            StorageCategory(id: "other", name: L10n.string("Other"), bytes: stats.otherBytes, count: stats.otherCount, color: .gray),
         ].filter { $0.bytes > 0 }
     }
 
@@ -214,28 +214,28 @@ final class StorageDashboardViewModel {
             let (title, detail, color, action): (String, String, Color, StorageAction)
             switch bucket.key {
             case "screenshots":
-                title = "\(bucket.count) screenshots"
-                detail = "Free up \(bucket.bytes.formattedFileSize)"
+                title = L10n.format("%lld screenshot", fallback: "%lld screenshots", bucket.count)
+                detail = L10n.format("Free up %@", bucket.bytes.formattedFileSize)
                 color = .yellow
                 action = .cleanup(.screenshots)
             case "livePhotos":
-                title = "\(bucket.count) Live Photos"
-                detail = "Save ~\(bucket.bytes.formattedFileSize) by converting"
+                title = L10n.format("%lld Live Photos", bucket.count)
+                detail = L10n.format("Save ~%@ by converting", bucket.bytes.formattedFileSize)
                 color = .green
                 action = .cleanup(.livePhotos)
             case "largeVideos":
-                title = "\(bucket.count) videos over \(ReclaimBucketer.largeVideoByteThreshold / 1_000_000) MB"
-                detail = "Compress to save ~\(bucket.bytes.formattedFileSize)"
+                title = L10n.format("%lld videos over %lld MB", bucket.count, ReclaimBucketer.largeVideoByteThreshold / 1_000_000)
+                detail = L10n.format("Compress to save ~%@", bucket.bytes.formattedFileSize)
                 color = .indigo
                 action = .cleanup(.videoCompression)
             case "savedFromApps":
-                title = "\(bucket.count) saved from apps"
-                detail = "\(bucket.bytes.formattedFileSize) total"
+                title = L10n.format("%lld saved from apps", bucket.count)
+                detail = L10n.format("%@ total", bucket.bytes.formattedFileSize)
                 color = .orange
                 action = .swipe(.customAssetIds(Set(bucket.ids)))
             case "largeFiles":
-                title = "\(bucket.count) large files"
-                detail = "\(bucket.bytes.formattedFileSize) total"
+                title = L10n.format("%lld large file", fallback: "%lld large files", bucket.count)
+                detail = L10n.format("%@ total", bucket.bytes.formattedFileSize)
                 color = .purple
                 action = .cleanup(.largeFiles)
             default:
@@ -300,7 +300,7 @@ final class StorageDashboardViewModel {
             if rhs.key == 0 { return true }
             return lhs.key > rhs.key
         }.map { year, value in
-            let label = year == 0 ? "Unknown" : "\(year)"
+            let label = year == 0 ? L10n.string("Unknown") : "\(year)"
             return StorageBreakdownBucket(
                 id: label,
                 label: label,
@@ -315,13 +315,13 @@ final class StorageDashboardViewModel {
             let label: String
             switch origin {
             case .camera:
-                label = "Camera"
+                label = L10n.string("Camera")
             case .savedFromApp:
-                label = "Saved from Apps"
+                label = L10n.string("Saved from Apps")
             case .screenshot:
-                label = "Screenshots"
+                label = L10n.string("Screenshots")
             case .unknown:
-                label = "Unknown"
+                label = L10n.string("Unknown")
             }
             return StorageBreakdownBucket(
                 id: origin.rawValue,

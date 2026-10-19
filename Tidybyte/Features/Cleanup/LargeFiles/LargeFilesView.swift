@@ -36,14 +36,16 @@ struct LargeFilesView: View {
 
                         Picker("Filter", selection: $viewModel.mediaFilter) {
                             ForEach(LargeFileFilter.allCases, id: \.self) { filter in
-                                Text(filter.rawValue).tag(filter)
+                                // Keys, not rendered `String`s, so both control
+                                // labels follow a language switch. See `RootView`.
+                                Text(LocalizedStringKey(filter.displayName)).tag(filter)
                             }
                         }
                         .pickerStyle(.segmented)
 
                         Picker("Sort", selection: $viewModel.sortOrder) {
                             ForEach(LargeFileSortOrder.allCases, id: \.self) { order in
-                                Text(order.rawValue).tag(order)
+                                Text(LocalizedStringKey(order.displayName)).tag(order)
                             }
                         }
                         .pickerStyle(.menu)
@@ -109,7 +111,7 @@ struct LargeFilesView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.35, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.isLoading)
-        .navigationTitle("Large Files")
+        .localizedNavigationTitle("Large Files")
         .happyPathCelebration(isPresented: $isCelebrating, statLine: celebrationStatLine)
         .toolbar {
             if !viewModel.filteredAssets.isEmpty {
@@ -138,7 +140,11 @@ struct LargeFilesView: View {
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleared \(count) large files"
+                        line: L10n.format(
+                            "cleared %lld large file",
+                            fallback: "cleared %lld large files",
+                            count
+                        )
                     )
                 }
             }
@@ -150,8 +156,12 @@ struct LargeFilesView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Large Files",
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -236,7 +246,10 @@ struct LargeFilesView: View {
         }
     }
 
-    private var emptyTitle: String {
+    /// `LocalizedStringKey`, not `String`: `Text(String)` is the
+    /// non-localizing overload, so a `String` return renders English in every
+    /// language.
+    private var emptyTitle: LocalizedStringKey {
         switch viewModel.mediaFilter {
         case .all: "No Large Files"
         case .photos: "No Large Photos"
@@ -244,7 +257,7 @@ struct LargeFilesView: View {
         }
     }
 
-    private var emptyMessage: String {
+    private var emptyMessage: LocalizedStringKey {
         let threshold = Int(thresholdMB)
         switch viewModel.mediaFilter {
         case .all:

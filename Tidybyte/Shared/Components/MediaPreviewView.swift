@@ -6,7 +6,7 @@ import SwiftUI
 /// the presenting screen can react in `fullScreenCover`'s `onDismiss` to
 /// navigate without fighting the cover's own dismissal animation.
 struct AccessoryAction {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     let handler: @MainActor () -> Void
 }
@@ -193,7 +193,6 @@ struct MediaPreviewView: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .ignoresSafeArea(edges: .horizontal)
     }
 
     @ViewBuilder

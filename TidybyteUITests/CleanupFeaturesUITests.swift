@@ -13,7 +13,16 @@ final class CleanupFeaturesUITests: XCTestCase {
             allow.tap()
             return true
         }
-        app.launchArguments = ["-hasCompletedOnboarding", "YES", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        // `-uitest-reset-onboarding` clears a stored language left by an earlier
+        // run. It is needed alongside the English pin below because the stored
+        // override outranks `AppleLanguages`. It does not bring the cover back:
+        // the argument-domain `-hasCompletedOnboarding YES` outranks the write
+        // the reset makes.
+        app.launchArguments = ["-uitest-reset-onboarding", "-hasCompletedOnboarding", "YES", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        // Pinned to English: the interruption monitor and the button lookups
+        // below match English labels, and the app follows the device language
+        // by default. See `DynamicTypeUITests.englishLaunchArguments`.
+        app.launchArguments += DynamicTypeUITests.englishLaunchArguments
         app.launch()
         let allowAccess = app.buttons["Allow Access"].firstMatch
         XCTAssertTrue(allowAccess.waitForExistence(timeout: 15))

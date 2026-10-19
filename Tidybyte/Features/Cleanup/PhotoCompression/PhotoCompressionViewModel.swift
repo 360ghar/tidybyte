@@ -311,7 +311,7 @@ final class PhotoCompressionViewModel {
             let remaining = Set(items.map(\.assetId)).subtracting(doneIds)
             for index in photos.indices where remaining.contains(photos[index].id) {
                 if keptIds.contains(photos[index].id) {
-                    photos[index].compressionState = .keptOriginal(reason: "Original kept — both versions in your library")
+                    photos[index].compressionState = .keptOriginal(reason: L10n.string("Original kept — both versions in your library"))
                 } else {
                     photos[index].compressionState = .waiting
                 }
@@ -429,7 +429,7 @@ final class PhotoCompressionViewModel {
                         // COMP-04: no-savings items stay in the list with an
                         // explanation instead of silently vanishing.
                         swap.finalizeSkipped()
-                        self.photos[index].compressionState = .keptOriginal(reason: "No savings — kept original")
+                        self.photos[index].compressionState = .keptOriginal(reason: L10n.string("No savings — kept original"))
                         return .skipped
                     }
 
@@ -482,7 +482,15 @@ final class PhotoCompressionViewModel {
         // popping per item mid-loop.
         if failedCount > 0 {
             let attempted = completedCount + failedCount
-            errorMessage = "Compressed \(completedCount) of \(attempted). \(failedCount) failed."
+            // Through `L10n`, not string interpolation: an interpolated literal
+            // is not a catalog key, so it shipped English in all 20 languages.
+            // Shared with the video path, so both tools read the same sentence.
+            errorMessage = L10n.format(
+                "Compressed %lld of %lld. %lld failed.",
+                completedCount,
+                attempted,
+                failedCount
+            )
         }
     }
 }

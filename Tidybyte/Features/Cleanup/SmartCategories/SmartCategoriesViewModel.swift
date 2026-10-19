@@ -68,7 +68,7 @@ final class SmartCategoriesViewModel {
             guard !Task.isCancelled, token == searchGeneration else { return }
             guard epoch == ScanResults.epoch else {
                 isSearching = false
-                searchMessage = "Your library changed. Scan again before searching."
+                searchMessage = L10n.string("Your library changed. Scan again before searching.")
                 return
             }
             appliedSearch = result.query
@@ -225,7 +225,9 @@ final class SmartCategoriesViewModel {
 
         guard scanEpoch == ScanResults.epoch else {
             scanState = .idle
-            errorMessage = "Your library changed during analysis. Scan again for current results."
+            // Same sentence as Blurry Photos, so the two scans share one
+            // catalog entry instead of one of them shipping English.
+            errorMessage = L10n.string("Your library changed during analysis. Scan again for current results.")
             return
         }
         skippedAnalysisCount = max(0, photoCount - results.filter(\.wasAnalyzed).count)
@@ -246,7 +248,7 @@ final class SmartCategoriesViewModel {
         let savedCount = count(for: .savedFromApps)
         // "Large relative to the library": at least 20% of analyzed photos.
         if savedCount > 0, savedCount * 5 >= max(analyzedPhotoCount, 1) {
-            return "Detected by file name heuristics — may include some camera photos"
+            return L10n.string("Detected by file name heuristics — may include some camera photos")
         }
         return nil
     }
@@ -269,7 +271,7 @@ final class SmartCategoriesViewModel {
         guard remaining.count != categorizedPhotos.count else { return }
         categorizedPhotos = remaining
         selectedIds.formIntersection(categorizedPhotos.map(\.id))
-        searchMessage = "Removed changed or unavailable photos. Scan again to include new or edited photos."
+        searchMessage = L10n.string("Removed changed or unavailable photos. Scan again to include new or edited photos.")
     }
 
     func toggleSelection(_ id: String) {

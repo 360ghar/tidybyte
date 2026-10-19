@@ -76,6 +76,6 @@ struct AssetSummary: Identifiable, Sendable, Hashable {
     /// the old `formattedFileSize` duplicate that rendered "Zero KB" is gone;
     /// byte-level totals keep using `Int64.formattedFileSize`).
     var displaySize: String {
-        fileSize == 0 ? "Size unavailable" : fileSize.formattedFileSize
+        fileSize == 0 ? L10n.string("Size unavailable") : fileSize.formattedFileSize
     }
 }

@@ -134,7 +134,7 @@ final class LargeFilesBurstsRegressionTests: XCTestCase {
         // the single shared code path that makes drift impossible.)
         XCTAssertEqual(Int64(10 * 1_000_000), 10_000_000, "10 MB (decimal) must map to 10,000,000 bytes")
         let label = LargeFilesViewModel.minSizeLabel(thresholdMB: 10)
-        XCTAssertEqual(label, "Min size: \(Int64(10_000_000).formattedFileSize)")
+        XCTAssertEqual(label, L10n.format("Min size: %@", Int64(10_000_000).formattedFileSize))
     }
 
     func testThresholdBytesFollowsPersistedPreference() {
@@ -340,6 +340,46 @@ final class LargeFilesBurstsRegressionTests: XCTestCase {
         XCTAssertTrue(
             viewModel.autoCleanArmedIncludesFavorite,
             "the confirm must stop promising favorites are kept once one is armed"
+        )
+    }
+
+    // MARK: - LF: dropped-pick notice states the limit as a file size
+
+    func testDroppedSelectionNoticeFormatsTheThresholdAsBytes() {
+        // `thresholdMB` is a Double in megabytes. Formatting it without scaling
+        // rendered a 10 MB slider as "10 bytes"; the notice must name the limit
+        // the way the rows do.
+        let notice = LargeFilesViewModel.droppedSelectionNoticeText(count: 1, thresholdMB: 10)
+        XCTAssertTrue(notice.contains("10 MB"), "the notice must state the limit as a file size: \(notice)")
+        XCTAssertFalse(
+            notice.contains("bytes"),
+            "the raw Double must never render as bytes: \(notice)"
+        )
+    }
+
+    func testDroppedSelectionNoticeMatchesTheSharedByteFormatter() {
+        // Locale-proof twin of the test above: same construction as
+        // `minSizeLabel`'s coverage, so a locale that formats 10,000,000 B
+        // differently cannot make this pass or fail by accident.
+        let notice = LargeFilesViewModel.droppedSelectionNoticeText(count: 3, thresholdMB: 25)
+        XCTAssertEqual(
+            notice,
+            L10n.format(
+                "%lld pick cleared: below the %@ size limit.",
+                fallback: "%lld picks cleared: below the %@ size limit.",
+                3,
+                Int64(25 * 1_000_000).formattedFileSize
+            )
+        )
+        XCTAssertNotEqual(
+            notice,
+            L10n.format(
+                "%lld pick cleared: below the %@ size limit.",
+                fallback: "%lld picks cleared: below the %@ size limit.",
+                3,
+                Int64(25).formattedFileSize
+            ),
+            "the unscaled Double is the pre-fix notice"
         )
     }
 

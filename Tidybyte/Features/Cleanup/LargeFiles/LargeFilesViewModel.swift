@@ -4,6 +4,17 @@ enum LargeFileFilter: String, CaseIterable {
     case all = "All"
     case photos = "Photos"
     case videos = "Videos"
+
+    /// The raw value stays English because it is a stable identity used in
+    /// tests and persisted selections; only this is shown to the user.
+    /// Literals, not `rawValue`, so the extractor can see them.
+    var displayName: String {
+        switch self {
+        case .all: L10n.string("All")
+        case .photos: L10n.string("Photos")
+        case .videos: L10n.string("Videos")
+        }
+    }
 }
 
 enum LargeFileSortOrder: String, CaseIterable {
@@ -11,6 +22,15 @@ enum LargeFileSortOrder: String, CaseIterable {
     case newest = "Newest"
     case oldest = "Oldest"
     case filename = "Filename"
+
+    var displayName: String {
+        switch self {
+        case .largest: L10n.string("Largest")
+        case .newest: L10n.string("Newest")
+        case .oldest: L10n.string("Oldest")
+        case .filename: L10n.string("Filename")
+        }
+    }
 }
 
 @Observable
@@ -75,8 +95,27 @@ final class LargeFilesViewModel {
     /// as the list rows (LF-05), so the stated minimum can never disagree with
     /// how a threshold-sized file renders in the list (a decimal "10 MB" label
     /// next to a binary "9.5 MB" row was the pre-fix inconsistency).
+    ///
+    /// `%@` rather than string interpolation: the size is already formatted for
+    /// the locale, and the surrounding words need translating, so the two are
+    /// joined by the catalog instead of by Swift.
     static func minSizeLabel(thresholdMB: Double) -> String {
-        "Min size: \(Int64(thresholdMB * 1_000_000).formattedFileSize)"
+        L10n.format("Min size: %@", Int64(thresholdMB * 1_000_000).formattedFileSize)
+    }
+
+    /// Text for the notice shown when a load or refresh drops picks that fell
+    /// below the slider. Static and pure so the count and the limit are testable
+    /// without a photo library, and so the limit renders through the same byte
+    /// formatter as every other size in this feature: `thresholdMB` is a Double
+    /// in megabytes, so passing it straight to the byte formatter rendered a
+    /// 10 MB limit as "10 bytes".
+    static func droppedSelectionNoticeText(count: Int, thresholdMB: Double) -> String {
+        L10n.format(
+            "%lld pick cleared: below the %@ size limit.",
+            fallback: "%lld picks cleared: below the %@ size limit.",
+            count,
+            Int64(thresholdMB * 1_000_000).formattedFileSize
+        )
     }
 
     // MARK: - Filtering cache (LF-07)
@@ -232,7 +271,10 @@ final class LargeFilesViewModel {
         droppedSelectionNotice = clearedBelowThreshold == 0
             ? nil
             : DroppedSelectionNotice(
-                text: "\(clearedBelowThreshold) pick\(clearedBelowThreshold == 1 ? "" : "s") cleared: below the \(Int64(thresholdMB)) MB size limit."
+                text: Self.droppedSelectionNoticeText(
+                    count: clearedBelowThreshold,
+                    thresholdMB: thresholdMB
+                )
             )
         hasLoadedAssets = true
     }
@@ -329,7 +371,7 @@ final class LargeFilesViewModel {
                 // serialized by `isPreparingShare`).
                 Self.removeOrphanedShareExportFolders()
                 self.shareExportFolder = nil
-                self.errorMessage = "Couldn't prepare the selected items to share."
+                self.errorMessage = L10n.string("Couldn't prepare the selected items to share.")
             } else if !Task.isCancelled {
                 // Folder stays on disk until the share sheet is dismissed.
                 self.sharePayload = SharePayload(urls: urls)

@@ -6,6 +6,7 @@ import {
   htmlToMarkdown,
   plainDescription,
   plainTitle,
+  stripBodyH1,
   urlFor,
 } from "../../lib/llms";
 
@@ -28,7 +29,7 @@ export const GET: APIRoute = ({ params }) => {
     "",
     `Canonical URL: ${urlFor(route)}`,
     "",
-    htmlToMarkdown(contentFor(route)),
+    stripBodyH1(htmlToMarkdown(contentFor(route))),
     "",
   ].join("\n");
   return new Response(body, {

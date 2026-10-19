@@ -1,0 +1,63 @@
+<!-- 01 · Why photos bloat -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Why photos end up bigger than they need to be</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">A 12-megapixel photo taken with the High Efficiency setting is usually one to four megabytes, which is already efficient. The oversized ones come from somewhere else: imported camera files, screenshots of high-resolution documents, images saved from the web at their original size, ProRAW captures at 20 to 30 MB, and photos edited and re-exported at maximum quality.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">There is a second category that rarely gets mentioned: photos that were already compressed badly. Re-saving a JPEG at high quality repeatedly makes it larger without making it better. A compression tool that reports the real before and after size is the only way to spot those.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Compression is not deletion. You keep the image, you lose bytes that no screen was going to show you, and you can choose how aggressive to be per batch.</p>
+  </div>
+</section>
+
+<!-- 02 · On-device -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Compression without uploading your photos</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Search for &ldquo;compress images&rdquo; and you land on websites that ask you to upload your pictures. For a single screenshot that is fine. For a family library it means handing your photos to a server you know nothing about, often in exchange for a file-size limit and a queue.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">TidyByte does the work locally with Apple&rsquo;s image frameworks, so the images never travel. That has practical benefits beyond privacy: no upload time on a slow connection, no per-file limits, no watermarks, and it works in airplane mode.</p>
+    <div class="clay-card mt-8 p-5 sm:p-6">
+      <h3 class="font-display text-base font-semibold text-ink">What happens to the file</h3>
+      <ul role="list" class="muted mt-3 space-y-2 text-sm">
+        <li>Re-encoded at the quality preset you choose</li>
+        <li>Compared against the original size, and skipped if it would not shrink</li>
+        <li>Saved to your library with date, location and album placement intact</li>
+        <li>Logged in the on-device history so you can see what was processed</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 03 · Choosing quality -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Choosing a quality setting that holds up</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Every compression setting is a trade, and the right point on the curve depends on the image. Photographs of people and landscapes tolerate aggressive settings because the eye forgives softness in natural detail. Screenshots, documents, receipts and text-heavy images do not: they are the first to show artefacts, because sharp edges and small type are exactly what compression damages.</p>
+    <ol role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Start moderate</strong> and check the reported saving. If it is small, the file was already efficient and there is little to gain.</li>
+      <li><strong class="text-ink">Exclude screenshots and documents</strong> from aggressive batches, or run them separately at a lighter setting.</li>
+      <li><strong class="text-ink">Judge on the device</strong>, at the size you will actually view the photo, rather than by zooming to 100%.</li>
+      <li><strong class="text-ink">Keep the originals</strong> until you are satisfied; deletion is a separate, reversible step.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 04 · Compress vs delete -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Compress, convert, or delete?</h2>
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-destructive">Delete</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">For duplicates, screenshots you have used, and shots you never wanted. Nothing is gained by shrinking a file you do not need.</p>
+      </div>
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-ink">Convert</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">For <a href="/live-photo-converter" class="link">Live Photos</a>: dropping the motion clip usually saves more than compression, and the still is untouched.</p>
+      </div>
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-success">Compress</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">For photos you are keeping but that are larger than the job requires: imports, ProRAW captures, web images saved at full size.</p>
+      </div>
+    </div>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Used together, the three moves cover everything in a library, and all of them run on-device, for free, without an account.</p>
+  </div>
+</section>

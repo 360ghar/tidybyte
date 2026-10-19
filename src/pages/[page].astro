@@ -1,0 +1,15 @@
+---
+// Tool landing pages: one route per entry in src/data/tools.ts.
+// Rendering goes through renderRoute() so these pages share the head,
+// chrome, and JSON-LD path with every other page on the site.
+import { TOOLS } from "../data/tools";
+import { renderRoute } from "../layouts/build-page";
+
+export function getStaticPaths() {
+  return TOOLS.map((t) => ({ params: { page: t.slug } }));
+}
+
+const { page } = Astro.params;
+const html = renderRoute(`/${page}`);
+---
+<Fragment set:html={html} />

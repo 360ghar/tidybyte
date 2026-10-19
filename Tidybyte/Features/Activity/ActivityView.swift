@@ -43,7 +43,7 @@ struct ActivityView: View {
                 .readableWidth()
             }
         }
-        .navigationTitle("Activity & Savings")
+        .localizedNavigationTitle("Activity & Savings")
         .navigationBarTitleDisplayMode(.inline)
         .pullToRefresh {
             viewModel.refresh(modelContext: modelContext)
@@ -88,15 +88,15 @@ struct ActivityView: View {
                 HStack(spacing: Spacing.xl) {
                     statPill(
                         value: "\(viewModel.summary.lifetimeItemCount)",
-                        label: "items, all time"
+                        label: L10n.string("items, all time")
                     )
                     statPill(
                         value: "\(viewModel.summary.activeDayCount)",
-                        label: viewModel.summary.activeDayCount == 1 ? "active day, 30 days" : "active days, 30 days"
+                        label: L10n.format("%lld active day, 30 days", fallback: "%lld active days, 30 days", viewModel.summary.activeDayCount)
                     )
                     statPill(
                         value: bytesLabel(viewModel.summary.monthFreedBytes),
-                        label: "this month"
+                        label: L10n.string("this month")
                     )
                 }
             }
@@ -106,13 +106,13 @@ struct ActivityView: View {
     private var heroValue: String {
         viewModel.summary.lifetimeFreedBytes > 0
             ? viewModel.summary.lifetimeFreedBytes.formattedFileSize
-            : "Size unknown"
+            : L10n.string("Size unknown")
     }
 
     private var heroCaption: String {
         viewModel.summary.lifetimeFreedBytes > 0
-            ? "cleaned up since you started using TidyByte"
-            : "Nothing measurable yet. Items stored only in iCloud don't report a size."
+            ? L10n.string("cleaned up since you started using TidyByte")
+            : L10n.string("Nothing measurable yet. Items stored only in iCloud don't report a size.")
     }
 
     /// Byte label that never renders a bare "Zero KB" for a real cleanup.
@@ -204,9 +204,12 @@ struct ActivityView: View {
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(entry.kind.title)
+                // `LocalizedStringKey` so this stays a key rather than a
+                // rendered `String`, which would opt out of the `\.locale`
+                // re-render on a language switch. See `RootView`.
+                Text(LocalizedStringKey(entry.kind.title))
                     .font(.subheadline.bold())
-                Text("\(entry.count) item\(entry.count == 1 ? "" : "s")")
+                Text(L10n.format("%lld item", fallback: "%lld items", entry.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -252,7 +255,7 @@ struct ActivityView: View {
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(event.kind.title)
+                Text(LocalizedStringKey(event.kind.title))
                     .font(.subheadline)
                 Text(event.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption2)
@@ -262,7 +265,7 @@ struct ActivityView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: Spacing.xs) {
-                Text(event.itemCount == 1 ? "1 item" : "\(event.itemCount) items")
+                Text(L10n.format("%lld item", fallback: "%lld items", event.itemCount))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                 if event.freedBytes > 0 {

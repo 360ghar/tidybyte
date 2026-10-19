@@ -25,8 +25,16 @@ struct BlurryPhotosView: View {
             // screen exactly as it already was.
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Photo Quality",
+                    // Runtime text, so it renders verbatim. The view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and either is already
+                    // in the user's language, so looking it up as a key would
+                    // miss, and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
+                    // The tool's own name, which `CleanupTool.name` already
+                    // resolved. A banner that says only "Something went wrong"
+                    // loses the one piece of context the screen provides.
+                    title: .runtimeText(CleanupTool.blurry.name),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -48,13 +56,20 @@ struct BlurryPhotosView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
-        .navigationTitle(CleanupTool.blurry.name)
+        .localizedNavigationTitle(CleanupTool.blurry.nameKey)
         // Items deleted elsewhere (Swipe Review, the Photos app) leave the
         // list when the library changes, instead of lingering as blanks.
         .task(id: libraryMonitor.generation) {
             await viewModel.pruneDeleted()
         }
-        .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) blurry photos")
+        .happyPathCelebration(
+            isPresented: $isCelebrating,
+            statLine: L10n.format(
+                "cleared %lld blurry photo",
+                fallback: "cleared %lld blurry photos",
+                viewModel.deletedCount
+            )
+        )
         .onDisappear {
             // D-01: a scan left running after the user leaves the screen would
             // keep consuming CPU (and PhotoKit calls) in the background.
@@ -178,7 +193,11 @@ struct BlurryPhotosView: View {
             tint: CleanupTool.blurry.color,
             title: "Analyzing photos...",
             progress: progress,
-            detail: "\(viewModel.analyzedPhotos.count) issues found",
+            detail: L10n.format(
+                "%lld issues found",
+                fallback: "%lld issues found",
+                viewModel.analyzedPhotos.count
+            ),
             onCancel: {
                 HapticHelper.impact(.light)
                 viewModel.cancelScan()
@@ -247,11 +266,15 @@ struct BlurryPhotosView: View {
             }
 
             if viewModel.skippedAnalysisCount > 0 {
-                Text("\(viewModel.skippedAnalysisCount) photo\(viewModel.skippedAnalysisCount == 1 ? "" : "s") had no local analysis image.")
+                Text(L10n.format("%lld photo had no local analysis image.",
+                                 fallback: "%lld photos had no local analysis image.",
+                                 viewModel.skippedAnalysisCount))
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
             }
             if viewModel.skippedSmudgeCount > 0 {
-                Text("Lens analysis skipped \(viewModel.skippedSmudgeCount) photo\(viewModel.skippedSmudgeCount == 1 ? "" : "s").")
+                Text(L10n.format("Lens analysis skipped %lld photo.",
+                                 fallback: "Lens analysis skipped %lld photos.",
+                                 viewModel.skippedSmudgeCount))
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal, Spacing.lg)
             }
             if #available(iOS 26, *), !viewModel.supportsLensSmudge {
@@ -337,7 +360,10 @@ struct BlurryPhotosView: View {
         }
     }
 
-    private func scoreLabel(for tab: BlurryTab) -> String {
+    /// `LocalizedStringKey`, not `String`: this feeds `accessibilityLabel`,
+    /// whose `String` overload does not localize, so a `String` return would
+    /// read the tab name in English to VoiceOver in every language.
+    private func scoreLabel(for tab: BlurryTab) -> LocalizedStringKey {
         switch tab {
         case .blurry: "Blur"
         case .tooDark: "Darkness"

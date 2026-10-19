@@ -7,17 +7,20 @@ struct StorageWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            // `supportedFamilies` is fixed to small + medium, so both cases are
-            // covered explicitly; the default is required only to satisfy
-            // exhaustiveness over the rest of `WidgetFamily` (unreachable at
-            // runtime given the declared families).
+            // `supportedFamilies` is small + medium today, but the family the
+            // system hands us is not ours to guarantee: a wider one (as iPad's
+            // extraLarge did) must degrade to the medium layout rather than
+            // render an empty widget.
             switch family {
             case .systemSmall:
                 smallView(snapshot)
             case .systemMedium:
                 mediumView(snapshot)
             default:
-                EmptyView()
+                // An unexpected family (a wider one than we declare today, the
+                // way iPad's extraLarge arrived) degrades to the medium layout
+                // instead of rendering an empty widget.
+                mediumView(snapshot)
             }
         } else {
             placeholderView
@@ -59,13 +62,13 @@ struct StorageWidgetView: View {
 
                 Link(destination: URL(string: "tidybyte://cleanup/screenshots")!) {
                     statRow(icon: "camera.viewfinder",
-                            text: "\(snapshot.screenshotCount) screenshots",
+                            text: L10n.format("%lld screenshot", snapshot.screenshotCount),
                             detail: fmt(snapshot.screenshotBytes))
                 }
 
                 Link(destination: URL(string: "tidybyte://cleanup/largeFiles")!) {
                     statRow(icon: "externaldrive",
-                            text: "\(snapshot.largeFileCount) large files",
+                            text: L10n.format("%lld large file", snapshot.largeFileCount),
                             detail: fmt(snapshot.largeFileBytes))
                 }
 
@@ -93,10 +96,14 @@ struct StorageWidgetView: View {
 
     /// The total counts only items on this iPhone; the rows below count the
     /// whole library (what the tools list), so the headline says so.
+    ///
+    /// Built in code rather than as a `Text` literal, so it goes through `L10n`:
+    /// the widget has no `\.locale` environment of its own to resolve a
+    /// `LocalizedStringKey` against.
     private func headline(_ snapshot: WidgetSnapshot) -> String {
         snapshot.reclaimableBytes > 0
-            ? "Up to \(fmt(snapshot.reclaimableBytes)) to free on iPhone"
-            : "Nothing to free on iPhone"
+            ? L10n.format("Up to %@ to free on iPhone", fmt(snapshot.reclaimableBytes))
+            : L10n.string("Nothing to free on iPhone")
     }
 
     /// "Updated 3d ago" once the snapshot is a day old (the app rescans only
@@ -105,7 +112,9 @@ struct StorageWidgetView: View {
         let age = entry.date.timeIntervalSince(snapshot.capturedAt)
         guard age >= 86_400 else { return nil }
         let days = Int(age / 86_400)
-        return days >= 7 ? "Open TidyByte to refresh" : "Updated \(days)d ago"
+        return days >= 7
+            ? L10n.string("Open TidyByte to refresh")
+            : L10n.format("Updated %lldd ago", days)
     }
 
     // MARK: - Pieces
@@ -122,7 +131,9 @@ struct StorageWidgetView: View {
                 .stroke(.blue, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             VStack(spacing: 0) {
-                Text("\(Int(fraction * 100))%")
+                // `verbatim`: see `GroupComparisonView`. The ring's number is
+                // language-independent, so it needs no catalog entry.
+                Text(verbatim: "\(Int(fraction * 100))%")
                     .font(.system(size: size * 0.26, weight: .bold))
                 Text("used")
                     .font(.system(size: size * 0.13))
@@ -164,7 +175,11 @@ struct StorageWidgetView: View {
         .widgetURL(URL(string: "tidybyte://storage"))
     }
 
+    /// Locale-aware, and shared with the app so the widget and the Storage tab
+    /// never disagree about what "1.5 GB" looks like. `ByteCountFormatter` has
+    /// no locale API at all, so it rendered a period as the decimal separator
+    /// for every user regardless of their language.
     private func fmt(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        Formatters.fileSize(bytes)
     }
 }

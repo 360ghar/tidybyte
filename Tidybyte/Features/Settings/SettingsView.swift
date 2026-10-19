@@ -5,8 +5,18 @@ import Photos
 
 struct SettingsView: View {
     @Environment(WidgetSnapshotCoordinator.self) private var widgetCoordinator
+    /// The live language/appearance state. Changing the language here
+    /// re-renders the whole app: `RootView` injects `\.locale`, so every screen
+    /// follows without a relaunch and without rebuilding the tree — the tree is
+    /// deliberately *not* keyed on the language, because that rebuild destroyed
+    /// child `@State`. `.navigationTitle` is the one surface that does not
+    /// follow on its own; see `localizedNavigationTitle`.
+    @Environment(LanguageStore.self) private var languageStore
     // Swipe
     @AppStorage(AppPreferences.Key.defaultSwipeFilter) private var defaultSwipeFilter: String = DefaultSwipeFilterPreference.notSwipedYet.rawValue
+
+    // Haptics
+    @AppStorage(AppPreferences.Key.hapticsEnabled) private var hapticsEnabled: Bool = true
 
     // Similar Photos
     @AppStorage(AppPreferences.Key.similarPhotoTimeWindow) private var timeWindow: Double = 5.0
@@ -57,19 +67,34 @@ struct SettingsView: View {
     /// the tab gate in the same pass instead of on the next activation.
     @Environment(PhotoPermissionHandler.self) private var permissionHandler
 
-    private let weekdays = [
-        (1, "Sunday"), (2, "Monday"), (3, "Tuesday"), (4, "Wednesday"),
-        (5, "Thursday"), (6, "Friday"), (7, "Saturday")
-    ]
+    /// The reminder picker's rows, ordered from the device's first day of the
+    /// week. Built from the device calendar rather than a hardcoded
+    /// Sunday-first list, so the picker opens on the day the user's own
+    /// calendar starts with (Monday in India, Germany and Brazil; Saturday in
+    /// much of the Middle East) and every name is localized.
+    private var weekdays: [(weekday: Int, name: String)] {
+        Formatters.orderedWeekdays()
+    }
+
+    /// The reminder time, formatted in the device's convention. Replaces a
+    /// hardcoded "10 AM", which was wrong everywhere that reads a 24-hour
+    /// clock — most of the world.
+    private var reminderTimeLabel: String {
+        var components = DateComponents()
+        components.hour = NotificationService.reminderHour
+        components.minute = 0
+        let date = Calendar.current.date(from: components) ?? .now
+        return Formatters.shortTime(date)
+    }
 
     private var photoPermissionLabel: String {
         switch photoPermissionStatus {
-        case .notDetermined: return "Not Asked Yet"
-        case .restricted: return "Restricted"
-        case .denied: return "Denied"
-        case .authorized: return "Full Access"
-        case .limited: return "Limited Access"
-        @unknown default: return "Unknown"
+        case .notDetermined: return L10n.string("Not Asked Yet")
+        case .restricted: return L10n.string("Restricted")
+        case .denied: return L10n.string("Denied")
+        case .authorized: return L10n.string("Full Access")
+        case .limited: return L10n.string("Limited Access")
+        @unknown default: return L10n.string("Unknown")
         }
     }
 
@@ -150,11 +175,79 @@ struct SettingsView: View {
                 Text("TidyByte has no account and no servers. Your photos and activity never leave your device.")
             }
 
+            // MARK: - Language & Appearance
+            //
+            // Placed directly under Permissions: these are the two settings a
+            // user looks for first when the app is not speaking their language
+            // or hurts their eyes, and burying them under tool settings would
+            // make them hard to find in exactly the situation where the rest of
+            // the screen is unreadable.
+            Section {
+                Picker("Language", selection: languageBinding) {
+                    Text("Automatic").tag(AppLanguage.system.rawValue)
+                    Divider()
+                    // Endonyms: every row is written in its own language and
+                    // script, so someone who cannot read the current UI language
+                    // can still find theirs.
+                    ForEach(AppLanguage.concreteLanguages) { language in
+                        Text(language.endonym).tag(language.rawValue)
+                    }
+                }
+                .accessibilityIdentifier("settings.language")
+
+                if languageStore.deviceLanguageIsUnsupported {
+                    // The device is set to a language with no translations. Say
+                    // so plainly instead of leaving the user wondering why the
+                    // app is in English.
+                    Text("Your device language is not translated yet, so TidyByte is using English. Pick a language above to override.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                // The photo-permission alert, the Photos picker, and the share
+                // sheet are drawn by iOS, which reads the app's language at
+                // launch. This is the escape hatch for anyone who wants the
+                // whole app — including those dialogs — in one language.
+                Button {
+                    openSystemSettings()
+                } label: {
+                    Label("Open iOS Settings", systemImage: "arrow.up.right.square")
+                }
+            } header: {
+                Text("Language")
+            } footer: {
+                Text("Automatic follows your device. TidyByte changes immediately; some iOS dialogs follow on the next launch.")
+            }
+
+            Section("Appearance") {
+                Picker("Appearance", selection: appearanceBinding) {
+                    ForEach(AppAppearance.allCases) { option in
+                        Text(LocalizedStringKey(option.displayName)).tag(option.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityIdentifier("settings.appearance")
+            }
+
+            Section {
+                Toggle("Haptics", isOn: $hapticsEnabled)
+                    .onChange(of: hapticsEnabled) { _, enabled in
+                        // Push the change into the cache the swipe deck reads,
+                        // so the toggle takes effect on the next gesture rather
+                        // than on the next launch.
+                        AppPreferences.saveHapticsEnabled(enabled)
+                        HapticHelper.refreshEnabledState()
+                    }
+            } footer: {
+                Text("Vibration feedback when you swipe, tap, and finish a cleanup.")
+            }
+
             // MARK: - Swipe Settings
             Section("Swipe") {
                 Picker("Default Filter", selection: $defaultSwipeFilter) {
                     ForEach(DefaultSwipeFilterPreference.allCases, id: \.self) { filter in
-                        Text(filter.title).tag(filter.rawValue)
+                        Text(LocalizedStringKey(filter.title)).tag(filter.rawValue)
                     }
                 }
             }
@@ -178,7 +271,7 @@ struct SettingsView: View {
                     Text("Blur Detection Sensitivity")
                     Picker("Blur Detection Sensitivity", selection: $blurSensitivity) {
                         ForEach(BlurSensitivity.allCases, id: \.self) { level in
-                            Text(level.rawValue).tag(level.rawValue)
+                            Text(LocalizedStringKey(level.displayName)).tag(level.rawValue)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -189,7 +282,7 @@ struct SettingsView: View {
                     Text("Smart Category Sensitivity")
                     Picker("Smart Category Sensitivity", selection: $smartCategorySensitivity) {
                         ForEach(CategorySensitivity.allCases, id: \.self) { level in
-                            Text(level.rawValue).tag(level.rawValue)
+                            Text(LocalizedStringKey(level.displayName)).tag(level.rawValue)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -259,8 +352,20 @@ struct SettingsView: View {
 
                 if remindersEnabled {
                     Picker("Reminder Day", selection: $reminderWeekday) {
-                        ForEach(weekdays, id: \.0) { day in
-                            Text(day.1).tag(day.0)
+                        ForEach(weekdays, id: \.weekday) { day in
+                            Text(day.name).tag(day.weekday)
+                        }
+                    }
+                    .onAppear {
+                        // A fresh install has nothing stored, so the picker's own
+                        // default (1, Sunday) disagreed with the scheduler, which
+                        // falls back to the device's first weekday (Monday in
+                        // India, Germany and Brazil). Seeding the stored value
+                        // makes both read the same day, and lets the user pick
+                        // that first weekday at all: a picker already showing it
+                        // fires no change, so the pick was unreachable.
+                        if UserDefaults.standard.object(forKey: AppPreferences.Key.reminderWeekday) == nil {
+                            reminderWeekday = AppPreferences.reminderWeekday()
                         }
                     }
                     .onChange(of: reminderWeekday) { _, newDay in
@@ -285,7 +390,7 @@ struct SettingsView: View {
                 Text("Reminders")
             } footer: {
                 if remindersEnabled {
-                    Text("Sent every week at 10 AM on the day you pick. Tapping it opens Cleanup.")
+                    Text("Sent every week at \(reminderTimeLabel) on the day you pick. Tapping it opens Cleanup.")
                 }
             }
 
@@ -361,7 +466,11 @@ struct SettingsView: View {
             }
 
         }
-        .navigationTitle("Settings")
+        // A resolved `String`, not the literal: the literal is the same
+        // `LocalizedStringKey` before and after a language switch, so SwiftUI
+        // pushes no title update, and the bar can keep the old title. A `String`
+        // differs between the two languages, so the title is re-applied.
+        .localizedNavigationTitle("Settings")
         .toast($toast)
         .photoPermissionPrimer(
             isPresented: $showPhotoPermissionPrimer,
@@ -438,6 +547,32 @@ struct SettingsView: View {
         UIApplication.shared.open(url)
     }
 
+    /// The language picker writes through `LanguageStore`, not `@AppStorage`:
+    /// the store also mirrors the choice into the App Group (for the widget),
+    /// writes `AppleLanguages` (for iOS-drawn dialogs), and reloads widget
+    /// timelines. A bare `@AppStorage` write would skip all three.
+    private var languageBinding: Binding<String> {
+        Binding(
+            get: { languageStore.language.rawValue },
+            set: { raw in
+                guard let language = AppLanguage(rawValue: raw) else { return }
+                languageStore.setLanguage(language)
+            }
+        )
+    }
+
+    /// Same reasoning as `languageBinding`: the store owns the write so the
+    /// value and the persisted key cannot drift.
+    private var appearanceBinding: Binding<String> {
+        Binding(
+            get: { languageStore.appearance.rawValue },
+            set: { raw in
+                guard let appearance = AppAppearance(rawValue: raw) else { return }
+                languageStore.appearance = appearance
+            }
+        )
+    }
+
     private func refreshPhotoPermissionStatus() {
         photoPermissionStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
     }
@@ -446,7 +581,7 @@ struct SettingsView: View {
         do {
             try modelContext.delete(model: SwipeRecord.self)
             try modelContext.save()
-            toast = ToastMessage(text: "Swipe history cleared", systemImage: "checkmark.circle")
+            toast = ToastMessage(text: L10n.string("Swipe history cleared"), systemImage: "checkmark.circle")
         } catch {
             AppLog.data.error("Failed to reset swipe history: \(error.localizedDescription, privacy: .public)")
             showResetErrorAlert = true

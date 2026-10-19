@@ -12,8 +12,13 @@ settings:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
     # Single version source (A10): every target inherits these; bump once here.
-    CURRENT_PROJECT_VERSION: 6
-    MARKETING_VERSION: "1.0.5"
+    # 1.1.0 / build 8: the 20-language release plus the iPhone Duo readiness
+    # work. 1.0.5 (build 6) is live, and a released version cannot be reopened,
+    # so new work needs a new version string. Build 7 was never uploaded, so it
+    # was still free to use; build 8 carries the Duo readiness work on top of
+    # the same 1.1.0 language release (see docs/duo-readiness.md).
+    CURRENT_PROJECT_VERSION: 8
+    MARKETING_VERSION: "1.1.0"
     INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "TidyByte needs access to your photo library to help you organize and clean up photos and videos."
     INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "TidyByte needs write access to save compressed videos and converted photos."
     CODE_SIGN_STYLE: Automatic
@@ -25,6 +30,12 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
     STRING_CATALOG_GENERATE_SYMBOLS: YES
+    # Emit .stringsdata during the build so `xcstringstool sync` can populate
+    # Localizable.xcstrings from the compiler's own view of every localizable
+    # literal — including correct placeholder types and plural variations,
+    # which a regex-based extractor cannot get right.
+    SWIFT_EMIT_LOC_STRINGS: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
 
 targets:
   Tidybyte:
@@ -39,6 +50,11 @@ targets:
     resources:
       - path: Tidybyte/Resources
         buildPhase: resources
+      # `Tidybyte/InfoPlist.xcstrings` is picked up automatically by the
+      # `sources` path above — Xcode compiles any .xcstrings it finds into
+      # `InfoPlist.strings`, which is how the permission prompts get localized.
+      # Listing it again here makes the build fail with "Cannot have multiple
+      # InfoPlist.xcstrings files in same target", so it is deliberately absent.
     dependencies:
       - target: TidybyteWidget
         embed: true
@@ -76,6 +92,27 @@ targets:
           - "*.entitlements"
           - "Info.plist"
       - path: Tidybyte/Shared/Widget
+      # The widget renders its own text in its own process, so it needs the
+      # language model to resolve the user's choice and the storage accessor to
+      # read it from the App Group. Foundation-only, so no SwiftUI/WidgetKit
+      # coupling leaks into the app target from these two.
+      - path: Tidybyte/Shared/Localization/AppLanguage.swift
+      - path: Tidybyte/Shared/Localization/LanguagePreferenceStore.swift
+      # `L10n` resolves a key against the chosen language's `.lproj` bundle, and
+      # `Formatters` formats sizes and relative dates in that locale. The widget
+      # builds its headline, age, and row labels in code rather than as `Text`
+      # literals, so it needs both. Both depend only on the two files above.
+      - path: Tidybyte/Shared/Localization/L10n.swift
+      - path: Tidybyte/Shared/Localization/Formatters.swift
+    resources:
+      # The widget shares the app's catalog rather than keeping its own.
+      #
+      # One catalog means one translation file per language, one coverage gate,
+      # and no chance of the widget drifting from the app's terminology. The
+      # widget's own strings are a dozen keys, so the extra table costs a few
+      # hundred bytes in the extension bundle.
+      - path: Tidybyte/Resources/Localizable.xcstrings
+        buildPhase: resources
     info:
       path: TidybyteWidget/Info.plist
       properties:

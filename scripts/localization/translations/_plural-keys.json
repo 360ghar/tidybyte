@@ -1,0 +1,278 @@
+{
+  "%@ · %lld items cleaned": {
+    "one": "%@ · %lld item cleaned",
+    "other": "%@ · %lld items cleaned"
+  },
+  "%@: %lld items": {
+    "one": "%@: %lld item",
+    "other": "%@: %lld items"
+  },
+  "%lld Live Photos": {
+    "one": "%lld Live Photo",
+    "other": "%lld Live Photos"
+  },
+  "%lld active day, 30 days": {
+    "one": "%lld active day, 30 days",
+    "other": "%lld active days, 30 days"
+  },
+  "%lld burst groups": {
+    "one": "%lld burst group",
+    "other": "%lld burst groups"
+  },
+  "%lld compressions": {
+    "one": "%lld compression",
+    "other": "%lld compressions"
+  },
+  "%lld duplicates · %@ selected": {
+    "one": "%lld duplicate · %@ selected",
+    "other": "%lld duplicates · %@ selected"
+  },
+  "%lld exact copies": {
+    "one": "%lld exact copy",
+    "other": "%lld exact copies"
+  },
+  "%lld extras · %@ selected": {
+    "one": "%lld extra · %@ selected",
+    "other": "%lld extras · %@ selected"
+  },
+  "%lld files · %@": {
+    "one": "%lld file · %@",
+    "other": "%lld files · %@"
+  },
+  "%lld frames": {
+    "one": "%lld frame",
+    "other": "%lld frames"
+  },
+  "%lld groups": {
+    "one": "%lld group",
+    "other": "%lld groups"
+  },
+  "%lld groups found": {
+    "one": "%lld group found",
+    "other": "%lld groups found"
+  },
+  "%lld iCloud-only photo skipped (not on this device)": {
+    "one": "%lld iCloud-only photo skipped (not on this device)",
+    "other": "%lld iCloud-only photos skipped (not on this device)"
+  },
+  "%lld issues found": {
+    "one": "%lld issue found",
+    "other": "%lld issues found"
+  },
+  "%lld item": {
+    "one": "%lld item",
+    "other": "%lld items"
+  },
+  "%lld item marked for deletion": {
+    "one": "%lld item marked for deletion",
+    "other": "%lld items marked for deletion"
+  },
+  "%lld items": {
+    "one": "%lld item",
+    "other": "%lld items"
+  },
+  "%lld items with unknown size are not listed": {
+    "one": "%lld item with unknown size is not listed",
+    "other": "%lld items with unknown size are not listed"
+  },
+  "%lld items · %@": {
+    "one": "%lld item · %@",
+    "other": "%lld items · %@"
+  },
+  "%lld large file": {
+    "one": "%lld large file",
+    "other": "%lld large files"
+  },
+  "%lld look-alike photos": {
+    "one": "%lld look-alike photo",
+    "other": "%lld look-alike photos"
+  },
+  "%lld megabytes": {
+    "one": "%lld megabyte",
+    "other": "%lld megabytes"
+  },
+  "%lld photo could not be scored from a local image.": {
+    "one": "%lld photo could not be scored from a local image.",
+    "other": "%lld photos could not be scored from a local image."
+  },
+  "%lld photo had no local analysis image.": {
+    "one": "%lld photo had no local analysis image.",
+    "other": "%lld photos had no local analysis image."
+  },
+  "%lld photos": {
+    "one": "%lld photo",
+    "other": "%lld photos"
+  },
+  "%lld photos could not be indexed from a local image.": {
+    "one": "%lld photo could not be indexed from a local image.",
+    "other": "%lld photos could not be indexed from a local image."
+  },
+  "%lld photos over 2 MB that can shrink": {
+    "one": "%lld photo over 2 MB that can shrink",
+    "other": "%lld photos over 2 MB that can shrink"
+  },
+  "%lld photos · %@": {
+    "one": "%lld photo · %@",
+    "other": "%lld photos · %@"
+  },
+  "%lld pick cleared: below the %@ size limit.": {
+    "one": "%lld pick cleared: below the %@ size limit.",
+    "other": "%lld picks cleared: below the %@ size limit."
+  },
+  "%lld removable": {
+    "one": "%lld removable",
+    "other": "%lld removable"
+  },
+  "%lld saved from apps": {
+    "one": "%lld saved from app",
+    "other": "%lld saved from apps"
+  },
+  "%lld screenshot": {
+    "one": "%lld screenshot",
+    "other": "%lld screenshots"
+  },
+  "%lld screenshots skipped · covered by the Screenshots tool": {
+    "one": "%lld screenshot skipped · covered by the Screenshots tool",
+    "other": "%lld screenshots skipped · covered by the Screenshots tool"
+  },
+  "%lld screenshots · %@": {
+    "one": "%lld screenshot · %@",
+    "other": "%lld screenshots · %@"
+  },
+  "%lld seconds": {
+    "one": "%lld second",
+    "other": "%lld seconds"
+  },
+  "%lld selected": {
+    "one": "%lld selected",
+    "other": "%lld selected"
+  },
+  "%lld selected (%lld not shown) · %@": {
+    "one": "%lld selected (%lld not shown) · %@",
+    "other": "%lld selected (%lld not shown) · %@"
+  },
+  "%lld selected (%lld on other tabs) · %@": {
+    "one": "%lld selected (%lld on other tabs) · %@",
+    "other": "%lld selected (%lld on other tabs) · %@"
+  },
+  "%lld selected · %@": {
+    "one": "%lld selected · %@",
+    "other": "%lld selected · %@"
+  },
+  "%lld selected · %@ (%lld hidden by filter)": {
+    "one": "%lld selected · %@ (%lld hidden by filter)",
+    "other": "%lld selected · %@ (%lld hidden by filter)"
+  },
+  "%lld total · %lld removable · %@": {
+    "one": "%lld total · %lld removable · %@",
+    "other": "%lld total · %lld removable · %@"
+  },
+  "%lld videos over %lld MB": {
+    "one": "%lld video over %lld MB",
+    "other": "%lld videos over %lld MB"
+  },
+  "Compress %lld Photos": {
+    "one": "Compress %lld Photo",
+    "other": "Compress %lld Photos"
+  },
+  "Compress %lld Videos": {
+    "one": "Compress %lld Video",
+    "other": "Compress %lld Videos"
+  },
+  "Delete %lld": {
+    "one": "Delete %lld",
+    "other": "Delete %lld"
+  },
+  "Delete %lld Files": {
+    "one": "Delete %lld File",
+    "other": "Delete %lld Files"
+  },
+  "Delete %lld Items": {
+    "one": "Delete %lld Item",
+    "other": "Delete %lld Items"
+  },
+  "Delete %lld Photos": {
+    "one": "Delete %lld Photo",
+    "other": "Delete %lld Photos"
+  },
+  "Delete %lld Screenshots": {
+    "one": "Delete %lld Screenshot",
+    "other": "Delete %lld Screenshots"
+  },
+  "Delete %lld item": {
+    "one": "Delete %lld item",
+    "other": "Delete %lld items"
+  },
+  "Delete %lld items from Photos?": {
+    "one": "Delete %lld item from Photos?",
+    "other": "Delete %lld items from Photos?"
+  },
+  "Failed to delete %lld photo": {
+    "one": "Failed to delete %lld photo",
+    "other": "Failed to delete %lld photos"
+  },
+  "Lens analysis skipped %lld photo.": {
+    "one": "Lens analysis skipped %lld photo.",
+    "other": "Lens analysis skipped %lld photos."
+  },
+  "This will delete %lld duplicate items. %@": {
+    "one": "This will delete %lld duplicate item. %@",
+    "other": "This will delete %lld duplicate items. %@"
+  },
+  "cleaned %lld burst photo": {
+    "one": "cleaned %lld burst photo",
+    "other": "cleaned %lld burst photos"
+  },
+  "cleared %lld blurry photo": {
+    "one": "cleared %lld blurry photo",
+    "other": "cleared %lld blurry photos"
+  },
+  "cleared %lld burst frame": {
+    "one": "cleared %lld burst frame",
+    "other": "cleared %lld burst frames"
+  },
+  "cleared %lld item (%@)": {
+    "one": "cleared %lld item (%@)",
+    "other": "cleared %lld items (%@)"
+  },
+  "cleared %lld large file": {
+    "one": "cleared %lld large file",
+    "other": "cleared %lld large files"
+  },
+  "cleared %lld photo": {
+    "one": "cleared %lld photo",
+    "other": "cleared %lld photos"
+  },
+  "cleared %lld screenshot": {
+    "one": "cleared %lld screenshot",
+    "other": "cleared %lld screenshots"
+  },
+  "compressed %lld photo": {
+    "one": "compressed %lld photo",
+    "other": "compressed %lld photos"
+  },
+  "compressed %lld video": {
+    "one": "compressed %lld video",
+    "other": "compressed %lld videos"
+  },
+  "converted %lld Live Photo": {
+    "one": "converted %lld Live Photo",
+    "other": "converted %lld Live Photos"
+  },
+  "in %lld day": {
+    "one": "in %lld day",
+    "other": "in %lld days"
+  },
+  "removed %lld duplicate": {
+    "one": "removed %lld duplicate",
+    "other": "removed %lld duplicates"
+  },
+  "removed %lld similar photo": {
+    "one": "removed %lld similar photo",
+    "other": "removed %lld similar photos"
+  },
+  "reviewed %lld item": {
+    "one": "reviewed %lld item",
+    "other": "reviewed %lld items"
+  }
+}

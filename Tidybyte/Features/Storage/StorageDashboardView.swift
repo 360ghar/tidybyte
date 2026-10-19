@@ -6,6 +6,15 @@ import UIKit
 enum BreakdownMode: String, CaseIterable {
     case byYear = "By Year"
     case bySource = "By Source"
+
+    /// Raw value stays English (stable identity); this is what the segmented
+    /// control shows. Literals, not `rawValue`, so the extractor can see them.
+    var displayName: String {
+        switch self {
+        case .byYear: L10n.string("By Year")
+        case .bySource: L10n.string("By Source")
+        }
+    }
 }
 
 struct StorageDashboardView: View {
@@ -60,7 +69,7 @@ struct StorageDashboardView: View {
                 .readableWidth()
             }
         }
-        .navigationTitle("Storage")
+        .localizedNavigationTitle("Storage")
         .pullToRefresh {
             await viewModel.refresh(modelContext: modelContext)
         }
@@ -387,7 +396,9 @@ struct StorageDashboardView: View {
                                 Circle()
                                     .fill(win.color)
                                     .frame(width: 10, height: 10)
-                                Text(win.title)
+                                // A key, not a rendered `String`, so the label
+                                // follows a language switch. See `RootView`.
+                                Text(LocalizedStringKey(win.title))
                                     .font(.subheadline)
                                     .foregroundStyle(.primary)
                                 Spacer()
@@ -459,7 +470,7 @@ struct StorageDashboardView: View {
 
                     Spacer()
 
-                    Image(systemName: "chevron.right")
+                    Image(systemName: "chevron.forward")
                         .font(.caption.bold())
                         .foregroundStyle(.tertiary)
                 }
@@ -469,11 +480,19 @@ struct StorageDashboardView: View {
         }
     }
 
-    /// "X freed" when a size is known, otherwise an honest size-free label.
+    /// "X cleaned up" when a size is known, otherwise an honest size-free label.
+    ///
+    /// Both branches resolve through `L10n`. The call site is
+    /// `Text("\(savingsHeadline) · \(count) items cleaned")`, which localizes
+    /// its own template but substitutes this value as a `%@` argument — so a
+    /// raw `String` here stayed English inside an otherwise-translated
+    /// sentence. `"Sizes unavailable"` reuses the existing key that
+    /// `MediaCleanerViewModel` already resolves, so both screens say the same
+    /// thing in every language.
     private var savingsHeadline: String {
         viewModel.lifetimeFreedBytes > 0
-            ? "\(viewModel.lifetimeFreedBytes.formattedFileSize) cleaned up"
-            : "Sizes unavailable"
+            ? L10n.format("%@ cleaned up", viewModel.lifetimeFreedBytes.formattedFileSize)
+            : L10n.string("Sizes unavailable")
     }
 
     // MARK: - Recently Deleted
@@ -483,6 +502,10 @@ struct StorageDashboardView: View {
     /// reclaim wins — this can't be counted or sized; it's a static hand-off to Photos.
     /// Rendered outside `reclaimHeroSection` so it stays visible even when there are no
     /// data-backed reclaimable wins.
+    ///
+    /// The name below is display copy, never an identifier: nothing in the app compares
+    /// it against `PHAssetCollection.localizedTitle`, so translating it cannot break a
+    /// lookup. The system title is only ever read (the album lists), never matched.
     private var recentlyDeletedSection: some View {
         GlassCard {
             Button {
@@ -533,7 +556,7 @@ struct StorageDashboardView: View {
                         VStack(spacing: Spacing.xs) {
                             Text(viewModel.totalLibrarySize.formattedFileSize)
                                 .font(.title3.bold())
-                            Text("\(viewModel.totalItemCount) \(viewModel.totalItemCount == 1 ? "item" : "items")")
+                            Text(L10n.format("%lld item", fallback: "%lld items", viewModel.totalItemCount))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -582,7 +605,9 @@ struct StorageDashboardView: View {
             Circle()
                 .fill(category.color)
                 .frame(width: 10, height: 10)
-            Text(category.name)
+            // A key, not a rendered `String`, so the label follows a language
+            // switch. See `RootView`.
+            Text(LocalizedStringKey(category.name))
                 .font(.subheadline)
             Spacer()
             Text("\(category.count)")
@@ -593,7 +618,7 @@ struct StorageDashboardView: View {
             // The slot is kept only when some row is tappable, so values
             // still line up; with no tappable row there is no gap.
             if isTappable || viewModel.categories.contains(where: { Self.action(for: $0.id) != nil }) {
-                Image(systemName: "chevron.right")
+                Image(systemName: "chevron.forward")
                     .font(.caption.bold())
                     .foregroundStyle(.tertiary)
                     .opacity(isTappable ? 1 : 0)
@@ -685,8 +710,8 @@ struct StorageDashboardView: View {
                     .frame(height: 16)
 
                     VStack(spacing: Spacing.sm) {
-                        legendRow(style: Color.accentColor, title: "Photos & Videos", note: "estimated", bytes: viewModel.onDeviceMediaSize)
-                        legendRow(style: Color.otherCategory, title: "Apps, system & other", note: "estimated", bytes: viewModel.appsAndOtherSize)
+                        legendRow(style: Color.accentColor, title: L10n.string("Photos & Videos"), note: L10n.string("estimated"), bytes: viewModel.onDeviceMediaSize)
+                        legendRow(style: Color.otherCategory, title: L10n.string("Apps, system & other"), note: L10n.string("estimated"), bytes: viewModel.appsAndOtherSize)
                     }
 
                     Text("Items in Recently Deleted still use space until Photos empties it, so \"Apps, system & other\" can grow right after a cleanup.")
@@ -751,7 +776,9 @@ struct StorageDashboardView: View {
 
                 Picker("", selection: $breakdownMode) {
                     ForEach(BreakdownMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
+                        // A key, not a rendered `String`, so the segment label
+                        // follows a language switch. See `RootView`.
+                        Text(LocalizedStringKey(mode.displayName)).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -795,7 +822,7 @@ struct StorageDashboardView: View {
                 Text(label)
                     .font(.subheadline.bold())
                     .foregroundStyle(.primary)
-                Text("\(count) \(count == 1 ? "item" : "items")")
+                Text(L10n.format("%lld item", fallback: "%lld items", count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -806,7 +833,7 @@ struct StorageDashboardView: View {
                 .font(.subheadline.monospacedDigit().bold())
                 .foregroundStyle(.primary)
 
-            Image(systemName: "chevron.right")
+            Image(systemName: "chevron.forward")
                 .font(.caption.bold())
                 .foregroundStyle(.tertiary)
         }
@@ -873,7 +900,9 @@ struct StorageDashboardView: View {
         // at whatever time the app opens.
         let calendar = Calendar.current
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: first), to: calendar.startOfDay(for: last)).day ?? 0
-        return days < 1 ? "today" : "in \(days) day\(days == 1 ? "" : "s")"
+        return days < 1
+            ? L10n.string("today")
+            : L10n.format("in %lld day", fallback: "in %lld days", days)
     }
 
     /// Y range fitted to the data (with a margin), so a 1% change is visible
@@ -909,10 +938,10 @@ struct StorageDashboardView: View {
                     let last = viewModel.snapshots.last!
                     let delta = last.totalBytes - first.totalBytes
                     let summary = delta == 0
-                        ? "No change \(trendSpanLabel)"
+                        ? L10n.format("No change %@", trendSpanLabel)
                         : delta > 0
-                        ? "Library grew by \(delta.formattedFileSize) \(trendSpanLabel)"
-                        : "Library shrank by \(abs(delta).formattedFileSize) \(trendSpanLabel)"
+                        ? L10n.format("Library grew by %@ %@", delta.formattedFileSize, trendSpanLabel)
+                        : L10n.format("Library shrank by %@ %@", abs(delta).formattedFileSize, trendSpanLabel)
 
                     Chart(viewModel.snapshots) { snapshot in
                         LineMark(
@@ -958,7 +987,14 @@ struct StorageDashboardView: View {
 
     // MARK: - Cleanup Opportunities
 
-    private func opportunityRow(icon: String, color: Color, title: String, detail: String) -> some View {
+    // `LocalizedStringKey`, not `String`: both call sites pass literals, and a
+    // `String` parameter would render them raw.
+    private func opportunityRow(
+        icon: String,
+        color: Color,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey
+    ) -> some View {
         HStack(spacing: Spacing.md) {
             Image(systemName: icon)
                 .foregroundStyle(color)
@@ -975,7 +1011,7 @@ struct StorageDashboardView: View {
 
             Spacer()
 
-            Image(systemName: "chevron.right")
+            Image(systemName: "chevron.forward")
                 .font(.caption.bold())
                 .foregroundStyle(.tertiary)
         }

@@ -16,8 +16,13 @@ struct DuplicateFinderView: View {
             // screen exactly as it already was.
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Duplicates",
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
+                    title: .key("Duplicates"),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -39,8 +44,16 @@ struct DuplicateFinderView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
-        .navigationTitle("Duplicates")
-        .happyPathCelebration(isPresented: $isCelebrating, statLine: "removed \(viewModel.deletedCount) duplicates")
+        // A resolved `String`, not the literal: the literal is the same
+        // `LocalizedStringKey` before and after a language switch, so SwiftUI
+        // pushes no title update, and a screen that was hidden while the
+        // language changed keeps the old title. A `String` differs between the
+        // two languages, so the title is re-applied.
+        .localizedNavigationTitle("Duplicates")
+        .happyPathCelebration(
+            isPresented: $isCelebrating,
+            statLine: L10n.format("removed %lld duplicate", fallback: "removed %lld duplicates", viewModel.deletedCount)
+        )
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.allGroups.isEmpty {
                 // DUP-05: a scan type / library change needs a fresh scan — return
@@ -76,7 +89,7 @@ struct DuplicateFinderView: View {
                 },
                 descriptor: .duplicates
             )
-            .navigationTitle("Compare")
+            .localizedNavigationTitle("Compare")
             .navigationBarTitleDisplayMode(.inline)
         }
         .alert("Delete \(viewModel.selectedForDeletion.count) Items", isPresented: $showDeleteConfirm) {
@@ -119,7 +132,7 @@ struct DuplicateFinderView: View {
             }
         ) {
             Picker("Scan Type", selection: $viewModel.scanType) {
-                ForEach(DuplicateScanType.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                ForEach(DuplicateScanType.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }
             .pickerStyle(.segmented)
         }
@@ -162,7 +175,9 @@ struct DuplicateFinderView: View {
                             // DUP-03: explain why iCloud-only photos are absent
                             // from an exact scan.
                             if viewModel.skippedICloudCount > 0 {
-                                Text("\(viewModel.skippedICloudCount) iCloud-only photo\(viewModel.skippedICloudCount == 1 ? "" : "s") skipped (not on this device)")
+                                Text(L10n.format("%lld iCloud-only photo skipped (not on this device)",
+                                                 fallback: "%lld iCloud-only photos skipped (not on this device)",
+                                                 viewModel.skippedICloudCount))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -251,12 +266,18 @@ struct DuplicateFinderView: View {
             // circle marks for deletion. Same pattern as Similar and Bursts.
             Button { selectedGroup = group } label: {
                 HStack {
-                    Text("\(group.assets.count) \(group.type == .exact ? "exact copies" : "look alike")")
+                    // Two whole phrases, one per group type, rather than a noun
+                    // spliced into a shared template: "%lld %@" cannot be
+                    // reordered into languages that put the number after the
+                    // noun, and the two forms pluralize independently.
+                    Text(group.type == .exact
+                         ? L10n.format("%lld exact copies", group.assets.count)
+                         : L10n.format("%lld look-alike photos", group.assets.count))
                         .font(.subheadline.bold())
                     Spacer()
                     Text("Compare")
                         .font(.caption.bold())
-                    Image(systemName: "chevron.right")
+                    Image(systemName: "chevron.forward")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }

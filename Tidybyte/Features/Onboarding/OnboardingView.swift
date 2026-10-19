@@ -25,26 +25,34 @@ struct OnboardingView: View {
     @State private var pageIndex = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private static let pages: [OnboardingPage] = [
-        OnboardingPage(
-            systemImage: "rectangle.portrait.on.rectangle.portrait.angled",
-            tint: .blue,
-            title: "Swipe Through Your Library",
-            message: "Review one photo at a time. Swipe left to delete, right to keep, or up to file it into an album — and undo anything by mistake."
-        ),
-        OnboardingPage(
-            systemImage: "lock.shield",
-            tint: .green,
-            title: "Nothing Leaves Your Device",
-            message: "TidyByte has no account and no servers. Every scan, comparison, and analysis runs right here on this device."
-        ),
-        OnboardingPage(
-            systemImage: "photo.on.rectangle.angled",
-            tint: .orange,
-            title: "Access to Your Photos",
-            message: "TidyByte reads your library to find duplicates, blurry shots, and oversized files. It only ever changes what you approve. iOS will ask for permission next."
-        )
-    ]
+    /// Computed, not a `static let`.
+    ///
+    /// A `static let` would build this array once and cache the English for the
+    /// life of the process, so the first-run flow would keep the launch-time
+    /// language after a switch. Three small structs per access is free, and the
+    /// flow is shown once per install.
+    private static var pages: [OnboardingPage] {
+        [
+            OnboardingPage(
+                systemImage: "rectangle.portrait.on.rectangle.portrait.angled",
+                tint: .blue,
+                title: L10n.string("Swipe Through Your Library"),
+                message: L10n.string("Review one photo at a time. Swipe left to delete, right to keep, or up to file it into an album — and undo anything by mistake.")
+            ),
+            OnboardingPage(
+                systemImage: "lock.shield",
+                tint: .green,
+                title: L10n.string("Nothing Leaves Your Device"),
+                message: L10n.string("TidyByte has no account and no servers. Every scan, comparison, and analysis runs right here on this device.")
+            ),
+            OnboardingPage(
+                systemImage: "photo.on.rectangle.angled",
+                tint: .orange,
+                title: L10n.string("Access to Your Photos"),
+                message: L10n.string("TidyByte reads your library to find duplicates, blurry shots, and oversized files. It only ever changes what you approve. iOS will ask for permission next.")
+            )
+        ]
+    }
 
     private var isLastPage: Bool { pageIndex == Self.pages.count - 1 }
 

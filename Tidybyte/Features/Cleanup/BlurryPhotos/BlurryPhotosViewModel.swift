@@ -229,7 +229,7 @@ final class BlurryPhotosViewModel {
         guard scanEpoch == ScanResults.epoch else {
             analyzedPhotos = []
             scanState = .idle
-            errorMessage = "Your library changed during analysis. Scan again for current results."
+            errorMessage = L10n.string("Your library changed during analysis. Scan again for current results.")
             return
         }
         if !supportsLensSmudge && activeTab == .lensSmudge { activeTab = .blurry }

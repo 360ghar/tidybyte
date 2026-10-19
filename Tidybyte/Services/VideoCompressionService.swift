@@ -4,15 +4,28 @@ import UIKit
 
 struct CompressionPreset: Identifiable, Sendable {
     let id: String
+    /// The resolution ("1080p", "720p") is a technical name, not a word, so it
+    /// stays as-is in every language. Only `description` is prose.
     let label: String
     let preset: String
     let description: String
 
-    static let presets: [CompressionPreset] = [
-        CompressionPreset(id: "1080p", label: "1080p HD", preset: AVAssetExportPreset1920x1080, description: "Good quality, moderate savings"),
-        CompressionPreset(id: "720p", label: "720p", preset: AVAssetExportPreset1280x720, description: "Decent quality, major savings"),
-        CompressionPreset(id: "480p", label: "480p", preset: AVAssetExportPreset640x480, description: "Lower quality, maximum savings")
-    ]
+    /// A computed property, not a `static let`.
+    ///
+    /// This matters for localization: a `static let` array is built once on
+    /// first access and cached for the life of the process, so it would keep
+    /// serving the launch-time language forever after a switch. Rebuilding
+    /// three small structs per access is free.
+    static var presets: [CompressionPreset] {
+        [
+            CompressionPreset(id: "1080p", label: "1080p HD", preset: AVAssetExportPreset1920x1080,
+                              description: L10n.string("Good quality, moderate savings")),
+            CompressionPreset(id: "720p", label: "720p", preset: AVAssetExportPreset1280x720,
+                              description: L10n.string("Decent quality, major savings")),
+            CompressionPreset(id: "480p", label: "480p", preset: AVAssetExportPreset640x480,
+                              description: L10n.string("Lower quality, maximum savings"))
+        ]
+    }
 
     /// Longest-edge target (in pixels) of the export preset: 1080p exports at
     /// 1920×1080, 720p at 1280×720, 480p at 640×480.
@@ -185,7 +198,7 @@ actor VideoCompressionService {
             if Task.isCancelled || exportSession.status == .cancelled {
                 throw CompressionError.cancelled
             }
-            throw CompressionError.exportFailed(exportSession.error?.localizedDescription ?? "Unknown error")
+            throw CompressionError.exportFailed(exportSession.error?.localizedDescription ?? L10n.string("Unknown error"))
         }
 
         // Verify the exported file exists and is non-empty before trusting it.
@@ -197,7 +210,7 @@ actor VideoCompressionService {
             throw CompressionError.fileSizeReadFailed
         }
         guard compressedSize > 0 else {
-            throw CompressionError.exportFailed("Exported file was empty.")
+            throw CompressionError.exportFailed(L10n.string("Exported file was empty."))
         }
 
         // Respect batch cancellation: once the user cancels, stop before
@@ -240,7 +253,7 @@ actor VideoCompressionService {
         }
 
         guard let replacementId = placeholder?.localIdentifier else {
-            throw CompressionError.exportFailed("Failed to save compressed video to library.")
+            throw CompressionError.exportFailed(L10n.string("Failed to save compressed video to library."))
         }
         // D1: report the durable new copy to the journal immediately, with the
         // real exported size so the journal never has to guess at 0.
@@ -333,14 +346,15 @@ enum CompressionError: LocalizedError {
     case fileSizeReadFailed
 
     var errorDescription: String? {
+        // User-facing: the compression tool shows these in its error banner.
         switch self {
-        case .assetNotFound: "Video not found."
-        case .videoLoadTimedOut: "Couldn't load the video (it may still be in iCloud). Please try again."
-        case .sizeUnknown: "Video size unknown (iCloud-only) — skipped."
-        case .cancelled: "Cancelled."
-        case .exportSessionCreationFailed: "Failed to create export session."
-        case .exportFailed(let msg): "Export failed: \(msg)"
-        case .fileSizeReadFailed: "Failed to read file size."
+        case .assetNotFound: L10n.string("Video not found.")
+        case .videoLoadTimedOut: L10n.string("Couldn't load the video (it may still be in iCloud). Please try again.")
+        case .sizeUnknown: L10n.string("Video size unknown (iCloud-only) — skipped.")
+        case .cancelled: L10n.string("Cancelled.")
+        case .exportSessionCreationFailed: L10n.string("Failed to create export session.")
+        case .exportFailed(let msg): L10n.format("Export failed: %@", msg)
+        case .fileSizeReadFailed: L10n.string("Failed to read file size.")
         }
     }
 }

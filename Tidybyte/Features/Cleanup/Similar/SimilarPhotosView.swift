@@ -20,8 +20,12 @@ struct SimilarPhotosView: View {
             // screen exactly as it already was.
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Similar Photos",
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -43,8 +47,15 @@ struct SimilarPhotosView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.4, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.scanState)
-        .navigationTitle("Similar Photos")
-        .happyPathCelebration(isPresented: $isCelebrating, statLine: "removed \(viewModel.deletedCount) similar photos")
+        .localizedNavigationTitle("Similar Photos")
+        .happyPathCelebration(
+            isPresented: $isCelebrating,
+            statLine: L10n.format(
+                "removed %lld similar photo",
+                fallback: "removed %lld similar photos",
+                viewModel.deletedCount
+            )
+        )
         .toolbar {
             if viewModel.scanState == .completed && !viewModel.groups.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
@@ -87,7 +98,7 @@ struct SimilarPhotosView: View {
                     }
                 }
             )
-            .navigationTitle("Review Group")
+            .localizedNavigationTitle("Review Group")
             .navigationBarTitleDisplayMode(.inline)
         }
         .alert("Delete Similar Photos", isPresented: $showDeleteConfirm) {
@@ -267,7 +278,7 @@ struct SimilarPhotosView: View {
                 Button {
                     selectedGroup = group
                 } label: {
-                    Label("Review", systemImage: "chevron.right")
+                    Label("Review", systemImage: "chevron.forward")
                         .font(.caption.bold())
                 }
                 .buttonStyle(.plain)
@@ -337,9 +348,9 @@ struct SimilarPhotosView: View {
                                 }
 
                             if isKeeper {
-                                KeeperMark(reason: group.bestReason.rawValue)
+                                KeeperMark(reason: group.bestReason.displayName)
                                     .frame(minHeight: 44)
-                                    .accessibilityLabel("Recommended to keep: \(group.bestReason.rawValue)")
+                                    .accessibilityLabel("Recommended to keep: \(group.bestReason.displayName)")
                             } else {
                                 MakeKeeperButton {
                                     viewModel.setBest(assetId: asset.id, in: group.id)

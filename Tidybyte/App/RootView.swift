@@ -5,6 +5,11 @@ struct RootView: View {
     @State private var appNavigation = AppNavigation()
     @State private var permissionHandler = PhotoPermissionHandler()
     @State private var libraryMonitor = LibraryChangeMonitor()
+    /// Owned here rather than in `TidybyteApp` so the SwiftUI environment can
+    /// carry it; the app's `init` cannot publish an observable into the view
+    /// tree. Read by Settings to change the language, and by nothing else —
+    /// every other view gets the language through the environment below.
+    @State private var languageStore = LanguageStore()
     @AppStorage(AppPreferences.Key.hasCompletedOnboarding) private var hasCompletedOnboarding = false
     @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var largeFileThreshold = 10.0
     #if DEBUG
@@ -18,16 +23,6 @@ struct RootView: View {
     @Environment(WidgetSnapshotCoordinator.self) private var widgetCoordinator
 
     init() {
-        #if DEBUG
-        // Start UI tests from a genuinely fresh first-run state. Resetting the
-        // persisted flag here (rather than pinning it false via a launch
-        // argument) matters: an argument-domain value would outrank the write
-        // that Skip performs, so the cover could never be dismissed.
-        if ProcessInfo.processInfo.arguments.contains("-uitest-reset-onboarding") {
-            UserDefaults.standard.removeObject(forKey: AppPreferences.Key.hasCompletedOnboarding)
-        }
-        #endif
-
         let appearance = UITabBarAppearance()
         appearance.configureWithDefaultBackground()
         appearance.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.85)
@@ -83,13 +78,43 @@ struct RootView: View {
                 RecentlyDeletedNotice()
             }
         }
-        .sidebarAdaptableOnPad()
+        .adaptiveSidebarStyle()
         .environment(appNavigation)
         .environment(libraryMonitor)
         // Injected so any tab can react to limited access (the shared
         // `LimitedLibraryBanner`) without threading the handler through every
         // initializer.
         .environment(permissionHandler)
+        .environment(languageStore)
+        // Localization, applied at the one place every screen is below.
+        //
+        // `\.locale` is what makes `Text("Some key")` resolve against the
+        // chosen language; verified in the simulator that a child view which
+        // never reads the environment still re-renders when this changes.
+        //
+        // Text that is built in code (`Text(tool.name)`, where `name` is a
+        // computed `String`) is passed to `Text` as a `LocalizedStringKey` at
+        // its own call site, so it reads the same environment value instead of
+        // selecting the verbatim `String` overload. That is the whole
+        // mechanism: an environment change re-renders the text.
+        //
+        // Deliberately NOT `.id(languageStore.effectiveLanguage)`. Keying the
+        // tree on the language forced a full rebuild of everything below this
+        // point, and that rebuild destroyed child `@State` rather than just
+        // re-rendering it: a live Swipe session's `SwipeSessionViewModel` (and
+        // the deletions it had marked but not committed) was thrown away, and
+        // `SwipeSessionView.onDisappear` never calls `endSession()`, so the
+        // completion review that every other exit path guards was skipped and
+        // the marked photos silently came back as "Not Swiped Yet". The state
+        // above this point (`appNavigation`, `permissionHandler`,
+        // `libraryMonitor`, `languageStore`) was never at risk; the state below
+        // it is what the rebuild cost.
+        .environment(\.locale, languageStore.locale)
+        .environment(\.layoutDirection, languageStore.layoutDirection)
+        // `nil` for the default: SwiftUI then keeps following the device's
+        // light/dark setting and any automatic schedule, which is the behavior
+        // the app had before this setting existed.
+        .preferredColorScheme(languageStore.appearance.colorScheme?.swiftUI)
         .tint(.blue)
         .fullScreenCover(isPresented: onboardingBinding) {
             OnboardingView(
@@ -257,22 +282,25 @@ enum AppTab: Hashable {
 }
 
 private extension View {
-    /// Adopts the iPad sidebar on iOS 18+, and stays a tab bar everywhere else.
+    /// Adopts the platform's own adaptive tab style on iOS 18+, and stays a
+    /// plain tab bar everywhere else.
     ///
     /// Deliberately NOT a `NavigationSplitView` rewrite: the four sections each
     /// carry their own `NavigationStack` with its own typed path, and rebuilding
     /// that by hand would put the iPhone navigation — deep links, App Intents,
     /// widget routes, the swipe-session deletion gate — at risk for no user
     /// benefit. `sidebarAdaptable` is the platform's own answer: the same
-    /// `TabView` renders as a tab bar on iPhone and a collapsible sidebar on
-    /// iPad, with keyboard navigation for free.
+    /// `TabView` renders as a tab bar on iPhone and a collapsible sidebar where
+    /// there is room for one, with keyboard navigation for free. Which pose that
+    /// is follows the available space, not the device, so a foldable resizing
+    /// into or out of a sidebar pose is handled by the style itself.
     ///
     /// The `#available` split exists because the style is iOS 18+ and the app
-    /// targets iOS 17. On 17 an iPad keeps the tab bar, which is exactly what it
-    /// shipped with — a graceful degradation rather than a reason to raise the
+    /// targets iOS 17. On 17 the tab bar stays, which is exactly what it shipped
+    /// with — a graceful degradation rather than a reason to raise the
     /// deployment target.
     @ViewBuilder
-    func sidebarAdaptableOnPad() -> some View {
+    func adaptiveSidebarStyle() -> some View {
         if #available(iOS 18.0, *) {
             self.tabViewStyle(.sidebarAdaptable)
         } else {

@@ -1,0 +1,476 @@
+{
+  "_readme": [
+    "Siri phrases for the App Shortcuts provider (TidybyteShortcuts.swift).",
+    "",
+    "These do NOT live in Localizable.xcstrings. App Intents resolves them",
+    "through Tidybyte/Resources/AppShortcuts.xcstrings, which build-catalog.mjs",
+    "generates from this file. Putting them in the app catalog instead is silent:",
+    "the keys are never looked up, coverage reads 100%, and Siri answers in",
+    "English in all 20 languages. That mistake shipped once already.",
+    "",
+    "Each key is the FIRST phrase of a `phrases:` array in Swift, verbatim.",
+    "The array holds every phrase for that shortcut — the key is repeated as the",
+    "first element, and the rest are alternate utterances Siri also matches.",
+    "",
+    "TWO HARD RULES for every translated phrase:",
+    "  1. It must contain the literal token ${applicationName}. Apple requires",
+    "     every App Shortcut phrase to name the app; without it Siri will not",
+    "     offer the shortcut at all.",
+    "  2. The token may move. It is the app's display name in the sentence, so",
+    "     put it wherever that language naturally puts it.",
+    "",
+    "The token is NOT a format specifier — no %-style substitution happens, so",
+    "do not escape it, reorder it, or translate its contents.",
+    "",
+    "`en` is the source of truth and is checked against the Swift file by",
+    "extract.mjs. Every other language has the same number of phrases, in the",
+    "same order, as `en`.",
+    "",
+    "Vocabulary is taken from the app's own catalog rather than translated fresh,",
+    "so Siri says the same words the screen behind it shows. The shortcut titles",
+    "in Localizable.xcstrings (\"Start a Cleanup Session\", \"Show Storage\",",
+    "\"Clean Screenshots\", \"How Much Can I Free Up?\", \"Show My Savings\") are the",
+    "reference for each language's phrasing."
+  ],
+  "en": {
+    "Start a cleanup session with ${applicationName}": [
+      "Start a cleanup session with ${applicationName}",
+      "Clean up photos with ${applicationName}",
+      "Tidy my photos with ${applicationName}"
+    ],
+    "Show storage in ${applicationName}": [
+      "Show storage in ${applicationName}",
+      "Check my storage with ${applicationName}"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "Clean screenshots with ${applicationName}"
+    ],
+    "How much can I free with ${applicationName}": [
+      "How much can I free with ${applicationName}",
+      "Check free space with ${applicationName}"
+    ],
+    "Show my savings in ${applicationName}": [
+      "Show my savings in ${applicationName}"
+    ]
+  },
+  "hi": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} से क्लीनअप सेशन शुरू करें",
+      "${applicationName} से फ़ोटो साफ़ करें",
+      "${applicationName} से मेरी फ़ोटो व्यवस्थित करें"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName} में स्टोरेज दिखाएँ",
+      "${applicationName} से मेरा स्टोरेज देखें"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} से स्क्रीनशॉट साफ़ करें"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} से मैं कितनी जगह खाली कर सकता हूँ",
+      "${applicationName} से खाली जगह देखें"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName} में मेरी बचत दिखाएँ"
+    ]
+  },
+  "bn": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} দিয়ে পরিষ্কারের সেশন শুরু করুন",
+      "${applicationName} দিয়ে ফটো পরিষ্কার করুন",
+      "${applicationName} দিয়ে আমার ফটো গুছিয়ে নিন"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName}-এ স্টোরেজ দেখান",
+      "${applicationName} দিয়ে আমার স্টোরেজ দেখুন"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} দিয়ে স্ক্রিনশট পরিষ্কার করুন"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} দিয়ে আমি কতটা খালি করতে পারি",
+      "${applicationName} দিয়ে খালি জায়গা দেখুন"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName}-এ আমার সঞ্চয় দেখান"
+    ]
+  },
+  "ta": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} மூலம் சுத்த அமர்வைத் தொடங்கு",
+      "${applicationName} மூலம் புகைப்படங்களைச் சுத்தம் செய்",
+      "${applicationName} மூலம் என் புகைப்படங்களை ஒழுங்குபடுத்து"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName} இல் சேமிப்பகத்தைக் காட்டு",
+      "${applicationName} மூலம் என் சேமிப்பகத்தைப் பார்"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} மூலம் ஸ்கிரீன்ஷாட்களைச் சுத்தம் செய்"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} மூலம் நான் எவ்வளவு காலி செய்ய முடியும்",
+      "${applicationName} மூலம் காலி இடத்தைப் பார்"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName} இல் என் சேமிப்பைக் காட்டு"
+    ]
+  },
+  "te": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} తో క్లీన్అప్ సెషన్ ప్రారంభించండి",
+      "${applicationName} తో ఫోటోలను శుభ్రం చేయండి",
+      "${applicationName} తో నా ఫోటోలను సర్దుబాటు చేయండి"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName} లో నిల్వ చూపించు",
+      "${applicationName} తో నా నిల్వను చూడండి"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} తో స్క్రీన్షాట్లను శుభ్రం చేయండి"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} తో నేను ఎంత ఖాళీ చేయగలను",
+      "${applicationName} తో ఖాళీ స్థలాన్ని చూడండి"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName} లో నా పొదుపు చూపించు"
+    ]
+  },
+  "mr": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} ने क्लीनअप सत्र सुरू करा",
+      "${applicationName} ने फोटो साफ करा",
+      "${applicationName} ने माझे फोटो नीट लावा"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName} मध्ये स्टोरेज दाखवा",
+      "${applicationName} ने माझे स्टोरेज पहा"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} ने स्क्रीनशॉट स्वच्छ करा"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} ने मी किती जागा मोकळी करू शकतो",
+      "${applicationName} ने मोकळी जागा पहा"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName} मध्ये माझी बचत दाखवा"
+    ]
+  },
+  "gu": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} થી ક્લીનઅપ સત્ર શરૂ કરો",
+      "${applicationName} થી ફોટા સાફ કરો",
+      "${applicationName} થી મારા ફોટા ગોઠવો"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName} માં સ્ટોરેજ બતાવો",
+      "${applicationName} થી મારું સ્ટોરેજ જુઓ"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} થી સ્ક્રીનશોટ સાફ કરો"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} થી હું કેટલી જગ્યા ખાલી કરી શકું",
+      "${applicationName} થી ખાલી જગ્યા જુઓ"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName} માં મારી બચત બતાવો"
+    ]
+  },
+  "kn": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} ನಿಂದ ಕ್ಲೀನ್ಅಪ್ ಸೆಷನ್ ಪ್ರಾರಂಭಿಸಿ",
+      "${applicationName} ನಿಂದ ಫೋಟೋಗಳನ್ನು ಸ್ವಚ್ಛಗೊಳಿಸಿ",
+      "${applicationName} ನಿಂದ ನನ್ನ ಫೋಟೋಗಳನ್ನು ಜೋಡಿಸಿ"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName} ನಲ್ಲಿ ಸಂಗ್ರಹಣೆ ತೋರಿಸಿ",
+      "${applicationName} ನಿಂದ ನನ್ನ ಸಂಗ್ರಹಣೆ ನೋಡಿ"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} ನಿಂದ ಸ್ಕ್ರೀನ್ಶಾಟ್ಗಳನ್ನು ಸ್ವಚ್ಛಗೊಳಿಸಿ"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} ನಿಂದ ನಾನು ಎಷ್ಟು ಜಾಗ ಖಾಲಿ ಮಾಡಬಹುದು",
+      "${applicationName} ನಿಂದ ಖಾಲಿ ಜಾಗ ನೋಡಿ"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName} ನಲ್ಲಿ ನನ್ನ ಉಳಿತಾಯ ತೋರಿಸಿ"
+    ]
+  },
+  "ml": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} ഉപയോഗിച്ച് ക്ലീനപ്പ് സെഷൻ ആരംഭിക്കുക",
+      "${applicationName} ഉപയോഗിച്ച് ഫോട്ടോകൾ ക്ലീൻ ചെയ്യുക",
+      "${applicationName} ഉപയോഗിച്ച് എന്റെ ഫോട്ടോകൾ ക്രമീകരിക്കുക"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName} ൽ സ്റ്റോറേജ് കാണിക്കുക",
+      "${applicationName} ഉപയോഗിച്ച് എന്റെ സ്റ്റോറേജ് നോക്കുക"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} ഉപയോഗിച്ച് സ്ക്രീൻഷോട്ടുകൾ ക്ലീൻ ചെയ്യുക"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} ഉപയോഗിച്ച് എത്ര സ്ഥലം ഒഴിവാക്കാനാകും",
+      "${applicationName} ഉപയോഗിച്ച് ഒഴിവുള്ള സ്ഥലം നോക്കുക"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName} ൽ എന്റെ ലാഭം കാണിക്കുക"
+    ]
+  },
+  "pa": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName} ਨਾਲ ਸਫ਼ਾਈ ਸੈਸ਼ਨ ਸ਼ੁਰੂ ਕਰੋ",
+      "${applicationName} ਨਾਲ ਫ਼ੋਟੋ ਸਾਫ਼ ਕਰੋ",
+      "${applicationName} ਨਾਲ ਮੇਰੀਆਂ ਫ਼ੋਟੋਆਂ ਸੈੱਟ ਕਰੋ"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName} ਵਿੱਚ ਸਟੋਰੇਜ ਦਿਖਾਓ",
+      "${applicationName} ਨਾਲ ਮੇਰਾ ਸਟੋਰੇਜ ਵੇਖੋ"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName} ਨਾਲ ਸਕਰੀਨਸ਼ਾਟ ਸਾਫ਼ ਕਰੋ"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName} ਨਾਲ ਮੈਂ ਕਿੰਨੀ ਥਾਂ ਖਾਲੀ ਕਰ ਸਕਦਾ ਹਾਂ",
+      "${applicationName} ਨਾਲ ਖਾਲੀ ਥਾਂ ਵੇਖੋ"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName} ਵਿੱਚ ਮੇਰੀ ਬਚਤ ਦਿਖਾਓ"
+    ]
+  },
+  "ar": {
+    "Start a cleanup session with ${applicationName}": [
+      "ابدأ جلسة تنظيف مع ${applicationName}",
+      "نظّف الصور مع ${applicationName}",
+      "رتّب صوري مع ${applicationName}"
+    ],
+    "Show storage in ${applicationName}": [
+      "اعرض التخزين في ${applicationName}",
+      "تحقق من تخزيني مع ${applicationName}"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "نظّف لقطات الشاشة مع ${applicationName}"
+    ],
+    "How much can I free with ${applicationName}": [
+      "كم يمكنني تحريره مع ${applicationName}",
+      "تحقق من المساحة الفارغة مع ${applicationName}"
+    ],
+    "Show my savings in ${applicationName}": [
+      "اعرض توفيري في ${applicationName}"
+    ]
+  },
+  "he": {
+    "Start a cleanup session with ${applicationName}": [
+      "התחל הפעלת ניקוי עם ${applicationName}",
+      "נקה תמונות עם ${applicationName}",
+      "סדר את התמונות שלי עם ${applicationName}"
+    ],
+    "Show storage in ${applicationName}": [
+      "הצג אחסון ב-${applicationName}",
+      "בדוק את האחסון שלי עם ${applicationName}"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "נקה צילומי מסך עם ${applicationName}"
+    ],
+    "How much can I free with ${applicationName}": [
+      "כמה מקום אפשר לפנות עם ${applicationName}",
+      "בדוק מקום פנוי עם ${applicationName}"
+    ],
+    "Show my savings in ${applicationName}": [
+      "הצג את החיסכון שלי ב-${applicationName}"
+    ]
+  },
+  "ru": {
+    "Start a cleanup session with ${applicationName}": [
+      "Начать сеанс очистки с ${applicationName}",
+      "Очистить фото с ${applicationName}",
+      "Привести мои фото в порядок с ${applicationName}"
+    ],
+    "Show storage in ${applicationName}": [
+      "Показать хранилище в ${applicationName}",
+      "Проверить моё хранилище с ${applicationName}"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "Очистить скриншоты с ${applicationName}"
+    ],
+    "How much can I free with ${applicationName}": [
+      "Сколько места можно освободить с ${applicationName}",
+      "Проверить свободное место с ${applicationName}"
+    ],
+    "Show my savings in ${applicationName}": [
+      "Показать мою экономию в ${applicationName}"
+    ]
+  },
+  "ja": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName}でクリーンアップセッションを開始",
+      "${applicationName}で写真を整理",
+      "${applicationName}で写真を片付ける"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName}でストレージを表示",
+      "${applicationName}でストレージを確認"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName}でスクリーンショットを整理"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName}でどれくらい空けられますか",
+      "${applicationName}で空き容量を確認"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName}で節約量を表示"
+    ]
+  },
+  "ko": {
+    "Start a cleanup session with ${applicationName}": [
+      "${applicationName}로 정리 세션 시작",
+      "${applicationName}로 사진 정리하기",
+      "${applicationName}로 내 사진 정돈하기"
+    ],
+    "Show storage in ${applicationName}": [
+      "${applicationName}에서 저장 공간 보기",
+      "${applicationName}로 내 저장 공간 확인하기"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "${applicationName}로 스크린샷 정리"
+    ],
+    "How much can I free with ${applicationName}": [
+      "${applicationName}로 얼마나 확보할 수 있나요",
+      "${applicationName}로 남은 공간 확인하기"
+    ],
+    "Show my savings in ${applicationName}": [
+      "${applicationName}에서 내 절약 보기"
+    ]
+  },
+  "zh-Hans": {
+    "Start a cleanup session with ${applicationName}": [
+      "用${applicationName}开始清理会话",
+      "用${applicationName}清理照片",
+      "用${applicationName}整理我的照片"
+    ],
+    "Show storage in ${applicationName}": [
+      "在${applicationName}中显示存储空间",
+      "用${applicationName}查看我的存储空间"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "用${applicationName}清理截屏"
+    ],
+    "How much can I free with ${applicationName}": [
+      "用${applicationName}能释放多少空间",
+      "用${applicationName}查看可用空间"
+    ],
+    "Show my savings in ${applicationName}": [
+      "在${applicationName}中显示我的节省"
+    ]
+  },
+  "es": {
+    "Start a cleanup session with ${applicationName}": [
+      "Iniciar una sesión de limpieza con ${applicationName}",
+      "Limpiar las fotos con ${applicationName}",
+      "Ordenar mis fotos con ${applicationName}"
+    ],
+    "Show storage in ${applicationName}": [
+      "Ver el almacenamiento en ${applicationName}",
+      "Consultar mi almacenamiento con ${applicationName}"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "Limpiar las capturas de pantalla con ${applicationName}"
+    ],
+    "How much can I free with ${applicationName}": [
+      "¿Cuánto espacio puedo liberar con ${applicationName}?",
+      "Consultar el espacio libre con ${applicationName}"
+    ],
+    "Show my savings in ${applicationName}": [
+      "Ver mis ahorros en ${applicationName}"
+    ]
+  },
+  "fr": {
+    "Start a cleanup session with ${applicationName}": [
+      "Démarrer une session de nettoyage avec ${applicationName}",
+      "Nettoyer les photos avec ${applicationName}",
+      "Ranger mes photos avec ${applicationName}"
+    ],
+    "Show storage in ${applicationName}": [
+      "Afficher le stockage dans ${applicationName}",
+      "Vérifier mon stockage avec ${applicationName}"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "Nettoyer les captures d'écran avec ${applicationName}"
+    ],
+    "How much can I free with ${applicationName}": [
+      "Combien d'espace puis-je libérer avec ${applicationName}",
+      "Vérifier l'espace libre avec ${applicationName}"
+    ],
+    "Show my savings in ${applicationName}": [
+      "Afficher mes économies dans ${applicationName}"
+    ]
+  },
+  "de": {
+    "Start a cleanup session with ${applicationName}": [
+      "Bereinigungssitzung mit ${applicationName} starten",
+      "Fotos mit ${applicationName} aufräumen",
+      "Meine Fotos mit ${applicationName} sortieren"
+    ],
+    "Show storage in ${applicationName}": [
+      "Speicher in ${applicationName} anzeigen",
+      "Meinen Speicher mit ${applicationName} prüfen"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "Screenshots mit ${applicationName} bereinigen"
+    ],
+    "How much can I free with ${applicationName}": [
+      "Wie viel kann ich mit ${applicationName} freigeben",
+      "Freien Speicher mit ${applicationName} prüfen"
+    ],
+    "Show my savings in ${applicationName}": [
+      "Meine Einsparungen in ${applicationName} anzeigen"
+    ]
+  },
+  "it": {
+    "Start a cleanup session with ${applicationName}": [
+      "Iniziare una sessione di pulizia con ${applicationName}",
+      "Pulire le foto con ${applicationName}",
+      "Riordinare le mie foto con ${applicationName}"
+    ],
+    "Show storage in ${applicationName}": [
+      "Mostrare l'archiviazione in ${applicationName}",
+      "Controllare la mia archiviazione con ${applicationName}"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "Pulire le istantanee con ${applicationName}"
+    ],
+    "How much can I free with ${applicationName}": [
+      "Quanto spazio posso liberare con ${applicationName}",
+      "Controllare lo spazio libero con ${applicationName}"
+    ],
+    "Show my savings in ${applicationName}": [
+      "Mostrare i miei risparmi in ${applicationName}"
+    ]
+  },
+  "pt-BR": {
+    "Start a cleanup session with ${applicationName}": [
+      "Iniciar uma sessão de limpeza com ${applicationName}",
+      "Limpar as fotos com ${applicationName}",
+      "Organizar minhas fotos com ${applicationName}"
+    ],
+    "Show storage in ${applicationName}": [
+      "Mostrar o armazenamento no ${applicationName}",
+      "Conferir meu armazenamento com ${applicationName}"
+    ],
+    "Clean screenshots with ${applicationName}": [
+      "Limpar as capturas de tela com ${applicationName}"
+    ],
+    "How much can I free with ${applicationName}": [
+      "Quanto posso liberar com ${applicationName}",
+      "Conferir o espaço livre com ${applicationName}"
+    ],
+    "Show my savings in ${applicationName}": [
+      "Mostrar minha economia no ${applicationName}"
+    ]
+  }
+}

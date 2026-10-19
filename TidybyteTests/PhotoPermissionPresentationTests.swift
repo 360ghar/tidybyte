@@ -15,6 +15,16 @@ final class PhotoPermissionPresentationTests: XCTestCase {
         .notDetermined, .authorized, .limited, .denied, .restricted
     ]
 
+    override func setUp() {
+        super.setUp()
+        // The copy assertions below pin the English text, and `L10n` resolves
+        // through the stored override before `Bundle.main`. A language left in
+        // the host's defaults by another test, or by an earlier run in this
+        // simulator, would fail them for a reason that has nothing to do with
+        // the copy.
+        LanguagePreferenceStore.save(nil)
+    }
+
     // MARK: - State -> action
 
     func testNotDeterminedAsksAndShowsThePrimer() {
@@ -106,6 +116,9 @@ final class PhotoPermissionPresentationTests: XCTestCase {
     func testPrimerCopyIsComplete() {
         XCTAssertFalse(PermissionPresentation.primerTitle.isEmpty)
         XCTAssertFalse(PermissionPresentation.primerMessage.isEmpty)
+        // The literal English, not a second `L10n.string` lookup: comparing the
+        // production value against the lookup it is built from can only notice a
+        // changed key, never mangled or missing copy.
         XCTAssertEqual(PermissionPresentation.primerButtonTitle, "Continue")
         XCTAssertEqual(PermissionPresentation.declineButtonTitle, "Not Now")
     }

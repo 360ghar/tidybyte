@@ -119,6 +119,15 @@ final class SwipeSessionViewModel {
     /// the advance path can release images that fell out of the visible +
     /// prefetch window (SWIPE-01).
     private var cachedAssetIDs: Set<String> = []
+
+    /// Pixel size of the deck's render area, published by `SwipeCardDeck` on
+    /// every geometry change (deck size × display scale). Every image request
+    /// this session makes — the first window, the on-advance prefetch, and the
+    /// cache release — is sized from this, so the decode target follows the deck
+    /// through a live resize (fold, unfold, Split View, Stage Manager) instead
+    /// of the device screen. Stays `.zero` until the deck has laid out;
+    /// prefetching waits for it rather than guessing a size.
+    private(set) var renderTarget: CGSize = .zero
     let filter: SwipeFilter
     let photoService: PhotoLibraryService
     let modelContext: ModelContext
@@ -194,7 +203,9 @@ final class SwipeSessionViewModel {
             }
             guard !Task.isCancelled, token == loadGeneration else { return }
             guard epoch == ScanResults.epoch else {
-                errorMessage = "Your library changed during analysis. Try Worst Shots again."
+                // `errorMessage` is a String handed to a banner, so it has to be
+                // looked up where it is built — nothing downstream can localize it.
+                errorMessage = L10n.string("Your library changed during analysis. Try Worst Shots again.")
                 hasLoadedInitialAssets = true
                 return
             }
@@ -236,13 +247,11 @@ final class SwipeSessionViewModel {
         hasLoadedInitialAssets = true
         isLoading = false
 
-        // Pre-cache next batch in background (matches advance() pattern)
-        let prefetchIds = Array(assets.prefix(10).map(\.id))
-        cachedAssetIDs.formUnion(prefetchIds)
-        let screenSize = ScreenMetrics.pixelSize
-        Task {
-            await photoService.startCaching(assetIds: prefetchIds, targetSize: screenSize)
-        }
+        // Pre-cache the first window in the background (matches advance()).
+        // Sized from the deck's own render target: if the deck has not measured
+        // itself yet this is a no-op, and the deck's first geometry change runs
+        // it rather than prefetching at a guessed size.
+        prefetchUpcoming(includingCurrent: true)
     }
 
     func cancelLoading() {
@@ -355,8 +364,8 @@ final class SwipeSessionViewModel {
         // A nil pending asset or an in-flight add is a real failure, not a
         // success: returning nil would make the picker record recents and
         // dismiss as if the photo had been filed.
-        guard let asset = pendingKeepAsset else { return "No photo is waiting to be filed. Dismiss and try again." }
-        guard !isPerformingMutation else { return "Still adding — please wait a moment and try again." }
+        guard let asset = pendingKeepAsset else { return L10n.string("No photo is waiting to be filed. Dismiss and try again.") }
+        guard !isPerformingMutation else { return L10n.string("Still adding — please wait a moment and try again.") }
         isPerformingMutation = true
         defer { isPerformingMutation = false }
 
@@ -371,7 +380,7 @@ final class SwipeSessionViewModel {
             advance()
             return nil
         } catch {
-            return "Failed to add to album: \(error.localizedDescription)"
+            return L10n.format("Failed to add to album: %@", error.localizedDescription)
         }
     }
 
@@ -439,7 +448,7 @@ final class SwipeSessionViewModel {
                 currentIndex = max(0, currentIndex - 1)
                 deleteSwipeRecord(for: entry.asset.id)
             } catch {
-                errorMessage = "Failed to undo album change: \(error.localizedDescription)"
+                errorMessage = L10n.format("Failed to undo album change: %@", error.localizedDescription)
             }
         case .skipped:
             undoStack.removeLast()
@@ -513,12 +522,23 @@ final class SwipeSessionViewModel {
             // list stays so they can confirm again.
             if !handled, case .userDeclined = error { handled = true }
             if !handled {
-                deletionErrorMessage = "Failed to delete \(pendingDeletionIds.count) photo\(pendingDeletionIds.count == 1 ? "" : "s"): \(error.localizedDescription)"
+                deletionErrorMessage = Self.deletionFailureMessage(count: pendingDeletionIds.count, error: error)
             }
         } catch {
-            deletionErrorMessage = "Failed to delete \(pendingDeletionIds.count) photo\(pendingDeletionIds.count == 1 ? "" : "s"): \(error.localizedDescription)"
+            deletionErrorMessage = Self.deletionFailureMessage(count: pendingDeletionIds.count, error: error)
         }
         isDeletingBatch = false
+    }
+
+    /// One place for the failure copy, so the two catch paths above cannot
+    /// drift apart, and the plural form goes through the catalog instead of an
+    /// appended "s".
+    nonisolated static func deletionFailureMessage(count: Int, error: Error) -> String {
+        L10n.format(
+            "Failed to delete %lld photo",
+            fallback: "Failed to delete %lld photos",
+            count
+        ) + ": \(error.localizedDescription)"
     }
 
     func discardPendingDeletions() {
@@ -539,6 +559,26 @@ final class SwipeSessionViewModel {
         await photoService.stopAllCaching()
     }
 
+    /// Called by `SwipeCardDeck` whenever its measured size (or the display
+    /// scale) changes. An unchanged target is a no-op, so an ordinary layout
+    /// pass cannot restart the prefetch. On a real change — a fold, unfold, or
+    /// any resize — the entries cached at the old size are released at that
+    /// size (PhotoKit matches on `targetSize`) and the visible window is
+    /// re-cached at the new one, so the deck stops decoding for the old pose.
+    func updateRenderTarget(_ target: CGSize) {
+        guard target != renderTarget, target.width > 0, target.height > 0 else { return }
+        let previous = renderTarget
+        renderTarget = target
+        if previous != .zero, !cachedAssetIDs.isEmpty {
+            let releasing = Array(cachedAssetIDs)
+            cachedAssetIDs.removeAll()
+            Task {
+                await photoService.stopCaching(assetIds: releasing, targetSize: previous)
+            }
+        }
+        prefetchUpcoming(includingCurrent: true)
+    }
+
     func endSession() async {
         await stopAllCaching()
         showCompletion = true
@@ -552,20 +592,30 @@ final class SwipeSessionViewModel {
             showCompletion = true
         } else {
             // Pre-cache upcoming images
-            let prefetchStart = currentIndex + 1
-            let prefetchEnd = min(currentIndex + 10, assets.count)
-            if prefetchStart < prefetchEnd {
-                let ids = Array(assets[prefetchStart..<prefetchEnd].map(\.id))
-                cachedAssetIDs.formUnion(ids)
-                let screenSize = ScreenMetrics.pixelSize
-                Task {
-                    await photoService.startCaching(assetIds: ids, targetSize: screenSize)
-                }
-            }
+            prefetchUpcoming(includingCurrent: false)
         }
         // Release images that fell out of the visible + prefetch window so a
         // long session doesn't pin hundreds of images in the cache (SWIPE-01).
         releaseCachedAssetsOutsideWindow()
+    }
+
+    /// Caches the images the deck is about to show, at the deck's own size.
+    /// The window matches `releaseCachedAssetsOutsideWindow`'s, so a card is
+    /// never released while it is still about to be shown. Sized from
+    /// `renderTarget`: with no measured deck there is nothing to size against,
+    /// and the deck's first geometry change re-runs this.
+    private func prefetchUpcoming(includingCurrent: Bool) {
+        guard renderTarget != .zero else { return }
+        let start = includingCurrent ? currentIndex : currentIndex + 1
+        let end = min(max(currentIndex, 0) + 10, assets.count)
+        guard start < end else { return }
+        let ids = Array(assets[start..<end].map(\.id))
+        guard !ids.isEmpty else { return }
+        cachedAssetIDs.formUnion(ids)
+        let target = renderTarget
+        Task {
+            await photoService.startCaching(assetIds: ids, targetSize: target)
+        }
     }
 
     /// Stops caching every asset that is no longer in the visible + prefetch
@@ -575,11 +625,13 @@ final class SwipeSessionViewModel {
         guard currentIndex < windowEnd else { return }
         let window = Set(assets[currentIndex..<windowEnd].map(\.id))
         let stale = cachedAssetIDs.subtracting(window)
-        guard !stale.isEmpty else { return }
+        // Nothing can be cached before the deck has published a target, and
+        // PhotoKit only releases an entry at the size it was cached with.
+        guard !stale.isEmpty, renderTarget != .zero else { return }
         cachedAssetIDs.subtract(stale)
-        let screenSize = ScreenMetrics.pixelSize
+        let target = renderTarget
         Task {
-            await photoService.stopCaching(assetIds: Array(stale), targetSize: screenSize)
+            await photoService.stopCaching(assetIds: Array(stale), targetSize: target)
         }
     }
 
@@ -635,7 +687,7 @@ final class SwipeSessionViewModel {
             // Swipe history is mission-critical: surface the failure rather than
             // letting the user believe their decisions were recorded.
             AppLog.data.error("Failed to \(context, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            errorMessage = "Couldn't save your changes. Please try again."
+            errorMessage = L10n.string("Couldn't save your changes. Please try again.")
         }
     }
 

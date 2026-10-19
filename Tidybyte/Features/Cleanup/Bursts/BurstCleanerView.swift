@@ -25,8 +25,11 @@ struct BurstCleanerView: View {
     /// suggests a favorite, but an explicit Select All can arm one — promising
     /// "Favorites are kept" then would be a lie the delete immediately breaks.
     private var autoCleanMessage: String {
-        let favoritesKept = viewModel.autoCleanArmedIncludesFavorite ? "" : " Favorites are kept."
-        return "This keeps the starred frame of each burst and deletes the rest.\(favoritesKept) \(CleanupDeletion.recoverableNote)"
+        // Built here rather than in a `Text`, so each sentence resolves through
+        // `L10n` on its own; the leading space keeps the sentences joined.
+        let favoritesKept = viewModel.autoCleanArmedIncludesFavorite ? "" : L10n.string(" Favorites are kept.")
+        let opening = L10n.string("This keeps the starred frame of each burst and deletes the rest.")
+        return "\(opening)\(favoritesKept) \(CleanupDeletion.recoverableNote)"
     }
 
     var body: some View {
@@ -45,7 +48,7 @@ struct BurstCleanerView: View {
                 contentView
             }
         }
-        .navigationTitle("Burst Photos")
+        .localizedNavigationTitle("Burst Photos")
         .toolbar {
             if !viewModel.groups.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -70,7 +73,11 @@ struct BurstCleanerView: View {
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleaned \(removed) burst photos"
+                        line: L10n.format(
+                            "cleaned %lld burst photo",
+                            fallback: "cleaned %lld burst photos",
+                            removed
+                        )
                     )
                 }
             }
@@ -90,7 +97,11 @@ struct BurstCleanerView: View {
                     HappyPathReporter.fire(
                         isCelebrating: $isCelebrating,
                         statLine: $celebrationStatLine,
-                        line: "cleared \(count) burst frames"
+                        line: L10n.format(
+                            "cleared %lld burst frame",
+                            fallback: "cleared %lld burst frames",
+                            count
+                        )
                     )
                 }
             }
@@ -103,8 +114,12 @@ struct BurstCleanerView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: CleanupTool.bursts.name,
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
                     onRetry: {
                         viewModel.errorMessage = nil
                         Task { await viewModel.deleteSelected() }
@@ -243,14 +258,15 @@ struct BurstCleanerView: View {
     // MARK: - Burst Group Row
 
     /// Why the starred frame is the one kept. Plain text, so the user can
-    /// check the choice before Auto-Clean.
+    /// check the choice before Auto-Clean. `String` return, so each label
+    /// resolves through `L10n`.
     private func keeperReason(for group: BurstGroup) -> String {
-        if viewModel.manuallySetBest.contains(group.id) { return "Kept: your choice" }
+        if viewModel.manuallySetBest.contains(group.id) { return L10n.string("Kept: your choice") }
         guard let best = group.assets.first(where: { $0.id == group.bestAssetId }) else { return "" }
         switch best.burstPick {
-        case .user: return "Kept: your pick in Photos"
-        case .iPhone: return "Kept: iPhone's pick"
-        case .none: return best.isFavorite ? "Kept: favorite" : automaticKeeperReason(best: best, in: group)
+        case .user: return L10n.string("Kept: your pick in Photos")
+        case .iPhone: return L10n.string("Kept: iPhone's pick")
+        case .none: return best.isFavorite ? L10n.string("Kept: favorite") : automaticKeeperReason(best: best, in: group)
         }
     }
 
@@ -261,13 +277,13 @@ struct BurstCleanerView: View {
     private func automaticKeeperReason(best: AssetSummary, in group: BurstGroup) -> String {
         let bestPixels = best.pixelWidth * best.pixelHeight
         if group.assets.allSatisfy({ $0.id == best.id || $0.pixelWidth * $0.pixelHeight < bestPixels }) {
-            return "Kept: highest resolution"
+            return L10n.string("Kept: highest resolution")
         }
         let bestDate = best.creationDate ?? .distantPast
         if group.assets.allSatisfy({ $0.id == best.id || ($0.creationDate ?? .distantPast) < bestDate }) {
-            return "Kept: last frame"
+            return L10n.string("Kept: last frame")
         }
-        return "Kept: auto pick"
+        return L10n.string("Kept: auto pick")
     }
 
     private func burstGroupRow(_ group: BurstGroup) -> some View {

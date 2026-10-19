@@ -194,7 +194,11 @@ struct DeletionNotice: Identifiable, Sendable, Equatable {
     var message: String {
         let amount = unknownSizeCount == 0 && knownBytes > 0
             ? knownBytes.formattedFileSize
-            : "\(itemCount) item\(itemCount == 1 ? "" : "s")"
-        return "This cleanup moved \(amount) to Recently Deleted. Open Photos to empty it."
+            : L10n.format("%lld item", fallback: "%lld items", itemCount)
+        return L10n.format(
+            "This cleanup moved %@ to Recently Deleted. Open Photos to empty it.",
+            fallback: "This cleanup moved %@ to Recently Deleted. Open Photos to empty it.",
+            amount
+        )
     }
 }

@@ -1,0 +1,52 @@
+<!-- 01 · The twenty-shot problem -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">The twenty-shot problem</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Hold the shutter for a moment on a moving subject and you get a burst. Take three steps to the left and shoot again, and you get near-duplicates. Ask everyone to look at the camera twice, and you get two almost-identical family photos where one person blinked in each. Multiply that by a decade of holidays and you have the largest category of clutter in most libraries: photos that are not identical, and not different enough to keep both.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Deleting similar photos by hand is slow because you have to compare images carefully, and the difference is often invisible in a thumbnail grid. A similar-photo cleaner exists to make that comparison explicit: put the candidates side by side, score them, recommend one, and let you move on.</p>
+  </div>
+</section>
+
+<!-- 02 · How grouping works -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">How TidyByte groups similar photos</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Two signals are combined, and both run on your device.</p>
+    <ol role="list" class="mt-6 space-y-5">
+      <li class="clay-card p-5">
+        <h3 class="font-display text-lg font-semibold text-ink">Time proximity</h3>
+        <p class="muted mt-2 text-base leading-relaxed">Photos taken within a short window of each other are candidates, because that is how people shoot: several attempts in a few seconds. A photo from last year will never be grouped with this year&rsquo;s version of the same view, which keeps the groups meaningful.</p>
+      </li>
+      <li class="clay-card p-5">
+        <h3 class="font-display text-lg font-semibold text-ink">Visual similarity</h3>
+        <p class="muted mt-2 text-base leading-relaxed">Apple&rsquo;s Vision framework reduces each image to a feature print, a numerical signature of what is in the frame. Signatures that sit close together describe the same scene, even when the file size, crop or exposure differs.</p>
+      </li>
+    </ol>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Groups are capped so a single bad match cannot drag hundreds of unrelated photos together, and a group is only offered when it has at least two members worth comparing. Nothing about this requires an internet connection.</p>
+  </div>
+</section>
+
+<!-- 03 · Choosing the keeper -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Choosing the keeper, and why the app tells you why</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Each frame in a group is scored on sharpness, exposure and resolution, and the highest scorer is recommended as the one to keep. The app states the reason in plain language &mdash; sharper, better exposed, higher resolution &mdash; rather than silently deciding for you.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">That transparency matters for a simple reason: you know things the score does not. The slightly softer frame might be the only one where nobody has their eyes closed. One tap overrides the recommendation, and the frames you keep are remembered if you scan again later, so your decisions are never re-argued by the app.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">When you confirm, only the non-keepers are deleted. The keeper stays exactly where it was, in the same album, with its date and location intact.</p>
+  </div>
+</section>
+
+<!-- 04 · Where similar photos hide -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Where similar photos usually hide</h2>
+    <ul role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Holiday viewpoints.</strong> The same landscape photographed five times because the light kept changing.</li>
+      <li><strong class="text-ink">Group photos.</strong> Everyone lined up twice, then a third time because someone arrived late.</li>
+      <li><strong class="text-ink">Pets and children.</strong> Subjects that never hold still, shot in long runs of near-identical frames.</li>
+      <li><strong class="text-ink">Food and product shots.</strong> Deliberate retakes where only one was ever going to be posted.</li>
+      <li><strong class="text-ink">Screenshots of the same page.</strong> Slightly different crops of a document or receipt.</li>
+    </ul>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Start with the oldest years, where the volume is highest and your attachment is lowest. Most people find that two or three sessions of a few minutes each is enough to clear the bulk of it.</p>
+  </div>
+</section>

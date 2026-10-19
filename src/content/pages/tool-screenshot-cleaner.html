@@ -1,0 +1,59 @@
+<!-- 01 · Screenshot archaeology -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">The archaeology of a screenshot pile</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">A screenshot is the shortest-lived kind of photo. You take it to remember a confirmation number, a recipe, a route, a conversation, a QR code that expires in ten minutes. Then it stays in your library forever, mixed in with the photos that actually matter, and every future cleanup has to walk past it again.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Screen recordings are the same problem with a much bigger footprint: a single two-minute recording can be 50 to 200 MB, and nobody ever watches it twice. Between the two, screenshots and recordings are usually the second-largest reclaimable category after video, and the easiest to decide about because almost none of them are sentimental.</p>
+  </div>
+</section>
+
+<!-- 02 · How detection works -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">How screenshots are detected</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">iOS labels screenshots in the photo library metadata itself: they carry a screenshot media subtype, and screen recordings carry the video equivalent. TidyByte reads those labels directly, which is why the list it builds is exact rather than a guess based on image dimensions or file names.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">That accuracy cuts both ways, and it is worth being straight about the limit: an image saved from a website or an app is an ordinary photo, not a screenshot, so no tool can detect it by subtype. TidyByte&rsquo;s Smart Categories groups photos that look like they came from apps or the web, which is the honest way to review that pile instead of pretending it can be filtered exactly.</p>
+    <div class="clay-card mt-8 p-5 sm:p-6">
+      <h3 class="font-display text-base font-semibold text-ink">What the list gives you</h3>
+      <ul role="list" class="muted mt-3 space-y-2 text-sm">
+        <li>Every screenshot and screen recording, with size and date</li>
+        <li>Sorting by size, so the recordings surface first</li>
+        <li>A running total of the space your selection will return</li>
+        <li>Select all, or keep the handful you still need</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 03 · A two-minute routine -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">A two-minute routine for clearing screenshots</h2>
+    <ol role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Sort by size and clear the recordings.</strong> This is where the megabytes are, and recordings are almost never worth keeping.</li>
+      <li><strong class="text-ink">Filter by year.</strong> Anything older than a year is very unlikely to still be useful, and this is where the volume is.</li>
+      <li><strong class="text-ink">Scan the recent list for keeps.</strong> Receipts, tickets and reference images are usually within the last few weeks; deselect them.</li>
+      <li><strong class="text-ink">Delete the rest in one pass.</strong> One confirmation, and the space is back.</li>
+    </ol>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Repeat monthly and the pile never grows large enough to be a project again. The optional weekly reminder is designed for exactly this: a nudge when the reclaimable total creeps up, not a demand to clean everything.</p>
+  </div>
+</section>
+
+<!-- 04 · What to keep -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Which screenshots are actually worth keeping</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Most screenshots have a shelf life measured in minutes. The exceptions are usually records you would need to produce later, and they are worth protecting before you bulk-delete.</p>
+    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-success">Worth keeping</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">Receipts and invoices, insurance and warranty details, medical information, travel bookings still ahead of you, recipes you actually cook, and reference images for ongoing projects.</p>
+      </div>
+      <div class="clay-card p-5">
+        <h3 class="font-display text-base font-semibold text-destructive">Safe to clear</h3>
+        <p class="muted mt-2 text-sm leading-relaxed">Expired tickets and QR codes, delivery notifications, error messages you already fixed, memes, and anything you screenshotted to send to someone in a conversation.</p>
+      </div>
+    </div>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">If a screenshot turns out to matter after all, it is still in Recently Deleted for 30 days, and restoring it is two taps in the Photos app.</p>
+  </div>
+</section>

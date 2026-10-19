@@ -1,0 +1,11 @@
+{
+  "source": "src/data/pages.ts",
+  "limits": {
+    "title": 65,
+    "description": 165
+  },
+  "meta": {
+    "title": "TidyByte &mdash; iPhone Storage Cleaner &amp; Photo Cleaner App",
+    "description": "TidyByte is a free iPhone storage cleaner and photo cleaner: swipe to delete junk, remove duplicates and screenshots, and compress videos. 100% on-device."
+  }
+}

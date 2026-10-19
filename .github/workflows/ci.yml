@@ -32,6 +32,87 @@ jobs:
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO
 
+      # Regenerates both String Catalogs from source, then fails if that
+      # produced a change. A stale catalog is otherwise invisible: the app
+      # builds and runs, it just shows English where a translation exists, and
+      # nobody notices until a user reports it.
+      #
+      # There are two catalogs, and they are not interchangeable.
+      # `Localizable.xcstrings` serves everything the app draws.
+      # `AppShortcuts.xcstrings` serves the Siri phrases, which App Intents
+      # looks up in a table named `AppShortcuts`. A phrase put in the app
+      # catalog instead is never read, and the app catalog still reports 100%
+      # coverage — that mistake shipped once, so both files are diffed here.
+      #
+      # `refresh.sh` also runs `check.mjs`, which enforces language coverage,
+      # placeholder parity, CLDR plural categories, the App Shortcuts app-name
+      # token, and that every `INFOPLIST_KEY_*UsageDescription` in project.yml
+      # has a catalog entry.
+      #
+      # `DESTINATION` is passed explicitly and matches the simulator the build
+      # and test steps use. Left to its default the script picks a different
+      # device name, and a runner that lacks it fails here instead of at build.
+      - name: Verify localization catalogs are current
+        env:
+          DESTINATION: platform=iOS Simulator,name=iPhone 16
+        run: |
+          ./scripts/localization/refresh.sh
+          git diff --exit-code -- \
+            Tidybyte/Resources/Localizable.xcstrings \
+            Tidybyte/Resources/AppShortcuts.xcstrings \
+            Tidybyte/InfoPlist.xcstrings
+
+      # Catches the class of bug the catalog sync cannot see: user-facing text
+      # that never reaches the catalog at all. A SwiftUI `Text` literal is
+      # extracted by the compiler, but the same sentence passed as a `String`
+      # parameter or built in a view model is not, so it renders raw English in
+      # every language while every coverage number still reads 100%.
+      #
+      # Four scans, each for a shape that hides a string completely:
+      #   - `L10n.string(rawValue)` — a key computed from an enum, invisible to
+      #     any literal scan. Seven enums had this shape; 16 keys were missing.
+      #   - a literal nested in an interpolation, e.g.
+      #     `Text("Couldn't \(ok ? "load" : "download") …")` — `Text` renders
+      #     the inner `String` verbatim, so every language kept the English
+      #     fragment. The German template read "load dieses video …".
+      #   - prose in a `String` parameter that no call site localizes.
+      #   - Siri phrases missing from `AppShortcuts.xcstrings`, or that lost
+      #     their `${applicationName}` token, which stops Siri matching the
+      #     shortcut at all.
+      - name: Check for unlocalized user-facing strings
+        run: node scripts/localization/extract.mjs --check
+
+      # `refresh.sh` above runs `check.mjs` without `--strict`, so a key that
+      # still carries the English text passes there and is merely reported.
+      # That is right locally — you add a string, run refresh, and see what is
+      # left to translate. In CI it must fail, or an untranslated string ships
+      # in 20 languages with a green build.
+      - name: Verify every key is translated in every language
+        run: node scripts/localization/check.mjs --strict
+
+      # The App Store listing is translated by hand into 20 languages, and the
+      # limits are hard: App Store Connect truncates a subtitle past 30
+      # characters and rejects a description past 4000. A field that overflows
+      # is discovered at upload time, which is the worst moment to find it.
+      - name: Validate App Store listings
+        run: node scripts/localization/check-listings.mjs --strict
+
+      # The localized landing pages are generated from the English page, so a
+      # translation edit that nobody rebuilt is a page still showing English
+      # under a `lang` attribute that claims otherwise. Regenerating and
+      # diffing catches it the same way the catalog gate does.
+      #
+      # The builder also fails outright when an English string has no
+      # translation, which is the stronger check of the two.
+      - name: Verify localized landing pages are current
+        run: |
+          node scripts/localization/site/extract-site-strings.mjs
+          node scripts/localization/site/build-site-translations.mjs
+          git diff --exit-code -- \
+            src/content/pages/ \
+            scripts/localization/site/site-strings.json \
+            scripts/localization/site/site-meta.json
+
       - name: Test
         run: |
           xcodebuild test \
@@ -40,3 +121,91 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The App Store growth creatives — In-App Events, Custom Product Pages,
+      # Asset Library, Product Page Optimization, and the header/search assets.
+      #
+      # This runs in the macOS job, and that is the point of it being here. The
+      # type is set in the macOS system faces `FONT_STACKS` in
+      # `scripts/growth/manifest.mjs` names per script, because those are the
+      # fonts the App Store review team's own machine has. On a Linux runner none
+      # of them resolve, the stack falls through to generic `sans-serif`, and the
+      # growth README records that this picks a face with incomplete shaping for
+      # several scripts: the Indic conjuncts render as dotted circles instead of
+      # joined glyphs. `check:growth` cannot catch that, because it measures
+      # dimensions, alpha, coverage and byte-count blankness, never shaping, so on
+      # Linux the job would go green while the 15 non-Latin languages rendered
+      # wrong.
+      #
+      # The 357 per-language PNGs are derived output, and `.gitignore` keeps them
+      # out of the repo (~628 MB) because `build-assets.mjs` re-renders them
+      # byte-for-byte from the committed art in `docs/growth/art/` plus the copy
+      # in `Tidybyte/Resources/Localizable.xcstrings` and
+      # `docs/appstore/listings.json`. There is therefore nothing to validate
+      # until they are rendered, so this job renders them first. That also proves
+      # the generator still works for all 21 languages, which a check against
+      # committed files could not tell you.
+      #
+      # The check is what Apple actually rejects: an image outside the surface's
+      # accepted size or aspect ratio, an alpha channel (App Store Connect
+      # rejects transparency, and Playwright writes RGBA by default), a language
+      # with no asset (Apple requires the text localized for every language the
+      # app supports), or a blank render from a silently-failed background load.
+      # `check:growth` runs `--strict`, so coverage and blankness fail the build.
+      #
+      # `npm ci` installs the Playwright package but not its browser, so the
+      # browser is installed explicitly.
+      #
+      # These run last so a broken creative cannot mask a broken build or test.
+      - name: Install the browser the creatives render in
+        run: npx playwright install chromium
+
+      # The manifests ARE tracked, unlike the PNGs, so they are diffed: the
+      # render rewrites `docs/growth/*/manifest.json` from the plan in
+      # `manifest.mjs`, and a plan change nobody re-rendered otherwise passes CI
+      # while the committed manifest stays stale. `scripts/publish/plan.mjs` reads
+      # those manifests to build the media plan, so a stale one makes
+      # `publish:media` place the old asset set.
+      - name: Render and validate App Store growth creatives
+        run: |
+          npm run growth
+          npm run check:growth
+          git diff --exit-code -- docs/growth/*/manifest.json
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Builds all 87 pages, then audits them: title and description budgets,
+      # duplicate titles, hreflang parity, per-page `lang` and `dir`, sitemap
+      # coverage, and a Markdown alternate for every sitemap URL. The localized
+      # pages are the ones most likely to break it — a missing `dir="rtl"` or a
+      # title over budget fails here rather than in search results.
+      - name: Build and audit the site
+        run: |
+          npm run build
+          npm run check
+
+      # iPhone Duo (foldable, iOS 27.1) presents the system bars vertically on a
+      # side edge and can resize the window at any moment, so code that reads the
+      # device — screen size, idiom, orientation — instead of the window looks
+      # fine in one pose and breaks in the next. The compiler says nothing about
+      # that, so this static scan fails the build on the banned patterns. It reads
+      # Swift sources only and has no macOS dependencies, so it runs here.
+      - name: Guard against non-resizable layout patterns
+        run: npm run check:duo

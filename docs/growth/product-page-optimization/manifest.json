@@ -1,0 +1,645 @@
+{
+  "surface": "product-page-optimization",
+  "title": "Product Page Optimization",
+  "purpose": "A/B tests of the product page. What this pipeline produces is the original plus three treatments, each a 3:2 search-results creative with different framing: privacy (free up space), duplicates, and screenshots. Apple also lets a test vary the icon, the screenshots, the previews, or the product page header; those variants are not produced here, and an icon test needs a 1024x1024 icon already inside the uploaded binary. Not available on custom product pages.",
+  "generatedFrom": {
+    "art": [
+      "docs/growth/art/cleanup.png",
+      "docs/growth/art/duplicates.png",
+      "docs/growth/art/screenshots.png"
+    ],
+    "copy": "Tidybyte/Resources/Localizable.xcstrings + docs/appstore/listings.json"
+  },
+  "assets": [
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ar",
+      "file": "by-language/treatment-a-privacy--searchResults--ar.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "bn",
+      "file": "by-language/treatment-a-privacy--searchResults--bn.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "de",
+      "file": "by-language/treatment-a-privacy--searchResults--de.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "en",
+      "file": "by-language/treatment-a-privacy--searchResults--en.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "es",
+      "file": "by-language/treatment-a-privacy--searchResults--es.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "fr",
+      "file": "by-language/treatment-a-privacy--searchResults--fr.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "gu",
+      "file": "by-language/treatment-a-privacy--searchResults--gu.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "he",
+      "file": "by-language/treatment-a-privacy--searchResults--he.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "hi",
+      "file": "by-language/treatment-a-privacy--searchResults--hi.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "it",
+      "file": "by-language/treatment-a-privacy--searchResults--it.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ja",
+      "file": "by-language/treatment-a-privacy--searchResults--ja.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "kn",
+      "file": "by-language/treatment-a-privacy--searchResults--kn.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ko",
+      "file": "by-language/treatment-a-privacy--searchResults--ko.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ml",
+      "file": "by-language/treatment-a-privacy--searchResults--ml.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "mr",
+      "file": "by-language/treatment-a-privacy--searchResults--mr.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "pa",
+      "file": "by-language/treatment-a-privacy--searchResults--pa.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "pt-BR",
+      "file": "by-language/treatment-a-privacy--searchResults--pt-BR.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ru",
+      "file": "by-language/treatment-a-privacy--searchResults--ru.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ta",
+      "file": "by-language/treatment-a-privacy--searchResults--ta.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "te",
+      "file": "by-language/treatment-a-privacy--searchResults--te.png"
+    },
+    {
+      "group": "treatment-a-privacy",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "zh-Hans",
+      "file": "by-language/treatment-a-privacy--searchResults--zh-Hans.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ar",
+      "file": "by-language/treatment-b-duplicates--searchResults--ar.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "bn",
+      "file": "by-language/treatment-b-duplicates--searchResults--bn.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "de",
+      "file": "by-language/treatment-b-duplicates--searchResults--de.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "en",
+      "file": "by-language/treatment-b-duplicates--searchResults--en.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "es",
+      "file": "by-language/treatment-b-duplicates--searchResults--es.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "fr",
+      "file": "by-language/treatment-b-duplicates--searchResults--fr.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "gu",
+      "file": "by-language/treatment-b-duplicates--searchResults--gu.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "he",
+      "file": "by-language/treatment-b-duplicates--searchResults--he.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "hi",
+      "file": "by-language/treatment-b-duplicates--searchResults--hi.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "it",
+      "file": "by-language/treatment-b-duplicates--searchResults--it.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ja",
+      "file": "by-language/treatment-b-duplicates--searchResults--ja.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "kn",
+      "file": "by-language/treatment-b-duplicates--searchResults--kn.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ko",
+      "file": "by-language/treatment-b-duplicates--searchResults--ko.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ml",
+      "file": "by-language/treatment-b-duplicates--searchResults--ml.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "mr",
+      "file": "by-language/treatment-b-duplicates--searchResults--mr.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "pa",
+      "file": "by-language/treatment-b-duplicates--searchResults--pa.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "pt-BR",
+      "file": "by-language/treatment-b-duplicates--searchResults--pt-BR.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ru",
+      "file": "by-language/treatment-b-duplicates--searchResults--ru.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ta",
+      "file": "by-language/treatment-b-duplicates--searchResults--ta.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "te",
+      "file": "by-language/treatment-b-duplicates--searchResults--te.png"
+    },
+    {
+      "group": "treatment-b-duplicates",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "zh-Hans",
+      "file": "by-language/treatment-b-duplicates--searchResults--zh-Hans.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ar",
+      "file": "by-language/treatment-c-screenshots--searchResults--ar.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "bn",
+      "file": "by-language/treatment-c-screenshots--searchResults--bn.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "de",
+      "file": "by-language/treatment-c-screenshots--searchResults--de.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "en",
+      "file": "by-language/treatment-c-screenshots--searchResults--en.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "es",
+      "file": "by-language/treatment-c-screenshots--searchResults--es.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "fr",
+      "file": "by-language/treatment-c-screenshots--searchResults--fr.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "gu",
+      "file": "by-language/treatment-c-screenshots--searchResults--gu.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "he",
+      "file": "by-language/treatment-c-screenshots--searchResults--he.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "hi",
+      "file": "by-language/treatment-c-screenshots--searchResults--hi.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "it",
+      "file": "by-language/treatment-c-screenshots--searchResults--it.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ja",
+      "file": "by-language/treatment-c-screenshots--searchResults--ja.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "kn",
+      "file": "by-language/treatment-c-screenshots--searchResults--kn.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ko",
+      "file": "by-language/treatment-c-screenshots--searchResults--ko.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ml",
+      "file": "by-language/treatment-c-screenshots--searchResults--ml.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "mr",
+      "file": "by-language/treatment-c-screenshots--searchResults--mr.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "pa",
+      "file": "by-language/treatment-c-screenshots--searchResults--pa.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "pt-BR",
+      "file": "by-language/treatment-c-screenshots--searchResults--pt-BR.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ru",
+      "file": "by-language/treatment-c-screenshots--searchResults--ru.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "ta",
+      "file": "by-language/treatment-c-screenshots--searchResults--ta.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "te",
+      "file": "by-language/treatment-c-screenshots--searchResults--te.png"
+    },
+    {
+      "group": "treatment-c-screenshots",
+      "spec": "searchResults",
+      "specLabel": "Search results creative",
+      "ratio": "3:2",
+      "width": 2400,
+      "height": 1600,
+      "language": "zh-Hans",
+      "file": "by-language/treatment-c-screenshots--searchResults--zh-Hans.png"
+    }
+  ]
+}

@@ -90,7 +90,7 @@ struct AlbumPickerSheet: View {
                     }
                 }
             }
-            .navigationTitle("Add to Album")
+            .localizedNavigationTitle("Add to Album")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Cancel puts the card back on the deck (the sheet's onDismiss
@@ -121,8 +121,12 @@ struct AlbumPickerSheet: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Add to Album",
+                    // Runtime text, so it renders verbatim: either a failure
+                    // the parent session already localized, or the system's
+                    // `localizedDescription`. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
+                    title: .key("Add to Album"),
                     onDismiss: { errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -247,7 +251,7 @@ struct AlbumPickerSheet: View {
             saveRecentAlbum(albumId)
             dismiss()
         } catch {
-            errorMessage = "Failed to create album: \(error.localizedDescription)"
+            errorMessage = L10n.format("Failed to create album: %@", error.localizedDescription)
         }
     }
 

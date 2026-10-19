@@ -137,7 +137,7 @@ actor PhotoLibraryService {
             guard count > 0 else { continue }
             albums.append(AlbumInfo(
                 id: collection.localIdentifier,
-                title: collection.localizedTitle ?? "Untitled",
+                title: collection.localizedTitle ?? L10n.string("Untitled"),
                 count: count,
                 type: .smartAlbum,
                 thumbnailAssetId: thumbnailId
@@ -156,7 +156,7 @@ actor PhotoLibraryService {
             let (count, thumbnailId) = Self.countAndNewestId(in: collection)
             albums.append(AlbumInfo(
                 id: collection.localIdentifier,
-                title: collection.localizedTitle ?? "Untitled",
+                title: collection.localizedTitle ?? L10n.string("Untitled"),
                 count: count,
                 type: .userAlbum,
                 thumbnailAssetId: thumbnailId
@@ -1080,8 +1080,10 @@ actor PhotoLibraryService {
             return .camera
         }
 
-        let foreignMarkers = ["WA", "FB_IMG", "RECEIVED_", "DOWNLOAD", "IMG-", "INSTA", "TELEGRAM", "SNAPCHAT"]
-        if foreignMarkers.contains(where: { name.contains($0) }) {
+        // Camera wins over the marker list above, so an `IMG_` capture that also
+        // contains a marker string is still a camera photo. The list itself
+        // lives in `SavedFromAppMarkers` so it can be unit tested.
+        if SavedFromAppMarkers.matches(filename: filename) {
             return .savedFromApp
         }
 
@@ -1156,14 +1158,19 @@ enum PhotoServiceError: LocalizedError {
     case userDeclined(alreadyAbsentIds: Set<String> = [])
 
     var errorDescription: String? {
+        // Shown in the cleanup tools' error banners, so these resolve through
+        // `L10n` rather than staying English literals.
         switch self {
-        case .albumNotFound: return "Album not found."
-        case .albumCreationFailed: return "Failed to create album."
-        case .albumChangeFailed: return "Couldn't modify the album. Please try again."
+        case .albumNotFound: return L10n.string("Album not found.")
+        case .albumCreationFailed: return L10n.string("Failed to create album.")
+        case .albumChangeFailed: return L10n.string("Couldn't modify the album. Please try again.")
         case .partialDeletion(let succeededIds, let failedCount, _):
             let total = succeededIds.count + failedCount
-            return "Deleted \(succeededIds.count) of \(total) items. \(failedCount) couldn't be deleted. Try again."
-        case .userDeclined: return "Nothing was deleted."
+            return L10n.format(
+                "Deleted %lld of %lld items. %lld couldn't be deleted. Try again.",
+                succeededIds.count, total, failedCount
+            )
+        case .userDeclined: return L10n.string("Nothing was deleted.")
         }
     }
 

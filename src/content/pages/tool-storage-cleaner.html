@@ -1,0 +1,60 @@
+<!-- 01 · What fills an iPhone -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">What is actually using your iPhone storage</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">When iOS says storage is almost full, the number that matters is rarely &ldquo;Other&rdquo;. On most iPhones the photo and video library is the largest thing a person can control, and inside it the distribution is brutally uneven: a few dozen videos can weigh more than twenty thousand photos.</p>
+    <ul role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Video is the heavyweight.</strong> A minute of 4K footage at 60 fps runs roughly 350 to 400 MB with the High Efficiency setting, and about half that at 30 fps.</li>
+      <li><strong class="text-ink">Screenshots and screen recordings add up quietly.</strong> Individually small, but libraries routinely hold thousands of them, and screen recordings are full video files.</li>
+      <li><strong class="text-ink">Live Photos carry a hidden video.</strong> Each one stores a still plus about three seconds of motion, which usually doubles the file.</li>
+      <li><strong class="text-ink">Duplicates are pure waste.</strong> Restores and sync conflicts leave byte-identical copies that no one chose to keep.</li>
+    </ul>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">TidyByte&rsquo;s storage dashboard turns that into a donut chart of photos, videos, screenshots, Live Photos and other, with the largest individual files listed underneath. Before you delete anything you can see which slice is worth attacking, and the 30-day trend shows whether your library is still growing.</p>
+  </div>
+</section>
+
+<!-- 02 · What a cleaner can and cannot do -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">What a storage cleaner can and cannot clear on iOS</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">This is worth stating plainly, because App Store listings often imply otherwise: no third-party app can empty another app&rsquo;s cache, delete system data, or reach into &ldquo;Other&rdquo;. iOS sandboxes every app to its own container. A cleaner that claims to clear those is describing something it cannot do.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">What a cleaner <em>can</em> do is clean your photo and video library, which is where the reclaimable space genuinely lives, and do it without you hunting through the Photos app for hours. That is the whole scope of TidyByte, and it is enough: on a library that has never been cleaned, the reclaimable space is usually measured in gigabytes.</p>
+    <div class="clay-card mt-8 p-5 sm:p-6">
+      <h3 class="font-display text-base font-semibold text-ink">Where the space usually comes from</h3>
+      <ul role="list" class="muted mt-3 space-y-2 text-sm">
+        <li>Duplicate photos left by restores and sync conflicts</li>
+        <li>Screenshots and screen recordings from years of use</li>
+        <li>Long 4K videos that could be compressed instead of deleted</li>
+        <li>Live Photos whose motion clip you have never watched</li>
+        <li>Burst sequences where one frame was ever needed</li>
+        <li>Blurry, dark or accidentally repeated shots</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 03 · A cleaning session that finishes -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">A storage cleanup you will actually finish</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Storage cleanups fail for the same reason diets do: the plan is too ambitious to survive contact with a Tuesday evening. TidyByte is built around bounded sessions instead. Pick one tool, finish it, and stop.</p>
+    <ol role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Open the storage dashboard</strong> and note the largest slice. That is your target.</li>
+      <li><strong class="text-ink">Run the matching tool</strong> &mdash; duplicates, screenshots, large files, bursts, Live Photos &mdash; and review what it found.</li>
+      <li><strong class="text-ink">Confirm the deletion once.</strong> The space comes back immediately, and the items sit in Recently Deleted for 30 days.</li>
+      <li><strong class="text-ink">Compress rather than delete</strong> for the videos and photos you want to keep at full length.</li>
+      <li><strong class="text-ink">Check Activity &amp; savings</strong> to see the running total, then stop for the day.</li>
+    </ol>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">The Home Screen widget shows the reclaimable total at a glance, and the optional weekly reminder nudges you when the number grows again. That is the whole maintenance plan: a few minutes a month, not a weekend of scrolling.</p>
+  </div>
+</section>
+
+<!-- 04 · Honest accounting -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Honest numbers, no inflated savings</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Cleaner apps love big numbers, so it is worth saying how TidyByte counts. Deletion savings come from the real file sizes the Photos framework reports, and compression savings come from comparing the exported file against the original &mdash; if a re-encode would make a file larger, the app says so and skips it rather than recording a fake win.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Assets that live only in iCloud do not report a size until they are downloaded, so the app counts those separately instead of treating them as zero bytes. The Activity &amp; savings ledger records what was actually removed or re-encoded, on-device, and it excludes failed attempts from the totals.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">The result is a storage cleaner you can trust to tell you the truth about your own library, which is more useful than a marketing claim about someone else&rsquo;s.</p>
+  </div>
+</section>

@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+#
+# Regenerates both String Catalogs from the source of truth.
+#
+# Run after adding, changing, or removing a user-facing string, and after
+# editing anything in `scripts/localization/translations/`.
+#
+#   ./scripts/localization/refresh.sh
+#
+# The pipeline, in order:
+#
+#   1. `xcstringstool sync` — Xcode's own extractor. It reads the `.stringsdata`
+#      the compiler emitted, so it sees exactly the literals SwiftUI treats as
+#      localizable keys, with the placeholder types the compiler inferred.
+#      This is the authority for `Text`/`Label`/`Button` literals.
+#   2. `extract.mjs` — our scanner. Covers what Xcode cannot see: the `L10n.*`
+#      calls that build strings in code, the display properties
+#      (`CleanupTool.name`, `PhotoCategory.title`, …) that return English text,
+#      the display properties outside that curated list (Guard A), the
+#      `Text(variable)` call sites where the variable is provably English
+#      (Guard B), and the Siri phrases in the App Shortcuts provider.
+#   3. `collect-xcode-keys.mjs` — the compiler's key set, so the builder can tell
+#      a live key from one whose source text no longer exists.
+#   4. `build-catalog.mjs` — merges translations into the catalog, expands
+#      plural variations, pins reordered placeholders positionally, prunes dead
+#      keys, and writes `AppShortcuts.xcstrings` for the Siri phrases.
+#   5. `check.mjs` — fails on missing languages, placeholder mismatches, wrong
+#      plural categories, and Siri phrases that lost their app-name token.
+#
+# Steps 1 and 2 both write into the catalog, so the order matters: sync must run
+# first, or the merge would drop the compiler-found keys.
+#
+# There are two catalogs, and they are not interchangeable. `Localizable.xcstrings`
+# serves everything the app draws. `AppShortcuts.xcstrings` serves the Siri
+# phrases, which App Intents looks up in a table named `AppShortcuts` — a phrase
+# put in the app catalog instead is never read, and the app catalog still reports
+# 100% coverage. `build-catalog.mjs` writes the second one from
+# `translations/_app-shortcuts.json`; there is nothing to `sync` for it.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
+
+# A dedicated, repo-local DerivedData by default.
+#
+# Not `~/Library/Developer/Xcode/DerivedData`, because that directory is shared
+# with Xcode's own builds and accumulates `Tidybyte-<hash>/Build/` trees from
+# every checkout and configuration. This pipeline's output has to be a pure
+# function of the source: the CI gate is `git diff --exit-code` on the catalog,
+# so reading a `.stringsdata` left behind by some earlier build would make the
+# gate depend on machine history. `build/` is gitignored.
+DERIVED="${DERIVED_DATA_PATH:-$ROOT/build/LocalizationDerivedData}"
+DESTINATION="${DESTINATION:-platform=iOS Simulator,name=iPhone 18 Pro}"
+
+echo "==> Building to emit .stringsdata"
+# The log is kept, not discarded. `set -e` aborts this script on a failed build,
+# so the FAIL branch below is only reachable when the build SUCCEEDED and left no
+# app `.stringsdata`: a case with no compiler error to read, where the useful
+# evidence is the warnings and the Intermediates.noindex layout in this log.
+mkdir -p "$DERIVED"
+BUILD_LOG="$DERIVED/build.log"
+if ! xcodebuild build \
+  -project Tidybyte.xcodeproj \
+  -scheme Tidybyte \
+  -destination "$DESTINATION" \
+  -derivedDataPath "$DERIVED" \
+  -skipPackagePluginValidation \
+  CODE_SIGNING_ALLOWED=NO \
+  > "$BUILD_LOG" 2>&1; then
+  echo "FAIL: xcodebuild failed. Last 40 lines of $BUILD_LOG:" >&2
+  tail -40 "$BUILD_LOG" >&2
+  exit 1
+fi
+echo "    build log: $BUILD_LOG"
+
+echo "==> Syncing Xcode's extraction into the catalog"
+# The widget shares the app's catalog, so both targets' .stringsdata merge into
+# the same file. Passing them in one call is what keeps the widget's own keys
+# (its display name, its intent titles) alongside the app's.
+#
+# The build and this lookup must agree on where DerivedData is. They did not:
+# `-derivedDataPath` was missing above while `$DERIVED` was still used here, so
+# setting DERIVED_DATA_PATH pointed the build at the default location and the
+# lookup at the override. The lookup then read whatever `.stringsdata` happened
+# to be lying there — stale output from an earlier build — and `sync` merged
+# keys from source that no longer exists. A dead catalog key is invisible: it
+# reports 100% coverage in 20 languages for a string nothing looks up.
+#
+# With `-derivedDataPath` given, Xcode places `Intermediates.noindex` directly
+# under `$DERIVED/Build`; it only nests it inside a per-project `Tidybyte-<hash>`
+# directory when using the shared default location. Accept either, but do not
+# widen the search past `$DERIVED` — picking up a second tree is the bug above.
+INTERMEDIATES=()
+while IFS= read -r dir; do
+  [ -n "$dir" ] && INTERMEDIATES+=("$dir")
+done < <(find "$DERIVED" -maxdepth 3 -type d -name 'Intermediates.noindex' 2>/dev/null || true)
+
+APP_DATA=""
+WIDGET_DATA=""
+if [ ${#INTERMEDIATES[@]} -gt 0 ]; then
+  APP_DATA=$(find "${INTERMEDIATES[@]}" -name '*.stringsdata' -path '*Tidybyte.build*' 2>/dev/null || true)
+  WIDGET_DATA=$(find "${INTERMEDIATES[@]}" -name '*.stringsdata' -path '*TidybyteWidget.build*' 2>/dev/null || true)
+fi
+
+if [ -z "$APP_DATA" ]; then
+  echo "FAIL: no app .stringsdata under $DERIVED" >&2
+  echo "      The build succeeded, so there is no build error to read here. What is" >&2
+  echo "      missing is the compiler's string extraction, which means one of:" >&2
+  echo "        - DERIVED_DATA_PATH points somewhere other than a completed build" >&2
+  echo "        - the Tidybyte app target was not built (only the widget or a test)" >&2
+  echo "        - Intermediates.noindex is missing, so the build output is elsewhere" >&2
+  echo "      Found ${#INTERMEDIATES[@]} Intermediates.noindex dir(s) under $DERIVED." >&2
+  echo "      Xcode's keys would be missing from the catalog, so stop here rather" >&2
+  echo "      than merge a partial one." >&2
+  echo "      Last 40 lines of $BUILD_LOG:" >&2
+  tail -40 "$BUILD_LOG" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC2086
+xcrun xcstringstool sync Tidybyte/Resources/Localizable.xcstrings --stringsdata $APP_DATA $WIDGET_DATA > /dev/null
+
+echo "==> Scanning for code-built strings"
+node scripts/localization/extract.mjs | tail -3
+
+echo "==> Collecting Xcode's key set"
+node scripts/localization/collect-xcode-keys.mjs --derived "$DERIVED"
+
+echo "==> Merging translations"
+node scripts/localization/build-catalog.mjs
+
+echo "==> Validating"
+node scripts/localization/check.mjs
+
+echo
+echo "Catalogs refreshed."

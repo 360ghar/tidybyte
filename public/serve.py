@@ -70,12 +70,34 @@ class RedirectHandler(http.server.SimpleHTTPRequestHandler):
         route = parsed.path.rstrip("/") if parsed.path != "/" else parsed.path
         if route in REDIRECTS:
             return REDIRECTS[route] + suffix
+        # /404 serves the custom page with a real 404 status (netlify.toml
+        # declares the same rule). Checked before the generic top-level
+        # rewrite below, which would otherwise serve it with status 200.
+        if route == "/404":
+            self.send_response(404)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            with open("404.html", "rb") as fh:
+                self.wfile.write(fh.read())
+            return None
         # Consolidated posts: permanent redirect to the keeper.
         if route in MOVED_PERMANENTLY:
             self.send_response(301)
             self.send_header("Location", MOVED_PERMANENTLY[route] + suffix)
             self.end_headers()
             return None
+        # Top-level pretty URLs (the tool landing pages: /storage-cleaner,
+        # /video-compression, ...). Mirrors the exact [[redirects]] blocks in
+        # netlify.toml, including the trailing-slash 301.
+        if route != "/" and "/" not in route.lstrip("/"):
+            candidate = route.lstrip("/") + ".html"
+            if os.path.isfile(candidate):
+                if parsed.path.endswith("/"):
+                    self.send_response(301)
+                    self.send_header("Location", route + suffix)
+                    self.end_headers()
+                    return None
+                return candidate + suffix
         if route.startswith("/blog/") and route != "/blog":
             # Mirror netlify.toml: a trailing slash is 301'd away BEFORE the
             # extensionless rewrite (otherwise /blog/<slug>/ would resolve to
@@ -103,6 +125,7 @@ if __name__ == "__main__":
         print(f"  /changelog → changelog.html")
         print(f"  /blog      → blog/index.html")
         print(f"  /blog/<slug> → blog/<slug>.html")
+        print(f"  /<slug>    → <slug>.html (tool landing pages)")
         print("Press Ctrl+C to stop.")
         try:
             httpd.serve_forever()

@@ -1,0 +1,49 @@
+<!-- 01 · Burst mechanics -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">What actually happens when you hold the shutter</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Slide the shutter button sideways and the iPhone starts shooting at roughly ten frames per second until you let go. Five seconds of that is fifty full-resolution photos of the same three seconds of your life, and iOS keeps every one of them unless you intervene.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">The photos app groups them into a burst, which makes them look tidy in a grid and hides the fact that you are carrying fifty files where one would do. At 2 to 5 MB per frame, a single long burst can be 100 to 250 MB. Do that a few dozen times at birthdays, sports days and concerts and you have several gigabytes of near-identical frames.</p>
+  </div>
+</section>
+
+<!-- 02 · How grouping works -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">How the app finds and groups bursts</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Bursts carry an identifier in the photo library metadata, so TidyByte groups frames by that identifier rather than by guessing from timestamps. Every sequence in your library appears as one row, with the frame count and the combined size.</p>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">Within each sequence the keeper is chosen by a fixed ladder: your starred frame first, then the frame the iPhone picked, then a favorite, then the frame with the most pixels, then the most recent one. The remaining frames are pre-selected for deletion, which is the useful default: you almost never want the frame where someone blinked.</p>
+    <div class="clay-card mt-8 p-5 sm:p-6">
+      <h3 class="font-display text-base font-semibold text-ink">Your choices are sticky</h3>
+      <p class="muted mt-3 text-sm leading-relaxed">If you explicitly keep a frame the app did not recommend, it stays kept. Re-running the tool later will not re-arm it for deletion, and it will not quietly undo a decision you already made.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 03 · Reviewing -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Reviewing a burst in seconds</h2>
+    <ol role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><strong class="text-ink">Open the sequence.</strong> The frames are shown together with the keeper marked and a one-line reason, such as &ldquo;Kept: favorite&rdquo; or &ldquo;Kept: highest resolution&rdquo;, so you can see why that frame was chosen.</li>
+      <li><strong class="text-ink">Change the keeper if you disagree.</strong> One tap promotes a different frame and re-selecting the rest.</li>
+      <li><strong class="text-ink">Keep a second frame when it matters.</strong> Two frames from a group photo where different people smiled are both worth keeping, and deselecting one is enough.</li>
+      <li><strong class="text-ink">Delete the rest in one pass.</strong> The keeper stays in place, in the same album, with its original date.</li>
+    </ol>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">On a library with hundreds of bursts, this is the difference between a ten-minute job and an afternoon of frame-by-frame comparison.</p>
+  </div>
+</section>
+
+<!-- 04 · Bursts vs similar -->
+<section class="section pt-0">
+  <div class="container-prose mx-auto max-w-prose">
+    <h2 class="h-section text-2xl sm:text-3xl">Bursts are not the same as similar photos</h2>
+    <p class="mt-4 text-base leading-relaxed text-body sm:text-lg">A burst is a single press of the shutter, so the frames share an identifier and the grouping is exact. Similar photos are separate shutter presses of the same scene, so they have to be grouped by visual analysis instead. TidyByte keeps them as two tools because the certainty differs.</p>
+    <ul role="list" class="mt-6 space-y-3 text-base leading-relaxed text-body">
+      <li><a href="/burst-photo-cleaner" class="link">Burst Photos</a> groups by identifier and is safe to clear aggressively.</li>
+      <li><a href="/similar-photo-cleaner" class="link">Similar Photos</a> groups by Vision feature prints and deserves a quick look at each group.</li>
+      <li><a href="/duplicate-photo-cleaner" class="link">Duplicates</a> matches byte-identical files, which need no judgement at all.</li>
+    </ul>
+    <p class="mt-6 text-base leading-relaxed text-body sm:text-lg">Running all three in that order, on-device and for free, clears the largest and least sentimental part of most libraries in a single sitting.</p>
+  </div>
+</section>

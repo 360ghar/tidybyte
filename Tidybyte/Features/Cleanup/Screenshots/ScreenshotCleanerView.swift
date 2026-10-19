@@ -61,7 +61,9 @@ struct ScreenshotCleanerView: View {
 
                         Picker("Sort", selection: $viewModel.sortOrder) {
                             ForEach(ScreenshotSortOrder.allCases, id: \.self) { order in
-                                Text(order.rawValue).tag(order)
+                                // A key, not a rendered `String`, so the menu
+                                // label follows a language switch. See `RootView`.
+                                Text(LocalizedStringKey(order.displayName)).tag(order)
                             }
                         }
                         .pickerStyle(.menu)
@@ -104,13 +106,20 @@ struct ScreenshotCleanerView: View {
             }
         }
         .animation(.reduceMotionAware(.spring(response: 0.35, dampingFraction: 0.85), reduceMotion: reduceMotion), value: viewModel.isLoading)
-        .navigationTitle("Screenshots")
+        .localizedNavigationTitle("Screenshots")
         // Items deleted elsewhere (Swipe Review, the Photos app) leave the
         // list when the library changes, instead of lingering as blanks.
         .task(id: libraryMonitor.generation) {
             await viewModel.pruneDeleted()
         }
-        .happyPathCelebration(isPresented: $isCelebrating, statLine: "cleared \(viewModel.deletedCount) screenshots")
+        .happyPathCelebration(
+            isPresented: $isCelebrating,
+            statLine: L10n.format(
+                "cleared %lld screenshot",
+                fallback: "cleared %lld screenshots",
+                viewModel.deletedCount
+            )
+        )
         .onDisappear {
             // D-01: stop an in-flight fetch when the user leaves the screen.
             viewModel.cancelScan()
@@ -153,8 +162,12 @@ struct ScreenshotCleanerView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let message = viewModel.errorMessage {
                 ToolErrorBanner(
-                    message: message,
-                    title: "Screenshots",
+                    // Runtime text, so it renders verbatim: the view model
+                    // fills this with `error.localizedDescription` or with a
+                    // sentence it built through `L10n`, and both are already in
+                    // the user's language. Looking it up as a key would miss,
+                    // and `Text` would apply Markdown to it.
+                    message: .runtimeText(message),
                     onDismiss: { viewModel.errorMessage = nil }
                 )
                 .padding(.horizontal, Spacing.lg)

@@ -1,0 +1,20 @@
+---
+// Localized landing pages — one route per language in src/data/languages.ts.
+//
+// English has no prefix, so `/` stays the only English URL and this route
+// emits only the translations: /de, /ja, /pt-br, /zh-hans …
+//
+// The path is all renderRoute() needs: it resolves the language, derives the
+// head metadata (canonical, og:locale, hreflang, lang/dir) and loads that
+// language's copy of the landing page body. Nothing about the head, chrome,
+// or JSON-LD is assembled here.
+import { SITE_LANGUAGES } from "../data/languages";
+import { renderRoute } from "../layouts/build-page";
+
+export function getStaticPaths() {
+  return SITE_LANGUAGES.map((l) => ({ params: { lang: l.slug } }));
+}
+
+const html = renderRoute(`/${Astro.params.lang}`, true);
+---
+<Fragment set:html={html} />

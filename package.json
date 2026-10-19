@@ -8,7 +8,22 @@
     "dev": "concurrently -k \"tailwindcss -i ./src/input.css -o ./public/assets/css/styles.css --watch\" \"astro dev\"",
     "build": "astro build && tailwindcss -i ./src/input.css -o ./dist/assets/css/styles.css --minify && node scripts/hash-assets.mjs",
     "preview": "astro preview",
-    "check": "node scripts/hash-assets.mjs --check"
+    "check": "node scripts/hash-assets.mjs --check && node scripts/seo-audit.mjs && node scripts/og-cards.mjs --check",
+    "og": "node scripts/og-cards.mjs",
+    "screenshots": "node scripts/growth/shoot-screenshots.mjs",
+    "screenshots:duo": "node scripts/growth/shoot-screenshots.mjs --duo",
+    "growth": "node scripts/growth/build-assets.mjs",
+    "check:growth": "node scripts/growth/check-assets.mjs --strict",
+    "check:duo": "node scripts/duo/check-resizability.mjs",
+    "archive": "xcodebuild archive -project Tidybyte.xcodeproj -scheme Tidybyte -configuration Release -destination \"generic/platform=iOS\" -archivePath \"$PWD/build/archive/Tidybyte.xcarchive\" -derivedDataPath \"$PWD/build/ArchiveDD\" CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=HMWGCVU4SV && xcodebuild -exportArchive -archivePath \"$PWD/build/archive/Tidybyte.xcarchive\" -exportPath \"$PWD/build/archive/export\" -exportOptionsPlist scripts/ExportOptions-export.plist",
+    "publish:verify": "node scripts/publish/verify.mjs",
+    "publish:build": "node scripts/publish/publish.mjs build",
+    "publish:details": "node scripts/publish/publish.mjs details",
+    "publish:media": "node scripts/publish/publish.mjs media",
+    "publish:submit": "node scripts/publish/publish.mjs submit",
+    "publish:selftest": "node scripts/publish/selftest.mjs",
+    "publish:doctor": "node scripts/publish/publish.mjs doctor",
+    "publish:plan": "node scripts/publish/publish.mjs plan"
   },
   "devDependencies": {
     "@astrojs/sitemap": "^3.7.4",

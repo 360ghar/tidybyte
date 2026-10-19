@@ -274,7 +274,7 @@ final class CleanupActivityTests: XCTestCase {
             XCTAssertFalse(kind.title.isEmpty)
             XCTAssertFalse(kind.icon.isEmpty)
         }
-        XCTAssertEqual(CleanupActivityKind.swipe.title, "Swipe session")
+        XCTAssertEqual(CleanupActivityKind.swipe.title, L10n.string("Swipe session"))
         XCTAssertEqual(CleanupActivityKind.duplicates.title, CleanupTool.duplicates.name)
     }
 }
