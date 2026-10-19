@@ -27,6 +27,7 @@ actor PhotoLibraryService {
     private static let requestTimeoutSeconds: TimeInterval = 20
 
     private let imageManager = PHCachingImageManager()
+    private let summaryBuilder = SummaryBuilder()
     private var changeObserverHelper: PhotoLibraryChangeObserverHelper?
 
     /// Baseline for incremental change details (SHARED-08): the broadest
@@ -182,11 +183,11 @@ actor PhotoLibraryService {
 
     // MARK: - Asset Fetching
 
-    func fetchAssets(filter: SwipeFilter) -> [AssetSummary] {
+    func fetchAssets(filter: SwipeFilter) async -> [AssetSummary] {
         switch filter {
         case .allMedia:
             let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .allMediaBefore(let cutoffDate):
             // Same options (and therefore ordering) as All Media, narrowed to
@@ -194,12 +195,12 @@ actor PhotoLibraryService {
             let options = allAssetsFetchOptions()
             options.predicate = NSPredicate(format: "creationDate <= %@", cutoffDate as NSDate)
             let fetchResult = PHAsset.fetchAssets(with: options)
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .notInAnyAlbum:
             let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
             let assetsInAlbums = collectAssetsInUserAlbums()
-            return extractSummaries(from: allAssets, excluding: assetsInAlbums)
+            return await extractSummaries(from: allAssets, excluding: assetsInAlbums)
 
         case .specificAlbum(let albumId):
             guard let collection = PHAssetCollection.fetchAssetCollections(
@@ -208,34 +209,34 @@ actor PhotoLibraryService {
                 return []
             }
             let fetchResult = PHAsset.fetchAssets(in: collection, options: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .notSwipedYet:
             // Swipe history lives in SwiftData, not PhotoKit — the session view
             // model filters it out after the fetch.
             let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .worstShots:
-            return fetchAllPhotos()
+            return await fetchAllPhotos()
 
         case .screenshots:
             let options = allAssetsFetchOptions()
             options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
             let fetchResult = PHAsset.fetchAssets(with: options)
-            return extractSummaries(from: fetchResult)
+            return await extractSummaries(from: fetchResult)
 
         case .customAssetIds(let ids):
             let assets = PHAsset.fetchAssets(withLocalIdentifiers: Array(ids), options: nil)
-            return extractSummaries(from: assets)
+            return await extractSummaries(from: assets)
         }
     }
 
-    func fetchAssetsByMediaType(_ mediaType: PHAssetMediaType) -> [AssetSummary] {
+    func fetchAssetsByMediaType(_ mediaType: PHAssetMediaType) async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "mediaType = %d", mediaType.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     nonisolated static func isScreenRecordingFilename(_ filename: String) -> Bool {
@@ -271,18 +272,18 @@ actor PhotoLibraryService {
         return unchanged
     }
 
-    func fetchScreenshots() -> [AssetSummary] {
+    func fetchScreenshots() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
-    func fetchLivePhotos() -> [AssetSummary] {
+    func fetchLivePhotos() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoLive.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     /// Groups burst frames by `burstIdentifier` alone and drops single-frame
@@ -307,11 +308,11 @@ actor PhotoLibraryService {
         return groups.filter { $0.value.count > 1 }
     }
 
-    func fetchAllPhotos() -> [AssetSummary] {
+    func fetchAllPhotos() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     // MARK: - Image Loading
@@ -1092,12 +1093,15 @@ actor PhotoLibraryService {
         return asset.mediaType == .image ? .savedFromApp : .unknown
     }
 
-    private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+    /// Builds the summaries on `summaryBuilder`, not on this actor. Reading
+    /// every asset's resources takes minutes on a large library, and while
+    /// that ran here, every thumbnail and card image request queued behind it.
+    private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) async -> [AssetSummary] {
         retainChangeBaseline(fetchResult)
-        return Self.buildSummaries(from: fetchResult, excluding: excluding, sort: sort)
+        return await summaryBuilder.build(from: UncheckedSendableBox(fetchResult), excluding: excluding, sort: sort)
     }
 
-    nonisolated private static func buildSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+    nonisolated fileprivate static func buildSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
         var summaries: [AssetSummary] = []
         summaries.reserveCapacity(fetchResult.count)
         fetchResult.enumerateObjects { asset, _, _ in
@@ -1194,6 +1198,16 @@ enum PhotoServiceError: LocalizedError {
         }
     }
 
+}
+
+// MARK: - Summary Builder
+
+/// Runs the library-wide summary builds one at a time, as they ran when they
+/// were on `PhotoLibraryService` itself, without holding that actor.
+private actor SummaryBuilder {
+    func build(from fetchResult: UncheckedSendableBox<PHFetchResult<PHAsset>>, excluding: Set<String>, sort: Bool) -> [AssetSummary] {
+        PhotoLibraryService.buildSummaries(from: fetchResult.value, excluding: excluding, sort: sort)
+    }
 }
 
 // MARK: - Change Observer Helper
