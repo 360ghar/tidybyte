@@ -80,13 +80,32 @@ actor PhotoLibraryService {
             changeBaselineFetch = details.fetchResultAfterChanges
             let removedIds = details.removedObjects.map(\.localIdentifier)
             let changedIds = details.changedObjects.map(\.localIdentifier)
+            summaryBuilder.resources.remove(removedIds + changedIds)
             for id in removedIds + changedIds {
                 await ImageCache.shared.removeAllVariants(of: id)
             }
         } else {
+            // No purge of `summaryBuilder.resources`: an asset's resources
+            // change only with an edit (a new modification date) or an iCloud
+            // download or offload (`ResourceCache.maxAge`). PhotoKit sends
+            // these changes often on an iCloud library, and purging on each
+            // one made every scan read the whole library again.
             await ImageCache.shared.removeAll()
         }
         onLibraryChange?()
+    }
+
+    /// Drops every cached resource read, so the next library build reads
+    /// every asset again. For pull-to-refresh, permission changes and memory
+    /// warnings. Isolated so it can't fall between a fetch and its stamp.
+    func discardCachedResources() {
+        summaryBuilder.resources.removeAll()
+    }
+
+    /// Reading an original can download it from iCloud, which changes its
+    /// resources without a library change.
+    private func forgetResources(of assetId: String) {
+        summaryBuilder.resources.remove([assetId])
     }
 
     /// Records a fetch result as the change-details baseline. Keeps the
@@ -805,7 +824,7 @@ actor PhotoLibraryService {
         guard let resource = preferredPrimaryResource(from: resources) else {
             return nil
         }
-        return await withCheckedContinuation { continuation in
+        let hash: String? = await withCheckedContinuation { continuation in
             let resumer = ContinuationResumer<String?>(continuation)
             var hasher = SHA256()
             let options = PHAssetResourceRequestOptions()
@@ -840,6 +859,8 @@ actor PhotoLibraryService {
                 }
             }
         }
+        if hash != nil { forgetResources(of: asset.localIdentifier) }
+        return hash
     }
 
     nonisolated func getPHAsset(for identifier: String) -> PHAsset? {
@@ -876,7 +897,7 @@ actor PhotoLibraryService {
     /// `PHAsset` overload so compression batches can resolve a whole batch
     /// with one `phAssetsById` fetch instead of one identifier lookup per item.
     func loadFullImageData(for asset: PHAsset) async -> Data? {
-        return await withCheckedContinuation { continuation in
+        let data: Data? = await withCheckedContinuation { continuation in
             let resumer = ContinuationResumer<Data?>(continuation)
 
             let options = PHImageRequestOptions()
@@ -910,6 +931,8 @@ actor PhotoLibraryService {
                 }
             }
         }
+        if data != nil { forgetResources(of: asset.localIdentifier) }
+        return data
     }
 
     /// Writes full-resolution representations of the given assets to temporary
@@ -954,6 +977,7 @@ actor PhotoLibraryService {
         let options = PHAssetResourceRequestOptions()
         options.isNetworkAccessAllowed = true
 
+        let assetId = asset.localIdentifier
         return await withCheckedContinuation { continuation in
             let resumer = ContinuationResumer<URL?>(continuation)
 
@@ -981,6 +1005,9 @@ actor PhotoLibraryService {
                     AppLog.photo.error("Share export write failed: \(error.localizedDescription, privacy: .public)")
                     resumer.resume(nil)
                 } else {
+                    // Here rather than after the await: the write carries on
+                    // after a timeout, and can still download the original.
+                    Task { await self.forgetResources(of: assetId) }
                     resumer.resume(fileURL)
                 }
             }
@@ -1021,12 +1048,23 @@ actor PhotoLibraryService {
         return sizes.reduce(0, +)
     }
 
-    nonisolated private static func makeSummary(from asset: PHAsset) -> AssetSummary {
+    /// Reads the summary fields that come from the asset's resources: one
+    /// Photos database round trip per asset, the slow part of a library build.
+    nonisolated static func readResources(of asset: PHAsset) -> ResourceFacts {
         let resources = PHAssetResource.assetResources(for: asset)
-        let isLocal = resources.allSatisfy { resource in
-            guard resource.responds(to: NSSelectorFromString("locallyAvailable")) else { return true }
-            return (resource.value(forKey: "locallyAvailable") as? Bool) ?? true
-        }
+        return ResourceFacts(
+            fileSize: Self.estimateFileSize(from: resources),
+            filename: resources.first?.originalFilename,
+            isLocallyAvailable: resources.allSatisfy { resource in
+                guard resource.responds(to: NSSelectorFromString("locallyAvailable")) else { return true }
+                return (resource.value(forKey: "locallyAvailable") as? Bool) ?? true
+            },
+            hasScreenRecordingFilename: resources.contains { Self.isScreenRecordingFilename($0.originalFilename) }
+        )
+    }
+
+    nonisolated private static func makeSummary(from asset: PHAsset, resources: ResourceFacts? = nil) -> AssetSummary {
+        let resources = resources ?? readResources(of: asset)
 
         let mediaType: MediaType
         switch asset.mediaType {
@@ -1048,20 +1086,20 @@ actor PhotoLibraryService {
             pixelWidth: asset.pixelWidth,
             pixelHeight: asset.pixelHeight,
             duration: asset.duration,
-            fileSize: Self.estimateFileSize(from: resources),
-            filename: resources.first?.originalFilename,
+            fileSize: resources.fileSize,
+            filename: resources.filename,
             isFavorite: asset.isFavorite,
             isBurst: asset.representsBurst,
             burstIdentifier: asset.burstIdentifier,
             isLivePhoto: asset.mediaSubtypes.contains(.photoLive),
             isScreenshot: asset.mediaSubtypes.contains(.photoScreenshot),
-            isLocallyAvailable: isLocal,
-            assetOrigin: Self.detectOrigin(for: asset, filename: resources.first?.originalFilename),
+            isLocallyAvailable: resources.isLocallyAvailable,
+            assetOrigin: Self.detectOrigin(for: asset, filename: resources.filename),
             burstPick: asset.burstSelectionTypes.contains(.userPick) ? .user
                 : asset.burstSelectionTypes.contains(.autoPick) ? .iPhone : .none,
             isScreenRecording: asset.mediaType == .video && (
                 asset.mediaSubtypes.contains(.videoScreenRecording)
-                || resources.contains { Self.isScreenRecordingFilename($0.originalFilename) }
+                || resources.hasScreenRecordingFilename
             ),
             isCinematic: asset.mediaSubtypes.contains(.videoCinematic),
             isSpatial: asset.mediaSubtypes.contains(.spatialMedia)
@@ -1107,15 +1145,22 @@ actor PhotoLibraryService {
     /// that ran here, every thumbnail and card image request queued behind it.
     private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) async -> [AssetSummary] {
         retainChangeBaseline(fetchResult)
-        return await summaryBuilder.build(from: UncheckedSendableBox(fetchResult), excluding: excluding, sort: sort)
+        // Stamp in the same actor turn as the fetch: the fetch keeps its
+        // assets as they were when it was made, however long it waits for
+        // the builder.
+        let stamp = summaryBuilder.resources.stamp()
+        return await summaryBuilder.build(from: UncheckedSendableBox(fetchResult), excluding: excluding, sort: sort, stamp: stamp)
     }
 
-    nonisolated fileprivate static func buildSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+    nonisolated fileprivate static func buildSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true, cache: ResourceCache, stamp: Int) -> [AssetSummary] {
         var summaries: [AssetSummary] = []
         summaries.reserveCapacity(fetchResult.count)
         fetchResult.enumerateObjects { asset, _, _ in
             if !excluding.contains(asset.localIdentifier) {
-                summaries.append(Self.makeSummary(from: asset))
+                let resources = cache.resources(id: asset.localIdentifier, modifiedAt: asset.modificationDate, stamp: stamp) {
+                    Self.readResources(of: asset)
+                }
+                summaries.append(Self.makeSummary(from: asset, resources: resources))
             }
         }
         if sort {
@@ -1214,8 +1259,97 @@ enum PhotoServiceError: LocalizedError {
 /// Runs the library-wide summary builds one at a time, as they ran when they
 /// were on `PhotoLibraryService` itself, without holding that actor.
 private actor SummaryBuilder {
-    func build(from fetchResult: UncheckedSendableBox<PHFetchResult<PHAsset>>, excluding: Set<String>, sort: Bool) -> [AssetSummary] {
-        PhotoLibraryService.buildSummaries(from: fetchResult.value, excluding: excluding, sort: sort)
+    /// The launch scan, Storage and Cleanup each build the whole library.
+    /// Reading every asset's resources is what takes minutes, so only the
+    /// first build does it; later builds reuse what it read.
+    nonisolated let resources = ResourceCache()
+
+    func build(from fetchResult: UncheckedSendableBox<PHFetchResult<PHAsset>>, excluding: Set<String>, sort: Bool, stamp: Int) -> [AssetSummary] {
+        PhotoLibraryService.buildSummaries(from: fetchResult.value, excluding: excluding, sort: sort, cache: resources, stamp: stamp)
+    }
+}
+
+/// The summary fields that come from an asset's resources.
+struct ResourceFacts: Sendable, Equatable {
+    var fileSize: Int64
+    var filename: String?
+    var isLocallyAvailable: Bool
+    var hasScreenRecordingFilename: Bool
+}
+
+/// Resource reads from earlier builds, by asset id, reused while the asset's
+/// modification date is unchanged. `handleLibraryChange` drops the assets a
+/// change touched. A lock rather than an actor, so a change takes effect at
+/// once instead of waiting for a running build to finish.
+final class ResourceCache: @unchecked Sendable {
+    /// Downloading or offloading an iCloud original changes
+    /// `isLocallyAvailable` without always producing a library change, so no
+    /// read is reused for longer than this.
+    static let maxAge: TimeInterval = 30 * 60
+    /// See `remove(_:)`.
+    static let maxRemovedIds = 10_000
+
+    private let lock = NSLock()
+    private let now: @Sendable () -> Date
+    private var entries: [String: (facts: ResourceFacts, modifiedAt: Date?, readAt: Date)] = [:]
+    /// Ticks on every removal; `removedAt` and `clearedAt` record the tick. A
+    /// build keeps nothing it read for an asset removed after its fetch was
+    /// made: the fetch may hold that asset as it was before the change.
+    private var tick = 0
+    private var removedAt: [String: Int] = [:]
+    private var clearedAt = 0
+
+    init(now: @escaping @Sendable () -> Date = { Date() }) {
+        self.now = now
+    }
+
+    /// Take when making the fetch a build will enumerate, and pass to
+    /// `resources(id:modifiedAt:stamp:orRead:)`.
+    func stamp() -> Int {
+        lock.withLock { tick }
+    }
+
+    func resources(id: String, modifiedAt modificationDate: Date?, stamp: Int, orRead read: () -> ResourceFacts) -> ResourceFacts {
+        let cached = lock.withLock { entries[id] }
+        if let cached, cached.modifiedAt == modificationDate,
+           now().timeIntervalSince(cached.readAt) < Self.maxAge {
+            return cached.facts
+        }
+        let readAt = now()
+        let facts = read()
+        lock.withLock {
+            if clearedAt <= stamp, removedAt[id, default: 0] <= stamp {
+                entries[id] = (facts, modificationDate, readAt)
+            }
+        }
+        return facts
+    }
+
+    func remove(_ ids: [String]) {
+        lock.withLock {
+            tick += 1
+            for id in ids {
+                entries[id] = nil
+                removedAt[id] = tick
+            }
+            // Bounds `removedAt`, which deleted ids would otherwise grow for
+            // the life of the app, at the cost of one full re-read.
+            if removedAt.count > Self.maxRemovedIds { clear() }
+        }
+    }
+
+    func removeAll() {
+        lock.withLock {
+            tick += 1
+            clear()
+        }
+    }
+
+    /// Call with `lock` held.
+    private func clear() {
+        entries.removeAll()
+        removedAt.removeAll()
+        clearedAt = tick
     }
 }
 

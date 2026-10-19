@@ -31,13 +31,17 @@ final class LibraryChangeMonitor {
         }
         // Cache eviction on library change is owned by PhotoLibraryService
         // (selective id eviction, SHARED-08) — but a memory warning still
-        // wants the whole image cache dropped, and nothing else did that.
+        // wants the whole image cache and the cached resource reads
+        // dropped, and nothing else did that.
         memoryWarningObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification,
             object: nil,
             queue: .main
-        ) { _ in
-            Task { await ImageCache.shared.removeAll() }
+        ) { [photoService] _ in
+            Task {
+                await photoService.discardCachedResources()
+                await ImageCache.shared.removeAll()
+            }
         }
     }
 
@@ -47,7 +51,10 @@ final class LibraryChangeMonitor {
         debounceTask = nil
         generation += 1
         ScanResults.permissionChanged()
-        Task { await ImageCache.shared.removeAll() }
+        Task { [photoService] in
+            await photoService.discardCachedResources()
+            await ImageCache.shared.removeAll()
+        }
     }
 
     /// PHPhotoLibrary posts one change per mutation, so a bulk delete of N

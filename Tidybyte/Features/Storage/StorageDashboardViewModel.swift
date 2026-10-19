@@ -138,6 +138,7 @@ final class StorageDashboardViewModel {
     /// pull-to-refresh can never enumerate the library concurrently with a
     /// generation-driven reload.
     func refresh(modelContext: ModelContext) async {
+        await photoService.discardCachedResources()
         await enqueue { await self.reload(modelContext: modelContext) }
     }
 
