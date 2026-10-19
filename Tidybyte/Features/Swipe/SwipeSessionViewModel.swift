@@ -41,7 +41,9 @@ final class SwipeSessionViewModel {
         let epoch = ScanResults.epoch
         do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
         guard !Task.isCancelled, currentAsset == asset else { return }
-        let current = await photoService.fetchAssets(filter: .customAssetIds([asset.id])).first
+        // Not `fetchAssets`: that waits behind any library-wide scan in flight,
+        // which on a large library holds the hint back for minutes.
+        let current = await fetchDetails(for: [asset.id])[asset.id]
         guard !Task.isCancelled, current == asset else { return }
         let image = asset.mediaType == .photo && !asset.isScreenshot
             ? await photoService.loadAnalysisImage(for: asset.id, targetSize: CGSize(width: 512, height: 512))?.cgImage : nil
@@ -128,6 +130,15 @@ final class SwipeSessionViewModel {
     /// of the device screen. Stays `.zero` until the deck has laid out;
     /// prefetching waits for it rather than guessing a size.
     private(set) var renderTarget: CGSize = .zero
+
+    /// `assets[..<detailedEnd]` hold complete summaries. The cards after it
+    /// are deck listings (no file size, filename or iCloud state) until
+    /// `detailUpcoming()` reaches them.
+    private var detailedEnd = 0
+    private var isDetailing = false
+    private static let detailWindow = 40
+    /// Complete summaries for deck ids. Reads PhotoKit; replaced in tests.
+    var loadDetails: @Sendable ([String]) -> [String: AssetSummary]
     let filter: SwipeFilter
     let photoService: PhotoLibraryService
     let modelContext: ModelContext
@@ -152,6 +163,7 @@ final class SwipeSessionViewModel {
         self.filter = filter
         self.photoService = photoService
         self.modelContext = modelContext
+        self.loadDetails = { [photoService] ids in photoService.fetchSummaries(for: ids) }
     }
 
     func loadAssetsIfNeeded() async {
@@ -211,7 +223,7 @@ final class SwipeSessionViewModel {
             }
             fetched = scored.sorted(by: Self.worstShotOrder).map(\.asset)
         case .notSwipedYet:
-            let allAssets = await photoService.fetchAssets(filter: .allMedia)
+            let allAssets = await photoService.fetchDeckListing(filter: .allMedia)
             // Collapse before the swipe filter: filtering first lets a reviewed
             // keeper's unreviewed siblings win the next session's collapse and
             // return. Burst-level exclusion covers a keeper that changed since
@@ -226,7 +238,7 @@ final class SwipeSessionViewModel {
             }
             fetched = filtered
         default:
-            fetched = await photoService.fetchAssets(filter: filter)
+            fetched = await photoService.fetchDeckListing(filter: filter)
         }
 
         // One card per burst, like the Photos app: the frames are near copies
@@ -239,7 +251,21 @@ final class SwipeSessionViewModel {
             deck = Self.collapsingBursts(fetched)
         }
         guard !Task.isCancelled, token == loadGeneration else { return }
-        assets = Self.deckAssets(deck, excludingPending: pendingDeletionIds)
+        var listed = Self.deckAssets(deck, excludingPending: pendingDeletionIds)
+        if filter == .worstShots {
+            // Scored from complete summaries already.
+            detailedEnd = listed.count
+        } else {
+            // The listing has no file sizes or iCloud state; fill them in for
+            // the first cards before showing any.
+            let firstDetails = 0..<min(Self.detailWindow, listed.count)
+            let ids = listed[firstDetails].map(\.id)
+            let details = await fetchDetails(for: ids)
+            guard !Task.isCancelled, token == loadGeneration else { return }
+            Self.apply(details, to: &listed, in: firstDetails)
+            detailedEnd = firstDetails.upperBound
+        }
+        assets = listed
         currentIndex = 0
         // Undo entries point into the old deck; after a reload they would
         // rewind to cards that are no longer in it.
@@ -591,12 +617,56 @@ final class SwipeSessionViewModel {
         if currentIndex >= assets.count {
             showCompletion = true
         } else {
+            detailVisibleCards()
             // Pre-cache upcoming images
             prefetchUpcoming(includingCurrent: false)
+            detailUpcoming()
         }
         // Release images that fell out of the visible + prefetch window so a
         // long session doesn't pin hundreds of images in the cache (SWIPE-01).
         releaseCachedAssetsOutsideWindow()
+    }
+
+    /// Replaces deck listings with complete summaries ahead of the current
+    /// card, a window at a time, so a card has its file size and iCloud state
+    /// before it is shown.
+    private func detailUpcoming() {
+        guard !isDetailing, detailedEnd < assets.count,
+              detailedEnd - currentIndex < Self.detailWindow / 2 else { return }
+        let range = detailedEnd..<min(detailedEnd + Self.detailWindow, assets.count)
+        let ids = assets[range].map(\.id)
+        let token = loadGeneration
+        isDetailing = true
+        Task {
+            let details = await fetchDetails(for: ids)
+            isDetailing = false
+            guard token == loadGeneration else { return }
+            Self.apply(details, to: &assets, in: range)
+            detailedEnd = max(detailedEnd, range.upperBound)
+            detailUpcoming()
+        }
+    }
+
+    /// The window normally stays far ahead of the deck. If a fast run of
+    /// swipes outruns it, the cards on screen are filled in here, on the spot,
+    /// so no decision is recorded against a listing (which has no file size).
+    private func detailVisibleCards() {
+        let visibleEnd = min(currentIndex + 3, assets.count)
+        guard detailedEnd < visibleEnd else { return }
+        let range = detailedEnd..<visibleEnd
+        Self.apply(loadDetails(assets[range].map(\.id)), to: &assets, in: range)
+        detailedEnd = visibleEnd
+    }
+
+    /// `loadDetails`, off the main actor.
+    private func fetchDetails(for ids: [String]) async -> [String: AssetSummary] {
+        await Task.detached(priority: .userInitiated) { [loadDetails] in loadDetails(ids) }.value
+    }
+
+    nonisolated static func apply(_ details: [String: AssetSummary], to deck: inout [AssetSummary], in range: Range<Int>) {
+        for index in range where index < deck.count {
+            if let detail = details[deck[index].id] { deck[index] = detail }
+        }
     }
 
     /// Caches the images the deck is about to show, at the deck's own size.
