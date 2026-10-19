@@ -36,3 +36,29 @@ struct RecentlyDeletedNotice: View {
         }
     }
 }
+
+extension View {
+    /// Shows the Recently Deleted notice as a bottom inset on this screen.
+    ///
+    /// Applied per screen rather than on the `TabView`: since iOS 26 the tab
+    /// bar floats over the tabs' content, so an inset on the `TabView` sat
+    /// underneath the tab bar and took its taps. Not on a `NavigationStack`
+    /// either: pushed screens don't get its inset, and a tool's bottom action
+    /// bar ended up behind the notice.
+    func recentlyDeletedNoticeInset() -> some View {
+        modifier(RecentlyDeletedNoticeInset())
+    }
+}
+
+private struct RecentlyDeletedNoticeInset: ViewModifier {
+    @Environment(AppNavigation.self) private var appNavigation
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom) {
+            // The completion screen shows the notice inline instead.
+            if !appNavigation.isShowingSwipeCompletion {
+                RecentlyDeletedNotice()
+            }
+        }
+    }
+}
