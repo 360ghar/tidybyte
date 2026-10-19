@@ -28,7 +28,9 @@ struct RecentlyDeletedNotice: View {
                 .frame(minHeight: 44)
             }
             .padding(Spacing.md)
-            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: CornerRadius.large))
+            // A material, not `cardSurface`: the notice floats over the tabs'
+            // content, and a 6% wash left that content showing through the text.
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: CornerRadius.large))
             .padding(.horizontal, Spacing.lg)
             .onChange(of: notice.id) { showInstructions = false }
         }

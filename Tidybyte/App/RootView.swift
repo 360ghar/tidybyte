@@ -34,6 +34,7 @@ struct RootView: View {
         TabView(selection: tabSelectionBinding) {
             NavigationStack {
                 permissionGatedView { SwipeHomeView() }
+                    .safeAreaInset(edge: .bottom) { deletionNotice }
             }
             .tabItem {
                 Label("Swipe", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
@@ -42,8 +43,10 @@ struct RootView: View {
 
             NavigationStack(path: cleanupPathBinding) {
                 permissionGatedView { CleanupHomeView() }
+                    .safeAreaInset(edge: .bottom) { deletionNotice }
                     .navigationDestination(for: CleanupTool.self) { tool in
                         permissionGatedView { cleanupDestinationView(for: tool) }
+                            .safeAreaInset(edge: .bottom) { deletionNotice }
                     }
             }
             .tabItem {
@@ -53,10 +56,12 @@ struct RootView: View {
 
             NavigationStack(path: storagePathBinding) {
                 permissionGatedView { StorageDashboardView() }
+                    .safeAreaInset(edge: .bottom) { deletionNotice }
                     .navigationDestination(for: StorageRoute.self) { route in
                         switch route {
                         case .activity:
                             ActivityView()
+                                .safeAreaInset(edge: .bottom) { deletionNotice }
                         }
                     }
             }
@@ -67,16 +72,12 @@ struct RootView: View {
 
             NavigationStack {
                 SettingsView()
+                    .safeAreaInset(edge: .bottom) { deletionNotice }
             }
             .tabItem {
                 Label("Settings", systemImage: "gear")
             }
             .tag(AppTab.settings)
-        }
-        .safeAreaInset(edge: .bottom) {
-            if !appNavigation.isShowingSwipeCompletion {
-                RecentlyDeletedNotice()
-            }
         }
         .adaptiveSidebarStyle()
         .environment(appNavigation)
@@ -261,6 +262,18 @@ struct RootView: View {
             get: { appNavigation.storagePath },
             set: { appNavigation.storagePath = $0 }
         )
+    }
+
+    /// Inset on each screen rather than on the `TabView`: since iOS 26 the tab
+    /// bar floats over the tabs' content, so an inset on the `TabView` sat
+    /// underneath the tab bar and took its taps. Not on the `NavigationStack`
+    /// either: pushed screens don't get its inset, and a tool's bottom action
+    /// bar ended up behind the notice.
+    @ViewBuilder
+    private var deletionNotice: some View {
+        if !appNavigation.isShowingSwipeCompletion {
+            RecentlyDeletedNotice()
+        }
     }
 
     @ViewBuilder
