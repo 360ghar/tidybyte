@@ -31,17 +31,15 @@ final class LibraryChangeMonitor {
         }
         // Cache eviction on library change is owned by PhotoLibraryService
         // (selective id eviction, SHARED-08) — but a memory warning still
-        // wants the whole image cache and the cached resource reads
-        // dropped, and nothing else did that.
+        // wants the whole image cache dropped, and nothing else did that.
+        // The cached resource reads stay: they are a few small values per
+        // asset, and dropping them costs a full library re-read.
         memoryWarningObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification,
             object: nil,
             queue: .main
-        ) { [photoService] _ in
-            Task {
-                await photoService.discardCachedResources()
-                await ImageCache.shared.removeAll()
-            }
+        ) { _ in
+            Task { await ImageCache.shared.removeAll() }
         }
     }
 

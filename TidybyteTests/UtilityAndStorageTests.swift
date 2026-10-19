@@ -178,16 +178,30 @@ final class UtilityAndStorageTests: XCTestCase {
         XCTAssertEqual(reads, 1)
     }
 
-    func testResourceCacheClearsOnceTooManyAssetsWereRemoved() {
+    /// Duplicate scans and exports drop one asset at a time, thousands of
+    /// times: that must never wipe the rest of the cache.
+    func testResourceCacheKeepsOtherAssetsThroughManyRemovals() {
         let cache = ResourceCache()
         _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { facts() }
-        cache.remove((0..<ResourceCache.maxRemovedIds).map { "removed-\($0)" })
+        for index in 0..<20_000 { cache.remove(["removed-\(index)"]) }
         var reads = 0
         _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { reads += 1; return facts() }
         XCTAssertEqual(reads, 0)
-        cache.remove(["one-more"])
+    }
+
+    /// A released fetch no longer holds back what it read: removals that
+    /// came after it stop mattering once no older fetch is open.
+    func testResourceCacheReleasedFetchesNoLongerBlockStores() {
+        let cache = ResourceCache()
+        let old = cache.stamp()
+        cache.remove(["a"])
+        cache.release(old)
+        let next = cache.stamp()
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: next) { facts() }
+        cache.release(next)
+        var reads = 0
         _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { reads += 1; return facts() }
-        XCTAssertEqual(reads, 1)
+        XCTAssertEqual(reads, 0)
     }
 
     private final class TestClock: @unchecked Sendable {

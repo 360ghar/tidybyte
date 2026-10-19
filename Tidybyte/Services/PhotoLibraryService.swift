@@ -96,14 +96,15 @@ actor PhotoLibraryService {
     }
 
     /// Drops every cached resource read, so the next library build reads
-    /// every asset again. For pull-to-refresh, permission changes and memory
-    /// warnings. Isolated so it can't fall between a fetch and its stamp.
+    /// every asset again. For pull-to-refresh and permission changes.
+    /// Isolated so it can't fall between a fetch and its stamp.
     func discardCachedResources() {
         summaryBuilder.resources.removeAll()
     }
 
     /// Reading an original can download it from iCloud, which changes its
-    /// resources without a library change.
+    /// resources without a library change. Called whether or not the read
+    /// succeeded: a failed or timed-out request may still have downloaded.
     private func forgetResources(of assetId: String) {
         summaryBuilder.resources.remove([assetId])
     }
@@ -859,7 +860,7 @@ actor PhotoLibraryService {
                 }
             }
         }
-        if hash != nil { forgetResources(of: asset.localIdentifier) }
+        forgetResources(of: asset.localIdentifier)
         return hash
     }
 
@@ -931,7 +932,7 @@ actor PhotoLibraryService {
                 }
             }
         }
-        if data != nil { forgetResources(of: asset.localIdentifier) }
+        forgetResources(of: asset.localIdentifier)
         return data
     }
 
@@ -1265,7 +1266,8 @@ private actor SummaryBuilder {
     nonisolated let resources = ResourceCache()
 
     func build(from fetchResult: UncheckedSendableBox<PHFetchResult<PHAsset>>, excluding: Set<String>, sort: Bool, stamp: Int) -> [AssetSummary] {
-        PhotoLibraryService.buildSummaries(from: fetchResult.value, excluding: excluding, sort: sort, cache: resources, stamp: stamp)
+        defer { resources.release(stamp) }
+        return PhotoLibraryService.buildSummaries(from: fetchResult.value, excluding: excluding, sort: sort, cache: resources, stamp: stamp)
     }
 }
 
@@ -1286,8 +1288,6 @@ final class ResourceCache: @unchecked Sendable {
     /// `isLocallyAvailable` without always producing a library change, so no
     /// read is reused for longer than this.
     static let maxAge: TimeInterval = 30 * 60
-    /// See `remove(_:)`.
-    static let maxRemovedIds = 10_000
 
     private let lock = NSLock()
     private let now: @Sendable () -> Date
@@ -1298,15 +1298,34 @@ final class ResourceCache: @unchecked Sendable {
     private var tick = 0
     private var removedAt: [String: Int] = [:]
     private var clearedAt = 0
+    /// Stamps handed out and not yet released, by count. A removal only
+    /// matters to fetches stamped before it, so `removedAt` keeps only what
+    /// the oldest open stamp still needs.
+    private var openStamps: [Int: Int] = [:]
 
     init(now: @escaping @Sendable () -> Date = { Date() }) {
         self.now = now
     }
 
-    /// Take when making the fetch a build will enumerate, and pass to
-    /// `resources(id:modifiedAt:stamp:orRead:)`.
+    /// Take when making the fetch a build will enumerate, pass to
+    /// `resources(id:modifiedAt:stamp:orRead:)`, and `release` when the build
+    /// is done.
     func stamp() -> Int {
-        lock.withLock { tick }
+        lock.withLock {
+            openStamps[tick, default: 0] += 1
+            return tick
+        }
+    }
+
+    func release(_ stamp: Int) {
+        lock.withLock {
+            if let count = openStamps[stamp], count > 1 {
+                openStamps[stamp] = count - 1
+            } else {
+                openStamps[stamp] = nil
+            }
+            pruneRemovals()
+        }
     }
 
     func resources(id: String, modifiedAt modificationDate: Date?, stamp: Int, orRead read: () -> ResourceFacts) -> ResourceFacts {
@@ -1332,24 +1351,26 @@ final class ResourceCache: @unchecked Sendable {
                 entries[id] = nil
                 removedAt[id] = tick
             }
-            // Bounds `removedAt`, which deleted ids would otherwise grow for
-            // the life of the app, at the cost of one full re-read.
-            if removedAt.count > Self.maxRemovedIds { clear() }
+            pruneRemovals()
         }
     }
 
     func removeAll() {
         lock.withLock {
             tick += 1
-            clear()
+            entries.removeAll()
+            removedAt.removeAll()
+            clearedAt = tick
         }
     }
 
     /// Call with `lock` held.
-    private func clear() {
-        entries.removeAll()
-        removedAt.removeAll()
-        clearedAt = tick
+    private func pruneRemovals() {
+        guard let oldest = openStamps.keys.min() else {
+            removedAt.removeAll()
+            return
+        }
+        removedAt = removedAt.filter { $0.value > oldest }
     }
 }
 
