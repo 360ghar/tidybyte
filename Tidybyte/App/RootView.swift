@@ -224,12 +224,22 @@ struct RootView: View {
         guard !hasOfferedLimitedLibraryPicker else { return }
         guard permissionHandler.permissionState == .limited else { return }
         guard hasCompletedOnboarding, scenePhase == .active else { return }
-        guard PhotoPermissionHandler.isReadyToPresentLimitedLibraryPicker else { return }
         // Claimed before the first `await`: two launch-triggered calls otherwise
-        // both pass the guard while the census is in flight, and the loser's
-        // post-sleep failure used to clear the flag, so the picker came back on
-        // a later foreground.
+        // both pass the guard while the wait or the census is in flight, and the
+        // loser's failure used to clear the flag, so the picker came back on a
+        // later foreground.
         hasOfferedLimitedLibraryPicker = true
+
+        // Waited for, not sampled: this runs the instant `hasCompletedOnboarding`
+        // flips, which is while onboarding's cover is still dismissing. A single
+        // check failed on that frame and nothing else re-triggers the offer, so
+        // the launch's only offer was silently dropped.
+        guard await PhotoPermissionHandler.waitUntilReadyToPresent() else {
+            // Still covered after the wait: hand the offer back rather than
+            // burn it, and a later foreground tries again.
+            hasOfferedLimitedLibraryPicker = false
+            return
+        }
 
         guard await PhotoLibraryService.shared.totalAssetCount() == 0 else {
             // Nothing to recover: hand the offer back.
@@ -248,6 +258,9 @@ struct RootView: View {
             hasOfferedLimitedLibraryPicker = false
             return
         }
+        // A plain check here, deliberately not a wait: something that appeared
+        // during the census is a screen the user just opened, so covering it is
+        // the one thing this must not do.
         guard permissionHandler.permissionState == .limited,
               PhotoPermissionHandler.isReadyToPresentLimitedLibraryPicker else {
             hasOfferedLimitedLibraryPicker = false

@@ -143,36 +143,44 @@ enum AlbumSheetLoader {
 /// What the recovery card draws: a title, an explanation, optional numbered
 /// steps, and the actions that can fix it.
 ///
-/// Copy is resolved through `L10n` at construction rather than stored as
-/// `LocalizedStringKey` fields, for the same reason `PermissionPresentation`
-/// does it: this type is `Equatable` and compared in tests, and the view wraps
-/// each line back into a `LocalizedStringKey` so a live language change still
-/// re-renders it. Computed properties, not `static let` — a static would keep
-/// serving the launch-time language after the user switches (see `L10n`).
+/// Every field holds a **catalog key** — the English text, which is the key the
+/// String Catalog is built from — not a resolved translation. The card hands
+/// each one to `Text` as a `LocalizedStringKey`, so SwiftUI resolves it against
+/// the live `\.locale` and a language change re-renders the copy. Resolving here
+/// instead would defeat that: `L10n.string` returns the translated text, which
+/// is not a catalog key in any language but English, so looking it up again is a
+/// no-op and the card would freeze at the language it was built in.
+///
+/// `L10n.key` is the call site that says "this literal is a key"; `extract.mjs`
+/// collects catalog keys from it, which is why the literals go through it rather
+/// than being plain strings here.
+///
+/// Stored as `String` rather than `LocalizedStringKey` because this type is
+/// `Equatable` and compared in tests. That is safe now only because the value is
+/// the key: the type has no language input, so two instances built in different
+/// languages are still equal.
+///
+/// Computed properties, not `static let` — the card is rebuilt per body, and a
+/// static would outlive a language switch (see `L10n`).
 struct PhotoRecoveryPresentation: Equatable {
     enum Action: Equatable { case addPhotos, openSettings, retry }
 
+    /// A catalog key, not translated text. See the type's doc comment.
     let title: String
+    /// A catalog key, not translated text.
     let message: String
-    /// Numbered recovery steps, in order. Empty when the copy needs none.
+    /// Numbered recovery steps, in order, as catalog keys. Empty when the copy
+    /// needs none.
     let steps: [String]
     /// Offered in order; the first is drawn as the primary button.
     let actions: [Action]
-
-    /// The resolved English text handed back as a key, so `Text` looks it up
-    /// against the live `\.locale` instead of rendering the string verbatim.
-    /// The Catalog's keys *are* the English text, so this re-resolves to the
-    /// chosen language — and re-resolves again if the user switches while this
-    /// screen is up.
-    var titleKey: LocalizedStringKey { LocalizedStringKey(title) }
-    var messageKey: LocalizedStringKey { LocalizedStringKey(message) }
 
     // MARK: - Copy
 
     static var limitedNoSelection: PhotoRecoveryPresentation {
         PhotoRecoveryPresentation(
-            title: L10n.string("No Photos Shared Yet"),
-            message: L10n.string("TidyByte has permission to see some of your photos, but none are shared with it right now, so there is nothing to review. Pick the photos it can see, or switch it to Full Access in Settings."),
+            title: L10n.key("No Photos Shared Yet"),
+            message: L10n.key("TidyByte has permission to see some of your photos, but none are shared with it right now, so there is nothing to review. Pick the photos it can see, or switch it to Full Access in Settings."),
             steps: [],
             // `.retry` is here because the picker's reload normally rides on a
             // debounced change notification; if that is missed, this is the only
@@ -183,12 +191,12 @@ struct PhotoRecoveryPresentation: Equatable {
 
     static var accessReturnedNothing: PhotoRecoveryPresentation {
         PhotoRecoveryPresentation(
-            title: L10n.string("No Photos Found"),
-            message: L10n.string("TidyByte has full photo access, but the library returned no photos. If the Photos app on this iPhone shows photos, that is a permissions problem, and the steps below reset it."),
+            title: L10n.key("No Photos Found"),
+            message: L10n.key("TidyByte has full photo access, but the library returned no photos. If the Photos app on this iPhone shows photos, that is a permissions problem, and the steps below reset it."),
             steps: [
-                L10n.string("Open the Photos app and check that your photos are still there."),
-                L10n.string("In Settings, turn TidyByte's Photos access off, then on again, and choose Full Access."),
-                L10n.string("Come back here and tap Try Again.")
+                L10n.key("Open the Photos app and check that your photos are still there."),
+                L10n.key("In Settings, turn TidyByte's Photos access off, then on again, and choose Full Access."),
+                L10n.key("Come back here and tap Try Again.")
             ],
             actions: [.openSettings, .retry]
         )
@@ -196,8 +204,8 @@ struct PhotoRecoveryPresentation: Equatable {
 
     static var limitedAlbums: PhotoRecoveryPresentation {
         PhotoRecoveryPresentation(
-            title: L10n.string("No Albums Yet"),
-            message: L10n.string("TidyByte has access to some of your photos, but none are shared with it yet, so there are no albums to list. Pick the photos it can see, or switch it to Full Access in Settings."),
+            title: L10n.key("No Albums Yet"),
+            message: L10n.key("TidyByte has access to some of your photos, but none are shared with it yet, so there are no albums to list. Pick the photos it can see, or switch it to Full Access in Settings."),
             steps: [],
             actions: [.addPhotos, .openSettings]
         )
@@ -209,8 +217,8 @@ struct PhotoRecoveryPresentation: Equatable {
     /// change nothing.
     static var limitedAlbumsNeedFullAccess: PhotoRecoveryPresentation {
         PhotoRecoveryPresentation(
-            title: L10n.string("Albums Need Full Access"),
-            message: L10n.string("TidyByte can see your photos, but not your albums. With limited access, iOS does not let an app read or create albums, so choose Full Access in Settings to file photos into an album."),
+            title: L10n.key("Albums Need Full Access"),
+            message: L10n.key("TidyByte can see your photos, but not your albums. With limited access, iOS does not let an app read or create albums, so choose Full Access in Settings to file photos into an album."),
             steps: [],
             actions: [.openSettings]
         )
@@ -218,13 +226,15 @@ struct PhotoRecoveryPresentation: Equatable {
 }
 
 extension PhotoRecoveryPresentation.Action {
-    /// Button title for the action. Resolved here rather than in the view so
-    /// every screen offers the same words for the same action.
+    /// Button copy, as a catalog key: resolved where it is drawn so it follows
+    /// the live `\.locale`. Defined here rather than in the view for the same
+    /// reason every other string on this card is: one set of words for one
+    /// action, whichever screen offers it.
     var title: String {
         switch self {
-        case .addPhotos: L10n.string("Add More Photos")
-        case .openSettings: L10n.string("Open Settings")
-        case .retry: L10n.string("Try Again")
+        case .addPhotos: L10n.key("Add More Photos")
+        case .openSettings: L10n.key("Open Settings")
+        case .retry: L10n.key("Try Again")
         }
     }
 }

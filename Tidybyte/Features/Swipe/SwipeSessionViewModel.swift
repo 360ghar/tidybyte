@@ -120,7 +120,12 @@ final class SwipeSessionViewModel {
     /// which keeps the existing "All Caught Up!" copy. Without this, a library
     /// the app cannot see and a library with nothing left to review rendered
     /// identically.
-    private(set) var emptyReason: PhotoLibraryEmptyReason?
+    ///
+    /// Not `private(set)`: the load that sets it needs a library the simulator
+    /// cannot produce (`.limited` with nothing shared), so the only way to test
+    /// that `retryLoad()` clears it is to seed it. Same trade already accepted
+    /// for `isLoading` and `allPhotosAlreadySwiped`.
+    var emptyReason: PhotoLibraryEmptyReason?
 
     private(set) var undoStack: [SwipeUndoEntry] = []
 

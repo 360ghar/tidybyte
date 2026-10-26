@@ -167,6 +167,11 @@ final class SwipeFlowRegressionTests: XCTestCase {
         // so loadAssetsIfNeeded() will re-run.
         vm.allPhotosAlreadySwiped = true
         vm.isLoading = true
+        // Seeded, not left nil: the reason is only ever set by a load against a
+        // library the simulator cannot produce (`.limited` with nothing shared),
+        // so without seeding it this assertion passes whether or not
+        // `retryLoad()` actually clears it.
+        vm.emptyReason = .limitedNoSelection
 
         vm.retryLoad()
 

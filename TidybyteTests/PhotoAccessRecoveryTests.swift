@@ -18,10 +18,20 @@ final class PhotoAccessRecoveryTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        // The copy assertions pin English text; `L10n` resolves through the
-        // stored override before `Bundle.main`, so a language left behind by
-        // another test would fail them for an unrelated reason.
+        // The copy assertions pin English text, and the presentations hold
+        // catalog *keys*, so English is what they hand back regardless of the
+        // override. Pinned anyway by `save(.english)` and not `save(nil)`:
+        // `nil` restores the *device* language, so on a non-English simulator one
+        // leftover override would otherwise leak into these tests and fail them
+        // for an unrelated reason.
+        LanguagePreferenceStore.save(.english)
+    }
+
+    override func tearDown() {
+        // Hand the device language back, so this file cannot leak an override
+        // into whatever runs next.
         LanguagePreferenceStore.save(nil)
+        super.tearDown()
     }
 
     // MARK: - Deck reason
@@ -237,17 +247,27 @@ final class PhotoAccessRecoveryTests: XCTestCase {
         )
     }
 
-    func testActionTitlesAreStable() {
+    func testActionTitlesAreCatalogKeysNotTranslatedText() {
         // Same words as the existing banner and empty state, so "Open Settings"
         // means one thing across the app.
         //
-        // The language is forced rather than inherited: `L10n` resolves through
-        // `Bundle.main` when there is no override, and that follows the *device*
-        // language, so these literals only held on an English simulator.
-        LanguagePreferenceStore.save(.english)
+        // These are catalog *keys*, which is why they are asserted as English
+        // literals under a non-English override: the value has to be
+        // language-independent, because the card hands it back to `Text` as a
+        // `LocalizedStringKey` and SwiftUI does the resolving against the live
+        // locale. Resolving here (`L10n.string`) would return the translated
+        // text, which is not a key in any language but English — a second lookup
+        // would then be a no-op and the card would freeze at the language it was
+        // built in.
+        LanguagePreferenceStore.save(.german)
         XCTAssertEqual(PhotoRecoveryPresentation.Action.addPhotos.title, "Add More Photos")
         XCTAssertEqual(PhotoRecoveryPresentation.Action.openSettings.title, "Open Settings")
         XCTAssertEqual(PhotoRecoveryPresentation.Action.retry.title, "Try Again")
+        XCTAssertEqual(
+            PhotoRecoveryPresentation.limitedNoSelection.title,
+            "No Photos Shared Yet",
+            "the title must be the key too, not the German value"
+        )
     }
 
     func testLiveLanguageBundlesResolveEveryRecoveryKey() {
@@ -308,42 +328,37 @@ final class PhotoAccessRecoveryTests: XCTestCase {
         }
     }
 
-    func testTitleAndMessageKeysCarryTheTranslatedValue() {
-        // The card resolves its copy through `L10n`, then hands the *value* back
-        // to `Text` as a `LocalizedStringKey` so a live language change can
-        // re-render it. That scheme only works if the value it hands over is the
-        // resolved text and a non-key string re-resolves to itself instead of
-        // falling back to the English source.
+    func testCopyIsAKeyPerLanguageSoTheCardCanReResolveIt() {
+        // The card hands each line to `Text(LocalizedStringKey(…))`, which is
+        // what lets a live language change re-render it. That only works if the
+        // presentation holds the *key*: a resolved value is not a catalog key in
+        // any language but English, so the second lookup would be a no-op and
+        // the copy would stay in the language it was built in.
+        //
+        // The presentation has no language input at all, which is the property
+        // that makes this true. Asserted structurally and by resolution.
         LanguagePreferenceStore.save(.german)
-        // A presentation whose copy *is* translated: the "No Photos Shared Yet"
-        // deck copy is translated, so the German values differ from the English
-        // and the re-keying below actually proves something. A newly written
-        // string would resolve to English in every language and prove nothing.
         let card = PhotoRecoveryPresentation.limitedNoSelection
-        let englishTitle = L10n.string("No Photos Shared Yet", language: .english)
+        XCTAssertEqual(card.title, "No Photos Shared Yet", "the card froze at the override language")
 
-        XCTAssertNotEqual(card.title, englishTitle, "the German presentation still holds English copy")
-        XCTAssertEqual(reKeyedString(card.titleKey), card.title, "the title handed to Text is not the translated value")
-        XCTAssertEqual(reKeyedString(card.messageKey), card.message, "the message handed to Text is not the translated value")
+        // And the key really does resolve to a different, non-empty value in the
+        // override language — so the assertion above is not passing because the
+        // German translation happens to match the English.
+        let germanTitle = L10n.string(card.title, language: .german)
+        XCTAssertNotEqual(germanTitle, card.title, "German must differ from the key, or this proves nothing")
+        XCTAssertFalse(germanTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-        // Re-keying: the German string is not a catalog key, so the lookup has to
-        // return it unchanged — not an empty string, not the English source.
-        let german = L10n.bundle(for: .german)
-        XCTAssertEqual(
-            german.localizedString(forKey: card.title, value: nil, table: nil),
-            card.title,
-            "a translated value used as a key must not be rewritten"
-        )
+        // Every line, not just the title: a step left resolved would read English
+        // under VoiceOver and in the body.
+        for step in PhotoRecoveryPresentation.accessReturnedNothing.steps {
+            XCTAssertTrue(
+                Self.recoveryKeys.contains(step),
+                "a step is not an English key, so it cannot re-resolve: \(step)"
+            )
+        }
     }
 
     // MARK: - Helpers
-
-    /// `LocalizedStringKey` exposes no public accessor for its key, so this
-    /// reads the stored property through `Mirror`. Test-only: the point is to
-    /// prove the card hands SwiftUI a value, which nothing else can observe.
-    private func reKeyedString(_ key: LocalizedStringKey) -> String? {
-        Mirror(reflecting: key).children.first { $0.label == "key" }?.value as? String
-    }
 
     /// Every English copy key the card can render — titles, messages, steps, and
     /// action titles. Hardcoded because the English text *is* the catalog key.

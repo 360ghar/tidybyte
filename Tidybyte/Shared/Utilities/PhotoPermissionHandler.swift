@@ -111,7 +111,13 @@ final class PhotoPermissionHandler {
         permissionState = PhotoPermissionState(authorizationStatus: status)
     }
 
-    func openSettings() {
+    /// Opens TidyByte's own page in Settings.
+    ///
+    /// Static for the same reason as `presentLimitedLibraryPicker`: the
+    /// recovery card offers "Open Settings" and has no handler instance, and
+    /// there must be exactly one implementation of the jump.
+    @MainActor
+    static func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }
@@ -153,6 +159,38 @@ final class PhotoPermissionHandler {
     static var isReadyToPresentLimitedLibraryPicker: Bool {
         guard let root = activeRootViewController() else { return false }
         return root.presentedViewController == nil
+    }
+
+    /// Waits, briefly, for any covered screen to finish dismissing.
+    ///
+    /// `isReadyToPresentLimitedLibraryPicker` is a snapshot, and the moment the
+    /// launch offer runs is exactly the moment the snapshot is wrong: the
+    /// onboarding `fullScreenCover` is still on screen for a few frames after
+    /// `hasCompletedOnboarding` flips, so a single check returned false while
+    /// the cover was mid-dismissal and nothing ever re-triggered the offer. The
+    /// launch's one offer was lost.
+    ///
+    /// A bounded poll, not a fixed sleep: when the surface is already clear this
+    /// returns on the first check, and the timeout keeps a stuck presentation
+    /// from holding the task open.
+    ///
+    /// `isReady` is a parameter so the wait itself is testable without a window
+    /// scene.
+    @MainActor
+    static func waitUntilReadyToPresent(
+        timeout: Duration = .seconds(1),
+        pollInterval: Duration = .milliseconds(50),
+        isReady: () -> Bool = { PhotoPermissionHandler.isReadyToPresentLimitedLibraryPicker }
+    ) async -> Bool {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while true {
+            if isReady() { return true }
+            // Checked explicitly rather than relying on `Task.sleep` throwing:
+            // a cancelled sleep returns immediately, and the deadline is wall
+            // clock, so the loop would spin for the rest of the second.
+            if Task.isCancelled || ContinuousClock.now >= deadline { return false }
+            try? await Task.sleep(for: pollInterval)
+        }
     }
 
     @MainActor

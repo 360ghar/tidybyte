@@ -103,7 +103,7 @@ Each story: trigger → expected behavior → verdict. Full traces were produced
 | SWIPE-06 | LOGIC | undo() allowed while album picker presented → deck rewinds under sheet | SwipeSessionViewModel.swift:238-276 |
 | SWIPE-07 | UX | Video cards show poster only; no playback affordance while swiping | CardView.swift:22-30 |
 | SWIPE-08 | LOGIC | "Storage Freed" overstates when assets vanished externally before commit | SwipeSessionViewModel.swift:278-291 |
-| SWIPE-09 | UX | Fetch failure surfaces as "All Caught Up!" (fetchAssets can't throw) — FIXED: an empty deck is now resolved against `totalAssetCount()`; limited-with-nothing-shared and authorized-but-empty get `PhotoRecoveryCard` with recovery steps, both album pickers included | SwipeSessionView.swift; PhotoAccessRecovery.swift |
+| SWIPE-09 | UX | Fetch failure surfaces as "All Caught Up!" (fetchAssets can't throw) — FIXED: an empty deck is now resolved against `totalAssetCount()`; limited-with-nothing-shared and authorized-but-empty get `PhotoRecoveryCard` with recovery actions (numbered steps are supplied only for authorized-but-empty access), both album pickers included | Tidybyte/Features/Swipe/SwipeSessionView.swift:359-372,410-418; Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift:36-45,89-102,160-236 |
 | SWIPE-10 | LOGIC | SwipeFilter.id uses Set.hashValue (per-process randomized identity) | SwipeHomeView.swift:257 |
 
 ### Duplicates & Similar

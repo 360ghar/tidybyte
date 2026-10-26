@@ -23986,7 +23986,7 @@
         "mr": {
           "stringUnit": {
             "state": "translated",
-            "value": "अल्बमसाठी पूर्ण ॲक्सेस आवश्यक आहे"
+            "value": "अल्बमसाठी संपूर्ण प्रवेश आवश्यक आहे"
           }
         },
         "gu": {
@@ -23998,7 +23998,7 @@
         "kn": {
           "stringUnit": {
             "state": "translated",
-            "value": "ಆಲ್ಬಮ್‌ಗಳಿಗೆ ಸಂಪೂರ್ಣ ಆ್ಯಕ್ಸೆಸ್ ಬೇಕು"
+            "value": "ಆಲ್ಬಮ್‌ಗಳಿಗೆ ಪೂರ್ಣ ಪ್ರವೇಶ ಬೇಕು"
           }
         },
         "ml": {
@@ -24010,13 +24010,13 @@
         "pa": {
           "stringUnit": {
             "state": "translated",
-            "value": "ਐਲਬਮਾਂ ਲਈ ਪੂਰਾ ਐਕਸੈੱਸ ਚਾਹੀਦਾ ਹੈ"
+            "value": "ਐਲਬਮਾਂ ਲਈ ਪੂਰੀ ਪਹੁੰਚ ਚਾਹੀਦੀ ਹੈ"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Los álbumes necesitan acceso total"
+            "value": "Los álbumes necesitan acceso completo"
           }
         },
         "fr": {
@@ -24058,7 +24058,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "相簿需要完全访问权限"
+            "value": "相簿需要完整访问权限"
           }
         },
         "ru": {
@@ -31692,7 +31692,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reviens ici et touche « Réessayer »."
+            "value": "Revenez ici et touchez « Réessayer »."
           }
         },
         "de": {
@@ -54782,7 +54782,7 @@
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "सेटिंग्स में TidyByte की तस्वीरों तक ऐक्सेस बंद करके फिर चालू करें, और “पूर्ण ऐक्सेस” चुनें।"
+            "value": "सेटिंग्स में TidyByte की फ़ोटो तक ऐक्सेस बंद करके फिर चालू करें, और “पूर्ण ऐक्सेस” चुनें।"
           }
         },
         "bn": {
@@ -54836,13 +54836,13 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En Ajustes, desactiva y vuelve a activar el acceso de TidyByte a Fotos, y elige «Acceso total»."
+            "value": "En Ajustes, desactiva y vuelve a activar el acceso de TidyByte a Fotos, y elige «Acceso completo»."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dans Réglages, désactive puis réactive l’accès de TidyByte à Photos, et choisis « Accès complet »."
+            "value": "Dans Réglages, désactivez puis réactivez l’accès de TidyByte à Photos, et choisissez « Accès complet »."
           }
         },
         "de": {
@@ -54878,7 +54878,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在“设置”中关闭再重新打开 TidyByte 的照片访问权限，然后选择“完全访问”。"
+            "value": "在“设置”中关闭再重新打开 TidyByte 的照片访问权限，然后选择“完整访问权限”。"
           }
         },
         "ru": {
@@ -75492,13 +75492,13 @@
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "“तस्वीर” ऐप खोलें और देखें कि आपकी तस्वीरें अब भी मौजूद हैं।"
+            "value": "“फ़ोटो” ऐप खोलें और देखें कि आपकी फ़ोटो अब भी मौजूद हैं।"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "“ছবি” অ্যাপ খুলে দেখুন আপনার ছবিগুলো এখনও আছে কি না।"
+            "value": "“ফটো” অ্যাপ খুলে দেখুন আপনার ফটোগুলো এখনও আছে কি না।"
           }
         },
         "ta": {
@@ -75516,31 +75516,31 @@
         "mr": {
           "stringUnit": {
             "state": "translated",
-            "value": "“छायाचित्र” ॲप उघडा आणि तुमचे फोटो अजूनही आहेत का ते तपासा."
+            "value": "“फोटो” ॲप उघडा आणि तुमचे फोटो अजूनही आहेत का ते तपासा."
           }
         },
         "gu": {
           "stringUnit": {
             "state": "translated",
-            "value": "“ફોટોસ” ઍપ ખોલો અને તમારા ફોટા હજી છે કે નહીં તે તપાસો."
+            "value": "“ફોટા” ઍપ ખોલો અને તમારા ફોટા હજી છે કે નહીં તે તપાસો."
           }
         },
         "kn": {
           "stringUnit": {
             "state": "translated",
-            "value": "“ಫೋಟೋಸ್” ಆ್ಯಪ್ ತೆರೆದು ನಿಮ್ಮ ಫೋಟೋಗಳು ಇನ್ನೂ ಇವೆಯೇ ಎಂದು ಪರಿಶೀಲಿಸಿ."
+            "value": "“ಫೋಟೋಗಳು” ಆ್ಯಪ್ ತೆರೆದು ನಿಮ್ಮ ಫೋಟೋಗಳು ಇನ್ನೂ ಇವೆಯೇ ಎಂದು ಪರಿಶೀಲಿಸಿ."
           }
         },
         "ml": {
           "stringUnit": {
             "state": "translated",
-            "value": "“ഫോട്ടോസ്” ആപ്പ് തുറന്ന് നിങ്ങളുടെ ഫോട്ടോകൾ ഇപ്പോഴും ഉണ്ടോ എന്ന് പരിശോധിക്കുക."
+            "value": "“ഫോട്ടോകൾ” ആപ്പ് തുറന്ന് നിങ്ങളുടെ ഫോട്ടോകൾ ഇപ്പോഴും ഉണ്ടോ എന്ന് പരിശോധിക്കുക."
           }
         },
         "pa": {
           "stringUnit": {
             "state": "translated",
-            "value": "“ਤਸਵੀਰਾਂ” ਐਪ ਖੋਲ੍ਹੋ ਅਤੇ ਦੇਖੋ ਕਿ ਤੁਹਾਡੀਆਂ ਫ਼ੋਟੋਆਂ ਅਜੇ ਵੀ ਮੌਜੂਦ ਹਨ।"
+            "value": "“ਫ਼ੋਟੋਜ਼” ਐਪ ਖੋਲ੍ਹੋ ਅਤੇ ਦੇਖੋ ਕਿ ਤੁਹਾਡੀਆਂ ਫ਼ੋਟੋਆਂ ਅਜੇ ਵੀ ਮੌਜੂਦ ਹਨ।"
           }
         },
         "es": {
@@ -75552,7 +75552,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ouvre l’app Photos et vérifie que tes photos sont toujours là."
+            "value": "Ouvrez l’app Photos et vérifiez que vos photos sont toujours là."
           }
         },
         "de": {
@@ -75606,7 +75606,7 @@
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "פתח את אפ׳ התמונות ובדוק שהתמונות שלך עדיין שם."
+            "value": "פתח את אפליקציית התמונות ובדוק שהתמונות שלך עדיין שם."
           }
         }
       }
@@ -105190,7 +105190,7 @@
         "te": {
           "stringUnit": {
             "state": "translated",
-            "value": "TidyByte మీ ఫోటోలను చూడగలదు, కానీ మీ ఆల్బమ్‌లను చూడలేదు. పరిమిత యాక్సెస్‌లో, యాప్ ఆల్బమ్‌లను చదవడానికి లేదా సృష్టించడానికి iOS అనుమతించదు, కాబట్టి ఫోటోలను ఆల్బమ్‌కు జోడించడానికి సెట్టింగ్‌లలో “పూర్తి యాక్సెస్” ఎంచుకోండి."
+            "value": "TidyByte మీ ఫోటోలను చూడగలదు, కానీ మీ ఆల్బమ్‌లను చూడలేకపోతోంది. పరిమిత యాక్సెస్‌లో, యాప్ ఆల్బమ్‌లను చదవడానికి లేదా సృష్టించడానికి iOS అనుమతించదు, కాబట్టి ఫోటోలను ఆల్బమ్‌కు జోడించడానికి సెట్టింగ్‌లలో “పూర్తి యాక్సెస్” ఎంచుకోండి."
           }
         },
         "mr": {
@@ -105226,13 +105226,13 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "TidyByte puede ver tus fotos, pero no tus álbumes. Con acceso limitado, iOS no permite que una app lea ni cree álbumes, así que elige «Acceso total» en Ajustes para añadir fotos a un álbum."
+            "value": "TidyByte puede ver tus fotos, pero no tus álbumes. Con acceso limitado, iOS no permite que una app lea ni cree álbumes, así que elige «Acceso completo» en Ajustes para añadir fotos a un álbum."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "TidyByte peut voir tes photos, mais pas tes albums. Avec l’accès limité, iOS ne permet pas à une app de lire ni de créer des albums, alors choisis « Accès complet » dans Réglages pour ajouter des photos à un album."
+            "value": "TidyByte peut voir vos photos, mais pas vos albums. Avec l’accès limité, iOS ne permet pas à une app de lire ni de créer des albums, alors choisissez « Accès complet » dans Réglages pour ajouter des photos à un album."
           }
         },
         "de": {
@@ -105268,7 +105268,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "TidyByte 可以看到你的照片，但看不到你的相簿。在有限访问权限下，iOS 不允许 App 读取或创建相簿，因此若要将照片添加到相簿，请在“设置”中选择“完全访问”。"
+            "value": "TidyByte 可以看到你的照片，但看不到你的相簿。在有限访问权限下，iOS 不允许 App 读取或创建相簿，因此若要将照片添加到相簿，请在“设置”中选择“完整访问权限”。"
           }
         },
         "ru": {
@@ -105492,7 +105492,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "TidyByte a l’autorisation de voir certaines de tes photos, mais aucune n’est partagée pour l’instant : il n’y a donc aucun album à afficher. Choisis les photos qu’il peut voir, ou passe à « Accès complet » dans Réglages."
+            "value": "TidyByte a l’autorisation de voir certaines de vos photos, mais aucune n’est partagée pour l’instant : il n’y a donc aucun album à afficher. Choisissez les photos qu’il peut voir, ou passez à « Accès complet » dans Réglages."
           }
         },
         "de": {
@@ -105534,7 +105534,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "У TidyByte есть разрешение видеть часть ваших фото, но сейчас ни одно из них не открыто, поэтому альбомов для показа нет. Выберите фото, которые ему видны, или включите «Полный доступ» в «Настройках»."
+            "value": "У TidyByte есть разрешение видеть часть ваших фото, но ни одно из них пока не добавлено, поэтому альбомов для показа нет. Выберите фото, которые ему видны, или включите «Полный доступ» в «Настройках»."
           }
         },
         "ar": {
@@ -106012,7 +106012,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "TidyByte a l’autorisation de voir certaines de tes photos, mais aucune n’est partagée pour l’instant : il n’y a donc rien à passer en revue. Choisis les photos qu’il peut voir, ou passe à « Accès complet » dans Réglages."
+            "value": "TidyByte a l’autorisation de voir certaines de vos photos, mais aucune n’est partagée pour l’instant : il n’y a donc rien à passer en revue. Choisissez les photos qu’il peut voir, ou passez à « Accès complet » dans Réglages."
           }
         },
         "de": {

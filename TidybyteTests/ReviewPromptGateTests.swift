@@ -33,13 +33,26 @@ final class ReviewPromptGateTests: XCTestCase {
         // saw space come back, and a session that ends before a third success
         // would otherwise never be asked.
         XCTAssertTrue(AppPreferences.shouldRequestReview(successCount: 1, lastPromptAt: nil, now: now))
-        // Still a one-shot: a never-rated user is not asked again the next day.
-        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 2, lastPromptAt: now, now: now))
+    }
+
+    /// Pins the upgrade path: installs that already sat at 1 or 2 successful
+    /// cleanups when the first milestone moved to 1 never reach 1 again, so 3
+    /// has to stay a milestone or their first prompt waits until 10.
+    func testThirdSuccessStillPromptsForInstallsThatNeverSawTheFirstOne() {
+        let now = Date()
+        XCTAssertTrue(
+            AppPreferences.shouldRequestReview(successCount: 3, lastPromptAt: nil, now: now),
+            "a pre-existing install lands here without ever having been asked"
+        )
+        // And the cooldown is what stops a new install being asked at both 1
+        // and 3: prompted at 1, count 3 arrives days later, well inside 60 days.
+        let promptedAtOne = day(2, before: now)
+        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 3, lastPromptAt: promptedAtOne, now: now))
     }
 
     func testBetweenMilestonesNeverPrompt() {
         let now = Date()
-        for count in [2, 3, 4, 5, 6, 7, 8, 9, 11, 24, 26, 49] {
+        for count in [2, 4, 5, 6, 7, 8, 9, 11, 24, 26, 49] {
             XCTAssertFalse(
                 AppPreferences.shouldRequestReview(successCount: count, lastPromptAt: nil, now: now),
                 "count \(count) must not prompt"
@@ -76,7 +89,8 @@ final class ReviewPromptGateTests: XCTestCase {
         XCTAssertEqual(AppPreferences.successfulActionCount(in: defaults), 0)
         XCTAssertTrue(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
         XCTAssertFalse(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
-        XCTAssertFalse(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
+        // 3 is still a milestone, for the upgrade path the test above pins.
+        XCTAssertTrue(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
         XCTAssertEqual(AppPreferences.successfulActionCount(in: defaults), 3)
     }
 
@@ -86,8 +100,8 @@ final class ReviewPromptGateTests: XCTestCase {
         XCTAssertTrue(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
         AppPreferences.recordReviewPromptDate(now, in: defaults)
 
-        // 2-9 are not milestones; 10 is one, but it falls inside the cooldown,
-        // so every action in this run stays silent.
+        // 2 is not a milestone, and 3 is one but falls inside the cooldown; 10
+        // lands inside it too, so every action in this run stays silent.
         for _ in 0..<9 {
             XCTAssertFalse(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
         }

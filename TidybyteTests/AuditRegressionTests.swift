@@ -402,6 +402,39 @@ final class AuditRegressionTests: XCTestCase {
         XCTAssertTrue(released, "a finished run releases its own slot (C1)")
     }
 
+    // MARK: - Launch offer: waiting for a dismissing cover
+
+    /// The launch offer is triggered the instant `hasCompletedOnboarding` flips,
+    /// which is while onboarding's `fullScreenCover` is still dismissing. A
+    /// single snapshot check returned false on that frame and nothing
+    /// re-triggered it, so the launch's only offer was dropped.
+    func testTheReadinessWaitOutlastsADismissingCover() async {
+        var checks = 0
+        let ready = await PhotoPermissionHandler.waitUntilReadyToPresent(
+            timeout: .seconds(2),
+            pollInterval: .milliseconds(5),
+            // False for the first three samples, like a cover mid-dismissal.
+            isReady: {
+                checks += 1
+                return checks > 3
+            }
+        )
+        XCTAssertTrue(ready, "the wait must outlast a cover that is still dismissing")
+        XCTAssertEqual(checks, 4, "it returns on the first ready sample, not at the timeout")
+    }
+
+    func testTheReadinessWaitGivesUpInsteadOfHoldingTheTask() async {
+        let start = ContinuousClock.now
+        let ready = await PhotoPermissionHandler.waitUntilReadyToPresent(
+            timeout: .milliseconds(60),
+            pollInterval: .milliseconds(10),
+            isReady: { false }
+        )
+        let elapsed = ContinuousClock.now - start
+        XCTAssertFalse(ready, "a stuck presentation must not report ready")
+        XCTAssertLessThan(elapsed, .seconds(2), "the wait is bounded, so it cannot hold a launch forever")
+    }
+
     /// Polls `condition` on the main actor until it holds or the timeout
     /// elapses, yielding between checks so the tasks under test can run.
     private func waitUntil(

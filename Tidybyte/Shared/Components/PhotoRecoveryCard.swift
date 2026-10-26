@@ -25,13 +25,15 @@ struct PhotoRecoveryCard: View {
                 .accessibilityHidden(true)
 
             VStack(spacing: Spacing.md) {
-                // Keyed so the copy re-resolves against the live `\.locale`.
-                Text(presentation.titleKey)
+                // The presentation holds catalog keys, so these resolve against
+                // the live `\.locale` — including if the language changes while
+                // the card is up.
+                Text(LocalizedStringKey(presentation.title))
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.75)
 
-                Text(presentation.messageKey)
+                Text(LocalizedStringKey(presentation.message))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -75,8 +77,12 @@ struct PhotoRecoveryCard: View {
                 // One element per step, spoken as "1. …". As separate elements
                 // the marker was hidden and the sentence had no number at all,
                 // so VoiceOver read three unordered instructions.
+                //
+                // The number is verbatim and the sentence is keyed, because
+                // `step` is a catalog key: speaking it as plain text would read
+                // the English source aloud in every other language.
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text(verbatim: "\(index + 1). \(step)"))
+                .accessibilityLabel(Text(verbatim: "\(index + 1). ") + Text(LocalizedStringKey(step)))
             }
         }
         .glassCard()
@@ -91,9 +97,9 @@ struct PhotoRecoveryCard: View {
                     HapticHelper.impact(.light)
                     onAction(action)
                 } label: {
-                    // Keyed, not verbatim: `action.title` is already translated
-                    // for the current language, but handing it back as a key lets
-                    // it re-resolve when the language changes with this card up.
+                    // `action.title` is a catalog key, so this resolves against
+                    // the live `\.locale` — and re-resolves if the language
+                    // changes while the card is up.
                     //
                     // The style goes on this Text, not on the Button: a Button
                     // re-tints its label with the accent colour, so an outer
@@ -152,8 +158,7 @@ extension PhotoRecoveryPresentation.Action {
         case .addPhotos:
             PhotoPermissionHandler.presentLimitedLibraryPicker()
         case .openSettings:
-            guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-            UIApplication.shared.open(url)
+            PhotoPermissionHandler.openSettings()
         case .retry:
             // Callers intercept this; nothing generic to do.
             break
