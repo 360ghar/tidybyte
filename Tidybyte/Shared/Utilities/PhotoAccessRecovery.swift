@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 
 /// Why a photo-library read came back empty.
 ///
@@ -60,19 +61,25 @@ enum PhotoLibraryEmptyReason: Equatable, Sendable {
 /// "Handle the Limited Photos Library"). So:
 ///
 /// - nothing shared → both lists are empty, and sharing photos fixes it;
-/// - photos shared, but the sheet only asks for editable albums (the "Add to
-///   Album" sheet passes `editableOnly: true`, which skips smart albums) → the
-///   list is empty because the user albums are missing, and only Full Access
-///   fixes it. "Share more photos" would be a lie there: the user is looking at
-///   a shared photo while being told nothing is shared.
+/// - photos shared, list still empty → the user albums are the missing part, and
+///   only Full Access brings them back. Two sheets reach that answer:
+///   - the smart-album-inclusive list (the Swipe tab's filter) gets it when no
+///     shared photo landed in any smart album, so those contributed nothing;
+///   - the "Add to Album" sheet passes `editableOnly: true` and never fetches
+///     smart albums at all, so under limited access its list is empty by
+///     construction whenever photos are visible.
+///   In both cases "share more photos" would be a lie: the user is looking at a
+///   shared photo while being told nothing is shared.
 enum AlbumListEmptyReason: Equatable, Sendable {
     /// Limited access with nothing shared. Smart albums exist but contain no
     /// visible assets, and user albums are unavailable, so the list is empty.
     case limitedNoSelection
 
-    /// Limited access with photos visible, but no user albums. Every smart album
-    /// already contributed what it could, so what is missing is the user albums
-    /// an app may only read, create, and file into with full access.
+    /// Limited access with photos visible, but no user albums to list. Reached
+    /// either because no smart album contains a shared photo, or because the
+    /// sheet asked for editable albums only — which is every user album and no
+    /// smart album. What is missing in both is the user albums an app may only
+    /// read, create, and file into with full access.
     case limitedCannotUseAlbums
 
     /// Full access and no assets at all — the same device-side permission
@@ -93,6 +100,43 @@ enum AlbumListEmptyReason: Equatable, Sendable {
         case .limitedCannotUseAlbums: .limitedAlbumsNeedFullAccess
         case .accessReturnedNothing: .accessReturnedNothing
         }
+    }
+}
+
+/// One album fetch plus the census that explains an empty result, shared by both
+/// album sheets so the rule cannot drift between them.
+///
+/// The sheets differ in exactly one thing: `editableOnly`. "Add to Album" needs
+/// albums it can file into; the Swipe tab's filter can browse smart albums too.
+/// Each used to carry its own copy of this, identical apart from that flag.
+enum AlbumSheetLoader {
+    static func load(
+        photoService: PhotoLibraryService,
+        editableOnly: Bool
+    ) async -> (albums: [AlbumInfo], emptyReason: AlbumListEmptyReason?) {
+        await load(
+            fetchAlbums: { await photoService.fetchUserAlbums(editableOnly: editableOnly) },
+            census: { await photoService.totalAssetCount() },
+            authorizationStatus: { PHPhotoLibrary.authorizationStatus(for: .readWrite) }
+        )
+    }
+
+    /// The seam this rule is tested through: a photo library cannot run in a
+    /// unit test, but the one decision the type makes — ask for a census only
+    /// when the list is empty, because on a non-empty list the reason can never
+    /// change what is drawn — can.
+    static func load(
+        fetchAlbums: () async -> [AlbumInfo],
+        census: () async -> Int,
+        authorizationStatus: () -> PHAuthorizationStatus
+    ) async -> (albums: [AlbumInfo], emptyReason: AlbumListEmptyReason?) {
+        let albums = await fetchAlbums()
+        guard albums.isEmpty else { return (albums, nil) }
+        let reason = AlbumListEmptyReason.resolve(
+            status: PhotoPermissionState(authorizationStatus: authorizationStatus()),
+            totalAssetCount: await census()
+        )
+        return (albums, reason)
     }
 }
 

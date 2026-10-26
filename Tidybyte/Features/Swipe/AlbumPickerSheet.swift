@@ -1,5 +1,4 @@
 import SwiftUI
-import Photos
 import UIKit
 
 struct AlbumPickerSheet: View {
@@ -256,24 +255,15 @@ struct AlbumPickerSheet: View {
     // MARK: - Actions
 
     /// One fetch + one census, shared by the initial load, the card's Try Again,
-    /// the pull-to-refresh, and the two automatic reloads. The census is only
-    /// asked for when the list is empty, since it cannot change a non-empty list.
+    /// the pull-to-refresh, and the two automatic reloads.
     private func loadAlbums() async {
         // Only the first load gets a spinner. Every later reload runs while the
         // card (or the grid) is already on screen, and flipping to "Loading
         // albums…" there would blank the card on each foreground.
         isLoading = albums.isEmpty && emptyReason == nil
-        albums = await photoService.fetchUserAlbums(editableOnly: true)
-        if albums.isEmpty {
-            emptyReason = AlbumListEmptyReason.resolve(
-                status: PhotoPermissionState(
-                    authorizationStatus: PHPhotoLibrary.authorizationStatus(for: .readWrite)
-                ),
-                totalAssetCount: await photoService.totalAssetCount()
-            )
-        } else {
-            emptyReason = nil
-        }
+        let loaded = await AlbumSheetLoader.load(photoService: photoService, editableOnly: true)
+        albums = loaded.albums
+        emptyReason = loaded.emptyReason
         isLoading = false
     }
 

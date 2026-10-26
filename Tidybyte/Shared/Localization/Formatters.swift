@@ -122,12 +122,27 @@ enum Formatters {
         return formatter.string(from: date)
     }
 
-    /// "3d ago" / "vor 3 Tagen", without the "Updated" prefix.
-    static func relativeAge(_ date: Date, language: AppLanguage? = nil, region: Locale.Region? = nil, now: Date = .now) -> String {
-        let formatter = RelativeDateTimeFormatter()
+    /// A medium date plus a short time, in the chosen language and the device
+    /// region.
+    ///
+    /// `Date.formatted(date:time:)` resolves against `Locale.current` and
+    /// ignores the SwiftUI `\.locale` environment, so a US device switched to
+    /// German rendered the German row label "Datum" above an English
+    /// "Oct 3, 2025, 4:32 PM". Every in-app date goes through here instead.
+    ///
+    /// What that fixes is exactly `locale(for:)`'s split, and no more: the
+    /// language decides the words, the device region keeps deciding the order,
+    /// the fields, and the clock. On a US-region device the German date is
+    /// therefore `10/3/25, 3:32 PM` — no English month name, still US order and
+    /// a 12-hour clock. Adopting the override's region instead would move a
+    /// US-based user's dates to a 24-hour clock, which the type doc on
+    /// `locale(for:)` rejects on purpose.
+    static func dateTime(_ date: Date, language: AppLanguage? = nil, region: Locale.Region? = nil) -> String {
+        let formatter = DateFormatter()
         formatter.locale = locale(for: language, region: region)
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: now)
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     // MARK: - Lists
@@ -145,13 +160,6 @@ enum Formatters {
         let formatter = ListFormatter()
         formatter.locale = locale(for: language, region: region)
         return formatter.string(from: items) ?? items.joined(separator: ", ")
-    }
-
-    static func number(_ value: Int, language: AppLanguage? = nil, region: Locale.Region? = nil) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = locale(for: language, region: region)
-        formatter.numberStyle = .decimal
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 
     // MARK: - Calendar

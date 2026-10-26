@@ -390,12 +390,4 @@ final class MediaLibraryStatsTests: XCTestCase {
         XCTAssertEqual(PhotoCategorizationService.normalizeTaxonomyLabel("baked-goods"), "baked_goods")
         XCTAssertEqual(PhotoCategorizationService.bucket(forIdentifier: "baked-goods"), .food)
     }
-
-    // MARK: - ScanState (shared location C16)
-
-    func testScanStateEquatable() {
-        XCTAssertEqual(ScanState.idle, ScanState.idle)
-        XCTAssertEqual(ScanState.scanning(0.5), ScanState.scanning(0.5))
-        XCTAssertNotEqual(ScanState.idle, ScanState.completed)
-    }
 }

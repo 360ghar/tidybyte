@@ -96,6 +96,14 @@ actor PhotoCategorizationService {
             }
         }
 
+        // The in-loop cadence of 10 leaves a 25-photo scan parked at 0.84, and
+        // a count that is not a multiple of 10 never reaches 1.0 at all — so
+        // any caller showing a bar rather than a spinner sits below 100% on a
+        // finished scan. Cancelled scans return above and do not claim 1.0.
+        if total > 0 {
+            progress(1)
+        }
+
         return results
     }
 

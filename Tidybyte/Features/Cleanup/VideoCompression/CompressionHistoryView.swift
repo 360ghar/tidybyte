@@ -81,7 +81,7 @@ struct CompressionHistoryView: View {
                                 .frame(width: 24)
 
                             VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text(record.compressedAt.formatted(date: .abbreviated, time: .shortened))
+                                Text(Formatters.dateTime(record.compressedAt))
                                     .font(.subheadline)
 
                                 Text(Self.presetLabel(record.exportPreset))

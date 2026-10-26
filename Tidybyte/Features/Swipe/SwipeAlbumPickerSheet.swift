@@ -1,5 +1,4 @@
 import SwiftUI
-import Photos
 import UIKit
 
 /// Album picker for the Swipe tab's "Specific Album" filter.
@@ -108,19 +107,9 @@ struct SwipeAlbumPickerSheet: View {
         // card (or a list) is already on screen, and flipping to "Loading
         // albums…" there would blank the card on each foreground.
         isLoading = albums.isEmpty && emptyReason == nil
-        albums = await photoService.fetchUserAlbums()
-        if albums.isEmpty {
-            // Only ask for a census when the list is empty: on a non-empty list
-            // the answer cannot change what is drawn.
-            emptyReason = AlbumListEmptyReason.resolve(
-                status: PhotoPermissionState(
-                    authorizationStatus: PHPhotoLibrary.authorizationStatus(for: .readWrite)
-                ),
-                totalAssetCount: await photoService.totalAssetCount()
-            )
-        } else {
-            emptyReason = nil
-        }
+        let loaded = await AlbumSheetLoader.load(photoService: photoService, editableOnly: false)
+        albums = loaded.albums
+        emptyReason = loaded.emptyReason
         isLoading = false
     }
 }

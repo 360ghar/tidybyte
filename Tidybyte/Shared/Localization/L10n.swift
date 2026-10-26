@@ -102,20 +102,6 @@ enum L10n {
         let template = string(key, language: language, fallback: fallback)
         return String.localizedStringWithFormat(template, arguments)
     }
-
-    /// The same, with the arguments already collected — for callers that build
-    /// an argument list dynamically.
-    static func format(_ key: String, language: AppLanguage? = nil, fallback: String? = nil, arguments: [CVarArg]) -> String {
-        let template = string(key, language: language, fallback: fallback)
-        return String.localizedStringWithFormat(template, arguments)
-    }
-
-    /// A bundle for the language iOS would pick with no override at all, which
-    /// is what a fresh install shows. Used by tests to assert the base
-    /// language, and by Settings to name the language the device is on.
-    static var deviceLanguage: AppLanguage? {
-        AppLanguage.matchingDeviceLanguage()
-    }
 }
 
 /// Thread-safe bundle cache. `Bundle` is immutable once created, so the only

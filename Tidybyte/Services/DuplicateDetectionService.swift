@@ -144,7 +144,12 @@ enum VisualPreFilter {
                     if let earlier = buckets[key] {
                         for other in earlier where other != id {
                             guard let otherHash = hashes[other] else { continue }
-                            if hammingDistance(hash, otherHash) <= maxHammingDistance {
+                            // The shared rule, not a second copy of it: the
+                            // sentinel branch inside `shouldCompare` cannot
+                            // widen the result here, because `PairKey` is a set
+                            // and the sentinel pass below already pairs every
+                            // hash-0 asset with everything.
+                            if shouldCompare(hash, otherHash) {
                                 pairs.insert(PairKey(id, other))
                             }
                         }

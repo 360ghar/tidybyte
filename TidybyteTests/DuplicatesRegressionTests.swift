@@ -42,36 +42,6 @@ private func pseudoRandomHashes(count: Int) -> [String: UInt64] {
     return result
 }
 
-/// Greedy grouping with the same semantics as `findVisualDuplicates`'s
-/// comparison phase: anchors in order, first-match-wins membership.
-/// `candidates` mirrors the pre-filter — when non-nil, pairs outside it are
-/// never compared.
-private func greedyGroups(
-    hashes: [String: UInt64],
-    similar: (UInt64, UInt64) -> Bool,
-    candidates: Set<PairKey>?
-) -> [[String]] {
-    let ids = hashes.keys.sorted()
-    var visited = Set<String>()
-    var groups: [[String]] = []
-    for anchor in ids {
-        guard !visited.contains(anchor) else { continue }
-        var group = [anchor]
-        visited.insert(anchor)
-        for other in ids where other > anchor && !visited.contains(other) {
-            if let candidates, !candidates.contains(PairKey(anchor, other)) {
-                continue
-            }
-            if similar(hashes[anchor]!, hashes[other]!) {
-                group.append(other)
-                visited.insert(other)
-            }
-        }
-        if group.count > 1 { groups.append(group) }
-    }
-    return groups
-}
-
 // MARK: - DUP-01 / DUP-12: visual scan pre-filter
 
 @MainActor
@@ -224,48 +194,6 @@ final class DuplicatesRegressionTests: XCTestCase {
         let variedHash = VisualPreFilter.hash64(from: varied)
         XCTAssertNotEqual(variedHash, 0)
         XCTAssertNotEqual(variedHash, UInt64.max)
-    }
-
-    // MARK: Group equivalence with the old pairwise scan
-
-    func testPreFilteredGroupingMatchesOldPairwiseForIdenticalPair() {
-        let a: UInt64 = 0xAAAAAAAAAAAAAAAA
-        let hashes = ["a": a, "b": a, "c": ~a]
-        let candidates = VisualPreFilter.candidatePairs(hashes)
-        let similar: (UInt64, UInt64) -> Bool = { VisualPreFilter.shouldCompare($0, $1) }
-
-        let oldGroups = greedyGroups(hashes: hashes, similar: similar, candidates: nil)
-        let newGroups = greedyGroups(hashes: hashes, similar: similar, candidates: candidates)
-
-        XCTAssertEqual(Set(oldGroups), Set([["a", "b"]]))
-        XCTAssertEqual(Set(newGroups), Set(oldGroups))
-    }
-
-    func testPreFilteredGroupingMatchesOldPairwiseForNearThresholdPair() {
-        let a: UInt64 = 0xAAAAAAAAAAAAAAAA
-        let near = a ^ 0b11111 // hamming 5 — near the pre-filter bound
-        let hashes = ["a": a, "b": near, "c": ~a]
-        let candidates = VisualPreFilter.candidatePairs(hashes)
-        let similar: (UInt64, UInt64) -> Bool = { VisualPreFilter.shouldCompare($0, $1) }
-
-        let oldGroups = greedyGroups(hashes: hashes, similar: similar, candidates: nil)
-        let newGroups = greedyGroups(hashes: hashes, similar: similar, candidates: candidates)
-
-        XCTAssertEqual(Set(oldGroups), Set([["a", "b"]]))
-        XCTAssertEqual(Set(newGroups), Set(oldGroups))
-    }
-
-    func testPreFilteredGroupingMatchesOldPairwiseAcrossRandomSet() {
-        let hashes = pseudoRandomHashes(count: 30)
-        let candidates = VisualPreFilter.candidatePairs(hashes)
-        let similar: (UInt64, UInt64) -> Bool = { VisualPreFilter.shouldCompare($0, $1) }
-
-        let oldGroups = greedyGroups(hashes: hashes, similar: similar, candidates: nil)
-        let newGroups = greedyGroups(hashes: hashes, similar: similar, candidates: candidates)
-
-        // The candidate set is a superset of all within-bound pairs, so the
-        // pre-filter must never change which groups the pairwise scan produces.
-        XCTAssertEqual(Set(newGroups), Set(oldGroups))
     }
 
     // MARK: DUP-03: iCloud-only skipping

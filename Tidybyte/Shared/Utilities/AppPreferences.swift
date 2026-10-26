@@ -45,12 +45,11 @@ enum AppPreferences {
         static let lifetimeItemCount = "lifetimeItemCount"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let hasSeenLimitedLibraryNotice = "hasSeenLimitedLibraryNotice"
-        /// Language and appearance are read/written through
-        /// `LanguagePreferenceStore` and `AppearancePreferenceStore` so the
-        /// widget can share the language value; the keys are re-exported here
-        /// so `@AppStorage` call sites have one place to look.
-        static let appLanguage = LanguagePreferenceStore.key
-        static let appAppearance = AppearancePreferenceStore.key
+        /// Language and appearance keep their keys in their own stores
+        /// (`LanguagePreferenceStore.key`, `AppearancePreferenceStore.key`):
+        /// the widget shares the language one, so it has to live in a file the
+        /// widget compiles. No `@AppStorage` site reads either one, so a
+        /// second spelling here would only be a place for them to drift.
         static let hapticsEnabled = "hapticsEnabled"
     }
 
@@ -78,10 +77,6 @@ enum AppPreferences {
     static func smartCategorySensitivity(in defaults: UserDefaults = .standard) -> CategorySensitivity {
         let rawValue = defaults.string(forKey: Key.smartCategorySensitivity) ?? CategorySensitivity.balanced.rawValue
         return CategorySensitivity(rawValue: rawValue) ?? .balanced
-    }
-
-    static func saveSmartCategorySensitivity(_ sensitivity: CategorySensitivity, in defaults: UserDefaults = .standard) {
-        defaults.set(sensitivity.rawValue, forKey: Key.smartCategorySensitivity)
     }
 
     static func largeFileThresholdMB(in defaults: UserDefaults = .standard) -> Double {

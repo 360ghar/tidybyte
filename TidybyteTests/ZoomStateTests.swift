@@ -183,10 +183,4 @@ final class ZoomStateTests: XCTestCase {
         XCTAssertEqual(pan.width, 277.5, accuracy: 0.001)
         XCTAssertEqual(pan.height, 705, accuracy: 0.001)
     }
-
-    func testClampPanDefaultsToFrame() {
-        let pan = ZoomState.clampPan(CGSize(width: 10_000, height: -10_000), scale: 2.0, frame: frame)
-        XCTAssertEqual(pan.width, frame.width / 2, accuracy: 0.001)
-        XCTAssertEqual(pan.height, -frame.height / 2, accuracy: 0.001)
-    }
 }

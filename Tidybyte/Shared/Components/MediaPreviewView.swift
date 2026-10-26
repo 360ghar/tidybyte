@@ -238,7 +238,7 @@ struct MediaPreviewView: View {
                     .foregroundStyle(.white)
                     .lineLimit(1)
             } else if let date = asset.creationDate {
-                Text(date.formatted(date: .abbreviated, time: .shortened))
+                Text(Formatters.dateTime(date))
                     .font(.subheadline)
                     .foregroundStyle(.white)
             }

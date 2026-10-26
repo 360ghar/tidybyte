@@ -260,10 +260,10 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
                 MetadataRow(label: "Resolution", value: asset.resolution)
                 MetadataRow(label: "File Size", value: asset.displaySize)
                 if let date = asset.creationDate {
-                    MetadataRow(label: "Date", value: date.formatted(date: .abbreviated, time: .shortened))
+                    MetadataRow(label: "Date", value: Formatters.dateTime(date))
                 }
                 if let names = albumNames[asset.id], !names.isEmpty {
-                    MetadataRow(label: "Albums", value: names.joined(separator: ", "))
+                    MetadataRow(label: "Albums", value: Formatters.list(names))
                 } else {
                     MetadataRow(label: "Albums", value: L10n.string("None"))
                 }

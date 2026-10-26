@@ -182,6 +182,15 @@ struct RootView: View {
                 appNavigation.handle(link)
             }
         }
+        .onChange(of: appNavigation.cleanupPath) { _, _ in
+            // The Cleanup stack can host a swipe session (Screenshots, Blurry,
+            // Smart Categories). A navigation request parked behind that
+            // session's pending deletions replays only once the stack is no
+            // longer holding it — leaving the stack by any route (a commit, a
+            // discard, the back button) is the signal. The replayed link is
+            // itself guarded, so an early call is a no-op.
+            appNavigation.applyDeferredLinkIfPossible()
+        }
         .task {
             // Cold launch where the intent's perform() ran before the view
             // appeared (so .onChange never fired): drain any pending route.
@@ -304,7 +313,11 @@ struct RootView: View {
         Binding(
             get: { appNavigation.selectedTab },
             set: { newTab in
-                appNavigation.selectedTab = newTab
+                // A tap on a tab is the user naming a destination, so it also
+                // retires any request parked behind a session's pending
+                // deletions — otherwise that older request could replay much
+                // later and undo the choice they just made.
+                appNavigation.selectTabManually(newTab)
                 HapticHelper.selection()
             }
         )

@@ -512,7 +512,7 @@ struct SwipeCardDeck: View {
     private func accessibilityLabel(for asset: AssetSummary) -> Text {
         var parts: [String] = [asset.mediaType == .video ? L10n.string("Video") : L10n.string("Photo")]
         if let date = asset.creationDate {
-            parts.append(date.formatted(date: .abbreviated, time: .omitted))
+            parts.append(Formatters.mediumDate(date))
         }
         parts.append(asset.displaySize)
         if asset.id == viewModel.currentAsset?.id, let reason = viewModel.reviewReason { parts.append(reason) }

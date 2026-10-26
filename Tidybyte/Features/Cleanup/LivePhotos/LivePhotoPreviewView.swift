@@ -214,7 +214,7 @@ struct LivePhotoPreviewView: View {
     private func metadataCard(for item: LivePhotoItem) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             if let date = item.asset.creationDate {
-                Text(date.formatted(date: .abbreviated, time: .shortened))
+                Text(Formatters.dateTime(date))
                     .font(.subheadline)
                     .foregroundStyle(.white)
             }
@@ -226,7 +226,7 @@ struct LivePhotoPreviewView: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
                 if let names = viewModel.albumNamesByAsset[item.id], !names.isEmpty {
-                    Label(names.joined(separator: ", "), systemImage: "rectangle.stack")
+                    Label(Formatters.list(names), systemImage: "rectangle.stack")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.7))
                         .lineLimit(1)

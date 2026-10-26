@@ -245,12 +245,18 @@ struct SwipeSessionView: View {
                 dismiss()
             }
         }
+        .onChange(of: viewModel.hasPendingDeletions) { _, _ in
+            // Committed or discarded: a navigation request parked behind those
+            // ids can now be applied without destroying anything.
+            appNavigation.applyDeferredLinkIfPossible()
+        }
         .onDisappear {
             viewModel.cancelLoading()
             // Any path that leaves the session view (back, empty-state exit,
             // external dismissal, completion push) releases the prefetch cache
             // so a session never pins images in the image manager (SWIPE-01).
             Task { await viewModel.stopAllCaching() }
+            appNavigation.applyDeferredLinkIfPossible()
         }
     }
 

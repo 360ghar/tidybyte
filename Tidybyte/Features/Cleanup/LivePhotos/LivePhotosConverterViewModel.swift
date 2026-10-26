@@ -25,7 +25,6 @@ final class LivePhotosConverterViewModel {
     var isLoading = true
     private(set) var hasLoadedItems = false
     var selectedIds: Set<String> = []
-    var isSelectionMode = false
     var convertingAll = false
     var errorMessage: String?
     /// Outcome of the most recent Convert All, so the view can decide the
@@ -88,15 +87,19 @@ final class LivePhotosConverterViewModel {
         // Captured before the await: a post-delete fetch returns nothing.
         let size = items[index].asset.fileSize
         errorMessage = nil
-        do {
-            let result = try await photoService.deleteAssets(identifiers: [itemId])
-            let deletedIds = result.deletedIds
-            CleanupLedger.shared.record(kind: .livePhotos, deletedIds: deletedIds, sizeOf: { _ in size })
-            items.removeAll { result.removedIds.contains($0.id) }
-            deletedCount += deletedIds.count
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        // The shared pipeline, for the partial-failure reconciliation this used
+        // to drop: a delete that half-succeeded reported only the error and left
+        // the confirmed rows in the list.
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: [itemId],
+            kind: .livePhotos,
+            sizeById: [itemId: size],
+            apply: { removed in
+                items.removeAll { removed.contains($0.id) }
+            },
+            recordDeleted: { self.deletedCount += $0 }
+        )
+        errorMessage = outcome.errorMessage
     }
 
     func loadIfNeeded() async {
@@ -107,6 +110,10 @@ final class LivePhotosConverterViewModel {
     func load() async {
         isLoading = true
         errorMessage = nil
+        // The header's "Deleted N" counts deletions from THIS visit. Once the
+        // list is re-fetched the rows are gone from the library, so keeping a
+        // running total next to a freshly built list reads as a live figure.
+        deletedCount = 0
         let livePhotos = await photoService.fetchLivePhotos()
         items = livePhotos.map { LivePhotoItem(id: $0.id, asset: $0) }
         hasLoadedItems = true
@@ -121,6 +128,7 @@ final class LivePhotosConverterViewModel {
     func refresh() async {
         guard !convertingAll, !isBusy else { return }
         errorMessage = nil
+        deletedCount = 0
         let livePhotos = await photoService.fetchLivePhotos()
         items = livePhotos.map { LivePhotoItem(id: $0.id, asset: $0) }
         hasLoadedItems = true

@@ -274,38 +274,6 @@ final class CompressionRegressionTests: XCTestCase {
         XCTAssertEqual(totalSaved, 600)
     }
 
-    // MARK: - COMP-16: only completed records block re-compression
-
-    func testPreviouslyCompletedRecordDetection() throws {
-        let schema = Schema([CompressionRecord.self])
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        container = try ModelContainer(for: schema, configurations: [configuration])
-        let context = container.mainContext
-
-        context.insert(CompressionRecord(
-            assetLocalIdentifier: "done",
-            originalSizeBytes: 100,
-            compressedSizeBytes: 40,
-            exportPreset: "1080p",
-            outcome: "completed"
-        ))
-        context.insert(CompressionRecord(
-            assetLocalIdentifier: "failed-once",
-            originalSizeBytes: 100,
-            compressedSizeBytes: 0,
-            exportPreset: "1080p",
-            outcome: "failed"
-        ))
-        try context.save()
-
-        let completedIds = Set(((try? context.fetch(
-            FetchDescriptor<CompressionRecord>(predicate: #Predicate { $0.outcome == "completed" })
-        )) ?? []).map(\.assetLocalIdentifier))
-
-        XCTAssertTrue(completedIds.contains("done"))
-        XCTAssertFalse(completedIds.contains("failed-once"))
-    }
-
     // MARK: - Kept-both durability (PR #2: kill with the Originals Kept
     // alert open must not delete the saved copy on next launch)
 

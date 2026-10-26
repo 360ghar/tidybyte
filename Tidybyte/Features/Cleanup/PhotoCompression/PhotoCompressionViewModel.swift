@@ -220,13 +220,21 @@ final class PhotoCompressionViewModel {
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: [id])
-            removePhotos([id])
-            selectedIds.remove(id)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        // Through the shared pipeline rather than a bare `deleteAssets`: this is
+        // the same user-visible delete every other cleanup tool performs, so it
+        // owes a ledger row (Activity + lifetime freed) and must reconcile a
+        // partial failure instead of dropping `deletionOutcome` on the floor.
+        let size = photos.first(where: { $0.id == id })?.asset.fileSize ?? 0
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: [id],
+            kind: .photoCompression,
+            sizeById: [id: size],
+            apply: { removed in
+                removePhotos(removed)
+                selectedIds.subtract(removed)
+            }
+        )
+        errorMessage = outcome.errorMessage
         return !photos.contains(where: { $0.id == id })
     }
 

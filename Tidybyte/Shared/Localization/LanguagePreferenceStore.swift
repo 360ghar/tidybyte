@@ -11,7 +11,7 @@ import Foundation
 ///
 /// Foundation-only on purpose: this file compiles into the widget target too.
 enum LanguagePreferenceStore {
-    /// Not `AppPreferences.Key.appLanguage` — that enum lives in the app
+    /// Defined here rather than in `AppPreferences`: that enum lives in the app
     /// target only, and the widget needs to read the same key.
     static let key = "appLanguagePreference"
 
