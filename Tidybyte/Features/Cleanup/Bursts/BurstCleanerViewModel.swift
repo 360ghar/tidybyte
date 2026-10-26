@@ -216,6 +216,19 @@ final class BurstCleanerViewModel {
         errorMessage = outcome.errorMessage
     }
 
+    /// The notice for bursts that shrank to a single frame — `nil` when none
+    /// did, so a delete that collapses nothing leaves any earlier message alone.
+    ///
+    /// Singular and plural are separate keys: the singular reads as a sentence
+    /// ("1 burst …"), so it cannot share a counted template.
+    static func collapseNotice(burstCount: Int) -> String? {
+        switch burstCount {
+        case 0: nil
+        case 1: L10n.string("1 burst cleaned down to a single photo.")
+        default: L10n.format("%lld bursts cleaned down to single photos.", burstCount)
+        }
+    }
+
     /// Shared post-delete pipeline: collapses groups, re-picks keepers, and
     /// merges the surviving selection (used by both full success and partial
     /// failure so the UI state matches the library in every path).
@@ -244,12 +257,8 @@ final class BurstCleanerViewModel {
         }
         // Bursts reduced to a single frame are no longer "bursts" and drop out
         // of the list; let the user know rather than having them silently vanish.
-        if collapsedToSingleFrame > 0 {
-            // Singular and plural are separate keys: the singular reads as a
-            // sentence ("1 burst …"), so it cannot share a counted template.
-            statusMessage = collapsedToSingleFrame == 1
-                ? L10n.string("1 burst cleaned down to a single photo.")
-                : L10n.format("%lld bursts cleaned down to single photos.", collapsedToSingleFrame)
+        if let notice = Self.collapseNotice(burstCount: collapsedToSingleFrame) {
+            statusMessage = notice
         }
         // LF-02: never blanket re-select. Untouched groups get all non-best
         // re-armed; touched groups keep exactly the user's surviving choices.
@@ -334,10 +343,22 @@ final class BurstCleanerViewModel {
                     }
                     groups[index] = BurstGroup(id: groupId, assets: remaining, bestAssetId: bestAssetId)
                 } else {
-                    // No longer a burst once it's down to one frame — drop the group.
+                    // No longer a burst once it's down to one frame — drop the group,
+                    // and say so: an auto-clean route emits this same notice, so the
+                    // row vanishing must not depend on which button was pressed.
+                    // Derived from what is left rather than hardcoded to 1: an
+                    // empty remainder is a group that simply went away, which
+                    // claims nothing.
                     for asset in remaining { selectedForDeletion.remove(asset.id) }
                     manuallySetBest.remove(groupId)
                     groups.remove(at: index)
+                    // Nil-preserving, like `applyPostDeleteState`: an empty
+                    // remainder is a group that simply went away and claims
+                    // nothing, so it must not clear a collapse notice an earlier
+                    // frame in the same batch already posted.
+                    if let notice = Self.collapseNotice(burstCount: remaining.count) {
+                        statusMessage = notice
+                    }
                 }
             }
         )

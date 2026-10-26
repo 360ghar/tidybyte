@@ -27,17 +27,32 @@ final class ReviewPromptGateTests: XCTestCase {
         now.addingTimeInterval(TimeInterval(-days * 24 * 60 * 60))
     }
 
-    func testEarlyMilestonesPromptOnlyAtThree() {
+    func testFirstSuccessPrompts() {
         let now = Date()
-        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 1, lastPromptAt: nil, now: now))
-        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 2, lastPromptAt: nil, now: now))
-        // First-ever milestone has no cooldown to respect.
-        XCTAssertTrue(AppPreferences.shouldRequestReview(successCount: 3, lastPromptAt: nil, now: now))
+        // The first fully successful cleanup is the honest ask: the user just
+        // saw space come back, and a session that ends before a third success
+        // would otherwise never be asked.
+        XCTAssertTrue(AppPreferences.shouldRequestReview(successCount: 1, lastPromptAt: nil, now: now))
+    }
+
+    /// Pins the upgrade path: installs that already sat at 1 or 2 successful
+    /// cleanups when the first milestone moved to 1 never reach 1 again, so 3
+    /// has to stay a milestone or their first prompt waits until 10.
+    func testThirdSuccessStillPromptsForInstallsThatNeverSawTheFirstOne() {
+        let now = Date()
+        XCTAssertTrue(
+            AppPreferences.shouldRequestReview(successCount: 3, lastPromptAt: nil, now: now),
+            "a pre-existing install lands here without ever having been asked"
+        )
+        // And the cooldown is what stops a new install being asked at both 1
+        // and 3: prompted at 1, count 3 arrives days later, well inside 60 days.
+        let promptedAtOne = day(2, before: now)
+        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 3, lastPromptAt: promptedAtOne, now: now))
     }
 
     func testBetweenMilestonesNeverPrompt() {
         let now = Date()
-        for count in [4, 5, 6, 7, 8, 9, 11, 24, 26, 49] {
+        for count in [2, 4, 5, 6, 7, 8, 9, 11, 24, 26, 49] {
             XCTAssertFalse(
                 AppPreferences.shouldRequestReview(successCount: count, lastPromptAt: nil, now: now),
                 "count \(count) must not prompt"
@@ -72,21 +87,24 @@ final class ReviewPromptGateTests: XCTestCase {
     func testRecordSuccessfulActionCountsAndPersists() {
         let now = Date()
         XCTAssertEqual(AppPreferences.successfulActionCount(in: defaults), 0)
+        XCTAssertTrue(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
         XCTAssertFalse(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
-        XCTAssertFalse(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
+        // 3 is still a milestone, for the upgrade path the test above pins.
         XCTAssertTrue(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
         XCTAssertEqual(AppPreferences.successfulActionCount(in: defaults), 3)
     }
 
     func testRecordedPromptDateConsumesCooldown() {
         let now = Date()
-        // Reach the first milestone and record its prompt date.
-        for _ in 0..<3 { _ = AppPreferences.recordSuccessfulAction(now: now, in: defaults) }
+        // The first success is the milestone; record its prompt date.
+        XCTAssertTrue(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
         AppPreferences.recordReviewPromptDate(now, in: defaults)
 
-        // Count 10 is a milestone, but the count-3 prompt was seconds ago:
-        // every action inside the cooldown stays silent.
-        for _ in 0..<7 { _ = AppPreferences.recordSuccessfulAction(now: now, in: defaults) }
+        // 2 is not a milestone, and 3 is one but falls inside the cooldown; 10
+        // lands inside it too, so every action in this run stays silent.
+        for _ in 0..<9 {
+            XCTAssertFalse(AppPreferences.recordSuccessfulAction(now: now, in: defaults))
+        }
         XCTAssertEqual(AppPreferences.successfulActionCount(in: defaults), 10)
 
         // Simulate the user cleaning on: milestones fire again only once 60
@@ -104,7 +122,7 @@ final class ReviewPromptGateTests: XCTestCase {
 
     func testRatedUserIsNeverPrompted() {
         let now = Date()
-        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 3, lastPromptAt: nil, hasRated: true, now: now))
+        XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 1, lastPromptAt: nil, hasRated: true, now: now))
         XCTAssertFalse(AppPreferences.shouldRequestReview(successCount: 50, lastPromptAt: nil, hasRated: true, now: now))
     }
 

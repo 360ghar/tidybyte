@@ -45,12 +45,11 @@ enum AppPreferences {
         static let lifetimeItemCount = "lifetimeItemCount"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let hasSeenLimitedLibraryNotice = "hasSeenLimitedLibraryNotice"
-        /// Language and appearance are read/written through
-        /// `LanguagePreferenceStore` and `AppearancePreferenceStore` so the
-        /// widget can share the language value; the keys are re-exported here
-        /// so `@AppStorage` call sites have one place to look.
-        static let appLanguage = LanguagePreferenceStore.key
-        static let appAppearance = AppearancePreferenceStore.key
+        /// Language and appearance keep their keys in their own stores
+        /// (`LanguagePreferenceStore.key`, `AppearancePreferenceStore.key`):
+        /// the widget shares the language one, so it has to live in a file the
+        /// widget compiles. No `@AppStorage` site reads either one, so a
+        /// second spelling here would only be a place for them to drift.
         static let hapticsEnabled = "hapticsEnabled"
     }
 
@@ -78,10 +77,6 @@ enum AppPreferences {
     static func smartCategorySensitivity(in defaults: UserDefaults = .standard) -> CategorySensitivity {
         let rawValue = defaults.string(forKey: Key.smartCategorySensitivity) ?? CategorySensitivity.balanced.rawValue
         return CategorySensitivity(rawValue: rawValue) ?? .balanced
-    }
-
-    static func saveSmartCategorySensitivity(_ sensitivity: CategorySensitivity, in defaults: UserDefaults = .standard) {
-        defaults.set(sensitivity.rawValue, forKey: Key.smartCategorySensitivity)
     }
 
     static func largeFileThresholdMB(in defaults: UserDefaults = .standard) -> Double {
@@ -235,10 +230,23 @@ enum AppPreferences {
 
     // MARK: - Happy-Path Review Prompt Gating
 
-    /// Success counts at which the "Enjoying TidyByte?" prompt may appear:
-    /// early delight at 3, then rarer; `% 50` keeps long-term users asked
-    /// roughly twice a year at their current cleanup cadence.
-    private static let reviewMilestones: Set<Int> = [3, 10, 25]
+    /// Success counts at which the "Enjoying TidyByte?" prompt may appear.
+    ///
+    /// The first milestone is **1**, not 3. A cleanup is a discrete, visible
+    /// win — the user just watched space come back — and that is the moment
+    /// they are willing to say so. Waiting until the third doubles the chance
+    /// the session ends without ever asking; the app went from June to October
+    /// on the 3-success gate and collected five ratings. Later milestones stay
+    /// rare (`% 50` keeps long-term users asked roughly twice a year at their
+    /// cleanup cadence).
+    ///
+    /// **3 is kept deliberately** even though 1 now ships: an install that was
+    /// already at 1 or 2 successful cleanups when this shipped never reached
+    /// 1 again, so dropping 3 would push its first prompt out to 10. The 60-day
+    /// cooldown is what stops a new install seeing both 1 and 3 back to back
+    /// (it is prompted at 1, then 3 falls inside the cooldown), so keeping 3
+    /// costs a new user nothing.
+    private static let reviewMilestones: Set<Int> = [1, 3, 10, 25]
 
     /// Local cooldown between prompts. The prompt interrupts the user, and
     /// its "Yes" path calls `requestReview`, which Apple caps at 3 per 365

@@ -85,34 +85,6 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The English name, for tests, logs, and docs. Not shown in the picker.
-    var englishName: String {
-        switch self {
-        case .system: "Automatic"
-        case .english: "English"
-        case .hindi: "Hindi"
-        case .bengali: "Bengali"
-        case .tamil: "Tamil"
-        case .telugu: "Telugu"
-        case .marathi: "Marathi"
-        case .gujarati: "Gujarati"
-        case .kannada: "Kannada"
-        case .malayalam: "Malayalam"
-        case .punjabi: "Punjabi"
-        case .spanish: "Spanish"
-        case .french: "French"
-        case .german: "German"
-        case .portugueseBrazil: "Portuguese (Brazil)"
-        case .italian: "Italian"
-        case .japanese: "Japanese"
-        case .korean: "Korean"
-        case .chineseSimplified: "Chinese (Simplified)"
-        case .russian: "Russian"
-        case .arabic: "Arabic"
-        case .hebrew: "Hebrew"
-        }
-    }
-
     /// Languages written right to left. Drives the layout direction the app
     /// injects at the root; see `LanguageStore.layoutDirection`.
     var isRightToLeft: Bool {

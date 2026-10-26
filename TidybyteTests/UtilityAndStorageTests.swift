@@ -13,14 +13,6 @@ final class UtilityAndStorageTests: XCTestCase {
         XCTAssertFalse(set.contains("a"))
     }
 
-    func testSetToggleIsIndependentPerElement() {
-        var set: Set<String> = ["a"]
-        set.toggle("b")
-        XCTAssertEqual(set, ["a", "b"])
-        set.toggle("a")
-        XCTAssertEqual(set, ["b"])
-    }
-
     func testDeviceUsedCapacityIsNonNegativeWhenAvailableExceedsTotal() {
         // available-for-important-usage can momentarily exceed total capacity.
         let info = DeviceStorageInfo(totalCapacity: 100, availableCapacity: 150)

@@ -70,20 +70,6 @@ extension AnyTransition {
     }
 }
 
-// MARK: - Animated Counter
-
-struct AnimatedNumberModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content.contentTransition(.numericText())
-    }
-}
-
-extension View {
-    func animatedNumber() -> some View {
-        modifier(AnimatedNumberModifier())
-    }
-}
-
 // MARK: - Pull to Refresh
 
 extension View {

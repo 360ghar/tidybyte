@@ -6,10 +6,12 @@ import SwiftData
 /// or a no-op), so the totals it feeds are a floor on real savings rather than
 /// an optimistic estimate.
 ///
-/// Compression and Live Photo conversion are NOT written here — those already
-/// have `CompressionRecord` with the crash-safe `CompressionJournal`. The
-/// summary builder merges both sources instead, so the two write paths stay
-/// independent.
+/// Compression *savings* are not written here — those already have
+/// `CompressionRecord` with the crash-safe `CompressionJournal`, and the summary
+/// builder folds the successful rows in. What the compression screens DO log
+/// here is the space their plain per-row deletes freed: that is a different
+/// event with a different figure (the whole original rather than the
+/// original-minus-copy delta), so the two can be summed without double counting.
 enum CleanupActivityKind: String, CaseIterable, Sendable {
     case swipe
     case duplicates
@@ -21,8 +23,9 @@ enum CleanupActivityKind: String, CaseIterable, Sendable {
     case smartCategories
     case largeFiles
     case bursts
-    // Never written by the ledger — these kinds exist so the summary can fold
-    // successful `CompressionRecord` rows into the same per-tool breakdown.
+    // Written by the ledger for the plain per-row deletes these screens offer,
+    // AND folded from successful `CompressionRecord` rows so each tool's row
+    // shows its whole footprint.
     case videoCompression
     case photoCompression
     case livePhotos

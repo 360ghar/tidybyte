@@ -220,13 +220,21 @@ final class PhotoCompressionViewModel {
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: [id])
-            removePhotos([id])
-            selectedIds.remove(id)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        // Through the shared pipeline rather than a bare `deleteAssets`: this is
+        // the same user-visible delete every other cleanup tool performs, so it
+        // owes a ledger row (Activity + lifetime freed) and must reconcile a
+        // partial failure instead of dropping `deletionOutcome` on the floor.
+        let size = photos.first(where: { $0.id == id })?.asset.fileSize ?? 0
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: [id],
+            kind: .photoCompression,
+            sizeById: [id: size],
+            apply: { removed in
+                removePhotos(removed)
+                selectedIds.subtract(removed)
+            }
+        )
+        errorMessage = outcome.errorMessage
         return !photos.contains(where: { $0.id == id })
     }
 
@@ -468,7 +476,10 @@ final class PhotoCompressionViewModel {
         // COMP-04: remove only successfully compressed (and deleted) items;
         // skipped ones stay so the user can see why they were left alone.
         removePhotos(successfulIds)
-        selectedIds.subtract(successfulIds)
+        // An id whose row vanished has nothing left to select, and leaving it in
+        // the set made the toolbar claim more selected items than the list shows
+        // and retried it on every batch.
+        selectedIds.subtract(successfulIds.union(result.idsWithoutRow))
         keptOriginals = result.kept
         isCompressing = false
         batchSummary = CompressionBatchSummary(

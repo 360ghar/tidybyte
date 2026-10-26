@@ -133,7 +133,7 @@ struct PhotoPermissionView: View {
         case .openSettings:
             Button {
                 HapticHelper.impact(.light)
-                permissionHandler.openSettings()
+                PhotoPermissionHandler.openSettings()
             } label: {
                 primaryLabel("Open Settings", icon: "arrow.up.right.square")
             }

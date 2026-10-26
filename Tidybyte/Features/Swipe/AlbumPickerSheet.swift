@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AlbumPickerSheet: View {
     let photoService: PhotoLibraryService
@@ -18,7 +19,21 @@ struct AlbumPickerSheet: View {
     /// a second tap can't stack another add behind it (the view model's guard
     /// reports this as a failure message instead of a silent success).
     @State private var isAddingToAlbum = false
+    /// Why the album list is empty, when the cause is photo access rather than
+    /// "this library has no editable albums". This sheet asks for editable
+    /// albums only, which excludes smart albums, so under limited access it is
+    /// reachable even when photos ARE visible: the missing piece is the user
+    /// albums, and only Full Access can restore them.
+    @State private var emptyReason: AlbumListEmptyReason?
+    /// Bumped by every `loadAlbums()`, so a slow load that started earlier can
+    /// tell it has been superseded and drop its result.
+    @State private var loadToken = 0
     @Environment(\.dismiss) private var dismiss
+    /// Drives the reload on a library change. The sheet is presented from inside
+    /// the app's hierarchy, so it inherits this monitor; reading `generation` in
+    /// `.task(id:)` is what makes an edit made elsewhere (a delete in another
+    /// tab, an edit in Photos) refresh the list while the sheet is up.
+    @Environment(LibraryChangeMonitor.self) private var libraryMonitor
 
     private var recentAlbumIds: [String] {
         AppPreferences.recentAlbumIds()
@@ -35,6 +50,20 @@ struct AlbumPickerSheet: View {
                 if isLoading {
                     ProgressView("Loading albums...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let reason = emptyReason {
+                    // No album list to show under this permission state, so the
+                    // whole body becomes the fix.
+                    ScrollView {
+                        PhotoRecoveryCard(presentation: reason.recovery) { action in
+                            switch action {
+                            case .retry:
+                                Task { await loadAlbums() }
+                            case .addPhotos, .openSettings:
+                                PhotoRecoveryPresentation.Action.perform(action)
+                            }
+                        }
+                        .padding(.vertical, Spacing.xl)
+                    }
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
@@ -86,7 +115,7 @@ struct AlbumPickerSheet: View {
                         .padding(.vertical)
                     }
                     .pullToRefresh {
-                        albums = await photoService.fetchUserAlbums(editableOnly: true)
+                        await loadAlbums()
                     }
                 }
             }
@@ -111,9 +140,20 @@ struct AlbumPickerSheet: View {
                 }
             }
         }
-        .task {
-            albums = await photoService.fetchUserAlbums(editableOnly: true)
-            isLoading = false
+        .task(id: libraryMonitor.generation) { await loadAlbums() }
+        // Not the scene-phase environment value: SwiftUI freezes a sheet's
+        // environment at presentation time, so later phase changes never reach
+        // this content and "go to Settings, then come back" left the card
+        // untouched. The UIKit activation notification does arrive.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            guard emptyReason != nil else { return }
+            Task { await loadAlbums() }
+        }
+        // Fires when the system limited-library picker closes, which is the other
+        // way out of the card and not tied to a scene activation.
+        .onReceive(NotificationCenter.default.publisher(for: .photoLibrarySelectionDidChange)) { _ in
+            guard emptyReason != nil else { return }
+            Task { await loadAlbums() }
         }
         // Non-modal error surface inside the sheet (B4): the session view sits
         // behind this presentation, so the failure must surface here — as a
@@ -221,6 +261,33 @@ struct AlbumPickerSheet: View {
     }
 
     // MARK: - Actions
+
+    /// One fetch + one census, shared by the initial load, the card's Try Again,
+    /// the pull-to-refresh, and the automatic reloads.
+    ///
+    /// Superseded loads are dropped rather than published. Three triggers can
+    /// overlap: the generation task, `didBecomeActive`, and the picker's
+    /// completion notification. Cancelling the generation task does not cancel an
+    /// await already in flight, so without the token the *completion order*
+    /// decides what the sheet shows — and a census that started before access was
+    /// fixed can land last and restore the recovery card over a list that now has
+    /// albums in it. Same shape as `SwipeSessionViewModel.loadGeneration`.
+    private func loadAlbums() async {
+        // Only the first load gets the full-screen spinner: `isLoading` starts
+        // `true` and is cleared below, and nothing re-arms it. Re-arming it on
+        // "the list is empty" would blank a genuinely empty sheet on every
+        // reload — hiding the New Album button behind "Loading albums…" — and
+        // `.refreshable` already shows its own system spinner.
+        loadToken += 1
+        let token = loadToken
+        let loaded = await AlbumSheetLoader.load(photoService: photoService, editableOnly: true)
+        // A newer load owns the state now; this result is stale whether it is
+        // older or merely slower.
+        guard token == loadToken else { return }
+        albums = loaded.albums
+        emptyReason = loaded.emptyReason
+        isLoading = false
+    }
 
     private func selectAlbum(_ album: AlbumInfo) {
         guard !isAddingToAlbum else { return }

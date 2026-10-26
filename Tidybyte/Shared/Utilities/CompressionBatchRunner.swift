@@ -112,12 +112,18 @@ final class CompressionSwap {
     /// copy's id is kept on the row, so Photo Compression knows it is a copy
     /// and never lists it for compression.
     func finalizeOriginalKept(copyRemoved: Bool) {
-        guard finish() else { return }
         if copyRemoved {
+            guard finish() else { return }
             record.replacementAssetLocalIdentifier = nil
             record.compressedSizeBytes = 0
             CompressionJournal.finalize(record, outcome: .skipped, modelContext: modelContext)
         } else {
+            // `finalizeKeptBoth` owns this path and deliberately does NOT
+            // claim `finish()`, so that a later Try Again can promote
+            // kept → completed. Claiming it here first made that impossible:
+            // `finalizeCompleted` hit `guard finish()` and returned silently,
+            // leaving the row `.kept` with savedBytes 0 for good, so History
+            // and lifetime-freed under-reported the compression forever.
             finalizeKeptBoth()
         }
     }
@@ -130,6 +136,13 @@ final class CompressionSwap {
     /// kept → completed through `finalizeCompleted`, and Remove Copies
     /// settles through `finalizeOriginalKept`.
     func finalizeKeptBoth() {
+        // `.completed` is terminal. Before the F2 fix this path inherited that
+        // protection from the caller's `guard finish()`, and that guard cannot
+        // come back — it was exactly what blocked the kept → completed
+        // promotion this path exists to allow. So the invariant is stated here:
+        // settling a finished compression as "kept-both" would wipe savedBytes
+        // from both History and lifetime-freed.
+        guard record.outcome != CompressionOutcome.completed.rawValue else { return }
         CompressionJournal.finalize(record, outcome: .kept, modelContext: modelContext)
     }
 
@@ -192,6 +205,11 @@ enum CompressionBatchRunner {
         /// tapped "Don't Allow", or the delete failed). The view offers
         /// Try Again / Remove Copies for these.
         var kept: [PendingOriginal]
+        /// Selected ids whose row no longer exists. They are counted as skipped
+        /// here, and returned so the caller can drop them from the selection: a
+        /// phantom selection leaves the toolbar reading "N selected" with fewer
+        /// than N rows, and every later batch retries an id that cannot resolve.
+        var idsWithoutRow: Set<String> = []
     }
 
     // Runs the per-item loop. `execute` creates its CompressionSwap (it alone
@@ -211,11 +229,21 @@ enum CompressionBatchRunner {
         let orderedIds = sortedBatchIds(selected: selected, fileSizes: fileSizes)
         var saved: [PendingOriginal] = []
         var failed = 0, skipped = 0
+        var idsWithoutRow: Set<String> = []
         for (offset, id) in orderedIds.enumerated() {
             if offset % 20 == 0 { await Task.yield() }
             if isCancelled() { break }
             handlers.setPhase(.savingCopies(done: offset, total: orderedIds.count))
-            guard let index = indexById[id] else { continue }
+            // A selected id with no row index cannot be reported through
+            // `setState`, but it must still land in the tally. Skipping it
+            // outright left completed + failed + skipped short of `selected`,
+            // so the run summary under-reported what actually happened. It is
+            // also reported back so the caller can drop it from the selection.
+            guard let index = indexById[id] else {
+                skipped += 1
+                idsWithoutRow.insert(id)
+                continue
+            }
             if alreadyCompletedIds.contains(id) {
                 handlers.setState(index, .keptOriginal(reason: L10n.string("Already compressed")))
                 skipped += 1
@@ -279,7 +307,8 @@ enum CompressionBatchRunner {
                 skipped: skipped,
                 cancelled: isCancelled()
             ),
-            kept: kept
+            kept: kept,
+            idsWithoutRow: idsWithoutRow
         )
     }
 }

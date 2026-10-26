@@ -121,6 +121,47 @@ final class LocaleFormattingTests: XCTestCase {
         XCTAssertFalse(deTime.contains("PM") || deTime.contains("pm"), "German has no AM/PM: \(deTime)")
     }
 
+    /// `Date.formatted(date:time:)` resolves against `Locale.current` and
+    /// ignores the SwiftUI `\.locale` the app injects at the root, so six
+    /// screens drew a date in the DEVICE's language under a label translated
+    /// into the chosen one — "Datum" above "Oct 3, 2025".
+    ///
+    /// The fix only ever claims what `Formatters.locale(for:)` documents: the
+    /// language comes from the in-app override, the region stays the device's.
+    /// So it is language that changes the *words*, and region that changes the
+    /// *pattern and clock* — asserting those separately is the difference
+    /// between testing the rule and testing that two locales merely differ.
+    func testDateTimeTakesWordsFromTheLanguageAndPatternFromTheRegion() {
+        var components = DateComponents()
+        components.year = 2025
+        components.month = 10
+        components.day = 3
+        components.hour = 15
+        components.minute = 32
+        let date = Calendar(identifier: .gregorian).date(from: components)!
+
+        // Same region (Germany), different language → different WORDS. `en_DE`
+        // spells the month out, `de_DE` uses the numeric German date; that
+        // difference is the bug this replaced, where a per-app language never
+        // reached the formatter at all.
+        let englishInGermany = Formatters.dateTime(date, language: .english, region: de)
+        let germanInGermany = Formatters.dateTime(date, language: .german, region: de)
+        XCTAssertTrue(englishInGermany.contains("Oct"), "got \(englishInGermany)")
+        XCTAssertFalse(germanInGermany.contains("Oct"), "the German date is numeric: \(germanInGermany)")
+        XCTAssertEqual(germanInGermany, "03.10.2025, 15:32", "German day-first order, 24-hour clock")
+
+        // Same language (English), different region → different PATTERN and
+        // CLOCK, even though both are English. This half is why the type does
+        // not simply adopt the override's region.
+        let englishInUS = Formatters.dateTime(date, language: .english, region: us)
+        XCTAssertTrue(englishInUS.contains("PM") || englishInUS.contains("pm"), "US 12-hour: \(englishInUS)")
+        XCTAssertFalse(
+            englishInGermany.contains("PM") || englishInGermany.contains("pm"),
+            "Germany keeps its 24-hour clock: \(englishInGermany)"
+        )
+        XCTAssertNotEqual(englishInUS, englishInGermany)
+    }
+
     // MARK: - Lists
 
     func testListUsesTheLocalesConjunction() {

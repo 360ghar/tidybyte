@@ -167,12 +167,20 @@ final class SwipeFlowRegressionTests: XCTestCase {
         // so loadAssetsIfNeeded() will re-run.
         vm.allPhotosAlreadySwiped = true
         vm.isLoading = true
+        // Seeded, not left nil: the reason is only ever set by a load against a
+        // library the simulator cannot produce (`.limited` with nothing shared),
+        // so without seeding it this assertion passes whether or not
+        // `retryLoad()` actually clears it.
+        vm.emptyReason = .limitedNoSelection
 
         vm.retryLoad()
 
         XCTAssertFalse(vm.hasLoadedInitialAssets, "Retry must force a fresh load")
         XCTAssertFalse(vm.allPhotosAlreadySwiped)
         XCTAssertFalse(vm.isLoading)
+        // The access explanation is derived from the load, so a retry has to drop
+        // it as well — otherwise the card stays up over the reloaded deck.
+        XCTAssertNil(vm.emptyReason, "Retry must clear the access explanation")
     }
 
     // MARK: - SWIPE-03: predicate-based upsert round-trip

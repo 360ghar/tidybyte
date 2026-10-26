@@ -78,24 +78,47 @@ struct SwipeSessionView: View {
                         // does nothing.
                         guard viewModel.isPendingDeletion(markedId),
                               viewModel.undoStack.contains(where: { $0.asset.id == markedId && $0.decision == .deleted }) else {
-                            toast = ToastMessage(text: L10n.string("That photo can't be undone anymore."), systemImage: "info.circle")
+                            toast = ToastMessage(text: L10n.string("That photo can't be undone anymore."), style: .warning)
                             return
                         }
                         guard let last = viewModel.undoStack.last,
                               last.decision == .deleted, last.asset.id == markedId else {
-                            toast = ToastMessage(text: L10n.string("Undo your newer actions first to reach that photo."), systemImage: "info.circle")
+                            toast = ToastMessage(text: L10n.string("Undo your newer actions first to reach that photo."), style: .warning)
                             return
                         }
                         toast = nil
                         Task { await viewModel.undo() }
                     }
                 }, onDeleteBlocked: {
-                    toast = ToastMessage(text: L10n.string("Delete is off until the photo loads."), systemImage: "hourglass")
+                    toast = ToastMessage(text: L10n.string("Delete is off until the photo loads."), systemImage: "hourglass", style: .warning)
                 })
             }
         }
         .task(id: ReviewReasonTaskID(asset: viewModel.currentAsset, generation: libraryMonitor.generation, completion: viewModel.showCompletion)) {
             await viewModel.refreshReviewReason()
+        }
+        .onChange(of: permissionHandler.permissionState) { _, newState in
+            // Returning from Settings with access fixed is exactly the step the
+            // recovery card asks for, so re-read here instead of making the user
+            // also find Try Again. Only an access-empty deck reloads; a deck that
+            // is merely finished keeps its completion state.
+            guard viewModel.emptyReason != nil,
+                  newState == .authorized || newState == .limited else { return }
+            Task { await reloadEmptyDeck() }
+        }
+        .onChange(of: libraryMonitor.generation) { _, _ in
+            // Widening a limited selection (or any library change) bumps the
+            // generation. An access-empty deck re-reads so the photos the user
+            // just shared show up without a second manual step.
+            guard viewModel.emptyReason != nil else { return }
+            Task { await reloadEmptyDeck() }
+        }
+        // Kept alongside the observer above: that one is debounced and depends on
+        // change details arriving, while this fires deterministically when the
+        // system limited-library picker is dismissed.
+        .onReceive(NotificationCenter.default.publisher(for: .photoLibrarySelectionDidChange)) { _ in
+            guard viewModel.emptyReason != nil else { return }
+            Task { await reloadEmptyDeck() }
         }
         .toast($toast)
         .photoPermissionPrimer(isPresented: $showPermissionPrimer, permissionHandler: permissionHandler)
@@ -222,12 +245,18 @@ struct SwipeSessionView: View {
                 dismiss()
             }
         }
+        .onChange(of: viewModel.hasPendingDeletions) { _, _ in
+            // Committed or discarded: a navigation request parked behind those
+            // ids can now be applied without destroying anything.
+            appNavigation.applyDeferredLinkIfPossible()
+        }
         .onDisappear {
             viewModel.cancelLoading()
             // Any path that leaves the session view (back, empty-state exit,
             // external dismissal, completion push) releases the prefetch cache
             // so a session never pins images in the image manager (SWIPE-01).
             Task { await viewModel.stopAllCaching() }
+            appNavigation.applyDeferredLinkIfPossible()
         }
     }
 
@@ -327,6 +356,20 @@ struct SwipeSessionView: View {
                 case .none:
                     EmptyView()
                 }
+            } else if let reason = viewModel.emptyReason {
+                // Access is granted but there is nothing to read: limited access
+                // with no photos shared, or a device-side permission problem
+                // under full access. Both used to land on "All Caught Up!" and
+                // read as a broken app (SWIPE-09). The card states the cause and
+                // the steps out of it.
+                PhotoRecoveryCard(presentation: reason.recovery) { action in
+                    switch action {
+                    case .retry:
+                        Task { await reloadEmptyDeck() }
+                    case .addPhotos, .openSettings:
+                        PhotoRecoveryPresentation.Action.perform(action)
+                    }
+                }
             } else {
                 Image(systemName: "checkmark.circle")
                     .scaledGlyph(ScaledSize.stateGlyph)
@@ -342,10 +385,7 @@ struct SwipeSessionView: View {
                 // A failed/empty fetch reads the same as a genuinely empty deck —
                 // offer a retry so a transient failure isn't a dead end (SWIPE-09).
                 Button {
-                    Task {
-                        viewModel.retryLoad()
-                        await viewModel.loadAssetsIfNeeded()
-                    }
+                    Task { await reloadEmptyDeck() }
                 } label: {
                     Text("Try Again")
                         .font(.headline)
@@ -359,6 +399,22 @@ struct SwipeSessionView: View {
             }
         }
         .padding()
+    }
+
+    /// Re-reads a deck that came back empty for an access reason.
+    ///
+    /// Shared by the card's "Try Again" button and the two automatic triggers
+    /// below, so returning from Settings or widening a limited selection reloads
+    /// the deck without the user having to hunt for the button the copy just
+    /// told them about.
+    private func reloadEmptyDeck() async {
+        // Two triggers fire on the same frame when access is fixed (the
+        // permission change and the library generation), and `retryLoad()`
+        // clears `isLoading`, so without this guard each one started a full
+        // load and the second overwrote the first mid-read.
+        guard !viewModel.isLoading else { return }
+        viewModel.retryLoad()
+        await viewModel.loadAssetsIfNeeded()
     }
 
     /// Filled primary button for the empty state, matching the styling of the

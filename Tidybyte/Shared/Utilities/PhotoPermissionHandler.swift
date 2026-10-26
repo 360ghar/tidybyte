@@ -111,7 +111,13 @@ final class PhotoPermissionHandler {
         permissionState = PhotoPermissionState(authorizationStatus: status)
     }
 
-    func openSettings() {
+    /// Opens TidyByte's own page in Settings.
+    ///
+    /// Static for the same reason as `presentLimitedLibraryPicker`: the
+    /// recovery card offers "Open Settings" and has no handler instance, and
+    /// there must be exactly one implementation of the jump.
+    @MainActor
+    static func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }
@@ -123,10 +129,84 @@ final class PhotoPermissionHandler {
     /// instance — there is exactly one implementation of "ask for more photos".
     @MainActor
     static func presentLimitedLibraryPicker() {
+        // Logged because the call is a silent no-op when the app is no longer
+        // `.limited` or a presentation is already in flight — without this a
+        // "the button does nothing" report has nothing to go on.
+        AppLog.photo.info(
+            "Presenting limited library picker (status \(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue, privacy: .public))"
+        )
+        // The topmost controller, not the root: UIKit ignores a presentation
+        // requested while another one is already showing, which made the button
+        // appear to do nothing when a sheet was up.
+        guard let presenter = topmostViewController() else { return }
+        // The completion variant, so "the picker closed" is observable without
+        // waiting on a debounced change-observer delivery.
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: presenter) { _ in
+            // The handler is not guaranteed to arrive on main, and the observers
+            // behind this notification touch view state.
+            Task { @MainActor in
+                NotificationCenter.default.post(name: .photoLibrarySelectionDidChange, object: nil)
+            }
+        }
+    }
+
+    /// True when nothing is already presented.
+    ///
+    /// Used to gate the automatic presentation on launch: the picker is helpful
+    /// when the app opens to an empty library, but covering a sheet the user is
+    /// working in is not.
+    @MainActor
+    static var isReadyToPresentLimitedLibraryPicker: Bool {
+        guard let root = activeRootViewController() else { return false }
+        return root.presentedViewController == nil
+    }
+
+    /// Waits, briefly, for any covered screen to finish dismissing.
+    ///
+    /// `isReadyToPresentLimitedLibraryPicker` is a snapshot, and the moment the
+    /// launch offer runs is exactly the moment the snapshot is wrong: the
+    /// onboarding `fullScreenCover` is still on screen for a few frames after
+    /// `hasCompletedOnboarding` flips, so a single check returned false while
+    /// the cover was mid-dismissal and nothing ever re-triggered the offer. The
+    /// launch's one offer was lost.
+    ///
+    /// A bounded poll, not a fixed sleep: when the surface is already clear this
+    /// returns on the first check, and the timeout keeps a stuck presentation
+    /// from holding the task open.
+    ///
+    /// `isReady` is a parameter so the wait itself is testable without a window
+    /// scene.
+    @MainActor
+    static func waitUntilReadyToPresent(
+        timeout: Duration = .seconds(1),
+        pollInterval: Duration = .milliseconds(50),
+        isReady: () -> Bool = { PhotoPermissionHandler.isReadyToPresentLimitedLibraryPicker }
+    ) async -> Bool {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while true {
+            if isReady() { return true }
+            // Checked explicitly rather than relying on `Task.sleep` throwing:
+            // a cancelled sleep returns immediately, and the deadline is wall
+            // clock, so the loop would spin for the rest of the second.
+            if Task.isCancelled || ContinuousClock.now >= deadline { return false }
+            try? await Task.sleep(for: pollInterval)
+        }
+    }
+
+    @MainActor
+    private static func activeRootViewController() -> UIViewController? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-        guard let root = scene?.keyWindow?.rootViewController else { return }
-        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: root)
+        return scene?.keyWindow?.rootViewController
+    }
+
+    @MainActor
+    private static func topmostViewController() -> UIViewController? {
+        var controller = activeRootViewController()
+        while let presented = controller?.presentedViewController, !presented.isBeingDismissed {
+            controller = presented
+        }
+        return controller
     }
 }
 
@@ -143,4 +223,11 @@ extension PhotoPermissionState {
         @unknown default: self = .denied
         }
     }
+}
+
+extension Notification.Name {
+    /// Posted when the system limited-library picker closes, so screens that are
+    /// waiting on a widened selection can reload without depending on a debounced
+    /// PHPhotoLibraryChangeObserver delivery.
+    static let photoLibrarySelectionDidChange = Notification.Name("photoLibrarySelectionDidChange")
 }

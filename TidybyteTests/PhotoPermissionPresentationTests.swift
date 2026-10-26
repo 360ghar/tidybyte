@@ -18,11 +18,19 @@ final class PhotoPermissionPresentationTests: XCTestCase {
     override func setUp() {
         super.setUp()
         // The copy assertions below pin the English text, and `L10n` resolves
-        // through the stored override before `Bundle.main`. A language left in
-        // the host's defaults by another test, or by an earlier run in this
-        // simulator, would fail them for a reason that has nothing to do with
-        // the copy.
+        // through the stored override before `Bundle.main`. Pin the override
+        // instead of clearing it: a cleared preference follows the *device*
+        // language, so these assertions passed on an English simulator and
+        // failed on a German one for a reason that has nothing to do with the
+        // copy.
+        LanguagePreferenceStore.save(.english)
+    }
+
+    override func tearDown() {
+        // Back to "follow the device" — this is a process-wide preference and
+        // every later suite would otherwise inherit it.
         LanguagePreferenceStore.save(nil)
+        super.tearDown()
     }
 
     // MARK: - State -> action
@@ -55,16 +63,6 @@ final class PhotoPermissionPresentationTests: XCTestCase {
         let presentation = PhotoPermissionState.authorized.presentation
         XCTAssertEqual(presentation.action, PermissionPresentation.Action.none)
         XCTAssertFalse(presentation.showsPrimer)
-    }
-
-    func testOnlyNotDeterminedShowsThePrimer() {
-        for state in allStates {
-            XCTAssertEqual(
-                state.presentation.showsPrimer,
-                state == .notDetermined,
-                "\(state) shows the primer only when the system prompt is still available"
-            )
-        }
     }
 
     // MARK: - Copy

@@ -75,8 +75,14 @@ const english = {
   subtitle: 'Clean photos, free up storage',
   promotionalText: blockAfter('## 2. Promotional Text'),
   description: blockAfter('## 3. Description'),
-  keywords:
-    'duplicate,image compressor,compress video,screenshot,blurry,declutter,gallery,junk,similar',
+  // Read from §4, like the other three doc-backed fields: that section is where
+  // the shipped keyword field lives, and the script header says editing §1-§4
+  // and rerunning is the normal workflow. A hardcoded copy here was a second
+  // source of truth, so a §4 edit regenerated the *old* keywords and quietly
+  // reverted the doc — which is exactly the drift §4's rationale paragraph
+  // records. `blockAfter` returns the first fenced block under the heading,
+  // which §4 labels as the shipped set.
+  keywords: blockAfter('## 4. Keywords'),
   whatsNew: blockAfter('## 12. What'),
 };
 
@@ -170,7 +176,7 @@ const out = {
     'App Store Connect localizations for TidyByte. One entry per storefront language. The limits below are App Store Connect hard limits: a value over the limit is rejected at submission, so check-listings.mjs validates every field. The en entry is the source of truth; every other entry is a translation of it. name is the brand and stays TidyByte in every language.',
   _limits: LIMITS,
   _pendingDecision:
-    'The subtitle decision is CLOSED: option I, "Clean photos, free up storage" (29 chars), ships in all 21 locales. It replaced the earlier working default, option H "Photo cleaner, free space", because it is verb-forward and names the storage outcome rather than just space. The 20 localized values were rewritten for I (see scripts/localization/translations/_subtitle-change.mjs) and are machine-drafted: they carry each language previous phrasing forward with the verb-forward shift, but have not had a native review pass. The keywords field is tuned against the subtitle: Apple indexes name, subtitle and keywords together, so a word already in the subtitle must not repeat in keywords. Five keyword fields were re-derived when the subtitle changed - en, bn, de, ar, he. If the subtitle changes again, change every subtitle here and re-derive the keyword fields.',
+    'The subtitle decision is CLOSED: option I, "Clean photos, free up storage" (29 chars), ships in all 21 locales. It replaced the earlier working default, option H "Photo cleaner, free space", because it is verb-forward and names the storage outcome rather than just space. The 20 localized values were rewritten for I (see scripts/localization/translations/_subtitle-change.mjs) and are machine-drafted: they carry each language previous phrasing forward with the verb-forward shift, but have not had a native review pass. The keywords field is tuned against the subtitle: Apple indexes name, subtitle and keywords together, so a word already in the subtitle must not repeat in keywords. Five keyword fields were re-derived when the subtitle changed - en, bn, de, ar, he. If the subtitle changes again, change every subtitle here and re-derive the keyword fields. Separately, en.keywords was changed on 2026-10-26 to drop \'gallery\' for \'ai\' and \'cleaner\' (see docs/APP_STORE_LISTING.md section 4); the 20 translated keyword fields were left as they were, so this is the only field that differs from its translation source.',
   en,
   ...listings,
   ...Object.fromEntries(unexpected.map((key) => [key, existing[key]])),

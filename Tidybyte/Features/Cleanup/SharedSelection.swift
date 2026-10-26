@@ -14,9 +14,6 @@ struct SelectionState {
         self.ids = ids
     }
 
-    var count: Int { ids.count }
-    var isEmpty: Bool { ids.isEmpty }
-
     mutating func toggle(_ id: String) {
         ids.toggle(id)
     }
@@ -47,13 +44,5 @@ struct SelectionState {
         for asset in assets where asset.id != bestAssetId && !asset.isFavorite {
             ids.insert(asset.id)
         }
-    }
-
-    mutating func selectAll(_ allIds: Set<String>) {
-        ids = allIds
-    }
-
-    mutating func deselectAll() {
-        ids.removeAll()
     }
 }

@@ -535,14 +535,13 @@ const DISPLAY_PROPERTY_NAMES = new Set([
  * unexplained entry here is where a real missing translation hides. It is keyed
  * `file` + `property`, not by string, so it cannot silently swallow a literal
  * somewhere else.
+ *
+ * Currently empty. Its one entry was `AppLanguage.swift::englishName`, and the
+ * property stopped existing — an exemption keyed to a deleted property is dead
+ * config that would hide the next `englishName` written elsewhere. Add an entry
+ * only with the same standard of proof.
  */
 const DISPLAY_PROPERTY_EXEMPTIONS = new Set([
-  // The English name of a language, deliberately English. Used by tests, logs,
-  // and docs, and never drawn: the picker renders `endonym`, which is the
-  // language's own name and is correct untranslated in every locale. The
-  // `englishName` values are the labels under test, so localizing them would
-  // make the tests depend on the device language.
-  'Tidybyte/Shared/Localization/AppLanguage.swift::englishName',
 ]);
 
 /**

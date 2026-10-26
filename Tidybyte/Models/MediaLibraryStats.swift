@@ -25,13 +25,11 @@ struct MediaLibraryStats: Sendable {
     var largeFileBytes: Int64 = 0
     var screenshotUnknownSizeCount = 0
 
-    /// Videos strictly over 100 MB — the honest "video compression"
-    /// candidate set, matching what VideoCompression actually offers
-    /// (E9; replaces three write-only rollup fields).
-    var largeVideoCount: Int = 0
-
     /// Widget "N to clean" figure: every screenshot plus every large file that
     /// isn't already a screenshot (APP-12).
+    ///
+    /// The widget itself renders two separate rows rather than this total; the
+    /// figure exists for tests to pin the non-double-count rule.
     var toCleanCount: Int { screenshotCount + largeFileCount }
 
     /// Total estimated reclaimable, computed with the SAME disjoint priority
@@ -62,9 +60,6 @@ struct MediaLibraryStats: Sendable {
             case .video:
                 stats.videoBytes += size
                 stats.videoCount += 1
-                if size > ReclaimBucketer.largeVideoByteThreshold {
-                    stats.largeVideoCount += 1
-                }
             default:
                 stats.otherBytes += size
                 stats.otherCount += 1

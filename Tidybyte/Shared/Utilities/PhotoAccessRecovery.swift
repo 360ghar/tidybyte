@@ -1,0 +1,240 @@
+import SwiftUI
+import Photos
+
+/// Why a photo-library read came back empty.
+///
+/// Two very different situations produce zero assets, and the app used to draw
+/// the same "All Caught Up!" empty state for both (SWIPE-09):
+///
+/// - the filter genuinely ran out of photos, or
+/// - the app has access on paper but no photos to read.
+///
+/// The second one is what a fresh install with a stuck permission looks like:
+/// the Photos switch shows a value, `authorizationStatus(for: .readWrite)`
+/// returns `.limited` or `.authorized`, every fetch returns nothing, and the app
+/// blames the library. This type names that state so the UI can offer the two
+/// actions that actually recover it.
+enum PhotoLibraryEmptyReason: Equatable, Sendable {
+    /// Limited access with nothing shared. iOS shows a limited app only the
+    /// photos the user picked, so an empty selection reads as an empty library.
+    case limitedNoSelection
+
+    /// iOS reports full access and the library still returns nothing.
+    ///
+    /// The app cannot tell the two causes apart from here: a brand-new device
+    /// with no photos looks exactly like a stuck permission. So the copy must be
+    /// true in both — it states the fact (full access, zero assets) and points at
+    /// the Photos app to decide which case this is.
+    case accessReturnedNothing
+
+    /// The reason an empty deck should be explained by access, or `nil` when it
+    /// must not be.
+    ///
+    /// - Parameter totalAssetCount: how many assets the app can see, unfiltered.
+    ///   Any non-zero count means the deck is empty because of the filter, which
+    ///   is the existing "All Caught Up!" copy.
+    static func resolve(status: PhotoPermissionState, totalAssetCount: Int) -> PhotoLibraryEmptyReason? {
+        guard totalAssetCount == 0 else { return nil }
+        switch status {
+        case .limited: return .limitedNoSelection
+        case .authorized: return .accessReturnedNothing
+        // No access at all is the permission gate's job, not an empty-state
+        // explanation — it has its own screen and its own ask.
+        case .notDetermined, .denied, .restricted: return nil
+        }
+    }
+
+    var recovery: PhotoRecoveryPresentation {
+        switch self {
+        case .limitedNoSelection: .limitedNoSelection
+        case .accessReturnedNothing: .accessReturnedNothing
+        }
+    }
+}
+
+/// Why an album list came back empty.
+///
+/// Separate from `PhotoLibraryEmptyReason` because limited access splits into
+/// two different answers, and only the census tells them apart. Under limited
+/// access iOS hides *user* albums entirely — they cannot be fetched or created —
+/// but *smart* albums stay fetchable, filtered to the shared selection (WWDC20,
+/// "Handle the Limited Photos Library"). So:
+///
+/// - nothing shared → both lists are empty, and sharing photos fixes it;
+/// - photos shared, list still empty → the user albums are the missing part, and
+///   only Full Access brings them back. Two sheets reach that answer:
+///   - the smart-album-inclusive list (the Swipe tab's filter) gets it when no
+///     shared photo landed in any smart album, so those contributed nothing;
+///   - the "Add to Album" sheet passes `editableOnly: true` and never fetches
+///     smart albums at all, so under limited access its list is empty by
+///     construction whenever photos are visible.
+///   In both cases "share more photos" would be a lie: the user is looking at a
+///   shared photo while being told nothing is shared.
+enum AlbumListEmptyReason: Equatable, Sendable {
+    /// Limited access with nothing shared. Smart albums exist but contain no
+    /// visible assets, and user albums are unavailable, so the list is empty.
+    case limitedNoSelection
+
+    /// Limited access with photos visible, but no user albums to list. Reached
+    /// either because no smart album contains a shared photo, or because the
+    /// sheet asked for editable albums only — the user albums the app can file
+    /// into, and no smart album. What is missing in both is the user albums an
+    /// app may only read, create, and file into with full access.
+    case limitedCannotUseAlbums
+
+    /// Full access and no assets at all — the same device-side permission
+    /// problem the deck reports.
+    case accessReturnedNothing
+
+    static func resolve(status: PhotoPermissionState, totalAssetCount: Int) -> AlbumListEmptyReason? {
+        switch status {
+        case .limited: return totalAssetCount == 0 ? .limitedNoSelection : .limitedCannotUseAlbums
+        case .authorized: return totalAssetCount == 0 ? .accessReturnedNothing : nil
+        case .notDetermined, .denied, .restricted: return nil
+        }
+    }
+
+    var recovery: PhotoRecoveryPresentation {
+        switch self {
+        case .limitedNoSelection: .limitedAlbums
+        case .limitedCannotUseAlbums: .limitedAlbumsNeedFullAccess
+        case .accessReturnedNothing: .accessReturnedNothing
+        }
+    }
+}
+
+/// One album fetch plus the census that explains an empty result, shared by both
+/// album sheets so the rule cannot drift between them.
+///
+/// The sheets differ in exactly one thing: `editableOnly`. "Add to Album" needs
+/// albums it can file into; the Swipe tab's filter can browse smart albums too.
+/// Each used to carry its own copy of this, identical apart from that flag.
+enum AlbumSheetLoader {
+    static func load(
+        photoService: PhotoLibraryService,
+        editableOnly: Bool
+    ) async -> (albums: [AlbumInfo], emptyReason: AlbumListEmptyReason?) {
+        await load(
+            fetchAlbums: { await photoService.fetchUserAlbums(editableOnly: editableOnly) },
+            census: { await photoService.totalAssetCount() },
+            authorizationStatus: { PHPhotoLibrary.authorizationStatus(for: .readWrite) }
+        )
+    }
+
+    /// The seam this rule is tested through: a photo library cannot run in a
+    /// unit test, but the one decision the type makes — ask for a census only
+    /// when the list is empty, because on a non-empty list the reason can never
+    /// change what is drawn — can.
+    static func load(
+        fetchAlbums: () async -> [AlbumInfo],
+        census: () async -> Int,
+        authorizationStatus: () -> PHAuthorizationStatus
+    ) async -> (albums: [AlbumInfo], emptyReason: AlbumListEmptyReason?) {
+        let albums = await fetchAlbums()
+        guard albums.isEmpty else { return (albums, nil) }
+        let reason = AlbumListEmptyReason.resolve(
+            status: PhotoPermissionState(authorizationStatus: authorizationStatus()),
+            totalAssetCount: await census()
+        )
+        return (albums, reason)
+    }
+}
+
+/// What the recovery card draws: a title, an explanation, optional numbered
+/// steps, and the actions that can fix it.
+///
+/// Every field holds a **catalog key** — the English text, which is the key the
+/// String Catalog is built from — not a resolved translation. The card hands
+/// each one to `Text` as a `LocalizedStringKey`, so SwiftUI resolves it against
+/// the live `\.locale` and a language change re-renders the copy. Resolving here
+/// instead would defeat that: `L10n.string` returns the translated text, which
+/// is not a catalog key in any language but English, so looking it up again is a
+/// no-op and the card would freeze at the language it was built in.
+///
+/// `L10n.key` is the call site that says "this literal is a key"; `extract.mjs`
+/// collects catalog keys from it, which is why the literals go through it rather
+/// than being plain strings here.
+///
+/// Stored as `String` rather than `LocalizedStringKey` because this type is
+/// `Equatable` and compared in tests. That is safe now only because the value is
+/// the key: the type has no language input, so two instances built in different
+/// languages are still equal.
+///
+/// Computed properties, not `static let` — the card is rebuilt per body, and a
+/// static would outlive a language switch (see `L10n`).
+struct PhotoRecoveryPresentation: Equatable {
+    enum Action: Equatable { case addPhotos, openSettings, retry }
+
+    /// A catalog key, not translated text. See the type's doc comment.
+    let title: String
+    /// A catalog key, not translated text.
+    let message: String
+    /// Numbered recovery steps, in order, as catalog keys. Empty when the copy
+    /// needs none.
+    let steps: [String]
+    /// Offered in order; the first is drawn as the primary button.
+    let actions: [Action]
+
+    // MARK: - Copy
+
+    static var limitedNoSelection: PhotoRecoveryPresentation {
+        PhotoRecoveryPresentation(
+            title: L10n.key("No Photos Shared Yet"),
+            message: L10n.key("TidyByte has permission to see some of your photos, but none are shared with it right now, so there is nothing to review. Pick the photos it can see, or switch it to Full Access in Settings."),
+            steps: [],
+            // `.retry` is here because the picker's reload normally rides on a
+            // debounced change notification; if that is missed, this is the only
+            // way back without relaunching the app.
+            actions: [.addPhotos, .openSettings, .retry]
+        )
+    }
+
+    static var accessReturnedNothing: PhotoRecoveryPresentation {
+        PhotoRecoveryPresentation(
+            title: L10n.key("No Photos Found"),
+            message: L10n.key("TidyByte has full photo access, but the library returned no photos. If the Photos app on this iPhone shows photos, that is a permissions problem, and the steps below reset it."),
+            steps: [
+                L10n.key("Open the Photos app and check that your photos are still there."),
+                L10n.key("In Settings, turn TidyByte's Photos access off, then on again, and choose Full Access."),
+                L10n.key("Come back here and tap Try Again.")
+            ],
+            actions: [.openSettings, .retry]
+        )
+    }
+
+    static var limitedAlbums: PhotoRecoveryPresentation {
+        PhotoRecoveryPresentation(
+            title: L10n.key("No Albums Yet"),
+            message: L10n.key("TidyByte has access to some of your photos, but none are shared with it yet, so there are no albums to list. Pick the photos it can see, or switch it to Full Access in Settings."),
+            steps: [],
+            actions: [.addPhotos, .openSettings]
+        )
+    }
+
+    /// Limited access with photos visible: the user albums are the missing part,
+    /// and sharing more photos cannot bring them back. Only Full Access can, so
+    /// this card offers that alone rather than a re-read or a picker that would
+    /// change nothing.
+    static var limitedAlbumsNeedFullAccess: PhotoRecoveryPresentation {
+        PhotoRecoveryPresentation(
+            title: L10n.key("Albums Need Full Access"),
+            message: L10n.key("TidyByte can see your photos, but not your albums. With limited access, iOS does not let an app read or create albums, so choose Full Access in Settings to file photos into an album."),
+            steps: [],
+            actions: [.openSettings]
+        )
+    }
+}
+
+extension PhotoRecoveryPresentation.Action {
+    /// Button copy, as a catalog key: resolved where it is drawn so it follows
+    /// the live `\.locale`. Defined here rather than in the view for the same
+    /// reason every other string on this card is: one set of words for one
+    /// action, whichever screen offers it.
+    var title: String {
+        switch self {
+        case .addPhotos: L10n.key("Add More Photos")
+        case .openSettings: L10n.key("Open Settings")
+        case .retry: L10n.key("Try Again")
+        }
+    }
+}

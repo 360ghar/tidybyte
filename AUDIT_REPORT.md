@@ -23,7 +23,7 @@ Each story: trigger → expected behavior → verdict. Full traces were produced
 | US-S1 | Swipe | Home offers 4 filters + default-filter hero; tap pushes a fresh session route | VERIFIED |
 | US-S2 | Swipe | Specific Album picker loads albums, defers push until sheet fully dismissed | VERIFIED |
 | US-S3 | Swipe | Storage bucket deep-link → pendingSwipeFilter → session; one-shot consume; >500 IDs logged | VERIFIED (silent mid-session interruption, SWIPE-11) |
-| US-S4 | Swipe | Session loads assets + prefetch(10), shows spinner, empty state incl. "all swiped" | VERIFIED (no fetch-error state, SWIPE-09) |
+| US-S4 | Swipe | Session loads assets + prefetch(10), shows spinner, empty state incl. "all swiped" | VERIFIED (SWIPE-09 fixed: an access-empty deck now explains itself) |
 | US-S5 | Swipe | 3-card stack, drag thresholds, rotation, haptics, accessibility actions | VERIFIED (double-swipe race, SWIPE-05) |
 | US-S6 | Swipe | Keep/Delete/Add-to-album/Skip; deletions deferred until commit; full LIFO undo incl. album removal | VERIFIED |
 | US-S7 | Swipe | Completion: stats, Confirm/Skip deletion, retry; commit via one performChanges | VERIFIED (exit buttons bypass confirm, SWIPE-02) |
@@ -103,7 +103,7 @@ Each story: trigger → expected behavior → verdict. Full traces were produced
 | SWIPE-06 | LOGIC | undo() allowed while album picker presented → deck rewinds under sheet | SwipeSessionViewModel.swift:238-276 |
 | SWIPE-07 | UX | Video cards show poster only; no playback affordance while swiping | CardView.swift:22-30 |
 | SWIPE-08 | LOGIC | "Storage Freed" overstates when assets vanished externally before commit | SwipeSessionViewModel.swift:278-291 |
-| SWIPE-09 | UX | Fetch failure surfaces as "All Caught Up!" (fetchAssets can't throw) | SwipeSessionView.swift:318-357 |
+| SWIPE-09 | UX | Fetch failure surfaces as "All Caught Up!" (fetchAssets can't throw) — FIXED: an empty deck is now resolved against `totalAssetCount()`; limited-with-nothing-shared and authorized-but-empty get `PhotoRecoveryCard` with recovery actions (numbered steps are supplied only for authorized-but-empty access), both album pickers included | Tidybyte/Features/Swipe/SwipeSessionView.swift:359-372,410-418; Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift:36-45,89-102,160-236 |
 | SWIPE-10 | LOGIC | SwipeFilter.id uses Set.hashValue (per-process randomized identity) | SwipeHomeView.swift:257 |
 
 ### Duplicates & Similar

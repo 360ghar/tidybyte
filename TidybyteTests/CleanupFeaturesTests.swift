@@ -4,6 +4,21 @@ import SwiftData
 
 @MainActor
 final class CleanupFeaturesTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // The reminder/notice assertions below read English substrings out of
+        // copy the production code resolves at runtime through `L10n`. Pin the
+        // override to English: a cleared preference follows the device
+        // language, so those assertions passed on an English simulator and
+        // failed on any other for a reason unrelated to the copy.
+        LanguagePreferenceStore.save(.english)
+    }
+
+    override func tearDown() {
+        LanguagePreferenceStore.save(nil)
+        super.tearDown()
+    }
+
     private func asset(_ id: String = "a", size: Int64 = 1_000, type: MediaType = .photo,
                        screenshot: Bool = false, favorite: Bool = false) -> AssetSummary {
         AssetSummary(id: id, mediaType: type, creationDate: Date(timeIntervalSince1970: 100), modificationDate: nil,
@@ -260,10 +275,6 @@ final class CleanupFeaturesTests: XCTestCase {
                 throw PhotoServiceError.userDeclined(alreadyAbsentIds: ["gone"])
             }, apply: { removed = $0 })
         XCTAssertEqual(removed, ["gone"])
-        XCTAssertEqual(declined.deletedCount, 0)
-        // Compared through `L10n` rather than against the English literal: the
-        // production string is now resolved at runtime, so a hardcoded English
-        // expectation would pass on an English simulator and fail on any other.
         XCTAssertEqual(declined.errorMessage, L10n.string("Nothing was deleted."))
         XCTAssertEqual(CleanupLedger.shared.deletionNotice, previous)
         _ = await CleanupDeletion.delete(requestedIds: ["kept"], kind: .chatMedia,

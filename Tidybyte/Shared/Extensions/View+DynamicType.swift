@@ -7,8 +7,8 @@ import SwiftUI
 ///
 /// Text should use semantic fonts (`.headline`, `.body`, …) and scales for
 /// free. These values exist for *control geometry* — the circular swipe action
-/// buttons, tool icon tiles, and empty-state glyphs — which are drawn at a
-/// fixed size and would otherwise stay tiny at accessibility text sizes.
+/// buttons and empty-state glyphs — which are drawn at a fixed size and would
+/// otherwise stay tiny at accessibility text sizes.
 enum ScaledSize {
     /// Swipe session primary actions (delete / keep).
     static let actionButton: CGFloat = 60
@@ -16,24 +16,12 @@ enum ScaledSize {
     /// Swipe session secondary actions (skip / add to album).
     static let secondaryActionButton: CGFloat = 48
 
-    /// Tool icon tile on the swipe home and cleanup home cards.
-    static let toolIconTile: CGFloat = 48
-
-    /// Icon inside a tool card's 44pt badge.
-    static let toolCardIcon: CGFloat = 44
-
     /// Empty-state and idle-state glyph.
     static let stateGlyph: CGFloat = 72
-
-    /// Glow circle drawn behind a state glyph.
-    static let stateHalo: CGFloat = 160
 
     /// Session-complete celebration glyph. Larger than the state glyph because
     /// it is the screen's single focal point rather than one row among many.
     static let celebrationGlyph: CGFloat = 80
-
-    /// Glow circle drawn behind the celebration glyph.
-    static let celebrationHalo: CGFloat = 140
 
     /// Video play affordance centered on the top swipe card. Smaller than the
     /// state glyph because it floats over the photo itself and must not cover it.

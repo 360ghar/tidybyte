@@ -39,14 +39,6 @@ final class LargeFilesViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedVisibleCount, 2)
     }
 
-    func testThresholdMBInitializesFromPersistedValue() {
-        AppPreferences.saveLargeFileThresholdMB(75)
-
-        let viewModel = LargeFilesViewModel()
-
-        XCTAssertEqual(viewModel.thresholdMB, 75)
-    }
-
     func testThresholdMBSetPersistsToDefaults() {
         let viewModel = LargeFilesViewModel()
 

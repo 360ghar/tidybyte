@@ -170,13 +170,20 @@ final class VideoCompressionViewModel {
         errorMessage = nil
         isDeleting = true
         defer { isDeleting = false }
-        do {
-            try await photoService.deleteAssets(identifiers: [id])
-            videos.removeAll { $0.id == id }
-            selectedIds.remove(id)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        // Same shared pipeline as every other cleanup tool's delete: one ledger
+        // row for what really left the library, and a partial failure reconciled
+        // instead of silently swallowed.
+        let size = videos.first(where: { $0.id == id })?.asset.fileSize ?? 0
+        let outcome = await CleanupDeletion.delete(
+            requestedIds: [id],
+            kind: .videoCompression,
+            sizeById: [id: size],
+            apply: { removed in
+                videos.removeAll { removed.contains($0.id) }
+                selectedIds.subtract(removed)
+            }
+        )
+        errorMessage = outcome.errorMessage
         return !videos.contains(where: { $0.id == id })
     }
 
@@ -443,7 +450,10 @@ final class VideoCompressionViewModel {
         // COMP-04: remove only successfully compressed (and deleted) items;
         // skipped ones stay so the user can see why they were left alone.
         videos.removeAll { successfulIds.contains($0.id) }
-        selectedIds.subtract(successfulIds)
+        // An id whose row vanished has nothing left to select, and leaving it in
+        // the set made the toolbar claim more selected items than the list shows
+        // and retried it on every batch.
+        selectedIds.subtract(successfulIds.union(result.idsWithoutRow))
         keptOriginals = result.kept
         isCompressing = false
         batchSummary = CompressionBatchSummary(

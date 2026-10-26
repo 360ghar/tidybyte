@@ -336,6 +336,10 @@
       "file": "Tidybyte/Features/Cleanup/MediaCleanerView.swift"
     },
     {
+      "key": "Albums Need Full Access",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
+    },
+    {
       "key": "All",
       "file": "Tidybyte/Features/Cleanup/Duplicates/DuplicateFinderViewModel.swift"
     },
@@ -573,6 +577,10 @@
     {
       "key": "Close preview",
       "file": "Tidybyte/Features/Cleanup/LivePhotos/LivePhotoPreviewView.swift"
+    },
+    {
+      "key": "Come back here and tap Try Again.",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
     },
     {
       "key": "Compare",
@@ -1121,6 +1129,10 @@
       "file": "Tidybyte/Features/Swipe/SwipeCardDeck.swift"
     },
     {
+      "key": "In Settings, turn TidyByte's Photos access off, then on again, and choose Full Access.",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
+    },
+    {
       "key": "Invalid image data.",
       "file": "Tidybyte/Features/Cleanup/LivePhotos/LivePhotosConverterViewModel.swift"
     },
@@ -1411,6 +1423,10 @@
       "file": "Tidybyte/Features/Cleanup/MediaCleanerView.swift"
     },
     {
+      "key": "No Albums Yet",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
+    },
+    {
       "key": "No change %@",
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
@@ -1437,6 +1453,14 @@
     {
       "key": "No photo is waiting to be filed. Dismiss and try again.",
       "file": "Tidybyte/Features/Swipe/SwipeSessionViewModel.swift"
+    },
+    {
+      "key": "No Photos Found",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
+    },
+    {
+      "key": "No Photos Shared Yet",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
     },
     {
       "key": "No savings",
@@ -1537,6 +1561,10 @@
     {
       "key": "Open Settings",
       "file": "Tidybyte/Features/Settings/SettingsView.swift"
+    },
+    {
+      "key": "Open the Photos app and check that your photos are still there.",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
     },
     {
       "key": "Open TidyByte to refresh",
@@ -1943,7 +1971,7 @@
     },
     {
       "key": "Share TidyByte",
-      "file": "Tidybyte/Shared/Components/HappyPathPromptCard.swift"
+      "file": "Tidybyte/Features/Swipe/SessionCompletionView.swift"
     },
     {
       "key": "Share with Friends",
@@ -2247,6 +2275,10 @@
       "file": "Tidybyte/Shared/Utilities/PhotoPermissionHandler.swift"
     },
     {
+      "key": "TidyByte can see your photos, but not your albums. With limited access, iOS does not let an app read or create albums, so choose Full Access in Settings to file photos into an album.",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
+    },
+    {
       "key": "TidyByte can't list single apps. iOS keeps that private. Manage it in Settings.",
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     },
@@ -2255,12 +2287,24 @@
       "file": "Tidybyte/App/TidybyteApp.swift"
     },
     {
+      "key": "TidyByte has access to some of your photos, but none are shared with it yet, so there are no albums to list. Pick the photos it can see, or switch it to Full Access in Settings.",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
+    },
+    {
+      "key": "TidyByte has full photo access, but the library returned no photos. If the Photos app on this iPhone shows photos, that is a permissions problem, and the steps below reset it.",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
+    },
+    {
       "key": "TidyByte has no account and no servers. Every scan, comparison, and analysis runs right here on this device.",
       "file": "Tidybyte/Features/Onboarding/OnboardingView.swift"
     },
     {
       "key": "TidyByte has no account and no servers. Your photos and activity never leave your device.",
       "file": "Tidybyte/Features/Settings/SettingsView.swift"
+    },
+    {
+      "key": "TidyByte has permission to see some of your photos, but none are shared with it right now, so there is nothing to review. Pick the photos it can see, or switch it to Full Access in Settings.",
+      "file": "Tidybyte/Shared/Utilities/PhotoAccessRecovery.swift"
     },
     {
       "key": "TidyByte is built only with Apple frameworks. It includes no third-party code.",
@@ -2491,5 +2535,5 @@
       "file": "Tidybyte/Features/Storage/StorageDashboardView.swift"
     }
   ],
-  "total": 615
+  "total": 626
 }

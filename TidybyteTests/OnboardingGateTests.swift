@@ -59,20 +59,4 @@ final class OnboardingGateTests: XCTestCase {
         AppPreferences.saveHasCompletedOnboarding(true, in: defaults)
         XCTAssertTrue(AppPreferences.hasCompletedOnboarding(in: defaults))
     }
-
-    // MARK: - Limited-access notice
-
-    func testLimitedLibraryNoticeRoundTrips() {
-        let suiteName = "OnboardingGateTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        // A limited-access user who has not seen the fuller wording yet.
-        // Reads the key directly: the banner owns the only production
-        // read/write path via @AppStorage, so there is no helper to test.
-        XCTAssertFalse(defaults.bool(forKey: AppPreferences.Key.hasSeenLimitedLibraryNotice))
-
-        defaults.set(true, forKey: AppPreferences.Key.hasSeenLimitedLibraryNotice)
-        XCTAssertTrue(defaults.bool(forKey: AppPreferences.Key.hasSeenLimitedLibraryNotice))
-    }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import Charts
 
 /// Lifetime cleanup history: what was freed, when, and by which tool.
@@ -8,8 +9,11 @@ import Charts
 struct ActivityView: View {
     @State private var viewModel = ActivityViewModel()
     @Environment(\.modelContext) private var modelContext
-    @Environment(AppNavigation.self) private var appNavigation
     @Environment(LibraryChangeMonitor.self) private var libraryMonitor
+    /// Read by the formatted values below: the environment is what makes this
+    /// row re-render on a language change. `Formatters` resolves against
+    /// `Locale.current` on its own, which never changes.
+    @Environment(\.locale) private var locale
 
     var body: some View {
         ScrollView {
@@ -257,7 +261,7 @@ struct ActivityView: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(LocalizedStringKey(event.kind.title))
                     .font(.subheadline)
-                Text(event.date.formatted(date: .abbreviated, time: .shortened))
+                Text(Formatters.dateTime(event.date, in: locale))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
