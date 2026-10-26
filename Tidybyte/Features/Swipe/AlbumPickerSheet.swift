@@ -25,6 +25,9 @@ struct AlbumPickerSheet: View {
     /// reachable even when photos ARE visible: the missing piece is the user
     /// albums, and only Full Access can restore them.
     @State private var emptyReason: AlbumListEmptyReason?
+    /// Bumped by every `loadAlbums()`, so a slow load that started earlier can
+    /// tell it has been superseded and drop its result.
+    @State private var loadToken = 0
     @Environment(\.dismiss) private var dismiss
     /// Drives the reload on a library change. The sheet is presented from inside
     /// the app's hierarchy, so it inherits this monitor; reading `generation` in
@@ -261,13 +264,26 @@ struct AlbumPickerSheet: View {
 
     /// One fetch + one census, shared by the initial load, the card's Try Again,
     /// the pull-to-refresh, and the automatic reloads.
+    ///
+    /// Superseded loads are dropped rather than published. Three triggers can
+    /// overlap: the generation task, `didBecomeActive`, and the picker's
+    /// completion notification. Cancelling the generation task does not cancel an
+    /// await already in flight, so without the token the *completion order*
+    /// decides what the sheet shows — and a census that started before access was
+    /// fixed can land last and restore the recovery card over a list that now has
+    /// albums in it. Same shape as `SwipeSessionViewModel.loadGeneration`.
     private func loadAlbums() async {
         // Only the first load gets the full-screen spinner: `isLoading` starts
         // `true` and is cleared below, and nothing re-arms it. Re-arming it on
         // "the list is empty" would blank a genuinely empty sheet on every
         // reload — hiding the New Album button behind "Loading albums…" — and
         // `.refreshable` already shows its own system spinner.
+        loadToken += 1
+        let token = loadToken
         let loaded = await AlbumSheetLoader.load(photoService: photoService, editableOnly: true)
+        // A newer load owns the state now; this result is stale whether it is
+        // older or merely slower.
+        guard token == loadToken else { return }
         albums = loaded.albums
         emptyReason = loaded.emptyReason
         isLoading = false

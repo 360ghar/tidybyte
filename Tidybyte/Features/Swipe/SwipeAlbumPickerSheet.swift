@@ -25,6 +25,9 @@ struct SwipeAlbumPickerSheet: View {
     /// still empty the reason resolves by census: nothing shared at all, or —
     /// if the visible photos contributed nothing — the missing user albums.
     @State private var emptyReason: AlbumListEmptyReason?
+    /// Bumped by every `loadAlbums()`, so a slow load that started earlier can
+    /// tell it has been superseded and drop its result.
+    @State private var loadToken = 0
     @Environment(\.dismiss) private var dismiss
     /// Drives the reload on a library change. The sheet is presented from inside
     /// the app's hierarchy, so it inherits this monitor; reading `generation` in
@@ -107,12 +110,20 @@ struct SwipeAlbumPickerSheet: View {
 
     /// One fetch + one census, shared by the initial load, the card's Try Again,
     /// and the two automatic reloads.
+    ///
+    /// Superseded loads are dropped rather than published, for the reason spelled
+    /// out on `AlbumPickerSheet.loadAlbums()`: three triggers can overlap, and
+    /// cancelling the generation task does not cancel an await already in flight,
+    /// so a stale census can otherwise land last and win.
     private func loadAlbums() async {
         // Only the first load gets the full-screen spinner: `isLoading` starts
         // `true` and is cleared below, and nothing re-arms it. Re-arming it on
         // "the list is empty" would blank the empty state ("No Albums") on every
         // foreground, which is the state this sheet exists to show.
+        loadToken += 1
+        let token = loadToken
         let loaded = await AlbumSheetLoader.load(photoService: photoService, editableOnly: false)
+        guard token == loadToken else { return }
         albums = loaded.albums
         emptyReason = loaded.emptyReason
         isLoading = false
