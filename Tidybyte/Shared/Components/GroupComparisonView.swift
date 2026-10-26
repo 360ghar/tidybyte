@@ -132,6 +132,11 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
         self.extraDetail = extraDetail
     }
 
+    /// Read by the formatted values below: the environment is what makes this
+    /// row re-render on a language change. `Formatters` resolves against
+    /// `Locale.current` on its own, which never changes.
+    @Environment(\.locale) private var locale
+
     var body: some View {
         VStack(spacing: 0) {
             // Paged image viewer
@@ -260,10 +265,10 @@ struct GroupComparisonView<G: ComparisonGroup, Detail: View>: View {
                 MetadataRow(label: "Resolution", value: asset.resolution)
                 MetadataRow(label: "File Size", value: asset.displaySize)
                 if let date = asset.creationDate {
-                    MetadataRow(label: "Date", value: Formatters.dateTime(date))
+                    MetadataRow(label: "Date", value: Formatters.dateTime(date, in: locale))
                 }
                 if let names = albumNames[asset.id], !names.isEmpty {
-                    MetadataRow(label: "Albums", value: Formatters.list(names))
+                    MetadataRow(label: "Albums", value: Formatters.list(names, in: locale))
                 } else {
                     MetadataRow(label: "Albums", value: L10n.string("None"))
                 }

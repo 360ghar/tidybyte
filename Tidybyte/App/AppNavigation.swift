@@ -87,7 +87,13 @@ final class AppNavigation {
     /// Programmatic switches (deep links, App Intents) go through `handle` or
     /// the `show…` methods instead, where parking is the whole point.
     func selectTabManually(_ tab: AppTab) {
+        // Both parked channels, not just the deep link. `showSwipeSession(filter:)`
+        // parks its filter in its own one-shot channel, and `SwipeHomeView`
+        // consumes that on the next appearance — so leaving it queued means the
+        // user's deliberate tab tap is followed, minutes later, by a session
+        // starting on a filter they never chose.
         deferredLink = nil
+        pendingSwipeFilter = nil
         selectedTab = tab
     }
 
@@ -116,6 +122,15 @@ final class AppNavigation {
     private func parkIfSessionHasPendingDeletions(_ link: DeepLink) -> Bool {
         if let session = activeSwipeSession, session.hasPendingDeletions {
             deferredLink = link
+            // The review is presented by the session view, and a session started
+            // from a cleanup tool lives on the Cleanup tab. Parking without
+            // switching left a widget or intent tap on the Storage tab looking
+            // like a no-op: the request was recorded, the review was requested,
+            // and neither was on screen. `showSwipeSession(filter:)` already
+            // switches for the same reason when it parks a queued filter.
+            if let tab = activeSwipeSessionTab {
+                selectedTab = tab
+            }
             session.requestDeletionReview()
             return true
         }

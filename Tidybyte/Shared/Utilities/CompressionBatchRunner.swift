@@ -205,6 +205,11 @@ enum CompressionBatchRunner {
         /// tapped "Don't Allow", or the delete failed). The view offers
         /// Try Again / Remove Copies for these.
         var kept: [PendingOriginal]
+        /// Selected ids whose row no longer exists. They are counted as skipped
+        /// here, and returned so the caller can drop them from the selection: a
+        /// phantom selection leaves the toolbar reading "N selected" with fewer
+        /// than N rows, and every later batch retries an id that cannot resolve.
+        var idsWithoutRow: Set<String> = []
     }
 
     // Runs the per-item loop. `execute` creates its CompressionSwap (it alone
@@ -224,6 +229,7 @@ enum CompressionBatchRunner {
         let orderedIds = sortedBatchIds(selected: selected, fileSizes: fileSizes)
         var saved: [PendingOriginal] = []
         var failed = 0, skipped = 0
+        var idsWithoutRow: Set<String> = []
         for (offset, id) in orderedIds.enumerated() {
             if offset % 20 == 0 { await Task.yield() }
             if isCancelled() { break }
@@ -231,9 +237,11 @@ enum CompressionBatchRunner {
             // A selected id with no row index cannot be reported through
             // `setState`, but it must still land in the tally. Skipping it
             // outright left completed + failed + skipped short of `selected`,
-            // so the run summary under-reported what actually happened.
+            // so the run summary under-reported what actually happened. It is
+            // also reported back so the caller can drop it from the selection.
             guard let index = indexById[id] else {
                 skipped += 1
+                idsWithoutRow.insert(id)
                 continue
             }
             if alreadyCompletedIds.contains(id) {
@@ -299,7 +307,8 @@ enum CompressionBatchRunner {
                 skipped: skipped,
                 cancelled: isCancelled()
             ),
-            kept: kept
+            kept: kept,
+            idsWithoutRow: idsWithoutRow
         )
     }
 }

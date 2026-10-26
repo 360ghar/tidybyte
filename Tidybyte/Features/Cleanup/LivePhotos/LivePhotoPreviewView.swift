@@ -21,6 +21,10 @@ struct LivePhotoPreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    /// Read by the formatted values below: the environment is what makes this
+    /// row re-render on a language change. `Formatters` resolves against
+    /// `Locale.current` on its own, which never changes.
+    @Environment(\.locale) private var locale
     @State private var currentIndex: Int
     @State private var showDeleteConfirm = false
     @State private var showConvertExplainer = false
@@ -214,7 +218,7 @@ struct LivePhotoPreviewView: View {
     private func metadataCard(for item: LivePhotoItem) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             if let date = item.asset.creationDate {
-                Text(Formatters.dateTime(date))
+                Text(Formatters.dateTime(date, in: locale))
                     .font(.subheadline)
                     .foregroundStyle(.white)
             }
@@ -226,7 +230,7 @@ struct LivePhotoPreviewView: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
                 if let names = viewModel.albumNamesByAsset[item.id], !names.isEmpty {
-                    Label(Formatters.list(names), systemImage: "rectangle.stack")
+                    Label(Formatters.list(names, in: locale), systemImage: "rectangle.stack")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.7))
                         .lineLimit(1)

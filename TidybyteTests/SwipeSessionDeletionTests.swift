@@ -40,10 +40,39 @@ final class SwipeSessionDeletionTests: XCTestCase {
         vm.swipeLeft()
 
         XCTAssertEqual(vm.pendingDeletionIds, ["asset-0"])
+        // Both byte tallies, not just the count: "Storage Freed" on the
+        // completion screen and the lifetime total are built from these, so a
+        // regression that drops the size still deletes correctly and still
+        // under-reports what it saved.
+        XCTAssertEqual(vm.pendingDeletionBytes, 8_000_000, "The pending size is what the commit will report")
         XCTAssertEqual(vm.sessionStats.deletedCount, 1)
+        XCTAssertEqual(vm.sessionStats.deletedBytes, 8_000_000)
         XCTAssertEqual(vm.currentIndex, 1)
+        // The undo history is the only way back from a mis-swipe, so its
+        // contents are asserted, not just its existence.
+        XCTAssertEqual(vm.undoStack.count, 1)
+        XCTAssertEqual(vm.undoStack.last?.decision, .deleted)
+        XCTAssertEqual(vm.undoStack.last?.asset.id, "asset-0")
         // The crux of the silent-hiding fix: nothing persisted until commit.
         XCTAssertEqual(try swipeRecordCount(), 0)
+    }
+
+    /// Accumulation across several swipes, which is the state a commit actually
+    /// reads: one entry per swipe, sizes summed, and the deck advanced by one
+    /// each time.
+    func testSwipeLeftAccumulatesPendingIdsBytesAndUndoHistory() throws {
+        let vm = try makeViewModel()
+
+        vm.swipeLeft()
+        vm.swipeLeft()
+
+        XCTAssertEqual(vm.pendingDeletionIds, ["asset-0", "asset-1"])
+        XCTAssertEqual(vm.pendingDeletionBytes, 16_000_000, "Two 8 MB photos are 16 MB pending")
+        XCTAssertEqual(vm.sessionStats.deletedCount, 2)
+        XCTAssertEqual(vm.sessionStats.deletedBytes, 16_000_000)
+        XCTAssertEqual(vm.currentIndex, 2)
+        XCTAssertEqual(vm.undoStack.count, 2, "One undo entry per swipe")
+        XCTAssertEqual(vm.undoStack.map(\.decision), [.deleted, .deleted])
     }
 
     func testKeepAfterMarkRemovesPendingDeletion() throws {
@@ -160,9 +189,13 @@ final class SwipeSessionDeletionTests: XCTestCase {
         await vm.undo()
 
         XCTAssertTrue(vm.pendingDeletionIds.isEmpty)
+        XCTAssertEqual(vm.pendingDeletionBytes, 0)
         XCTAssertEqual(vm.sessionStats.deletedCount, 0)
         XCTAssertEqual(vm.sessionStats.deletedBytes, 0)
         XCTAssertEqual(vm.currentIndex, 0)
+        // The entry is consumed, not merely ignored: leaving it would let a
+        // second undo rewind a card the user already moved past.
+        XCTAssertTrue(vm.undoStack.isEmpty)
         XCTAssertEqual(try swipeRecordCount(), 0)
     }
 

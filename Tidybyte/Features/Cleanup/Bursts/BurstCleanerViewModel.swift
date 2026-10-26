@@ -352,7 +352,13 @@ final class BurstCleanerViewModel {
                     for asset in remaining { selectedForDeletion.remove(asset.id) }
                     manuallySetBest.remove(groupId)
                     groups.remove(at: index)
-                    statusMessage = Self.collapseNotice(burstCount: remaining.count)
+                    // Nil-preserving, like `applyPostDeleteState`: an empty
+                    // remainder is a group that simply went away and claims
+                    // nothing, so it must not clear a collapse notice an earlier
+                    // frame in the same batch already posted.
+                    if let notice = Self.collapseNotice(burstCount: remaining.count) {
+                        statusMessage = notice
+                    }
                 }
             }
         )

@@ -476,7 +476,10 @@ final class PhotoCompressionViewModel {
         // COMP-04: remove only successfully compressed (and deleted) items;
         // skipped ones stay so the user can see why they were left alone.
         removePhotos(successfulIds)
-        selectedIds.subtract(successfulIds)
+        // An id whose row vanished has nothing left to select, and leaving it in
+        // the set made the toolbar claim more selected items than the list shows
+        // and retried it on every batch.
+        selectedIds.subtract(successfulIds.union(result.idsWithoutRow))
         keptOriginals = result.kept
         isCompressing = false
         batchSummary = CompressionBatchSummary(

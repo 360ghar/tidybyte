@@ -128,18 +128,32 @@ enum Formatters {
     /// `Date.formatted(date:time:)` resolves against `Locale.current` and
     /// ignores the SwiftUI `\.locale` environment, so a US device switched to
     /// German rendered the German row label "Datum" above an English
-    /// "Oct 3, 2025, 4:32 PM". Every in-app date goes through here instead.
+    /// "Oct 3, 2025, 4:32 PM". Every date-and-time row in the app goes through
+    /// here instead. (Date-only rows still use `Text(date, style: .date)`, which
+    /// reads `\.locale` itself and needs none of this.)
     ///
     /// What that fixes is exactly `locale(for:)`'s split, and no more: the
     /// language decides the words, the device region keeps deciding the order,
-    /// the fields, and the clock. On a US-region device the German date is
-    /// therefore `10/3/25, 3:32 PM` — no English month name, still US order and
-    /// a 12-hour clock. Adopting the override's region instead would move a
-    /// US-based user's dates to a 24-hour clock, which the type doc on
-    /// `locale(for:)` rejects on purpose.
+    /// the fields, and the clock. Picking German on a US-region device therefore
+    /// keeps the US order and the 12-hour clock — German month abbreviations and
+    /// a US layout, which is what iOS itself does for a per-app language.
+    /// Adopting the override's region instead would move a US-based user's dates
+    /// to a 24-hour clock, which the type doc on `locale(for:)` rejects on
+    /// purpose.
     static func dateTime(_ date: Date, language: AppLanguage? = nil, region: Locale.Region? = nil) -> String {
+        dateTime(date, in: locale(for: language, region: region))
+    }
+
+    /// The same format from an already-built locale.
+    ///
+    /// For a SwiftUI view, which should pass the `\.locale` environment value it
+    /// has read: reading the environment is what registers the dependency that
+    /// re-runs the row on a language switch. Computing the locale here instead
+    /// gives the same string but leaves the view unaware it should redraw, so the
+    /// date would keep the old language until something else invalidated it.
+    static func dateTime(_ date: Date, in locale: Locale) -> String {
         let formatter = DateFormatter()
-        formatter.locale = locale(for: language, region: region)
+        formatter.locale = locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
@@ -155,10 +169,17 @@ enum Formatters {
     /// builds sentences like "12 screenshots and 3 large files" in the
     /// notification body and widget.
     static func list(_ items: [String], language: AppLanguage? = nil, region: Locale.Region? = nil) -> String {
+        list(items, in: locale(for: language, region: region))
+    }
+
+    /// The same join from an already-built locale, for the reason spelled out on
+    /// `dateTime(_:in:)`: a view must read `\.locale` for the sentence to
+    /// re-render when the language changes.
+    static func list(_ items: [String], in locale: Locale) -> String {
         guard let last = items.last else { return "" }
         guard items.count > 1 else { return last }
         let formatter = ListFormatter()
-        formatter.locale = locale(for: language, region: region)
+        formatter.locale = locale
         return formatter.string(from: items) ?? items.joined(separator: ", ")
     }
 

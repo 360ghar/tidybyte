@@ -96,6 +96,77 @@ final class AuditRegressionTests: XCTestCase {
         XCTAssertFalse(session.deletionReviewRequested)
     }
 
+    /// A request parked from another tab has to bring the session into view.
+    ///
+    /// The review is presented by the session view, and a session started from a
+    /// cleanup tool lives on the Cleanup tab. Parking without switching left a
+    /// widget or intent tap made from Storage looking like a no-op: the request
+    /// was recorded, the review was requested, and neither was on screen.
+    func testAParkedRequestSwitchesToTheTabHostingTheSession() throws {
+        let container = try makeContainer([SwipeRecord.self])
+        let session = makeSession(in: container)
+        let navigation = AppNavigation()
+        navigation.selectedTab = .cleanup
+        navigation.cleanupPath = [.screenshots]
+        navigation.setActiveSwipeSession(session)
+        session.pendingDeletionIds = ["asset-0"]
+
+        // The user moves to Storage, then taps a widget button that deep-links
+        // somewhere else.
+        navigation.selectTabManually(.storage)
+        navigation.handle(.cleanupTool(.duplicates))
+
+        XCTAssertEqual(navigation.selectedTab, .cleanup, "the review lives on the session's tab")
+        XCTAssertEqual(navigation.cleanupPath, [.screenshots], "the stack is still intact")
+        XCTAssertTrue(session.deletionReviewRequested)
+        XCTAssertEqual(navigation.deferredLink, .cleanupTool(.duplicates))
+    }
+
+    /// A manual tab tap retires both parked channels, not just the deep link.
+    ///
+    /// `showSwipeSession(filter:)` queues its filter in a separate one-shot
+    /// channel that `SwipeHomeView` consumes on its next appearance, so leaving
+    /// it behind starts a session on a filter the user never chose — minutes
+    /// after they deliberately tapped another tab.
+    func testAManualTabTapAlsoRetiresAQueuedSwipeFilter() throws {
+        let container = try makeContainer([SwipeRecord.self])
+        let session = makeSession(in: container)
+        let navigation = AppNavigation()
+        navigation.selectedTab = .cleanup
+        navigation.setActiveSwipeSession(session)
+        session.pendingDeletionIds = ["asset-0"]
+
+        navigation.showSwipeSession(filter: .screenshots)
+        XCTAssertNotNil(navigation.pendingSwipeFilter, "parked until the pending deletions resolve")
+
+        navigation.selectTabManually(.storage)
+
+        XCTAssertNil(navigation.pendingSwipeFilter, "the tap is the newer destination")
+        XCTAssertEqual(navigation.selectedTab, .storage)
+    }
+
+    /// A selected id with no row left is counted as skipped AND reported back, so
+    /// the caller can drop it. Leaving it in the selection made the toolbar claim
+    /// more selected items than the list showed, and retried it every batch.
+    func testABatchReportsSelectedIdsThatHaveNoRow() async throws {
+        let container = try makeContainer([CompressionRecord.self])
+        let result = await CompressionBatchRunner.run(
+            selected: ["has-row", "vanished"],
+            fileSizes: ["has-row": 1_000, "vanished": 2_000],
+            indexById: ["has-row": 0],
+            alreadyCompletedIds: [],
+            isCancelled: { false },
+            isSizeUnknown: { _ in false },
+            modelContext: container.mainContext,
+            handlers: .init(setState: { _, _ in }, setPhase: { _ in }),
+            execute: { _, _, _ in .skipped }
+        )
+
+        XCTAssertEqual(result.idsWithoutRow, ["vanished"])
+        XCTAssertEqual(result.summary.skipped, 2, "the vanished id still lands in the tally")
+        XCTAssertEqual(result.summary.completed, 0)
+    }
+
     /// A request parked before the user finished the review must not replay over
     /// the destination they chose afterwards. Replaying it there would be the
     /// same navigation surprise this fix removes, just one screen later.

@@ -77,9 +77,9 @@ enum AlbumListEmptyReason: Equatable, Sendable {
 
     /// Limited access with photos visible, but no user albums to list. Reached
     /// either because no smart album contains a shared photo, or because the
-    /// sheet asked for editable albums only — which is every user album and no
-    /// smart album. What is missing in both is the user albums an app may only
-    /// read, create, and file into with full access.
+    /// sheet asked for editable albums only — the user albums the app can file
+    /// into, and no smart album. What is missing in both is the user albums an
+    /// app may only read, create, and file into with full access.
     case limitedCannotUseAlbums
 
     /// Full access and no assets at all — the same device-side permission

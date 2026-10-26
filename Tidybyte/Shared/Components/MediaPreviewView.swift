@@ -49,6 +49,10 @@ struct MediaPreviewView: View {
     var onRemoveCopies: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    /// Read by the formatted values below: the environment is what makes this
+    /// row re-render on a language change. `Formatters` resolves against
+    /// `Locale.current` on its own, which never changes.
+    @Environment(\.locale) private var locale
     private let staticAssets: [AssetSummary]?
     private let assetsProvider: (() -> [AssetSummary])?
     @State private var currentIndex: Int
@@ -238,7 +242,7 @@ struct MediaPreviewView: View {
                     .foregroundStyle(.white)
                     .lineLimit(1)
             } else if let date = asset.creationDate {
-                Text(Formatters.dateTime(date))
+                Text(Formatters.dateTime(date, in: locale))
                     .font(.subheadline)
                     .foregroundStyle(.white)
             }

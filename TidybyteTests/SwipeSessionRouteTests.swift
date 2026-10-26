@@ -4,8 +4,9 @@ import XCTest
 /// Identity of a swipe session's navigation route.
 ///
 /// Deliberately thin: the swipe-left / undo / accumulate behaviour these tests
-/// used to cover lives in `SwipeSessionDeletionTests`, which asserts the same
-/// state plus the record writes this file never checked.
+/// used to cover — including the pending byte totals and the undo stack's
+/// contents — lives in `SwipeSessionDeletionTests`, which asserts that state
+/// plus the record writes this file never checked.
 final class SwipeSessionRouteTests: XCTestCase {
     func testSameFilterCreatesDistinctRoutes() {
         let first = SwipeSessionRoute(filter: .allMedia)
