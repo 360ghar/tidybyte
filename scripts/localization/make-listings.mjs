@@ -75,8 +75,15 @@ const english = {
   subtitle: 'Clean photos, free up storage',
   promotionalText: blockAfter('## 2. Promotional Text'),
   description: blockAfter('## 3. Description'),
+  // The keyword field trades `gallery` (browsing intent, not cleanup intent)
+  // for `ai` and `cleaner`. Three of the ten apps in TidyByte's own "You Might
+  // Also Like" row carry "AI" in the name — AI Duplicate Photo Remover, Photo
+  // Cleaner - Cleaner AI, Cleaner AI: Free Up Space — and this app ships
+  // on-device AI search without ever putting the token where Apple indexes it.
+  // `cleaner` is the noun form users type ("photo cleaner") that the
+  // subtitle's verb "Clean" does not match.
   keywords:
-    'duplicate,image compressor,compress video,screenshot,blurry,declutter,gallery,junk,similar',
+    'duplicate,image compressor,compress video,screenshot,blurry,declutter,junk,similar,ai,cleaner',
   whatsNew: blockAfter('## 12. What'),
 };
 

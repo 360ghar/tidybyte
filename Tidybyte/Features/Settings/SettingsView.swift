@@ -581,7 +581,7 @@ struct SettingsView: View {
         do {
             try modelContext.delete(model: SwipeRecord.self)
             try modelContext.save()
-            toast = ToastMessage(text: L10n.string("Swipe history cleared"), systemImage: "checkmark.circle")
+            toast = ToastMessage.success(text: L10n.string("Swipe history cleared"))
         } catch {
             AppLog.data.error("Failed to reset swipe history: \(error.localizedDescription, privacy: .public)")
             showResetErrorAlert = true

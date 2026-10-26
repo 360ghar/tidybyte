@@ -182,6 +182,30 @@ actor PhotoLibraryService {
 
     // MARK: - Asset Fetching
 
+    /// How many assets this process can currently see, unfiltered — one
+    /// `PHAsset` count with no summaries, resource reads, or image work, so it
+    /// is cheap enough to ask whenever a deck comes out empty.
+    ///
+    /// It is the only way to tell "this filter ran out of photos" from "the
+    /// library is invisible to us". Those look identical downstream, and the
+    /// second one (limited access with nothing shared, or a device-side
+    /// permission glitch under full access) used to be drawn as "All Caught
+    /// Up!" — the app blaming the library for a permission problem (SWIPE-09).
+    func totalAssetCount() -> Int {
+        let count = PHAsset.fetchAssets(with: allAssetsFetchOptions()).count
+        if count == 0 {
+            // Worth a release-build log line: an empty census for an app that
+            // believes it has access is exactly the report this exists for, and
+            // the two PhotoKit statuses are not always the same value.
+            let readWrite = PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue
+            let addOnly = PHPhotoLibrary.authorizationStatus(for: .addOnly).rawValue
+            AppLog.photo.notice(
+                "Library census returned 0 assets (readWrite=\(readWrite, privacy: .public) addOnly=\(addOnly, privacy: .public))"
+            )
+        }
+        return count
+    }
+
     func fetchAssets(filter: SwipeFilter) -> [AssetSummary] {
         switch filter {
         case .allMedia:

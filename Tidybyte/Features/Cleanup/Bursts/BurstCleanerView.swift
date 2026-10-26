@@ -135,7 +135,7 @@ struct BurstCleanerView: View {
         // Clearing the view-model message keeps it one-shot across redraws.
         .onChange(of: viewModel.statusMessage) { _, newValue in
             guard let newValue else { return }
-            toast = ToastMessage(text: newValue, systemImage: "checkmark.circle")
+            toast = ToastMessage.success(text: newValue)
             viewModel.statusMessage = nil
         }
         .fullScreenCover(item: $preview) { context in

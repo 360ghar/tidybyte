@@ -108,11 +108,22 @@ Apple indexes the app name, subtitle and keyword field together, so words alread
 **Shipped: subtitle I (`Clean photos, free up storage`)** — the name and subtitle
 already index "tidybyte", "clean", "photos", "free", "up" and "storage", so the field
 targets the remaining intents. This is the set in `docs/appstore/listings.json`
-(90 chars ✅):
+(93 chars ✅):
 
 ```
-duplicate,image compressor,compress video,screenshot,blurry,declutter,gallery,junk,similar
+duplicate,image compressor,compress video,screenshot,blurry,declutter,junk,similar,ai,cleaner
 ```
+
+`gallery` was dropped for `ai` and `cleaner` (2026-10). `gallery` is browsing
+intent, not cleanup intent, and the app already ranks nothing on it. Three of the
+ten apps in TidyByte's own "You Might Also Like" row carry "AI" in the name —
+AI Duplicate Photo Remover, Photo Cleaner - Cleaner AI, and Cleaner AI: Free Up
+Space — and TidyByte ships an on-device AI search without naming it anywhere
+Apple indexes. `cleaner` is the noun form people type ("photo cleaner"); the
+subtitle's verb "Clean" does not match it. The localized keyword fields were
+**not** re-derived: they were tuned against the same subtitle, and "ai" is the
+same token in every storefront that uses the Latin alphabet. A native ASO pass
+per language is still open.
 
 An earlier revision gave the field below for this subtitle. It repeats "storage" and
 "clean" — both already indexed — and so spends 12 characters to add nothing:

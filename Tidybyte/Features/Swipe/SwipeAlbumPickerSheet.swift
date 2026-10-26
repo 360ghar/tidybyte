@@ -1,4 +1,6 @@
 import SwiftUI
+import Photos
+import UIKit
 
 /// Album picker for the Swipe tab's "Specific Album" filter.
 ///
@@ -17,6 +19,13 @@ struct SwipeAlbumPickerSheet: View {
 
     @State private var albums: [AlbumInfo] = []
     @State private var isLoading = true
+    /// Why `albums` is empty, when the cause is photo access rather than "this
+    /// library has no user albums". This sheet includes smart albums, which stay
+    /// readable under limited access and are filtered to the shared selection, so
+    /// a limited user with photos normally gets a non-empty list. When it is
+    /// still empty the reason resolves by census: nothing shared at all, or —
+    /// if the visible photos contributed nothing — the missing user albums.
+    @State private var emptyReason: AlbumListEmptyReason?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -25,6 +34,18 @@ struct SwipeAlbumPickerSheet: View {
                 if isLoading {
                     ProgressView("Loading albums…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let reason = emptyReason {
+                    ScrollView {
+                        PhotoRecoveryCard(presentation: reason.recovery) { action in
+                            switch action {
+                            case .retry:
+                                Task { await loadAlbums() }
+                            case .addPhotos, .openSettings:
+                                PhotoRecoveryPresentation.Action.perform(action)
+                            }
+                        }
+                        .padding(.vertical, Spacing.xl)
+                    }
                 } else if albums.isEmpty {
                     EmptyStateView(
                         icon: "rectangle.stack",
@@ -63,9 +84,43 @@ struct SwipeAlbumPickerSheet: View {
                 }
             }
         }
-        .task {
-            albums = await photoService.fetchUserAlbums()
-            isLoading = false
+        .task { await loadAlbums() }
+        // Not the scene-phase environment value: SwiftUI freezes a sheet's
+        // environment at presentation time, so later phase changes never reach
+        // this content and "go to Settings, then come back" left the card
+        // untouched. The UIKit activation notification does arrive.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            guard emptyReason != nil else { return }
+            Task { await loadAlbums() }
         }
+        // Fires when the system limited-library picker closes, which is the other
+        // way out of the card and not tied to a scene activation.
+        .onReceive(NotificationCenter.default.publisher(for: .photoLibrarySelectionDidChange)) { _ in
+            guard emptyReason != nil else { return }
+            Task { await loadAlbums() }
+        }
+    }
+
+    /// One fetch + one census, shared by the initial load, the card's Try Again,
+    /// and the two automatic reloads.
+    private func loadAlbums() async {
+        // Only the first load gets a spinner. Every later reload runs while the
+        // card (or a list) is already on screen, and flipping to "Loading
+        // albums…" there would blank the card on each foreground.
+        isLoading = albums.isEmpty && emptyReason == nil
+        albums = await photoService.fetchUserAlbums()
+        if albums.isEmpty {
+            // Only ask for a census when the list is empty: on a non-empty list
+            // the answer cannot change what is drawn.
+            emptyReason = AlbumListEmptyReason.resolve(
+                status: PhotoPermissionState(
+                    authorizationStatus: PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                ),
+                totalAssetCount: await photoService.totalAssetCount()
+            )
+        } else {
+            emptyReason = nil
+        }
+        isLoading = false
     }
 }

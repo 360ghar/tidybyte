@@ -173,6 +173,9 @@ final class SwipeFlowRegressionTests: XCTestCase {
         XCTAssertFalse(vm.hasLoadedInitialAssets, "Retry must force a fresh load")
         XCTAssertFalse(vm.allPhotosAlreadySwiped)
         XCTAssertFalse(vm.isLoading)
+        // The access explanation is derived from the load, so a retry has to drop
+        // it as well — otherwise the card stays up over the reloaded deck.
+        XCTAssertNil(vm.emptyReason, "Retry must clear the access explanation")
     }
 
     // MARK: - SWIPE-03: predicate-based upsert round-trip

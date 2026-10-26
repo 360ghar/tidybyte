@@ -123,10 +123,52 @@ final class PhotoPermissionHandler {
     /// instance — there is exactly one implementation of "ask for more photos".
     @MainActor
     static func presentLimitedLibraryPicker() {
+        // Logged because the call is a silent no-op when the app is no longer
+        // `.limited` or a presentation is already in flight — without this a
+        // "the button does nothing" report has nothing to go on.
+        AppLog.photo.info(
+            "Presenting limited library picker (status \(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue, privacy: .public))"
+        )
+        // The topmost controller, not the root: UIKit ignores a presentation
+        // requested while another one is already showing, which made the button
+        // appear to do nothing when a sheet was up.
+        guard let presenter = topmostViewController() else { return }
+        // The completion variant, so "the picker closed" is observable without
+        // waiting on a debounced change-observer delivery.
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: presenter) { _ in
+            // The handler is not guaranteed to arrive on main, and the observers
+            // behind this notification touch view state.
+            Task { @MainActor in
+                NotificationCenter.default.post(name: .photoLibrarySelectionDidChange, object: nil)
+            }
+        }
+    }
+
+    /// True when nothing is already presented.
+    ///
+    /// Used to gate the automatic presentation on launch: the picker is helpful
+    /// when the app opens to an empty library, but covering a sheet the user is
+    /// working in is not.
+    @MainActor
+    static var isReadyToPresentLimitedLibraryPicker: Bool {
+        guard let root = activeRootViewController() else { return false }
+        return root.presentedViewController == nil
+    }
+
+    @MainActor
+    private static func activeRootViewController() -> UIViewController? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-        guard let root = scene?.keyWindow?.rootViewController else { return }
-        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: root)
+        return scene?.keyWindow?.rootViewController
+    }
+
+    @MainActor
+    private static func topmostViewController() -> UIViewController? {
+        var controller = activeRootViewController()
+        while let presented = controller?.presentedViewController, !presented.isBeingDismissed {
+            controller = presented
+        }
+        return controller
     }
 }
 
@@ -143,4 +185,11 @@ extension PhotoPermissionState {
         @unknown default: self = .denied
         }
     }
+}
+
+extension Notification.Name {
+    /// Posted when the system limited-library picker closes, so screens that are
+    /// waiting on a widened selection can reload without depending on a debounced
+    /// PHPhotoLibraryChangeObserver delivery.
+    static let photoLibrarySelectionDidChange = Notification.Name("photoLibrarySelectionDidChange")
 }

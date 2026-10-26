@@ -113,6 +113,15 @@ final class SwipeSessionViewModel {
         return status == .authorized || status == .limited
     }
 
+    /// Why the deck is empty, when access — not the filter — is the cause.
+    ///
+    /// Set at the end of a load that produced no cards. `nil` means the empty
+    /// deck is genuinely empty (every photo reviewed, filter has no matches),
+    /// which keeps the existing "All Caught Up!" copy. Without this, a library
+    /// the app cannot see and a library with nothing left to review rendered
+    /// identically.
+    private(set) var emptyReason: PhotoLibraryEmptyReason?
+
     private(set) var undoStack: [SwipeUndoEntry] = []
 
     /// Every asset ID this session asked the image manager to cache. Tracked so
@@ -164,6 +173,7 @@ final class SwipeSessionViewModel {
     func retryLoad() {
         hasLoadedInitialAssets = false
         allPhotosAlreadySwiped = false
+        emptyReason = nil
         isLoading = false
     }
 
@@ -239,7 +249,25 @@ final class SwipeSessionViewModel {
             deck = Self.collapsingBursts(fetched)
         }
         guard !Task.isCancelled, token == loadGeneration else { return }
-        assets = Self.deckAssets(deck, excludingPending: pendingDeletionIds)
+        let newDeck = Self.deckAssets(deck, excludingPending: pendingDeletionIds)
+        // Only ask PhotoKit for a census when the deck came out empty: on a deck
+        // with cards the answer cannot change anything, and the count is a real
+        // fetch. This is the one place that can tell "no photos left to review"
+        // from "the library is invisible to us" (SWIPE-09).
+        let reason: PhotoLibraryEmptyReason?
+        if newDeck.isEmpty {
+            reason = PhotoLibraryEmptyReason.resolve(
+                status: PhotoPermissionState(
+                    authorizationStatus: PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                ),
+                totalAssetCount: await photoService.totalAssetCount()
+            )
+        } else {
+            reason = nil
+        }
+        guard !Task.isCancelled, token == loadGeneration else { return }
+        emptyReason = reason
+        assets = newDeck
         currentIndex = 0
         // Undo entries point into the old deck; after a reload they would
         // rewind to cards that are no longer in it.

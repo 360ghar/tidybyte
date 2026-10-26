@@ -235,10 +235,16 @@ enum AppPreferences {
 
     // MARK: - Happy-Path Review Prompt Gating
 
-    /// Success counts at which the "Enjoying TidyByte?" prompt may appear:
-    /// early delight at 3, then rarer; `% 50` keeps long-term users asked
-    /// roughly twice a year at their current cleanup cadence.
-    private static let reviewMilestones: Set<Int> = [3, 10, 25]
+    /// Success counts at which the "Enjoying TidyByte?" prompt may appear.
+    ///
+    /// The first milestone is **1**, not 3. A cleanup is a discrete, visible
+    /// win — the user just watched space come back — and that is the moment
+    /// they are willing to say so. Waiting until the third doubles the chance
+    /// the session ends without ever asking; the app went from June to October
+    /// on the 3-success gate and collected five ratings. Later milestones stay
+    /// rare (`% 50` keeps long-term users asked roughly twice a year at their
+    /// cleanup cadence).
+    private static let reviewMilestones: Set<Int> = [1, 10, 25]
 
     /// Local cooldown between prompts. The prompt interrupts the user, and
     /// its "Yes" path calls `requestReview`, which Apple caps at 3 per 365

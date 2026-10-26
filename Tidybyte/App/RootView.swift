@@ -12,6 +12,11 @@ struct RootView: View {
     @State private var languageStore = LanguageStore()
     @AppStorage(AppPreferences.Key.hasCompletedOnboarding) private var hasCompletedOnboarding = false
     @AppStorage(AppPreferences.Key.largeFileThresholdMB) private var largeFileThreshold = 10.0
+    /// Set once the limited-library picker has been offered automatically this
+    /// launch, so a user who declines is not asked again on every foreground.
+    /// Deliberately not persisted: a new launch with an empty selection is worth
+    /// one more offer, and the system picker is dismissible.
+    @State private var hasOfferedLimitedLibraryPicker = false
     #if DEBUG
     /// Set by the UI test launch argument. Evaluated once per view instance and
     /// kept in `@State` so it cannot change mid-session.
@@ -128,9 +133,17 @@ struct RootView: View {
                 // A widget button tapped while the app was backgrounded queued
                 // its route in the App Group; apply it on the way back up.
                 applyPendingWidgetRoute()
+                Task { await offerLimitedLibraryPickerIfNeeded() }
             }
         }
+        .onChange(of: hasCompletedOnboarding) { _, _ in
+            // Onboarding owns the screen until it is dismissed; the offer waits
+            // rather than stacking on the cover (iOS ignores the second
+            // presentation anyway, which would waste the one offer).
+            Task { await offerLimitedLibraryPickerIfNeeded() }
+        }
         .onChange(of: permissionHandler.permissionState) { _, newState in
+            Task { await offerLimitedLibraryPickerIfNeeded() }
             libraryMonitor.permissionDidChange()
             // APP-02: a first-launch permission grant happens in-foreground, so
             // scenePhase never re-fires — run the daily scan on the grant. The
@@ -183,7 +196,55 @@ struct RootView: View {
             if permissionHandler.permissionState == .authorized || permissionHandler.permissionState == .limited {
                 await libraryMonitor.start()
             }
+            await offerLimitedLibraryPickerIfNeeded()
         }
+    }
+
+    /// Offers the system "which photos can this app see" picker when the app
+    /// opens to an empty library under limited access.
+    ///
+    /// This is the state that reads as a broken app: permission is granted, so
+    /// no gate appears, but every fetch returns nothing and every tool is empty.
+    /// The in-app banner's "Add More Photos" needs the user to find it; opening
+    /// the picker once per launch puts the fix in front of them instead.
+    ///
+    /// Once per launch, only when there is genuinely nothing to read, and never
+    /// on top of onboarding or a sheet.
+    @MainActor
+    private func offerLimitedLibraryPickerIfNeeded() async {
+        guard !hasOfferedLimitedLibraryPicker else { return }
+        guard permissionHandler.permissionState == .limited else { return }
+        guard hasCompletedOnboarding, scenePhase == .active else { return }
+        guard PhotoPermissionHandler.isReadyToPresentLimitedLibraryPicker else { return }
+        // Claimed before the first `await`: two launch-triggered calls otherwise
+        // both pass the guard while the census is in flight, and the loser's
+        // post-sleep failure used to clear the flag, so the picker came back on
+        // a later foreground.
+        hasOfferedLimitedLibraryPicker = true
+
+        guard await PhotoLibraryService.shared.totalAssetCount() == 0 else {
+            // Nothing to recover: hand the offer back.
+            hasOfferedLimitedLibraryPicker = false
+            return
+        }
+        // Let the launch frame land first: presenting during the same update as
+        // the first tab render is what UIKit ignores.
+        try? await Task.sleep(for: .milliseconds(400))
+        // The live app state, not `scenePhase`: that environment value was
+        // captured in this Task's copy of the view before the sleep, so it still
+        // reports the old phase and would present the picker over a backgrounded
+        // app.
+        guard UIApplication.shared.applicationState == .active else {
+            // Skipped, not offered: hand it back rather than burn it.
+            hasOfferedLimitedLibraryPicker = false
+            return
+        }
+        guard permissionHandler.permissionState == .limited,
+              PhotoPermissionHandler.isReadyToPresentLimitedLibraryPicker else {
+            hasOfferedLimitedLibraryPicker = false
+            return
+        }
+        PhotoPermissionHandler.presentLimitedLibraryPicker()
     }
 
     /// Applies a destination queued by an interactive-widget button. The widget

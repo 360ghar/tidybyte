@@ -110,6 +110,19 @@ struct SessionCompletionView: View {
                 }
                 .font(.subheadline.weight(.semibold))
                 .frame(minHeight: 44)
+
+                // Only after something was actually deleted: a share that
+                // brags about a session that freed nothing reads as spam to
+                // both the sharer and the person receiving it. `celebrationStatLine`
+                // also covers "reviewed N items", which is the right line for
+                // the prompt but the wrong one for a store link.
+                if viewModel.deletionCommitted, stats.deletedCount > 0 {
+                    ShareLink(item: AppStoreLinks.shareMessage(statLine: celebrationStatLine)) {
+                        Label("Share TidyByte", systemImage: "square.and.arrow.up")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(minHeight: 44)
+                    }
+                }
             }
             .disabled(viewModel.isDeletingBatch)
             .padding(.horizontal, Spacing.lg)
