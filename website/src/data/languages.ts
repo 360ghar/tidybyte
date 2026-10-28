@@ -1,6 +1,6 @@
 // Languages the marketing site is published in.
 //
-// The set is the same one the iOS app ships (`Tidybyte/Shared/Localization/
+// The set is the same one the iOS app ships (`ios/Tidybyte/Shared/Localization/
 // AppLanguage.swift`). Keeping them identical matters for more than tidiness:
 // the App Store listing, the app's UI, and this site all describe the same
 // product, and a language that exists in one but not the others sends a user

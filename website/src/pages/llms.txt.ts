@@ -59,7 +59,7 @@ export const GET: APIRoute = () => {
     "- Open source: MIT licensed at https://github.com/360ghar/snap-clean-ios",
     "- Platform: iPhone, iPad and iPhone Duo, iOS 17 or later",
     // Keep in sync with MARKETING_VERSION / CURRENT_PROJECT_VERSION in
-    // project.yml when the app ships a release.
+    // ios/project.yml when the app ships a release.
     "- Current version: 1.0.5 (build 6)",
     `- This file last updated: ${new Date().toISOString().slice(0, 10)}`,
     "",

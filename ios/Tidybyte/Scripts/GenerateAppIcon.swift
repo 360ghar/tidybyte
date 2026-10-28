@@ -4,9 +4,9 @@
 //
 // This script is the single source of truth for the app mark. It writes:
 //   * Tidybyte/Resources/Assets.xcassets/AppIcon.appiconset/  (light, dark, tinted)
-//   * (with --sync-site) the site copies under public/assets/img/
+//   * (with --sync-site) the site copies under ../website/public/assets/img/
 //
-// Usage, from the repository root:
+// Usage, from the ios/ folder of the repository:
 //   swift Tidybyte/Scripts/GenerateAppIcon.swift              # regenerate everything
 //   swift Tidybyte/Scripts/GenerateAppIcon.swift --check      # verify what is on disk
 //   swift Tidybyte/Scripts/GenerateAppIcon.swift --sync-site  # also refresh the site
@@ -15,7 +15,7 @@
 // on a light field, with a white shine sparkle above: cleaning reads as sparkle,
 // not as a checkmark.
 //
-// The website copies under public/assets/img/ are written only by --sync-site, and
+// The website copies under website/public/assets/img/ are written only by --sync-site, and
 // currently lag the app icon on purpose: the app mark leads, so the site keeps the
 // art it already has until someone runs that mode.
 //
@@ -912,7 +912,7 @@ func writePNG(_ image: CGImage, to url: URL) throws {
 // MARK: - Asset catalog
 
 let appIconDir = "Tidybyte/Resources/Assets.xcassets/AppIcon.appiconset"
-let siteImageDir = "public/assets/img"
+let siteImageDir = "../website/public/assets/img"
 
 /// The single size the catalog ships. Xcode derives 20pt through 83.5pt from it,
 /// for iPhone and iPad both.
@@ -1228,7 +1228,7 @@ func iconURL(_ appearance: Appearance) -> URL {
 func runGenerate(syncSite: Bool) throws {
     let directory = URL(fileURLWithPath: appIconDir)
     guard FileManager.default.fileExists(atPath: directory.path) else {
-        throw ScriptError("run this from the repository root: \(appIconDir) not found")
+        throw ScriptError("run this from the ios/ folder: \(appIconDir) not found")
     }
 
     try verifyInsets()

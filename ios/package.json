@@ -1,15 +1,10 @@
 {
-  "name": "tidybyte-site",
+  "name": "tidybyte-ios-tools",
   "private": true,
   "version": "1.0.0",
-  "description": "Marketing site for TidyByte iOS app (Astro)",
+  "description": "Release, screenshot, growth, and localization tooling for the TidyByte iOS app",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"tailwindcss -i ./src/input.css -o ./public/assets/css/styles.css --watch\" \"astro dev\"",
-    "build": "astro build && tailwindcss -i ./src/input.css -o ./dist/assets/css/styles.css --minify && node scripts/hash-assets.mjs",
-    "preview": "astro preview",
-    "check": "node scripts/hash-assets.mjs --check && node scripts/seo-audit.mjs && node scripts/og-cards.mjs --check",
-    "og": "node scripts/og-cards.mjs",
     "screenshots": "node scripts/growth/shoot-screenshots.mjs",
     "screenshots:duo": "node scripts/growth/shoot-screenshots.mjs --duo",
     "growth": "node scripts/growth/build-assets.mjs",
@@ -26,12 +21,7 @@
     "publish:plan": "node scripts/publish/publish.mjs plan"
   },
   "devDependencies": {
-    "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.3.2",
-    "concurrently": "^10.0.0",
-    "pixelmatch": "^7.2.0",
     "playwright": "^1.55.0",
-    "pngjs": "^7.0.0",
-    "tailwindcss": "^3.4.17"
+    "pngjs": "^7.0.0"
   }
 }

@@ -66,8 +66,8 @@ import {
 } from './manifest.mjs';
 
 const OUT_ROOT = join(ROOT, 'docs/growth');
-const FONT_LATIN = join(ROOT, 'public/assets/fonts/fredoka-var-latin.woff2');
-const FONT_LATIN_EXT = join(ROOT, 'public/assets/fonts/fredoka-var-latin-ext.woff2');
+// The brand font is the website's own copy, so the renders and the site never drift.
+const FONT_DIR = resolvePath(ROOT, '../website/public/assets/fonts');
 
 /**
  * A fake origin for the page's own resources.
@@ -181,8 +181,8 @@ function renderHtml({ spec, specId, art, copy, language, surfaceId }) {
   const l = layout(specId, side);
   // Served through `page.route`, not `file://` — see `ORIGIN`.
   const artUrl = `${ORIGIN}/${artPath(art)}`;
-  const latinUrl = `${ORIGIN}/public/assets/fonts/fredoka-var-latin.woff2`;
-  const latinExtUrl = `${ORIGIN}/public/assets/fonts/fredoka-var-latin-ext.woff2`;
+  const latinUrl = `${ORIGIN}/fonts/fredoka-var-latin.woff2`;
+  const latinExtUrl = `${ORIGIN}/fonts/fredoka-var-latin-ext.woff2`;
 
   // The text block is placed on the empty side of the art. For a `side` layout
   // that is a horizontal half; for a `stack` layout it is the lower portion.
@@ -324,15 +324,17 @@ async function main() {
   /**
    * Serves every local file the page asks for, from disk.
    *
-   * The path in the URL is repo-relative, so it is resolved against `ROOT` and
-   * checked to still be inside it — a URL like `${ORIGIN}/../../etc/passwd` must
-   * not read off the filesystem.
+   * The path in the URL is relative to `ROOT` (or to `FONT_DIR` under `/fonts/`),
+   * and it is checked to still be inside that folder — a URL like
+   * `${ORIGIN}/../../etc/passwd` must not read off the filesystem.
    */
   const serve = async (route) => {
     const url = new URL(route.request().url());
-    const rel = decodeURIComponent(url.pathname).replace(/^\/+/, '');
-    const abs = resolvePath(ROOT, rel);
-    if (!abs.startsWith(`${ROOT}/`) || !existsSync(abs)) {
+    let rel = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+    const base = rel.startsWith('fonts/') ? FONT_DIR : ROOT;
+    if (base === FONT_DIR) rel = rel.slice('fonts/'.length);
+    const abs = resolvePath(base, rel);
+    if (!abs.startsWith(`${base}/`) || !existsSync(abs)) {
       await route.fulfill({ status: 404, body: 'not found' });
       return;
     }

@@ -1,9 +1,12 @@
 # Netlify configuration for the TidyByte marketing site (Astro build).
+# The site lives in website/ of the monorepo. `base` makes Netlify install,
+# build, and publish from there, so `publish` below is website/dist.
 # Build: astro build renders dist/ from src/; Tailwind CLI compiles
 # src/input.css → dist/assets/css/styles.css; hash-assets.mjs fingerprints
 # CSS/JS and rewrites references. Publish: dist/.
 
 [build]
+  base = "website"
   command = "npm run build"
   publish = "dist"
 
