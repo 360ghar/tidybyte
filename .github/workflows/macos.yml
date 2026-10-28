@@ -26,7 +26,9 @@ jobs:
   qa:
     name: Build, lint, test
     runs-on: macos-26
-    timeout-minutes: 30
+    # Headroom for capacity-constrained macOS runners: builds ~4 min, tests
+    # well under that when the runner is not stalling.
+    timeout-minutes: 60
     defaults:
       run:
         # Explicit bash runs with -eo pipefail, so `swift test | tee` fails the job on test failures.
@@ -60,7 +62,11 @@ jobs:
           ! otool -L .build/app-store-scratch/debug/Tidybyte | grep -i sparkle
 
       - name: Test
-        run: swift test --parallel 2>&1 | tee test.log
+        # Serial: under --parallel the swift-testing runner on hosted macOS 26
+        # runners started all 492 tests and completed none within 30 minutes
+        # (zero result lines; both local runners pass the whole suite in
+        # seconds, serial and parallel).
+        run: swift test 2>&1 | tee test.log
 
       - name: MCP end-to-end (fold and undo on APFS)
         run: |
