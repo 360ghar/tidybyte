@@ -27,6 +27,7 @@ actor PhotoLibraryService {
     private static let requestTimeoutSeconds: TimeInterval = 20
 
     private let imageManager = PHCachingImageManager()
+    private let summaryBuilder = SummaryBuilder()
     private var changeObserverHelper: PhotoLibraryChangeObserverHelper?
 
     /// Baseline for incremental change details (SHARED-08): the broadest
@@ -206,9 +207,9 @@ actor PhotoLibraryService {
         return count
     }
 
-    func fetchAssets(filter: SwipeFilter) -> [AssetSummary] {
+    func fetchAssets(filter: SwipeFilter) async -> [AssetSummary] {
         guard let query = query(for: filter) else { return [] }
-        return extractSummaries(from: query.assets, excluding: query.excluding)
+        return await extractSummaries(from: query.assets, excluding: query.excluding)
     }
 
     /// The PhotoKit fetch behind each filter, plus the ids the filter drops
@@ -287,11 +288,11 @@ actor PhotoLibraryService {
         return summaries
     }
 
-    func fetchAssetsByMediaType(_ mediaType: PHAssetMediaType) -> [AssetSummary] {
+    func fetchAssetsByMediaType(_ mediaType: PHAssetMediaType) async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "mediaType = %d", mediaType.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     nonisolated static func isScreenRecordingFilename(_ filename: String) -> Bool {
@@ -327,18 +328,18 @@ actor PhotoLibraryService {
         return unchanged
     }
 
-    func fetchScreenshots() -> [AssetSummary] {
+    func fetchScreenshots() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
-    func fetchLivePhotos() -> [AssetSummary] {
+    func fetchLivePhotos() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoLive.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     /// Groups burst frames by `burstIdentifier` alone and drops single-frame
@@ -346,14 +347,23 @@ actor PhotoLibraryService {
     /// set on every frame (vs. only the representative), so requiring it made
     /// the tool silently empty on some devices (LF-03). Frames are sorted by
     /// creation date within each group.
-    func fetchBurstPhotos() -> [String: [AssetSummary]] {
+    func fetchBurstPhotos() async -> [String: [AssetSummary]] {
         let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
 
-        var groups: [String: [AssetSummary]] = [:]
+        // Only the burst frames' summaries are needed; they are built on
+        // `summaryBuilder` like every other scan, so the frames' resource
+        // reads don't hold up image requests.
+        var frameIds: [String] = []
         for index in 0..<allAssets.count {
             let asset = allAssets.object(at: index)
-            if let burstId = asset.burstIdentifier {
-                let summary = Self.makeSummary(from: asset)
+            if asset.burstIdentifier != nil {
+                frameIds.append(asset.localIdentifier)
+            }
+        }
+        let frames = PHAsset.fetchAssets(withLocalIdentifiers: frameIds, options: allAssetsFetchOptions())
+        var groups: [String: [AssetSummary]] = [:]
+        for summary in await extractSummaries(from: frames, sort: false) {
+            if let burstId = summary.burstIdentifier {
                 groups[burstId, default: []].append(summary)
             }
         }
@@ -363,11 +373,11 @@ actor PhotoLibraryService {
         return groups.filter { $0.value.count > 1 }
     }
 
-    func fetchAllPhotos() -> [AssetSummary] {
+    func fetchAllPhotos() async -> [AssetSummary] {
         let options = allAssetsFetchOptions()
         options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        return extractSummaries(from: result)
+        return await extractSummaries(from: result)
     }
 
     // MARK: - Image Loading
@@ -1151,12 +1161,15 @@ actor PhotoLibraryService {
         return asset.mediaType == .image ? .savedFromApp : .unknown
     }
 
-    private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+    /// Builds the summaries on `summaryBuilder`, not on this actor. Reading
+    /// every asset's resources takes minutes on a large library, and while
+    /// that ran here, every thumbnail and card image request queued behind it.
+    private func extractSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) async -> [AssetSummary] {
         retainChangeBaseline(fetchResult)
-        return Self.buildSummaries(from: fetchResult, excluding: excluding, sort: sort)
+        return await summaryBuilder.build(from: UncheckedSendableBox(fetchResult), excluding: excluding, sort: sort)
     }
 
-    nonisolated private static func buildSummaries(
+    nonisolated fileprivate static func buildSummaries(
         from fetchResult: PHFetchResult<PHAsset>,
         excluding: Set<String> = [],
         sort: Bool = true,
@@ -1258,6 +1271,16 @@ enum PhotoServiceError: LocalizedError {
         }
     }
 
+}
+
+// MARK: - Summary Builder
+
+/// Runs the library-wide summary builds one at a time, as they ran when they
+/// were on `PhotoLibraryService` itself, without holding that actor.
+private actor SummaryBuilder {
+    func build(from fetchResult: UncheckedSendableBox<PHFetchResult<PHAsset>>, excluding: Set<String>, sort: Bool) -> [AssetSummary] {
+        PhotoLibraryService.buildSummaries(from: fetchResult.value, excluding: excluding, sort: sort)
+    }
 }
 
 // MARK: - Change Observer Helper
