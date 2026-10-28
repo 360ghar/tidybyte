@@ -1,7 +1,7 @@
 # App Store Connect Listing — TidyByte
 
 > **HISTORICAL (2026-08):** the shipped version is **1.1.1 (build 8)**;
-> **1.1.2 (build 9)** is in review. This document preserves the original v1.0 listing copy; the
+> **1.1.3 (build 10)** is in review. 1.1.2 never shipped. This document preserves the original v1.0 listing copy; the
 > site's `/changelog` is now the canonical version history. §4 (Keywords) and §1
 > (Subtitle) were refreshed on 2026-10-18 for the storage-cleaner and
 > image-compressor positioning — see the notes under each table.
@@ -277,7 +277,16 @@ Both are fixed sizes — the 1179-vs-1206 slack the iPhone row allows does not a
 
 ---
 
-## 12. What's New (v1.1.2 release notes)
+## 12. What's New (v1.1.3 release notes)
+
+```
+Faster on large libraries: the first swipe card now appears in about a second, photos load while the app scans, and Storage and Cleanup open much sooner. If your photos did not load, or albums looked empty, TidyByte now tells you why. When iOS shares no photos with the app, or a permission is stuck, you get the exact steps to fix it, with buttons for Settings, choosing photos, and trying again. The Recently Deleted notice no longer hides under the tab bar. Everything still runs on your device: no account, no ads, no subscription.
+```
+Length: 535 chars. Translated into all 21 storefront locales by `scripts/localization/translations/_notes-1.1.3.mjs`, which reuses the 1.1.2 photo-access text verbatim.
+
+### v1.1.2 release notes, never shipped
+
+1.1.2 (build 9) was withdrawn from review before review started, and the version was renamed to 1.1.3. These notes are kept because 1.1.3 reuses them.
 
 ```
 If your photos did not load, or albums looked empty, TidyByte now tells you why. When iOS shares no photos with the app, or a permission is stuck, you get the exact steps to fix it, with buttons for Settings, choosing photos, and trying again. Everything still runs on your device: no account, no ads, no subscription.
@@ -306,7 +315,8 @@ Length: 268 chars. Source: `scripts/localization/translations/_notes-1.1.0.mjs`.
 
 | Version | Build | Release notes source |
 |---|---|---|
-| 1.1.2 | 9 | §12 above. The photo-access recovery work from #11: an empty library now shows its cause and the fix. |
+| 1.1.3 | 10 | §12 above. The photo-access recovery (#11), the large-library speed fixes (#6-#8), the Storage first-load fix (#9) and the Recently Deleted notice fix (#10). |
+| 1.1.2 | 9 | Never shipped. Withdrawn from review and renamed to 1.1.3; build 9 is unused. |
 | 1.1.1 | 8 | §12 (for the record). The iPhone Duo work and the review fixes, neither of which build 7 carried. |
 | 1.1.0 | 7 | The 20-language release: RTL, region-aware formatting, localized Siri phrases. Build 7 is what is live; build 8 was never uploaded for this version. |
 | 1.0.5 | 6 | On-device AI search, Screen Recordings tool, Chat Media tool, smarter reminders. |

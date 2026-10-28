@@ -43,6 +43,19 @@ function base64url(value) {
  * Exported so the encoding can be tested without a live account — see
  * scripts/publish/selftest.mjs.
  */
+/**
+ * Version (and app info) states that can still be edited. A version pulled from
+ * review by the developer becomes DEVELOPER_REJECTED, and one App Review sends
+ * back becomes REJECTED or METADATA_REJECTED; all three stay editable, like a
+ * fresh PREPARE_FOR_SUBMISSION version.
+ */
+export const EDITABLE_STATES = new Set([
+  'PREPARE_FOR_SUBMISSION',
+  'DEVELOPER_REJECTED',
+  'REJECTED',
+  'METADATA_REJECTED',
+]);
+
 export function createToken({ keyId, issuerId, privateKey }) {
   const issuedAt = Math.floor(Date.now() / 1000);
   const header = { alg: 'ES256', kid: keyId, typ: 'JWT' };

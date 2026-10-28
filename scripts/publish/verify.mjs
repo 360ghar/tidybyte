@@ -15,7 +15,7 @@
  * Usage: node scripts/publish/verify.mjs
  */
 
-import { createClient, credentialsFromEnv, findApp } from './asc.mjs';
+import { EDITABLE_STATES, createClient, credentialsFromEnv, findApp } from './asc.mjs';
 import { BUNDLE_ID, loadPlan, summarisePlan } from './plan.mjs';
 
 const RELEVANT_FEATURES = [
@@ -64,9 +64,9 @@ async function main() {
     console.log(`  ${String(a.versionString).padEnd(8)} ${String(a.appStoreState).padEnd(28)} ${a.platform}  ${version.id}`);
   }
 
-  const editable = versions.filter((v) => v.attributes?.appStoreState === 'PREPARE_FOR_SUBMISSION');
+  const editable = versions.filter((v) => EDITABLE_STATES.has(v.attributes?.appStoreState));
   if (editable.length === 0) {
-    console.log('\n  WARNING: no version in PREPARE_FOR_SUBMISSION.');
+    console.log('\n  WARNING: no editable version.');
     console.log('  Placements cannot be created against an approved or in-review version.');
   } else {
     console.log(`\n  editable: ${editable.map((v) => v.attributes.versionString).join(', ')}`);

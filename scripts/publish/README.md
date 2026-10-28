@@ -115,9 +115,15 @@ credentials and no network.
 
 **`prepare` has no `npm run` alias, and it is not optional.** `details` and
 `media` both resolve their version through `ensureEditableVersion`, which throws
-unless a version in `PREPARE_FOR_SUBMISSION` exists. A released version can never
-be reopened, so every new release needs `prepare` to create one first. The version
-string comes from `project.yml` (`MARKETING_VERSION`), not from the command line.
+unless an editable version exists. A released version can never be reopened, so
+every new release needs `prepare` to create one first. The version string comes
+from `project.yml` (`MARKETING_VERSION`), not from the command line.
+
+Editable means `PREPARE_FOR_SUBMISSION`, or a version that came back from review:
+`DEVELOPER_REJECTED` (you withdrew it), `REJECTED` or `METADATA_REJECTED`
+(`EDITABLE_STATES` in `asc.mjs`). To replace a version that is waiting for review,
+cancel its review submission, then `PATCH` the version's `versionString` to match
+`MARKETING_VERSION`. This is how 1.1.2 became 1.1.3.
 
 `prepare` creates the version with `releaseType: AFTER_APPROVAL`: it goes live as
 soon as App Review approves, with no manual hold. Change that constant in
@@ -450,7 +456,7 @@ than reporting a successful upload of nothing.
 ## Constraints worth knowing
 
 - **Placements only work while the parent is editable.** The version must be in
-  `PREPARE_FOR_SUBMISSION`. `verify` says so if it is not.
+  an editable state (`EDITABLE_STATES` in `asc.mjs`). `verify` says so if it is not.
 - **A placement cannot be modified.** To change artwork, delete the placement
   and create a new one. `media` therefore creates placements; it does not update
   them. Re-running against a surface that already has placements will add

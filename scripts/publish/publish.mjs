@@ -29,7 +29,7 @@ import { createInterface } from 'node:readline/promises';
 import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { AscError, createClient, credentialsFromEnv, findApp } from './asc.mjs';
+import { AscError, EDITABLE_STATES, createClient, credentialsFromEnv, findApp } from './asc.mjs';
 import {
   BUNDLE_ID, MARKETING_URL, PRIVACY_POLICY_URL, SUPPORT_URL, loadPlan,
   orderLookups, orderSequence,
@@ -92,7 +92,7 @@ function marketingVersion() {
  */
 async function findAppInfo(client, appId) {
   const infos = await client.getAll(`/v1/apps/${appId}/appInfos?limit=20`);
-  return infos.find((info) => info.attributes?.appStoreState === 'PREPARE_FOR_SUBMISSION')
+  return infos.find((info) => EDITABLE_STATES.has(info.attributes?.appStoreState))
     ?? infos[0]
     ?? null;
 }
@@ -118,7 +118,7 @@ async function cmdPrepare() {
   );
   const already = existing.find(
     (v) => v.attributes.versionString === marketingVersion()
-      && v.attributes.appStoreState === 'PREPARE_FOR_SUBMISSION',
+      && EDITABLE_STATES.has(v.attributes.appStoreState),
   );
   if (already) {
     console.log(`  ${marketingVersion()} already exists and is editable`);
@@ -186,7 +186,7 @@ async function ensureEditableVersion(client, appId, { create = false } = {}) {
     + '&fields[appStoreVersions]=versionString,appStoreState,platform,createdDate',
   );
 
-  const editable = versions.filter((v) => v.attributes?.appStoreState === 'PREPARE_FOR_SUBMISSION');
+  const editable = versions.filter((v) => EDITABLE_STATES.has(v.attributes?.appStoreState));
   if (editable.length > 0) {
     const exact = editable.find((v) => v.attributes.versionString === wanted);
     if (exact) return exact;
@@ -202,7 +202,7 @@ async function ensureEditableVersion(client, appId, { create = false } = {}) {
   if (!create) {
     const states = versions.map((v) => `${v.attributes.versionString} (${v.attributes.appStoreState})`);
     throw new Error(
-      `No version in PREPARE_FOR_SUBMISSION. Present: ${states.join(', ') || 'none'}.\n`
+      `No editable version. Present: ${states.join(', ') || 'none'}.\n`
       + 'Details and media can only be changed while a version is editable.\n'
       + 'Create one with: npm run publish:prepare',
     );
