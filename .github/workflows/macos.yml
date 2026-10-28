@@ -1,0 +1,83 @@
+name: Mac app
+
+# The Mac app lives in macos/ and builds only when its files change. It is not
+# a required check, so skipping it never blocks an iOS or website pull request.
+on:
+  push:
+    branches: [main]
+    paths:
+      - macos/**
+      - .github/workflows/macos.yml
+  pull_request:
+    paths:
+      - macos/**
+      - .github/workflows/macos.yml
+  workflow_dispatch:
+
+concurrency:
+  group: macos-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SWIFTLINT_VERSION: 0.65.1
+  SWIFTLINT_SHA256: c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0
+
+jobs:
+  qa:
+    name: Build, lint, test
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        # Explicit bash runs with -eo pipefail, so `swift test | tee` fails the job on test failures.
+        shell: bash
+        working-directory: macos
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install SwiftLint (pinned)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/swiftlint.zip" \
+            "https://github.com/realm/SwiftLint/releases/download/$SWIFTLINT_VERSION/portable_swiftlint.zip"
+          echo "$SWIFTLINT_SHA256  $RUNNER_TEMP/swiftlint.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/swiftlint.zip" swiftlint -d "$RUNNER_TEMP/swiftlint"
+          echo "$RUNNER_TEMP/swiftlint" >> "$GITHUB_PATH"
+
+      - name: Lint (new violations only)
+        run: swiftlint lint --quiet --strict --baseline .swiftlint-baseline.json
+
+      - name: Build (direct)
+        run: swift build
+
+      - name: Build (App Store, compile check)
+        # Own scratch path: the direct build's cached link plan still includes Sparkle.
+        run: |
+          APP_STORE=1 swift build -Xswiftc -DAPP_STORE --scratch-path .build/app-store-scratch
+          ! otool -L .build/app-store-scratch/debug/Tidybyte | grep -i sparkle
+
+      - name: Test
+        run: swift test --parallel 2>&1 | tee test.log
+
+      - name: MCP end-to-end (fold and undo on APFS)
+        run: |
+          swift build --product tidybyte-mcp
+          python3 Scripts/mcp-e2e.py .build/debug/tidybyte-mcp
+
+      - name: App bundle smoke build
+        run: |
+          Scripts/build-app.sh direct
+          plutil -lint .build/Tidybyte.app/Contents/Info.plist
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          # upload-artifact resolves paths from the workspace root, not the
+          # working directory.
+          path: macos/test.log
+          retention-days: 14

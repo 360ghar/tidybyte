@@ -1,0 +1,72 @@
+project: macOS Cleaner
+imagemagick: true
+environments:
+  local:
+    url: local
+    restrictions: []
+
+default_target: local
+
+auth:
+  method: none
+  provider: none
+
+personas:
+  - name: local_user
+    description: 'Single local macOS user running the desktop app with default settings'
+    email: null
+    credentials_source: none
+    test_focus:
+      - onboarding
+      - scanning
+      - action review
+      - execution
+      - undo
+      - natural language commands
+      - settings
+      - report generation
+      - menu bar
+      - dashboard/visualizations
+      - keyboard shortcuts
+      - execute variants
+      - empty states
+      - scan cancellation
+      - filters
+      - NL edge cases
+      - settings data
+      - sidebar
+      - onboarding provider
+      - notifications
+      - cross-flow regression
+      - package managers
+      - undo details
+      - error paths
+    cannot_do: []
+
+apps:
+  desktop:
+    path_patterns:
+      - Sources/MacOSCleanerAppKit/**
+      - Sources/MacOSCleanerCore/**
+      - Package.swift
+      - Tests/**
+    skill: qa-desktop
+    test_tool: agent-browser
+    build_command: 'swift build'
+
+feature_flags:
+  provider: none
+  dashboard_url: null
+  how_to_override: null
+
+integrations:
+  ai_provider:
+    provider: openai-compatible
+    note: 'Optional BYOK AI key stored in macOS Keychain. Not required for QA (local-only mode works without it).'
+
+cleanup:
+  auto_cleanup: true
+  strategy: none
+  instructions: 'Tests use temporary directories that are cleaned up automatically. No persistent data cleanup needed.'
+
+failure_learning: suggest_in_report

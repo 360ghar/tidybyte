@@ -1,0 +1,31 @@
+.build/
+build/
+.swiftpm/
+DerivedData/
+*.xcresult
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store
+default.profraw
+# Stray SQLite in-memory identifier file (created if SQLiteStore.inMemory() bug regresses)
+:memory:
+:memory:-shm
+:memory:-wal
+.claude/settings.local.json*
+trajector-doctor-*.tar.gz
+trajector-doctor-*/
+
+# Local working notes and QA output. They stay on disk, out of the repo:
+# qa-results/ holds logs with absolute local paths, and reference screenshots/
+# are captures of another app used only as inspiration.
+qa-results/
+reference screenshots/
+FINDINGS.md
+FEATURE_TRACKER.md
+todo.md
+
+# Local agent state
+.zcode/
+.augment/
+.claude/scheduled_tasks.lock
