@@ -24,8 +24,13 @@ public enum FingerprintService {
         let offsets = offsetsForQuickHash(sizeBytes: sizeBytes)
         for offset in offsets {
             try handle.seek(toOffset: UInt64(offset))
-            let data = try handle.read(upToCount: chunkSize) ?? Data()
-            hasher.update(data: data)
+            // FileHandle autoreleases what it reads. Hash workers run many files with no
+            // suspension point, so without a pool per chunk the buffers piled up: 3.4 GB
+            // of them during one full-home scan.
+            try autoreleasepool {
+                let data = try handle.read(upToCount: chunkSize) ?? Data()
+                hasher.update(data: data)
+            }
         }
         hasher.update(data: Data(String(sizeBytes).utf8))
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
@@ -43,11 +48,15 @@ public enum FingerprintService {
             if Task.isCancelled {
                 throw CancellationError()
             }
-            let data = try handle.read(upToCount: 1024 * 1024) ?? Data()
-            if data.isEmpty {
+            // One pool per 1 MB chunk: a 2 GB file otherwise held all 2 GB until the end.
+            let done = try autoreleasepool {
+                let data = try handle.read(upToCount: 1024 * 1024) ?? Data()
+                hasher.update(data: data)
+                return data.isEmpty
+            }
+            if done {
                 break
             }
-            hasher.update(data: data)
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }

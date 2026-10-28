@@ -436,7 +436,8 @@ public actor SQLiteStore {
         // BEGIN IMMEDIATE/COMMIT keeps bulk persistence linear and atomic.
         try withTransaction {
             for item in items {
-                try upsert(item, id: item[keyPath: idKeyPath], table: table)
+                // One pool per row: a scan saves up to a million records in this loop.
+                try autoreleasepool { try upsert(item, id: item[keyPath: idKeyPath], table: table) }
             }
         }
     }
