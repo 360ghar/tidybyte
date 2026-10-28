@@ -155,4 +155,4 @@ All placeholders are resolved. The site is configured for the domain `tidybyte.3
 
 ## License
 
-MIT — see [../LICENSE](../LICENSE).
+MIT — see [LICENSE](../../LICENSE).

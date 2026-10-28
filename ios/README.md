@@ -1,10 +1,12 @@
-# TidyByte
+# TidyByte for iPhone and iPad
 
 [![CI](https://github.com/360ghar/tidybyte/actions/workflows/ci.yml/badge.svg)](https://github.com/360ghar/tidybyte/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
 [![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/in/app/tidybyte/id6775769763)
 
 A native iOS app that helps users clean up their photo library. Core UX is a Tinder-style swipe interface for reviewing media.
+
+This folder is `ios/` in the TidyByte monorepo. Run every command below from it. The Mac app is in [`../macos/`](../macos/) and the website in [`../website/`](../website/).
 
 - **Swift/SwiftUI**, iOS 17+, iPhone (portrait) + iPad + iPhone Duo
 - **No backend** — all processing on-device
@@ -62,7 +64,7 @@ xcodebuild test -project Tidybyte.xcodeproj -scheme Tidybyte \
 ```
 
 To run on your own iPhone, see
-[Run on your own iPhone](CONTRIBUTING.md#run-on-your-own-iphone).
+[Run on your own iPhone](../CONTRIBUTING.md#run-on-your-own-iphone).
 
 ## Project Structure
 
@@ -120,30 +122,6 @@ requires asset text localized for every supported language and a diffusion model
 cannot render 20 scripts reliably. See
 [`docs/growth/README.md`](docs/growth/README.md).
 
-## Contributing
+## Contributing, support, and license
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the
-CI checks, and how to send a pull request.
-
-- New here? Start with a
-  [`good first issue`](https://github.com/360ghar/tidybyte/labels/good%20first%20issue).
-- Questions and ideas go to
-  [Discussions](https://github.com/360ghar/tidybyte/discussions).
-- Found a bug? Use the
-  [bug report form](https://github.com/360ghar/tidybyte/issues/new/choose).
-- Security problems: follow [SECURITY.md](SECURITY.md).
-
-This project follows a [Code of Conduct](CODE_OF_CONDUCT.md).
-
-## Support the project
-
-TidyByte is free, with no ads, accounts, or subscriptions. If it saves you
-space, you can support its development:
-
-- [Sponsor on GitHub](https://github.com/sponsors/saksham1991999)
-- Star the repository
-- Rate the app on the [App Store](https://apps.apple.com/in/app/tidybyte/id6775769763)
-
-## License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+See the [root README](../README.md).

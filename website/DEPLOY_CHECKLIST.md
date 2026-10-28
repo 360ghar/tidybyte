@@ -2,6 +2,8 @@
 
 Pre-launch checklist for the TidyByte marketing site. Run through end-to-end the first time you point a real domain at the site. The site is configured for `tidybyte.360ghar.com`.
 
+The site lives in `website/` of the monorepo. Run the commands below from `website/` unless a step names `ios/`.
+
 ## 0. Site architecture (Astro)
 
 The site is an Astro static build with Tailwind + vanilla JS (no framework runtime). Ongoing CI guard: `npm run check` (asset-hash check + SEO audit + OG-card check; see `public/README.md`).
@@ -24,7 +26,7 @@ The site is an Astro static build with Tailwind + vanilla JS (no framework runti
 Verify nothing was missed:
 
 ```bash
-grep -r 'TODO_REPLACE_DOMAIN' src/ public/ docs/ || echo "all replaced"
+grep -r 'TODO_REPLACE_DOMAIN' src/ public/ docs/ ../ios/docs/ || echo "all replaced"
 ```
 
 ## 2. App Store link — done
@@ -37,7 +39,7 @@ grep -r 'href="#"' src/content/pages/ && echo "found a placeholder" || echo "no 
 
 ## 3. Verify URLs match App Store Connect
 
-The site exposes `/`, `/support`, `/privacy`, `/changelog`, `/blog`, and the 16 tool landing pages under `/`. The support and marketing URLs (plus the privacy-policy URL specifically) must be configured in App Store Connect. See [`docs/APP_STORE_LISTING.md`](docs/APP_STORE_LISTING.md) §6 for the field-by-field mapping.
+The site exposes `/`, `/support`, `/privacy`, `/changelog`, `/blog`, and the 16 tool landing pages under `/`. The support and marketing URLs (plus the privacy-policy URL specifically) must be configured in App Store Connect. See [`ios/docs/APP_STORE_LISTING.md`](../ios/docs/APP_STORE_LISTING.md) §6 for the field-by-field mapping.
 
 ## 4. Build and preview locally
 
@@ -60,7 +62,7 @@ Pick one:
 
 **Option A — connect the GitHub repo (recommended for ongoing work):**
 - New site → Import from Git → pick this repo
-- `Publish directory = dist` (set in the root `netlify.toml`)
+- `Base directory = website` and `Publish directory = dist` (both set in the root `netlify.toml`; `publish` is relative to the base)
 - `Build command = npm run build` (astro build + Tailwind + asset hashing)
 - `Node version = 22` (Astro 7 requires Node ≥ 22.12; `netlify.toml` sets this)
 - Netlify will deploy on every push to `main` and post a preview URL for every PR
@@ -101,7 +103,7 @@ Tick each:
 - [ ] Support form actually submits to Netlify Forms — check the **Forms** tab in the Netlify dashboard, submit a test message, confirm it appears
 - [ ] Lighthouse (Chrome DevTools → Lighthouse) on `/`: Performance ≥ 95, Accessibility ≥ 95, SEO ≥ 95, Best Practices ≥ 95
 - [ ] Open `/` on a real iPhone in Safari — hero and screenshots look right
-- [ ] `node scripts/growth/shoot-screenshots.mjs --duo` captures both iPhone Duo displays (outer 1398 × 2034, inner 2007 × 2853) into `docs/screenshots/duo-outer/` and `docs/screenshots/duo-inner/` with alpha stripped — needs the iOS 27.1 simulator runtime, and it is what earns the App Store's "optimized for iPhone Duo" badge. App-side, not site-side: see `docs/duo-readiness.md`
+- [ ] From `ios/`, `node scripts/growth/shoot-screenshots.mjs --duo` captures both iPhone Duo displays (outer 1398 × 2034, inner 2007 × 2853) into `docs/screenshots/duo-outer/` and `docs/screenshots/duo-inner/` with alpha stripped — needs the iOS 27.1 simulator runtime, and it is what earns the App Store's "optimized for iPhone Duo" badge. App-side, not site-side: see `docs/duo-readiness.md`
 - [ ] Test from a private/incognito window — no stale CDN cache
 
 ## 8. (One-time) submit sitemap to search engines
@@ -112,7 +114,8 @@ Tick each:
 ## 9. Localized App Store listings
 
 The app ships 20 languages, so the store listing does too. The copy lives in
-`docs/appstore/listings.json`, one entry per storefront language.
+`ios/docs/appstore/listings.json`, one entry per storefront language. Run this
+from `ios/`:
 
 ```bash
 node scripts/localization/check-listings.mjs --strict

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working on the iOS app. The app lives in `ios/` of the TidyByte monorepo; run every command below from `ios/`. The root `AGENTS.md` describes the other folders.
 
 ## Project Overview
 
@@ -65,4 +65,4 @@ Tidybyte/
 
 ## PRD Reference
 
-`prd.md` contains the full product requirements document with detailed feature specifications, data models, and UI/UX direction. Consult it for feature requirements and expected behavior.
+`docs/prd.md` contains the full product requirements document with detailed feature specifications, data models, and UI/UX direction. Consult it for feature requirements and expected behavior.

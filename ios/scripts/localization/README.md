@@ -1,13 +1,15 @@
 # Localization pipeline
 
 TidyByte ships 20 languages besides English. Three surfaces are translated and
-each has its own pipeline:
+each has its own pipeline. The iOS app and App Store listing pipelines live here,
+in `ios/scripts/localization/`, and run from `ios/`. The website pipeline lives in
+`website/scripts/localization/site/` and runs from `website/`.
 
 | surface | source | translations | output |
 |---|---|---|---|
 | iOS app | Swift source | `translations/<code>.json` | `Tidybyte/Resources/Localizable.xcstrings` |
 | App Store listing | `docs/appstore/listings.json` | same file, per-language keys | pasted into App Store Connect |
-| Website | `src/content/pages/index.html` + `src/data/pages.ts` | `site/site-translations/<slug>.json` | `src/content/pages/index.<slug>.html` |
+| Website | `website/src/content/pages/index.html` + `website/src/data/pages.ts` | `website/scripts/localization/site/site-translations/<slug>.json` | `website/src/content/pages/index.<slug>.html` |
 
 ## Why English text is the key
 
@@ -155,6 +157,8 @@ from scratch per language from the terms a speaker would actually type.
 
 ## Website
 
+From `website/`:
+
 ```sh
 node scripts/localization/site/extract-site-strings.mjs   # English -> JSON
 node scripts/localization/site/build-site-translations.mjs # JSON -> 20 HTML pages
@@ -198,12 +202,12 @@ title 65 characters, description 110 to 165.
 
 ### Adding a language
 
-1. Add it to `src/data/languages.ts` (slug, `htmlLang`, endonym, RTL flag).
-2. Add the app strings to `translations/<code>.json` and run `refresh.sh`.
-3. Add the listing to `docs/appstore/listings.json`.
-4. Add `site-translations/<slug>.json` and `<slug>.meta.json`, then run the
-   builder.
-5. Add the `/<slug>` → `/<slug>.html` rewrite to `netlify.toml`.
+1. Add it to `website/src/data/languages.ts` (slug, `htmlLang`, endonym, RTL flag).
+2. Add the app strings to `ios/scripts/localization/translations/<code>.json` and run `refresh.sh`.
+3. Add the listing to `ios/docs/appstore/listings.json`.
+4. Add `website/scripts/localization/site/site-translations/<slug>.json` and
+   `<slug>.meta.json`, then run the builder.
+5. Add the `/<slug>` → `/<slug>.html` rewrite to the root `netlify.toml`.
 
 `seo-audit.mjs` fails if the language lists in `languages.ts`, `astro.config.mjs`
 and `netlify.toml` drift apart.
