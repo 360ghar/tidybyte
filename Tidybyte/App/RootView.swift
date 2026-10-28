@@ -39,6 +39,7 @@ struct RootView: View {
         TabView(selection: tabSelectionBinding) {
             NavigationStack {
                 permissionGatedView { SwipeHomeView() }
+                    .recentlyDeletedNoticeInset()
             }
             .tabItem {
                 Label("Swipe", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
@@ -47,8 +48,10 @@ struct RootView: View {
 
             NavigationStack(path: cleanupPathBinding) {
                 permissionGatedView { CleanupHomeView() }
+                    .recentlyDeletedNoticeInset()
                     .navigationDestination(for: CleanupTool.self) { tool in
                         permissionGatedView { cleanupDestinationView(for: tool) }
+                            .recentlyDeletedNoticeInset()
                     }
             }
             .tabItem {
@@ -58,10 +61,12 @@ struct RootView: View {
 
             NavigationStack(path: storagePathBinding) {
                 permissionGatedView { StorageDashboardView() }
+                    .recentlyDeletedNoticeInset()
                     .navigationDestination(for: StorageRoute.self) { route in
                         switch route {
                         case .activity:
                             ActivityView()
+                                .recentlyDeletedNoticeInset()
                         }
                     }
             }
@@ -72,16 +77,12 @@ struct RootView: View {
 
             NavigationStack {
                 SettingsView()
+                    .recentlyDeletedNoticeInset()
             }
             .tabItem {
                 Label("Settings", systemImage: "gear")
             }
             .tag(AppTab.settings)
-        }
-        .safeAreaInset(edge: .bottom) {
-            if !appNavigation.isShowingSwipeCompletion {
-                RecentlyDeletedNotice()
-            }
         }
         .adaptiveSidebarStyle()
         .environment(appNavigation)

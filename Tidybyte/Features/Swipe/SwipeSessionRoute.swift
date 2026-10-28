@@ -27,5 +27,6 @@ struct SwipeSessionHostView: View {
 
     var body: some View {
         SwipeSessionView(viewModel: viewModel)
+            .recentlyDeletedNoticeInset()
     }
 }
