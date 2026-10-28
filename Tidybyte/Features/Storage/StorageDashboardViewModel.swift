@@ -116,10 +116,13 @@ final class StorageDashboardViewModel {
     func sync(to generation: Int, modelContext: ModelContext) async {
         guard !(hasLoaded && generation == syncedGeneration) else { return }
         syncedGeneration = generation
-        if hasLoaded {
-            await enqueue { await self.reload(modelContext: modelContext) }
-        } else {
-            await enqueue {
+        // Decided when the work runs, not when it is queued: a generation that
+        // arrives during the first load must reload behind it, not queue a
+        // second first load that puts the skeleton back.
+        await enqueue {
+            if self.hasLoaded {
+                await self.reload(modelContext: modelContext)
+            } else {
                 await self.load(modelContext: modelContext)
                 self.hasLoaded = true
             }
