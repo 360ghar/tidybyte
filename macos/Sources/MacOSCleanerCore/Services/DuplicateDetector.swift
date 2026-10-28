@@ -34,10 +34,18 @@ public actor DuplicateDetector {
     private let logger = Logger(subsystem: AppIdentity.bundleIdentifier, category: "DuplicateDetector")
 
     /// Pairwise feature-print distance at or below which two images count as
-    /// visually similar. Vision feature prints are float vectors; distances of
-    /// 0 mean identical, and ~8 is a conservative "visually similar" cutoff
-    /// (identical images score <1; unrelated images typically score >20).
-    static let nearDuplicateDistanceThreshold: Float = 8.0
+    /// visually similar. The current feature print (revision 2) scores 0 for
+    /// identical images and about 1 for unrelated ones; a retake scores about 0.3.
+    /// 0.5 is the cutoff the iOS app ships with. The old cutoff of 8 came from
+    /// revision 1's scale and matched every pair of images.
+    static let nearDuplicateDistanceThreshold: Float = 0.5
+    /// Images fingerprinted per scan, largest first. A feature print costs tens of
+    /// milliseconds, so this bounds the stage to minutes on any library.
+    static let maxNearDuplicateImages = 20_000
+    /// Each image is compared with this many neighbours in time order. Similar
+    /// shots (bursts, retakes, edits) sit next to each other in time. Comparing
+    /// every pair grew as n squared and ran for hours on a large home folder.
+    static let nearDuplicateWindow = 32
     /// Hash workers per size group. Bounded so a huge group cannot saturate
     /// every cooperative thread; disk throughput is usually the limit anyway.
     static let hashWorkerCount = 4
@@ -434,7 +442,7 @@ public actor DuplicateDetector {
         guard images.count > 1 else { return }
 
         var prints: [(file: FileRecord, print: ImageFeaturePrint)] = []
-        var iterator = images.makeIterator()
+        var iterator = images.sorted { $0.sizeBytes > $1.sizeBytes }.prefix(Self.maxNearDuplicateImages).makeIterator()
         await withTaskGroup(of: (FileRecord, ImageFeaturePrint?).self) { group in
             for _ in 0..<Self.hashWorkerCount {
                 guard let file = iterator.next() else { break }
@@ -450,9 +458,10 @@ public actor DuplicateDetector {
             }
         }
         guard prints.count > 1 else { return }
+        prints.sort { ($0.file.modifiedAt ?? .distantPast) < ($1.file.modifiedAt ?? .distantPast) }
 
-        // Union-find over pairwise distances within threshold → connected
-        // components of visually similar images.
+        // Union-find over distances within threshold, between time-order
+        // neighbours → connected components of visually similar images.
         var parent = Array(prints.indices)
         func find(_ x: Int) -> Int {
             var root = x
@@ -472,12 +481,12 @@ public actor DuplicateDetector {
 
         for i in prints.indices {
             try Task.checkCancellation()
-            for j in (i + 1)..<prints.endIndex {
+            for other in (i + 1)..<min(i + 1 + Self.nearDuplicateWindow, prints.endIndex) {
                 do {
                     var distance: Float = 0
-                    try prints[i].print.observation.computeDistance(&distance, to: prints[j].print.observation)
+                    try prints[i].print.observation.computeDistance(&distance, to: prints[other].print.observation)
                     if distance <= Self.nearDuplicateDistanceThreshold {
-                        union(i, j)
+                        union(i, other)
                     }
                 } catch {
                     continue
