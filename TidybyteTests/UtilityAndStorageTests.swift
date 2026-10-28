@@ -88,6 +88,123 @@ final class UtilityAndStorageTests: XCTestCase {
         XCTAssertFalse(stored)
     }
 
+    // MARK: - Resource cache
+
+    func testResourceCacheReusesAnUnchangedAsset() {
+        let cache = ResourceCache()
+        let date = Date(timeIntervalSince1970: 1_000)
+        var reads = 0
+        for _ in 0..<2 {
+            _ = cache.resources(id: "a", modifiedAt: date, stamp: cache.stamp()) { reads += 1; return facts() }
+        }
+        XCTAssertEqual(reads, 1)
+    }
+
+    /// An edit moves the asset's modification date: read it again.
+    func testResourceCacheRereadsAnEditedAsset() {
+        let cache = ResourceCache()
+        _ = cache.resources(id: "a", modifiedAt: Date(timeIntervalSince1970: 1_000), stamp: cache.stamp()) { facts(size: 1) }
+        let edited = cache.resources(id: "a", modifiedAt: Date(timeIntervalSince1970: 2_000), stamp: cache.stamp()) { facts(size: 2) }
+        XCTAssertEqual(edited.fileSize, 2)
+    }
+
+    /// iCloud downloads don't always produce a library change: an old read
+    /// is read again even if nothing evicted it.
+    func testResourceCacheRereadsAfterMaxAge() {
+        let clock = TestClock()
+        let cache = ResourceCache(now: { clock.now })
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { facts() }
+        var reads = 0
+        clock.now += ResourceCache.maxAge - 1
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { reads += 1; return facts() }
+        XCTAssertEqual(reads, 0)
+        clock.now += 2
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { reads += 1; return facts() }
+        XCTAssertEqual(reads, 1)
+    }
+
+    func testResourceCacheRereadsRemovedAssetsOnly() {
+        let cache = ResourceCache()
+        func read(_ ids: [String]) -> [String] {
+            let stamp = cache.stamp()
+            var reads: [String] = []
+            for id in ids {
+                _ = cache.resources(id: id, modifiedAt: nil, stamp: stamp) { reads.append(id); return facts() }
+            }
+            return reads
+        }
+        XCTAssertEqual(read(["a", "b"]), ["a", "b"])
+        cache.remove(["a"])
+        XCTAssertEqual(read(["a", "b"]), ["a"])
+        cache.removeAll()
+        XCTAssertEqual(read(["a", "b"]), ["a", "b"])
+        XCTAssertEqual(read(["a", "b"]), [])
+    }
+
+    /// A fetch made before a change holds the changed asset as it was, even if
+    /// its build only starts after the change (queued behind another build):
+    /// nothing it reads for that asset is kept.
+    func testResourceCacheKeepsNothingAFetchReadForAnAssetRemovedAfterIt() {
+        let cache = ResourceCache()
+        let stamp = cache.stamp()
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: stamp) { facts() }
+        cache.remove(["b"])
+        _ = cache.resources(id: "b", modifiedAt: nil, stamp: stamp) { facts() }
+        _ = cache.resources(id: "c", modifiedAt: nil, stamp: stamp) { facts() }
+
+        var reads: [String] = []
+        let next = cache.stamp()
+        for id in ["a", "b", "c"] {
+            _ = cache.resources(id: id, modifiedAt: nil, stamp: next) { reads.append(id); return facts() }
+        }
+        XCTAssertEqual(reads, ["b"], "only the asset removed after the fetch is read again")
+    }
+
+    func testResourceCacheKeepsNothingAFetchReadAfterAClear() {
+        let cache = ResourceCache()
+        let stamp = cache.stamp()
+        cache.removeAll()
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: stamp) { facts() }
+        var reads = 0
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { reads += 1; return facts() }
+        XCTAssertEqual(reads, 1)
+    }
+
+    /// Duplicate scans and exports drop one asset at a time, thousands of
+    /// times: that must never wipe the rest of the cache.
+    func testResourceCacheKeepsOtherAssetsThroughManyRemovals() {
+        let cache = ResourceCache()
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { facts() }
+        for index in 0..<20_000 { cache.remove(["removed-\(index)"]) }
+        var reads = 0
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { reads += 1; return facts() }
+        XCTAssertEqual(reads, 0)
+    }
+
+    /// Pruning removals (on later removals and on releases) must keep the
+    /// ones a still-open fetch needs: its stale read of "a" is not kept.
+    func testResourceCachePruningKeepsRemovalsAnOpenFetchNeeds() {
+        let cache = ResourceCache()
+        let open = cache.stamp()
+        cache.remove(["a"])
+        for index in 0..<100 { cache.remove(["other-\(index)"]) }
+        cache.release(cache.stamp())
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: open) { facts() }
+        cache.release(open)
+
+        var reads = 0
+        _ = cache.resources(id: "a", modifiedAt: nil, stamp: cache.stamp()) { reads += 1; return facts() }
+        XCTAssertEqual(reads, 1)
+    }
+
+    private final class TestClock: @unchecked Sendable {
+        var now = Date(timeIntervalSince1970: 0)
+    }
+
+    private func facts(size: Int64 = 1_000) -> ResourceFacts {
+        ResourceFacts(fileSize: size, filename: nil, isLocallyAvailable: true, hasScreenRecordingFilename: false)
+    }
+
     private func makeTestImage() -> UIImage {
         UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { context in
             UIColor.red.setFill()

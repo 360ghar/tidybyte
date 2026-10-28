@@ -133,6 +133,7 @@ final class CleanupHomeViewModel {
 
     /// Pull-to-refresh. Serialized through the same chain as `sync(to:)` (A4).
     func refreshCounts(excludingCompressedCopies: Set<String> = []) async {
+        await photoService.discardCachedResources()
         await enqueue {
             await self.loadCounts(excludingCompressedCopies: excludingCompressedCopies)
         }
