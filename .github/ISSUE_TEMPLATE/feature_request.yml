@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest a new feature or a change to an existing one.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what makes it hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: How should TidyByte behave?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project limits
+      options:
+        - label: This works on the device, with no server, account, or third-party service.
+          required: true

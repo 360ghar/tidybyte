@@ -1,0 +1,72 @@
+name: Bug report
+description: Something in TidyByte does not work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see? Add screenshots or a screen recording if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Swipe tab
+        2. Tap Not Swiped Yet
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Shown in the app under Settings.
+      placeholder: "1.1.3"
+    validations:
+      required: true
+  - type: input
+    id: ios-version
+    attributes:
+      label: iOS version
+      placeholder: "26.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - iPhone
+        - iPad
+        - iPhone Duo
+        - Simulator
+    validations:
+      required: true
+  - type: input
+    id: library-size
+    attributes:
+      label: Approximate number of photos and videos
+      description: Many problems only show on large libraries.
+      placeholder: "16,000"
+  - type: dropdown
+    id: photo-access
+    attributes:
+      label: Photo access
+      options:
+        - Full Access
+        - Limited Access
+        - Not sure
+  - type: input
+    id: language
+    attributes:
+      label: App language
+      placeholder: English

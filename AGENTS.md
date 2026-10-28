@@ -9,7 +9,7 @@ TidyByte is a native iOS app (Swift/SwiftUI, iOS 17+) that helps users clean up 
 ## Build & Run
 
 - **Xcode project**: `Tidybyte.xcodeproj` (generated from `project.yml` via XcodeGen)
-- **Build**: `xcodebuild -project Tidybyte.xcodeproj -scheme Tidybyte -destination 'platform=iOS Simulator,name=iPhone 16' build`
+- **Build**: `xcodebuild -project Tidybyte.xcodeproj -scheme Tidybyte -destination 'platform=iOS Simulator,name=<installed iPhone simulator>' build` (list simulators with `xcrun simctl list devices available`; CI picks the newest non-Duo iPhone automatically)
 - **Swift version**: 5.9 language mode (Xcode 15.3+ toolchain — `ContinuationResumer` uses the `sending` keyword), strict concurrency enabled (`SWIFT_STRICT_CONCURRENCY: complete`)
 - **Min deployment**: iOS 17
 - **Universal** (`TARGETED_DEVICE_FAMILY: 1,2`, iPhone + iPad + iPhone Duo) — iPhone stays portrait-only (the swipe UX is portrait-centric), iPad supports all orientations, and iPhone Duo runs the same build on both of its displays (see `docs/duo-readiness.md`).

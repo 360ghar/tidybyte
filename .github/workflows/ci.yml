@@ -23,12 +23,28 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      # The runner image changes which simulators it ships, and a hard-coded
+      # device name ("iPhone 16") failed every build the day the image dropped
+      # it. This picks the first iPhone on the newest iOS runtime instead, and
+      # exports it as DESTINATION for the build, catalog and test steps. iPhone
+      # Duo is skipped: it is the first iPhone on the iOS 27.1 runtime, and the
+      # suite is not written for its two displays.
+      - name: Pick an iPhone simulator
+        run: |
+          id=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          rts = sorted((k for k in d if ".iOS-" in k), key=lambda k: [int(x) for x in k.rsplit("iOS-", 1)[1].split("-")])
+          print(next(x["udid"] for k in reversed(rts) for x in d[k] if x["name"].startswith("iPhone") and "Duo" not in x["name"]))')
+          echo "Using simulator $id"
+          echo "DESTINATION=platform=iOS Simulator,id=$id" >> "$GITHUB_ENV"
+
       - name: Build
         run: |
           xcodebuild build \
             -project Tidybyte.xcodeproj \
             -scheme Tidybyte \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "$DESTINATION" \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO
 
@@ -49,12 +65,11 @@ jobs:
       # token, and that every `INFOPLIST_KEY_*UsageDescription` in project.yml
       # has a catalog entry.
       #
-      # `DESTINATION` is passed explicitly and matches the simulator the build
-      # and test steps use. Left to its default the script picks a different
-      # device name, and a runner that lacks it fails here instead of at build.
+      # `DESTINATION` comes from the "Pick an iPhone simulator" step, so this
+      # uses the same simulator as the build and test steps. Left to its default
+      # the script picks a fixed device name, and a runner that lacks it fails
+      # here instead of at build.
       - name: Verify localization catalogs are current
-        env:
-          DESTINATION: platform=iOS Simulator,name=iPhone 16
         run: |
           ./scripts/localization/refresh.sh
           git diff --exit-code -- \
@@ -118,7 +133,7 @@ jobs:
           xcodebuild test \
             -project Tidybyte.xcodeproj \
             -scheme Tidybyte \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "$DESTINATION" \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO
 
