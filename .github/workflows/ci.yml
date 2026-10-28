@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# A new push to a pull request cancels that PR's older run, which no one will
+# read. Runs on main are never cancelled, so every commit there gets a result.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-and-test:
     runs-on: macos-15
@@ -29,7 +35,11 @@ jobs:
       # exports it as DESTINATION for the build, catalog and test steps. iPhone
       # Duo is skipped: it is the first iPhone on the iOS 27.1 runtime, and the
       # suite is not written for its two displays.
-      - name: Pick an iPhone simulator
+      #
+      # The simulator also starts booting here, in the background. A cold boot
+      # on the runner took 8 minutes, and `xcodebuild test` only started it after
+      # the build; now it boots while the build and catalog steps run.
+      - name: Pick and boot an iPhone simulator
         run: |
           id=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
@@ -38,10 +48,15 @@ jobs:
           print(next(x["udid"] for k in reversed(rts) for x in d[k] if x["name"].startswith("iPhone") and "Duo" not in x["name"]))')
           echo "Using simulator $id"
           echo "DESTINATION=platform=iOS Simulator,id=$id" >> "$GITHUB_ENV"
+          echo "SIMULATOR_ID=$id" >> "$GITHUB_ENV"
+          nohup xcrun simctl boot "$id" > /dev/null 2>&1 &
 
+      # Builds the app and both test bundles once. The Test step reuses them
+      # with `test-without-building`, and a compile error in a test now fails
+      # here, before the slow steps.
       - name: Build
         run: |
-          xcodebuild build \
+          xcodebuild build-for-testing \
             -project Tidybyte.xcodeproj \
             -scheme Tidybyte \
             -destination "$DESTINATION" \
@@ -65,7 +80,7 @@ jobs:
       # token, and that every `INFOPLIST_KEY_*UsageDescription` in project.yml
       # has a catalog entry.
       #
-      # `DESTINATION` comes from the "Pick an iPhone simulator" step, so this
+      # `DESTINATION` comes from the "Pick and boot an iPhone simulator" step, so this
       # uses the same simulator as the build and test steps. Left to its default
       # the script picks a fixed device name, and a runner that lacks it fails
       # here instead of at build.
@@ -130,69 +145,17 @@ jobs:
 
       - name: Test
         run: |
-          xcodebuild test \
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          xcodebuild test-without-building \
             -project Tidybyte.xcodeproj \
             -scheme Tidybyte \
             -destination "$DESTINATION" \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      # The App Store growth creatives — In-App Events, Custom Product Pages,
-      # Asset Library, Product Page Optimization, and the header/search assets.
-      #
-      # This runs in the macOS job, and that is the point of it being here. The
-      # type is set in the macOS system faces `FONT_STACKS` in
-      # `scripts/growth/manifest.mjs` names per script, because those are the
-      # fonts the App Store review team's own machine has. On a Linux runner none
-      # of them resolve, the stack falls through to generic `sans-serif`, and the
-      # growth README records that this picks a face with incomplete shaping for
-      # several scripts: the Indic conjuncts render as dotted circles instead of
-      # joined glyphs. `check:growth` cannot catch that, because it measures
-      # dimensions, alpha, coverage and byte-count blankness, never shaping, so on
-      # Linux the job would go green while the 15 non-Latin languages rendered
-      # wrong.
-      #
-      # The 357 per-language PNGs are derived output, and `.gitignore` keeps them
-      # out of the repo (~628 MB) because `build-assets.mjs` re-renders them
-      # byte-for-byte from the committed art in `docs/growth/art/` plus the copy
-      # in `Tidybyte/Resources/Localizable.xcstrings` and
-      # `docs/appstore/listings.json`. There is therefore nothing to validate
-      # until they are rendered, so this job renders them first. That also proves
-      # the generator still works for all 21 languages, which a check against
-      # committed files could not tell you.
-      #
-      # The check is what Apple actually rejects: an image outside the surface's
-      # accepted size or aspect ratio, an alpha channel (App Store Connect
-      # rejects transparency, and Playwright writes RGBA by default), a language
-      # with no asset (Apple requires the text localized for every language the
-      # app supports), or a blank render from a silently-failed background load.
-      # `check:growth` runs `--strict`, so coverage and blankness fail the build.
-      #
-      # `npm ci` installs the Playwright package but not its browser, so the
-      # browser is installed explicitly.
-      #
-      # These run last so a broken creative cannot mask a broken build or test.
-      - name: Install the browser the creatives render in
-        run: npx playwright install chromium
-
-      # The manifests ARE tracked, unlike the PNGs, so they are diffed: the
-      # render rewrites `docs/growth/*/manifest.json` from the plan in
-      # `manifest.mjs`, and a plan change nobody re-rendered otherwise passes CI
-      # while the committed manifest stays stale. `scripts/publish/plan.mjs` reads
-      # those manifests to build the media plan, so a stale one makes
-      # `publish:media` place the old asset set.
-      - name: Render and validate App Store growth creatives
-        run: |
-          npm run growth
-          npm run check:growth
-          git diff --exit-code -- docs/growth/*/manifest.json
+      # The App Store growth creatives render in their own workflow,
+      # growth.yml, which runs only when their inputs change. Here they added
+      # about 6 minutes to every run.
 
   site:
     runs-on: ubuntu-latest

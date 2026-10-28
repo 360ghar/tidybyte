@@ -1,0 +1,100 @@
+name: Growth creatives
+
+# Renders and checks the App Store growth creatives. This was the last step of
+# CI and added about 6 minutes to every run, so it now runs only when a file
+# the render reads changes: the art and manifests, the render scripts, the copy
+# (the String Catalogs and the store listings), the fonts, or the dependencies.
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/growth/**
+      - scripts/growth/**
+      - docs/appstore/listings.json
+      - Tidybyte/Resources/Localizable.xcstrings
+      - Tidybyte/Resources/AppShortcuts.xcstrings
+      - public/assets/fonts/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/growth.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/growth/**
+      - scripts/growth/**
+      - docs/appstore/listings.json
+      - Tidybyte/Resources/Localizable.xcstrings
+      - Tidybyte/Resources/AppShortcuts.xcstrings
+      - public/assets/fonts/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/growth.yml
+  workflow_dispatch:
+
+concurrency:
+  group: growth-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  render:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The App Store growth creatives — In-App Events, Custom Product Pages,
+      # Asset Library, Product Page Optimization, and the header/search assets.
+      #
+      # This runs on macOS, and that is the point of it being here. The
+      # type is set in the macOS system faces `FONT_STACKS` in
+      # `scripts/growth/manifest.mjs` names per script, because those are the
+      # fonts the App Store review team's own machine has. On a Linux runner none
+      # of them resolve, the stack falls through to generic `sans-serif`, and the
+      # growth README records that this picks a face with incomplete shaping for
+      # several scripts: the Indic conjuncts render as dotted circles instead of
+      # joined glyphs. `check:growth` cannot catch that, because it measures
+      # dimensions, alpha, coverage and byte-count blankness, never shaping, so on
+      # Linux the job would go green while the 15 non-Latin languages rendered
+      # wrong.
+      #
+      # The 357 per-language PNGs are derived output, and `.gitignore` keeps them
+      # out of the repo (~628 MB) because `build-assets.mjs` re-renders them
+      # byte-for-byte from the committed art in `docs/growth/art/` plus the copy
+      # in `Tidybyte/Resources/Localizable.xcstrings` and
+      # `docs/appstore/listings.json`. There is therefore nothing to validate
+      # until they are rendered, so this job renders them first. That also proves
+      # the generator still works for all 21 languages, which a check against
+      # committed files could not tell you.
+      #
+      # The check is what Apple actually rejects: an image outside the surface's
+      # accepted size or aspect ratio, an alpha channel (App Store Connect
+      # rejects transparency, and Playwright writes RGBA by default), a language
+      # with no asset (Apple requires the text localized for every language the
+      # app supports), or a blank render from a silently-failed background load.
+      # `check:growth` runs `--strict`, so coverage and blankness fail the build.
+      #
+      # `npm ci` installs the Playwright package but not its browser, so the
+      # browser is installed explicitly.
+      #
+      # A separate workflow, so a broken creative cannot mask a broken build or
+      # test in CI.
+      - name: Install the browser the creatives render in
+        run: npx playwright install chromium
+
+      # The manifests ARE tracked, unlike the PNGs, so they are diffed: the
+      # render rewrites `docs/growth/*/manifest.json` from the plan in
+      # `manifest.mjs`, and a plan change nobody re-rendered otherwise passes CI
+      # while the committed manifest stays stale. `scripts/publish/plan.mjs` reads
+      # those manifests to build the media plan, so a stale one makes
+      # `publish:media` place the old asset set.
+      - name: Render and validate App Store growth creatives
+        run: |
+          npm run growth
+          npm run check:growth
+          git diff --exit-code -- docs/growth/*/manifest.json

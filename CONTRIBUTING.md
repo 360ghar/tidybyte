@@ -77,6 +77,7 @@ change before you push.
 | App Store listing limits | `node scripts/localization/check-listings.mjs --strict` | `docs/appstore/listings.json` |
 | Site builds and passes the audit | `npm run build && npm run check` | `src/`, `public/` |
 | No fixed-size layout | `npm run check:duo` | layout code |
+| App Store creatives render (separate workflow, runs only when its inputs change) | `npx playwright install chromium`, then `npm run growth && npm run check:growth` | `docs/growth/`, `scripts/growth/`, the String Catalogs, `docs/appstore/listings.json` |
 
 `refresh.sh` uses the simulator in the `DESTINATION` environment variable, for
 example `DESTINATION='platform=iOS Simulator,name=iPhone 17 Pro'`.

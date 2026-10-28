@@ -16,7 +16,7 @@ The review added regression checks for incomplete resource sizes, permission cha
 
 The review UI run exposed a delayed Photos permission prompt in test setup. The test now keeps invoking the interruption handler while waiting. The final rerun passed all three feature tests on both devices with no skips; the existing Dynamic Type and iPad layout checks also passed during the review.
 
-The [PR #3 review decisions](pr-3-review.md) record all 44 code-review findings, including duplicate reports and proposals that conflict with the selected feature scope. CI now selects Xcode 26.3 explicitly; local validation uses Xcode 27.
+The PR #3 review covered 44 code-review findings, including duplicate reports and proposals that conflict with the selected feature scope; the decisions are in the pull request on GitHub. CI now selects Xcode 26.3 explicitly; local validation uses Xcode 27.
 
 Generate the project with `xcodegen generate`. Run the full suite with an installed simulator destination:
 
