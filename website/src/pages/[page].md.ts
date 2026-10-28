@@ -15,7 +15,7 @@ import { renderToolMarkdown } from "../lib/tool-page";
 // /index.md for the home page. Same purpose as the blog alternates: an AI
 // citation fetcher can read one page without parsing HTML.
 // llms.txt promises this for every URL it lists, and seo-audit.mjs checks it.
-const CORE_SLUGS = ["index", "blog", "support", "privacy", "changelog"];
+const CORE_SLUGS = ["index", "blog", "mac", "support", "privacy", "changelog"];
 
 export function getStaticPaths() {
   return [

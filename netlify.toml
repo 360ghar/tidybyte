@@ -76,6 +76,11 @@
 
 # Pretty URLs — serve /support from /support.html etc.
 [[redirects]]
+  from = "/mac"
+  to = "/mac.html"
+  status = 200
+
+[[redirects]]
   from = "/support"
   to = "/support.html"
   status = 200

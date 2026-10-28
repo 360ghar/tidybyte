@@ -28,7 +28,10 @@ RESOURCES_DIR="$CONTENTS/Resources"
 # mono repo). Falls back to 1.0.0 outside a tagged repo.
 APP_VERSION="$(git describe --tags --abbrev=0 --match 'mac-v*' 2>/dev/null || echo 'mac-v1.0.0')"
 APP_VERSION="${APP_VERSION#mac-v}"
-BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null || echo '1')"
+# The commit count only grows on main. A release built on a branch that is later
+# squash-merged must pass BUILD_NUMBER (main's count) so the next release from
+# main still gets a higher number and Sparkle offers it.
+BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo '1')}"
 
 echo "Building $APP_NAME..."
 

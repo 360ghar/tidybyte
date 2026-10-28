@@ -18,6 +18,7 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 3000
 
 # Mirror of the [[redirects]] blocks in netlify.toml (200 = internal rewrite).
 REDIRECTS = {
+    "/mac": "/mac.html",
     "/support": "/support.html",
     "/privacy": "/privacy.html",
     "/changelog": "/changelog.html",

@@ -68,6 +68,9 @@ export default defineConfig({
         } else if (path.startsWith('/blog/')) {
           item.changefreq = 'monthly';
           item.priority = 0.7;
+        } else if (path === '/mac') {
+          item.changefreq = 'monthly';
+          item.priority = 0.9;
         } else if (path === '/support') {
           item.changefreq = 'monthly';
           item.priority = 0.6;

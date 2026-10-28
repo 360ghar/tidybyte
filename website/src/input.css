@@ -488,3 +488,119 @@ html.js .faq-chev {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* ===========================================================================
+   MAC PAGE SCREEN SWITCHER (src/content/pages/mac.html)
+   ---------------------------------------------------------------------------
+   Radio inputs and CSS only. The checked input shows its screen, so the first
+   screen renders with no JS, arrow keys move between screens, and nothing is
+   hidden behind an animation: the fade only runs on a screen that is already
+   displayed. Unlayered, like the motion system above, so Tailwind keeps it.
+=========================================================================== */
+.mac-views {
+  margin: 0;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+
+.mac-views__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background: rgb(var(--c-surface-card));
+  box-shadow: inset 0 0 0 1px rgb(var(--c-hairline-strong) / 0.6);
+}
+
+.mac-views__tabs label {
+  cursor: pointer;
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  color: rgb(var(--c-muted));
+  transition: background-color var(--dur-quick) var(--ease-out-quart),
+    color var(--dur-quick) var(--ease-out-quart);
+}
+
+.mac-views__tabs label:hover {
+  color: rgb(var(--c-ink));
+}
+
+/* Four tabs do not fit one row on a phone: a 2 x 2 grid, not a wrapped pill. */
+@media (max-width: 34rem) {
+  .mac-views__tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    border-radius: 1.25rem;
+  }
+  .mac-views__tabs label {
+    border-radius: 1rem;
+    text-align: center;
+  }
+}
+
+.mac-views__panels {
+  margin-top: 1.75rem;
+}
+
+.mac-views__panels figure {
+  display: none;
+  margin: 0;
+}
+
+.mac-views__panels img {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* One light source above the window: a short, tight fall-off, not a halo. */
+  filter: drop-shadow(0 10px 14px rgb(10 10 10 / 0.16));
+}
+
+.mac-views__panels figcaption {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: rgb(var(--c-muted));
+}
+
+#mac-view-overview:checked ~ .mac-views__tabs label[for="mac-view-overview"],
+#mac-view-space:checked ~ .mac-views__tabs label[for="mac-view-space"],
+#mac-view-duplicates:checked ~ .mac-views__tabs label[for="mac-view-duplicates"],
+#mac-view-apps:checked ~ .mac-views__tabs label[for="mac-view-apps"] {
+  background: rgb(var(--c-primary));
+  color: rgb(var(--c-on-primary));
+}
+
+#mac-view-overview:focus-visible ~ .mac-views__tabs label[for="mac-view-overview"],
+#mac-view-space:focus-visible ~ .mac-views__tabs label[for="mac-view-space"],
+#mac-view-duplicates:focus-visible ~ .mac-views__tabs label[for="mac-view-duplicates"],
+#mac-view-apps:focus-visible ~ .mac-views__tabs label[for="mac-view-apps"] {
+  outline: 2px solid rgb(255 77 139 / 0.6);
+  outline-offset: 2px;
+}
+
+#mac-view-overview:checked ~ .mac-views__panels [data-view="overview"],
+#mac-view-space:checked ~ .mac-views__panels [data-view="space"],
+#mac-view-duplicates:checked ~ .mac-views__panels [data-view="duplicates"],
+#mac-view-apps:checked ~ .mac-views__panels [data-view="apps"] {
+  display: block;
+  animation: mac-view-in var(--dur-base) var(--ease-out-quart);
+}
+
+@keyframes mac-view-in {
+  from { opacity: 0.35; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mac-views__panels figure { animation: none !important; }
+}

@@ -102,6 +102,11 @@ function imagePreloadTag(m: PageMeta): string | null {
     // by URL, so a plain href preload feeds the <source> request.
     return `  <link rel="preload" as="image" href="/assets/img/illustrations/hero-cleanup.avif" type="image/avif" fetchpriority="high">`;
   }
+  if (m.route === "/mac") {
+    // The first screen of the Mac page's screen switcher is its LCP image.
+    // Same srcset and sizes as the <source>, so the preload fetches the file the browser picks.
+    return `  <link rel="preload" as="image" imagesrcset="/assets/img/mac/01-overview-1200.avif 1200w, /assets/img/mac/01-overview.avif 2400w" imagesizes="(max-width: 1120px) 94vw, 1060px" type="image/avif" fetchpriority="high">`;
+  }
   if (m.route.startsWith("/blog/")) {
     // Blog heroes are AVIF-first <picture> blocks; AVIF is supported by all
     // evergreen browsers, so it is the LCP resource in practice.
