@@ -266,10 +266,12 @@ enum ExploreTreeBuilder {
             let components = file.url.pathComponents
             let relative = Array(components.dropFirst(commonLength))
             // The last component is the file itself; intermediate components
-            // are folders. Anything deeper than maxDepth rolls up.
-            let folders = Array(relative.dropLast().prefix(maxDepth))
+            // are folders. A summarized folder is a folder all the way down, and
+            // stands for every item inside. Anything deeper than maxDepth rolls up.
+            let items = file.rolledUpItemCount
+            let folders = Array((items == nil ? relative.dropLast() : relative[...]).prefix(maxDepth))
             root.bytes += max(0, file.sizeBytes)
-            root.fileCount += 1
+            root.fileCount += items ?? 1
             var node = root
             var pathSoFar = commonPath
             for folder in folders {
@@ -281,7 +283,7 @@ enum ExploreTreeBuilder {
                     break
                 }
                 next.bytes += max(0, file.sizeBytes)
-                next.fileCount += 1
+                next.fileCount += items ?? 1
                 node = next
             }
         }
@@ -364,6 +366,10 @@ enum ExploreTreeBuilder {
 
     private static func buildTypeGroups(files: [FileRecord], maxChildren: Int) -> [ExploreGroup] {
         let grouped = Dictionary(grouping: files) { file -> String in
+            // A folder name is not a file type: summarized folders get one group.
+            if file.rolledUpItemCount != nil {
+                return String(localized: "Summarized Folders", comment: "Explore group for folders shown as one total")
+            }
             let ext = (file.fileExtension ?? "").lowercased()
             return ext.isEmpty
                 ? String(localized: "No Extension", comment: "Explore group for files without an extension")
@@ -379,7 +385,7 @@ enum ExploreTreeBuilder {
                 id: "ext:\(entry.key)",
                 name: entry.key,
                 bytes: entry.files.reduce(Int64(0)) { $0 + max(0, $1.sizeBytes) },
-                fileCount: entry.files.count,
+                fileCount: entry.files.reduce(0) { $0 + ($1.rolledUpItemCount ?? 1) },
                 detail: nil,
                 paletteIndex: index,
                 children: []
@@ -392,7 +398,7 @@ enum ExploreTreeBuilder {
                 id: "__other__",
                 name: String(localized: "Other", comment: "Explore rollup group for small entries"),
                 bytes: rest.reduce(Int64(0)) { $0 + max(0, $1.sizeBytes) },
-                fileCount: rest.count,
+                fileCount: rest.reduce(0) { $0 + ($1.rolledUpItemCount ?? 1) },
                 detail: nil,
                 paletteIndex: kept.count,
                 children: []

@@ -122,6 +122,57 @@ final class CrawlerRollupTests: XCTestCase {
         XCTAssertEqual(record(files, at: "Notes/build/plan.pdf")?.sizeBytes, 30)
     }
 
+    func testHardLinkedFilesAddNothingToASummarizedFolder() async throws {
+        try write("Project/package.json", bytes: 2)
+        try write("Project/node_modules/.pnpm/pkg/index.js", bytes: 100)
+        try write("Project/node_modules/own.js", bytes: 40)
+        try write("Store/pkg-index.js", bytes: 100)
+        try FileManager.default.removeItem(at: root.appendingPathComponent("Store/pkg-index.js"))
+        try FileManager.default.linkItem(
+            at: root.appendingPathComponent("Project/node_modules/.pnpm/pkg/index.js"),
+            to: root.appendingPathComponent("Store/pkg-index.js"))
+
+        let files = await crawl()
+
+        let modules = try XCTUnwrap(record(files, at: "Project/node_modules"))
+        XCTAssertEqual(modules.sizeBytes, 40, "Trashing a hard-linked file frees nothing")
+        XCTAssertEqual(modules.rolledUpItemCount, 4, ".pnpm, pkg, index.js, and own.js")
+    }
+
+    func testLooseFilesPastTheBudgetFoldIntoTheirFolder() async throws {
+        for file in 0..<20 { try write("Dump/file\(file).bin", bytes: 10) }
+
+        let unbounded = await crawl()
+        let bounded = await crawl(maxRecords: 6)
+
+        XCTAssertLessThan(bounded.count, 10, "The budget is a hard cap")
+        let dump = try XCTUnwrap(record(bounded, at: "Dump"))
+        XCTAssertGreaterThan(dump.rolledUpItemCount ?? 0, 0)
+        let total = { (files: [FileRecord]) in files.reduce(Int64(0)) { $0 + $1.sizeBytes } }
+        XCTAssertEqual(total(bounded), total(unbounded), "Folded files keep every byte")
+        XCTAssertEqual(total(bounded), 200)
+    }
+
+    func testLargeFilesKeepTheirRecordInsideSummarizedFoldersAndPastTheBudget() async throws {
+        try write("App/package.json", bytes: 2)
+        try write("App/build/small.o", bytes: 10)
+        try write("Dump/note.txt", bytes: 5)
+        for name in ["App/build/render.mov", "Dump/big.bin"] {
+            let url = root.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+            let handle = try FileHandle(forWritingTo: url)
+            try handle.truncate(atOffset: UInt64(FileCrawler.largeFileBytes))
+            try handle.close()
+        }
+
+        let files = await crawl(maxRecords: 3)
+
+        XCTAssertEqual(record(files, at: "App/build/render.mov")?.sizeBytes, FileCrawler.largeFileBytes)
+        XCTAssertEqual(record(files, at: "Dump/big.bin")?.sizeBytes, FileCrawler.largeFileBytes)
+        XCTAssertEqual(record(files, at: "App/build")?.sizeBytes, 10, "The large file is not counted twice")
+    }
+
     func testPersonalFoldersAreCrawledBeforeLibraryAndToolFolders() {
         let home = URL(fileURLWithPath: "/Users/someone")
         let names = ["Library", ".gradle", "Downloads", "Documents"]

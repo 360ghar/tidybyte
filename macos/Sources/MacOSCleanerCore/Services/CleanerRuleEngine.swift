@@ -54,7 +54,10 @@ public actor CleanerRuleEngine {
             }
         }
 
-        let screenshots = screenshotFindings(in: files.filter { record in autoreleasepool { isAllowed(record) } }, sessionID: sessionID)
+        // One policy pass for the rules below. Each isAllowed call autoreleases
+        // URLs, so the pool keeps a 1M-record pass from holding them all.
+        let allowedFiles = files.filter { record in autoreleasepool { isAllowed(record) } }
+        let screenshots = screenshotFindings(in: allowedFiles, sessionID: sessionID)
         findings.append(contentsOf: screenshots)
         for screenshot in screenshots {
             let recommendation = Recommendation(
@@ -73,14 +76,14 @@ public actor CleanerRuleEngine {
             recommendations.append(recommendation)
         }
 
-        let packageCacheResults = packageManagerCacheFindings(files: files.filter(isAllowed), sessionID: sessionID, directorySizes: directorySizes)
+        let packageCacheResults = packageManagerCacheFindings(files: allowedFiles, sessionID: sessionID, directorySizes: directorySizes)
         findings.append(contentsOf: packageCacheResults.map(\.finding))
         recommendations.append(contentsOf: packageCacheResults.map(\.recommendation))
 
-        let largeFiles = largeFileFindings(files: files.filter(isAllowed), sessionID: sessionID)
+        let largeFiles = largeFileFindings(files: allowedFiles, sessionID: sessionID)
         findings.append(contentsOf: largeFiles.map(\.finding))
         recommendations.append(contentsOf: largeFiles.map(\.recommendation))
-        let appLeftovers = appLeftoverFindings(files: files.filter(isAllowed), sessionID: sessionID, directorySizes: directorySizes)
+        let appLeftovers = appLeftoverFindings(files: allowedFiles, sessionID: sessionID, directorySizes: directorySizes)
         findings.append(contentsOf: appLeftovers.map(\.finding))
         recommendations.append(contentsOf: appLeftovers.map(\.recommendation))
         return (dedupeFindings(findings), dedupeRecommendations(recommendations))
@@ -377,7 +380,7 @@ public actor CleanerRuleEngine {
 
     private func largeFileFindings(files: [FileRecord], sessionID: String) -> [(finding: Finding, recommendation: Recommendation)] {
         files
-            .filter { $0.kind == .regularFile && $0.sizeBytes >= 1_000_000_000 && isAllowed($0) }
+            .filter { $0.kind == .regularFile && $0.sizeBytes >= FileCrawler.largeFileBytes }
             .map { record in
                 let findingID = UUID().uuidString
                 let finding = Finding(

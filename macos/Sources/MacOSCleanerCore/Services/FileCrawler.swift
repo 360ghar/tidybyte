@@ -11,7 +11,9 @@ import os
 /// Memory stays bounded. Bulk folders that no review lists file by file
 /// (version control, dependency, build, and tool-cache trees) become one
 /// record each that carries the total size of their contents, and after
-/// `maxRecords` records every further folder is summarized the same way.
+/// `maxRecords` records every further folder is summarized the same way and
+/// every further loose file is folded into the size of its folder. Only files
+/// of `largeFileBytes` or more keep a record past the budget.
 public actor FileCrawler {
     private let fileManager: FileManager
     private let policy: PathSafetyPolicy
@@ -19,6 +21,9 @@ public actor FileCrawler {
     static let maxParallelFolders = 8
     /// About 1.8 KB each at the crawl's peak, so roughly 1.8 GB for a full budget.
     public static let defaultMaxRecords = 1_000_000
+    /// Files this large always get a record of their own, even past the record
+    /// budget and inside summarized folders, so the large-file review sees them.
+    public static let largeFileBytes: Int64 = 1_000_000_000
     private static let logger = Logger(subsystem: AppIdentity.bundleIdentifier, category: "FileCrawler")
 
     public init(
@@ -42,24 +47,26 @@ public actor FileCrawler {
             errors += expansion.errors
             folders += expansion.folders
         }
-        // Personal folders first, then dot-folders, then ~/Library: if the record
-        // budget runs out, it runs out where per-file detail matters least.
-        folders.sort { Self.crawlOrder($0) < Self.crawlOrder($1) }
+        // Personal folders first, then dot-folders, then ~/Library. Each tier
+        // finishes before the next starts, so if the record budget runs out, it
+        // runs out where per-file detail matters least.
         let policy = policy
         let budget = RecordBudget(limit: maxRecords, used: records.count)
-        await withTaskGroup(of: ([FileRecord], Int).self) { group in
-            var pending = folders[...]
-            func addNext() {
-                guard let folder = pending.popFirst() else { return }
-                group.addTask {
-                    Self.crawlFolder(folder, sessionID: sessionID, policy: policy, closed: closed, budget: budget)
+        for tier in 0...Self.lastCrawlTier {
+            await withTaskGroup(of: ([FileRecord], Int).self) { group in
+                var pending = folders.filter { Self.crawlOrder($0) == tier }[...]
+                func addNext() {
+                    guard let folder = pending.popFirst() else { return }
+                    group.addTask {
+                        Self.crawlFolder(folder, sessionID: sessionID, policy: policy, closed: closed, budget: budget)
+                    }
                 }
-            }
-            for _ in 0..<Self.maxParallelFolders { addNext() }
-            for await (folderRecords, folderErrors) in group {
-                records += folderRecords
-                errors += folderErrors
-                addNext()
+                for _ in 0..<Self.maxParallelFolders { addNext() }
+                for await (folderRecords, folderErrors) in group {
+                    records += folderRecords
+                    errors += folderErrors
+                    addNext()
+                }
             }
         }
         if budget.isSpent {
@@ -70,9 +77,11 @@ public actor FileCrawler {
         return (records, errors)
     }
 
+    static let lastCrawlTier = 2
+
     static func crawlOrder(_ folder: URL) -> Int {
         let name = folder.lastPathComponent
-        if name == "Library" { return 2 }
+        if name == "Library" { return lastCrawlTier }
         return name.hasPrefix(".") ? 1 : 0
     }
 
@@ -152,7 +161,8 @@ public actor FileCrawler {
         if let record = makeRecord(for: folder, sessionID: sessionID, policy: policy) {
             // The budget may be spent before this folder starts; it then costs one record.
             guard budget.take(), !rollsUp(folder) else {
-                return (rolledUp(record, sessionID: sessionID, policy: policy, closed: closed), 0)
+                let summary = rolledUp(record, sessionID: sessionID, policy: policy, closed: closed)
+                return (summary.records, summary.errors)
             }
             output.append(record)
         }
@@ -166,6 +176,8 @@ public actor FileCrawler {
         // One autorelease pool per item. The loop is one synchronous job, so without
         // it every URL, path, and resource value the enumerator autoreleases stays
         // alive until the whole folder is done: about 2.5 KB per item.
+        // Loose files past the budget: their bytes and count, by parent folder.
+        var overflow: [String: (bytes: Int64, items: Int)] = [:]
         var finished = false
         while !finished {
             autoreleasepool {
@@ -183,13 +195,38 @@ public actor FileCrawler {
                 let withinBudget = budget.take()
                 if record.kind == .directory, !skipped, !withinBudget || rollsUp(url) {
                     enumerator.skipDescendants()
-                    output += rolledUp(record, sessionID: sessionID, policy: policy, closed: closed)
-                } else {
+                    let summary = rolledUp(record, sessionID: sessionID, policy: policy, closed: closed)
+                    output += summary.records
+                    errors += summary.errors
+                } else if withinBudget || record.kind == .directory
+                    || (record.kind == .regularFile && record.sizeBytes >= largeFileBytes) {
                     output.append(record)
+                } else {
+                    let parent = url.deletingLastPathComponent().standardizedFileURL.path
+                    overflow[parent, default: (0, 0)].bytes += record.sizeBytes
+                    overflow[parent, default: (0, 0)].items += 1
                 }
             }
         }
+        foldOverflow(overflow, into: &output)
         return (output, errors)
+    }
+
+    /// Adds the bytes of loose files that got no record to their folder's
+    /// record, which then reads as a summarized folder. A folder with no record
+    /// of its own (a package, a skipped path) passes its share to the crawled
+    /// folder at the top.
+    private static func foldOverflow(_ overflow: [String: (bytes: Int64, items: Int)], into output: inout [FileRecord]) {
+        guard !overflow.isEmpty else { return }
+        var left = overflow
+        for index in output.indices where output[index].kind == .directory {
+            guard let share = left.removeValue(forKey: output[index].url.path) else { continue }
+            output[index].sizeBytes += share.bytes
+            output[index].rolledUpItemCount = (output[index].rolledUpItemCount ?? 0) + share.items
+        }
+        guard !left.isEmpty, !output.isEmpty, output[0].kind == .directory else { return }
+        output[0].sizeBytes += left.values.reduce(0) { $0 + $1.bytes }
+        output[0].rolledUpItemCount = (output[0].rolledUpItemCount ?? 0) + left.values.reduce(0) { $0 + $1.items }
     }
 
     // MARK: - Summarized folders
@@ -252,17 +289,28 @@ public actor FileCrawler {
     ///
     /// A cache folder directly inside (node_modules/.cache) is a cleanup
     /// candidate of its own, so it gets its own summarized record and its size
-    /// stays out of the parent's total.
+    /// stays out of the parent's total. A file of `largeFileBytes` or more also
+    /// keeps a record of its own, and its size stays out of the total.
+    ///
+    /// A file with other hard links adds nothing to the size, because trashing
+    /// it frees nothing (see `ReclaimableBytes`). `errors` counts the entries
+    /// that could not be read, which the total then leaves out.
     static func rolledUp(
         _ folder: FileRecord, sessionID: String, policy: PathSafetyPolicy, closed: Set<String>
-    ) -> [FileRecord] {
+    ) -> (records: [FileRecord], errors: Int) {
         var record = folder
         var kept: [FileRecord] = []
         var bytes: Int64 = 0
         var items = 0
+        var errors = 0
         var newest = folder.modifiedAt ?? .distantPast
+        let unreadable = ErrorCount()
         if let enumerator = FileManager.default.enumerator(
-            at: folder.url, includingPropertiesForKeys: [], options: [], errorHandler: { _, _ in true }) {
+            at: folder.url, includingPropertiesForKeys: [], options: [], errorHandler: { url, error in
+                logger.warning("Crawler skipped \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                unreadable.value += 1
+                return true
+            }) {
             var finished = false
             while !finished {
                 autoreleasepool {
@@ -277,13 +325,25 @@ public actor FileCrawler {
                     if enumerator.level == 1, cacheFolderNames.contains(url.lastPathComponent.lowercased()),
                         let child = makeRecord(for: url, sessionID: sessionID, policy: policy), child.kind == .directory {
                         enumerator.skipDescendants()
-                        kept += rolledUp(child, sessionID: sessionID, policy: policy, closed: closed)
+                        let summary = rolledUp(child, sessionID: sessionID, policy: policy, closed: closed)
+                        kept += summary.records
+                        errors += summary.errors
                         return
                     }
                     var info = stat()
-                    guard lstat(url.path, &info) == 0 else { return }
-                    items += 1
-                    if info.st_mode & S_IFMT != S_IFDIR { bytes += Int64(info.st_size) }
+                    guard lstat(url.path, &info) == 0 else {
+                        logger.warning("Metadata unavailable for \(url.path, privacy: .public)")
+                        errors += 1
+                        return
+                    }
+                    let isRegular = info.st_mode & S_IFMT == S_IFREG
+                    if isRegular, Int64(info.st_size) >= largeFileBytes,
+                        let large = makeRecord(for: url, sessionID: sessionID, policy: policy) {
+                        kept.append(large)
+                    } else {
+                        items += 1
+                        if info.st_mode & S_IFMT != S_IFDIR, info.st_nlink <= 1 { bytes += Int64(info.st_size) }
+                    }
                     newest = max(newest, date(info.st_mtimespec))
                 }
             }
@@ -291,7 +351,12 @@ public actor FileCrawler {
         record.sizeBytes = bytes
         record.rolledUpItemCount = items
         record.modifiedAt = newest
-        return [record] + kept
+        return ([record] + kept, errors + unreadable.value)
+    }
+
+    /// Counts unreadable entries from the enumerator's error handler.
+    private final class ErrorCount {
+        var value = 0
     }
 
     // MARK: - Records

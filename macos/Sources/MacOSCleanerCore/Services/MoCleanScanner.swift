@@ -595,7 +595,7 @@ public actor MoCleanScanner {
         var findings: [Finding] = []
         var recommendations: [Recommendation] = []
         var relevantFiles: [FileRecord] = []
-        let threshold: Int64 = 1_000_000_000
+        let threshold = FileCrawler.largeFileBytes
         for record in files where record.kind == .regularFile && record.sizeBytes >= threshold {
             guard isAllowed(record) else { continue }
             let findingID = UUID().uuidString

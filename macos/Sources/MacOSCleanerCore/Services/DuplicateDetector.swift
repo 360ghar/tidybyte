@@ -421,9 +421,9 @@ public actor DuplicateDetector {
         duplicates.count + 1
     }
 
-    /// Groups images whose pairwise Vision feature-print distance is within
-    /// threshold. O(n²) distance calls but n is bounded to same-size-group
-    /// image survivors, which are few in practice.
+    /// Groups images whose Vision feature-print distance to a group's first image
+    /// is under the threshold. At most `nearDuplicateWindow` distance calls per
+    /// image, over at most `maxNearDuplicateImages` images.
     private func detectNearDuplicates(
         files: [FileRecord],
         existingFindings: [Finding],
@@ -460,46 +460,27 @@ public actor DuplicateDetector {
         guard prints.count > 1 else { return }
         prints.sort { ($0.file.modifiedAt ?? .distantPast) < ($1.file.modifiedAt ?? .distantPast) }
 
-        // Union-find over distances within threshold, between time-order
-        // neighbours → connected components of visually similar images.
-        var parent = Array(prints.indices)
-        func find(_ x: Int) -> Int {
-            var root = x
-            while parent[root] != root { root = parent[root] }
-            var current = x
-            while parent[current] != root {
-                let next = parent[current]
-                parent[current] = root
-                current = next
-            }
-            return root
-        }
-        func union(_ a: Int, _ b: Int) {
-            let ra = find(a), rb = find(b)
-            if ra != rb { parent[rb] = ra }
-        }
-
-        for i in prints.indices {
+        // Each group is one anchor plus the later images (by modified time) within
+        // the threshold of that anchor. Grouping is not transitive, so a run of
+        // slowly changing shots never chains into one group of unrelated images.
+        var visited = Set<Int>()
+        var components: [[Int]] = []
+        for i in prints.indices where !visited.contains(i) {
             try Task.checkCancellation()
-            for other in (i + 1)..<min(i + 1 + Self.nearDuplicateWindow, prints.endIndex) {
-                do {
-                    var distance: Float = 0
-                    try prints[i].print.observation.computeDistance(&distance, to: prints[other].print.observation)
-                    if distance <= Self.nearDuplicateDistanceThreshold {
-                        union(i, other)
-                    }
-                } catch {
-                    continue
-                }
+            visited.insert(i)
+            var group = [i]
+            for other in (i + 1)..<min(i + 1 + Self.nearDuplicateWindow, prints.endIndex) where !visited.contains(other) {
+                var distance: Float = 0
+                guard (try? prints[i].print.observation.computeDistance(&distance, to: prints[other].print.observation)) != nil,
+                    distance < Self.nearDuplicateDistanceThreshold
+                else { continue }
+                visited.insert(other)
+                group.append(other)
             }
+            if group.count > 1 { components.append(group) }
         }
 
-        var components: [Int: [Int]] = [:]
-        for index in prints.indices {
-            components[find(index), default: []].append(index)
-        }
-
-        for component in components.values where component.count > 1 {
+        for component in components {
             let members = component.map { prints[$0].file }.sorted { lhs, rhs in
                 (lhs.modifiedAt ?? .distantPast) > (rhs.modifiedAt ?? .distantPast)
             }
@@ -545,7 +526,7 @@ public actor DuplicateDetector {
                     toFileID: dup.id,
                     edgeType: .nearDuplicateOf,
                     confidence: 0.85,
-                    evidence: "Feature-print distance ≤ \(Int(Self.nearDuplicateDistanceThreshold))."
+                    evidence: "Feature-print distance < \(String(format: "%.1f", Self.nearDuplicateDistanceThreshold))."
                 ))
             }
         }
