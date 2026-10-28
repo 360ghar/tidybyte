@@ -38,6 +38,15 @@ public actor ProjectDetector {
         self.sourceExtensions = policy.sourceExtensions
     }
 
+    /// Records sorted by `displayPath`, the standardized path. Crawler output is
+    /// already sorted and is used as is: sorting a copy of a million records cost
+    /// hundreds of MB, and building a standardized URL in every comparison made
+    /// about 20 million URLs.
+    static func sortedByPath(_ files: [FileRecord]) -> [FileRecord] {
+        let isSorted = zip(files, files.dropFirst()).allSatisfy { $0.displayPath <= $1.displayPath }
+        return isSorted ? files : files.sorted { $0.displayPath < $1.displayPath }
+    }
+
     public func detectProjects(in files: [FileRecord]) -> [ProjectUnit] {
         let manifests = files.filter { manifestTypes[$0.fileName.lowercased()] != nil || $0.fileExtension == "xcodeproj" || $0.fileExtension == "xcworkspace" }
         var grouped: [URL: [FileRecord]] = [:]
@@ -47,8 +56,8 @@ public actor ProjectDetector {
             grouped[root.standardizedFileURL, default: []].append(manifest)
         }
 
-        let sortedFiles = files.sorted { $0.url.standardizedFileURL.path < $1.url.standardizedFileURL.path }
-        let sortedPaths = sortedFiles.map { $0.url.standardizedFileURL.path }
+        let sortedFiles = Self.sortedByPath(files)
+        let sortedPaths = sortedFiles.map(\.displayPath)
 
         return grouped.map { root, manifestRecords in
             let projectFiles = filesInPrefix(sortedFiles: sortedFiles, sortedPaths: sortedPaths, root: root)
@@ -92,8 +101,8 @@ public actor ProjectDetector {
     public static let maxEdgesPerProject = 200
 
     public func buildEdges(files: [FileRecord], projects: [ProjectUnit]) -> [RelationshipEdge] {
-        let sortedFiles = files.sorted { $0.url.standardizedFileURL.path < $1.url.standardizedFileURL.path }
-        let sortedPaths = sortedFiles.map { $0.url.standardizedFileURL.path }
+        let sortedFiles = Self.sortedByPath(files)
+        let sortedPaths = sortedFiles.map(\.displayPath)
         var edges: [RelationshipEdge] = []
         for project in projects {
             let projectFiles = filesInPrefix(sortedFiles: sortedFiles, sortedPaths: sortedPaths, root: project.rootURL)

@@ -64,7 +64,10 @@ struct SelectionInspectorView: View {
                     value: min(1, Double(total) / Double(parentBytes)).formatted(.percent.precision(.fractionLength(1)))
                 )
             }
-            if record.kind == .directory || record.kind == .package {
+            if let items = record.rolledUpItemCount {
+                // A summarized folder has no scanned children to count.
+                LabeledContent(String(localized: "Items inside"), value: items.formatted())
+            } else if record.kind == .directory || record.kind == .package {
                 let descendants = ExploreSubtreeIndex.descendants(ofParentPath: record.displayPath, in: files)
                 LabeledContent(
                     String(localized: "Scanned files"),

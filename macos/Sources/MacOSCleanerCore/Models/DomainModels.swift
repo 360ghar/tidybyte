@@ -430,6 +430,9 @@ public struct FileRecord: Codable, Identifiable, Hashable, Sendable, ScanSession
     public var capabilities: Set<ProviderCapability>
     /// Hard-link count from the crawl. Deleting one link of several frees nothing.
     public var linkCount: Int?
+    /// Set on a summarized folder (see `FileCrawler.rollsUp`): the number of items
+    /// below it. Its `sizeBytes` is then their total, and none of them has a record.
+    public var rolledUpItemCount: Int?
 
     public init(
         id: String = UUID().uuidString,

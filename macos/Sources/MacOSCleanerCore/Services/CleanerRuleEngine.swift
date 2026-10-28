@@ -43,49 +43,18 @@ public actor CleanerRuleEngine {
         var recommendations: [Recommendation] = []
         let directorySizes = subtreeSizes(for: files)
 
+        // One autorelease pool per record: the policy and path checks autorelease URL
+        // objects, and a pass over a million records otherwise keeps them all alive.
         for record in files {
-            guard isAllowed(record) else {
-                continue
-            }
-
-            if let result = developerArtifactFinding(record, sessionID: sessionID, directorySizes: directorySizes, projects: projects) {
+            if let result = autoreleasepool(invoking: {
+                firstFinding(for: record, sessionID: sessionID, directorySizes: directorySizes, projects: projects)
+            }) {
                 findings.append(result.finding)
                 recommendations.append(result.recommendation)
-                continue
-            }
-
-            if let result = xcarchiveFinding(record, sessionID: sessionID, directorySizes: directorySizes) {
-                findings.append(result.finding)
-                recommendations.append(result.recommendation)
-                continue
-            }
-
-            if let result = cacheOrLogFinding(record, sessionID: sessionID, directorySizes: directorySizes, projects: projects) {
-                findings.append(result.finding)
-                recommendations.append(result.recommendation)
-                continue
-            }
-
-            if let result = oldDownloadFinding(record, sessionID: sessionID) {
-                findings.append(result.finding)
-                recommendations.append(result.recommendation)
-                continue
-            }
-
-            if let result = codingAgentFinding(record, sessionID: sessionID, directorySizes: directorySizes) {
-                findings.append(result.finding)
-                recommendations.append(result.recommendation)
-                continue
-            }
-
-            if let result = organizationFinding(record, sessionID: sessionID) {
-                findings.append(result.finding)
-                recommendations.append(result.recommendation)
-                continue
             }
         }
 
-        let screenshots = screenshotFindings(in: files.filter(isAllowed), sessionID: sessionID)
+        let screenshots = screenshotFindings(in: files.filter { record in autoreleasepool { isAllowed(record) } }, sessionID: sessionID)
         findings.append(contentsOf: screenshots)
         for screenshot in screenshots {
             let recommendation = Recommendation(
@@ -501,11 +470,25 @@ public actor CleanerRuleEngine {
         return String(localized: "The folder is a rebuildable developer artifact, but the surrounding project is unclear, so it requires grouped review.", comment: "Recommendation reason for developer artifact without project")
     }
 
+    /// The first rule that matches the record, in priority order.
+    private func firstFinding(
+        for record: FileRecord, sessionID: String, directorySizes: [String: Int64], projects: [ProjectUnit]
+    ) -> (finding: Finding, recommendation: Recommendation)? {
+        guard isAllowed(record) else { return nil }
+        return developerArtifactFinding(record, sessionID: sessionID, directorySizes: directorySizes, projects: projects)
+            ?? xcarchiveFinding(record, sessionID: sessionID, directorySizes: directorySizes)
+            ?? cacheOrLogFinding(record, sessionID: sessionID, directorySizes: directorySizes, projects: projects)
+            ?? oldDownloadFinding(record, sessionID: sessionID)
+            ?? codingAgentFinding(record, sessionID: sessionID, directorySizes: directorySizes)
+            ?? organizationFinding(record, sessionID: sessionID)
+    }
+
     private func subtreeSizes(for files: [FileRecord]) -> [String: Int64] {
         let directories = files.filter { $0.kind == .directory || $0.kind == .package }
         // Include all file kinds with sizeBytes (not just regularFile) to avoid undercounting
-        // directories that contain symlinks, packages, or other non-regular files.
-        let sortedFiles = files.filter { $0.kind != .directory && $0.kind != .package && $0.sizeBytes > 0 }
+        // directories that contain symlinks, packages, or other non-regular files. A
+        // summarized folder is a leaf: its size is already the total of its contents.
+        let sortedFiles = files.filter { ($0.rolledUpItemCount != nil || ![.directory, .package].contains($0.kind)) && $0.sizeBytes > 0 }
             .sorted { $0.displayPath < $1.displayPath }
         let sortedPaths = sortedFiles.map(\.displayPath)
         var sizes: [String: Int64] = [:]
@@ -513,7 +496,7 @@ public actor CleanerRuleEngine {
             let prefix = directory.displayPath + "/"
             let start = SortedPathSearch.lowerBound(sortedPaths, prefix)
             let end = SortedPathSearch.upperBound(sortedPaths, prefix)
-            var total: Int64 = 0
+            var total: Int64 = directory.rolledUpItemCount != nil ? directory.sizeBytes : 0
             for i in start..<end {
                 total += sortedFiles[i].sizeBytes
             }

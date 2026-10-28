@@ -504,7 +504,9 @@ final class AppViewModelTests: XCTestCase {
         let completed = await runScanOnFixture(model, root: root)
         XCTAssertTrue(completed)
         let outcome = try XCTUnwrap(model.outcome)
-        let lowFile = try XCTUnwrap(outcome.files.first { $0.fileName == "cache.bin" })
+        // Any scanned file will do. Files inside a cache entry (Caches/App) have no
+        // record of their own: the crawler summarizes each cache entry.
+        let lowFile = try XCTUnwrap(outcome.files.first { $0.fileName == "duplicate-a.txt" })
         let mediumFile = try XCTUnwrap(outcome.files.first { $0.fileName == "notes.pdf" })
         let lowAction = PlannedAction(
             id: "safe-tag-low", planID: "crafted", actionType: .tag, targets: [lowFile.id],
@@ -553,7 +555,7 @@ final class AppViewModelTests: XCTestCase {
         let didScan = await runScanOnFixture(model, root: root)
         XCTAssertTrue(didScan)
         let outcome = try XCTUnwrap(model.outcome)
-        let valid = try XCTUnwrap(outcome.files.first { $0.fileName == "cache.bin" })
+        let valid = try XCTUnwrap(outcome.files.first { $0.fileName == "duplicate-a.txt" })
         let missing = try XCTUnwrap(outcome.files.first { $0.fileName == "notes.pdf" })
         let actions = [valid, missing].map { file in
             PlannedAction(

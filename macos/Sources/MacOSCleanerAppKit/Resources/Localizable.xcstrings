@@ -3770,6 +3770,18 @@
         }
       }
     },
+    "Items inside" : {
+      "extractionState" : "manual",
+      "generatesSymbol" : false,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Items inside"
+          }
+        }
+      }
+    },
     "Its reason, affected files, and recovery details appear here." : {
       "extractionState" : "manual",
       "generatesSymbol" : false,

@@ -180,7 +180,10 @@ public actor ReviewInventory {
         progress: @Sendable (CleanupProgress) async -> Void
     ) async throws -> [ReviewItem] {
         var items: [ReviewItem] = []
+        // Paths of produced items only: overlapping roots can reach a file twice.
+        // Keeping every visited path cost hundreds of MB on a large home folder.
         var paths = Set<String>()
+        var visited = 0
         for requested in scope.roots {
             try Task.checkCancellation()
             let root = try await access.acquire(requested)
@@ -196,22 +199,25 @@ public actor ReviewInventory {
             }
             while let url = entries.nextObject() as? URL {
                 try Task.checkCancellation()
+                // Media inside node_modules, a build folder, or a cache entry is not the
+                // person's media; the crawler summarizes those folders for the same reason.
                 guard ReviewSafety.isAllowed(url),
-                    try url.resourceValues(forKeys: [.volumeIsLocalKey]).volumeIsLocal == true
+                    case let values = try url.resourceValues(forKeys: [.volumeIsLocalKey, .isDirectoryKey]),
+                    values.volumeIsLocal == true, !(values.isDirectory == true && FileCrawler.rollsUp(url))
                 else {
                     entries.skipDescendants()
                     continue
                 }
-                guard paths.insert(url.standardizedFileURL.path).inserted else { continue }
-                if var item = try Self.record(url, root: root) {
+                visited += 1
+                if var item = try Self.record(url, root: root), paths.insert(url.standardizedFileURL.path).inserted {
                     if let chatFolder = scope.exportedChatFolder, ReviewSafety.contains(url, in: chatFolder) {
                         item.facts.isExportedChatMedia = true
                     }
                     items.append(item)
                 }
-                if paths.count.isMultiple(of: 100) {
+                if visited.isMultiple(of: 100) {
                     await progress(
-                        CleanupProgress(String(localized: "Reading files"), completed: paths.count, total: 0))
+                        CleanupProgress(String(localized: "Reading files"), completed: visited, total: 0))
                     await Task.yield()
                 }
             }

@@ -9,15 +9,19 @@ import MacOSCleanerCore
 enum ExploreSubtreeIndex {
     /// Total reclaimable bytes under every ancestor path. Only non-container
     /// records contribute, so directory records never double-count their own
-    /// allocation size on top of their children.
+    /// allocation size on top of their children. A summarized folder has no
+    /// children, so it adds its total to itself and to its ancestors.
     static func totals(files: [FileRecord]) -> [String: Int64] {
         var totals: [String: Int64] = [:]
         for file in files {
             let bytes = max(0, file.sizeBytes)
-            guard bytes > 0, file.kind != .directory, file.kind != .package else {
+            let summarized = file.rolledUpItemCount != nil
+            guard bytes > 0, summarized || (file.kind != .directory && file.kind != .package) else {
                 continue
             }
-            var current = file.url.deletingLastPathComponent().standardizedFileURL.path
+            var current = summarized
+                ? file.url.standardizedFileURL.path
+                : file.url.deletingLastPathComponent().standardizedFileURL.path
             var depth = 0
             while depth < 64 {
                 totals[current, default: 0] += bytes

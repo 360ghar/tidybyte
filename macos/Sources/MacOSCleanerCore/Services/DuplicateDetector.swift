@@ -50,11 +50,13 @@ public actor DuplicateDetector {
     /// App and system state under ~/Library (containers, simulators, device
     /// support) is never a duplicate target: other software owns those bytes.
     static func isInsideUserLibrary(_ url: URL) -> Bool {
-        let library = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library", isDirectory: true).standardizedFileURL.path.lowercased()
+        let library = userLibraryPath
         let path = url.standardizedFileURL.path.lowercased()
         return path == library || path.hasPrefix(library + "/")
     }
+
+    private static let userLibraryPath = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library", isDirectory: true).standardizedFileURL.path.lowercased()
 
     private func isDuplicateCandidate(_ file: FileRecord, maxSize: Int64) -> Bool {
         guard file.kind == .regularFile, file.sizeBytes > 0, file.sizeBytes <= maxSize,
@@ -87,7 +89,9 @@ public actor DuplicateDetector {
     ) async throws -> DuplicateAnalysis {
         // Skip files over 2GB for full hashing — extremely expensive and rarely intentional duplicates
         let maxFullHashSize: Int64 = 2_000_000_000
-        let candidates = files.filter { isDuplicateCandidate($0, maxSize: maxFullHashSize) }
+        // One autorelease pool per file: the path and policy checks autorelease URL
+        // objects, and one pass over a million records kept about 3 GB of them alive.
+        let candidates = files.filter { file in autoreleasepool { isDuplicateCandidate(file, maxSize: maxFullHashSize) } }
 
         // Paths sharing a device+inode ARE the same storage (hard links).
         // Hashing both and recommending a trash would free zero bytes, so

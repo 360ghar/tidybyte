@@ -231,13 +231,15 @@ final class PrivacyForecastTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try SQLiteStore(databaseURL: root.appendingPathComponent("forecast.sqlite", isDirectory: false))
 
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        // One clock read, so the two snapshots are exactly one day apart even under load.
+        let now = Date()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now
         try await store.saveStorageSnapshot(StorageSnapshot(
             id: "s1", createdAt: yesterday, totalBytes: 100_000_000_000,
             bytesByCategory: [:], bytesByRootPath: [:], bytesByProject: [:], removedBytesThroughApp: 0
         ))
         try await store.saveStorageSnapshot(StorageSnapshot(
-            id: "s2", createdAt: Date(), totalBytes: 101_000_000_000,
+            id: "s2", createdAt: now, totalBytes: 101_000_000_000,
             bytesByCategory: [:], bytesByRootPath: [:], bytesByProject: [:], removedBytesThroughApp: 0
         ))
 
