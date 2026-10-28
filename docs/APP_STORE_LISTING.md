@@ -1,7 +1,7 @@
 # App Store Connect Listing — TidyByte
 
-> **HISTORICAL (2026-08):** the shipped version is **1.1.1 (build 8)**; live
-> 1.1.0 is build 7. This document preserves the original v1.0 listing copy; the
+> **HISTORICAL (2026-08):** the shipped version is **1.1.1 (build 8)**;
+> **1.1.2 (build 9)** is in review. This document preserves the original v1.0 listing copy; the
 > site's `/changelog` is now the canonical version history. §4 (Keywords) and §1
 > (Subtitle) were refreshed on 2026-10-18 for the storage-cleaner and
 > image-compressor positioning — see the notes under each table.
@@ -277,7 +277,14 @@ Both are fixed sizes — the 1179-vs-1206 slack the iPhone row allows does not a
 
 ---
 
-## 12. What's New (v1.1.1 release notes)
+## 12. What's New (v1.1.2 release notes)
+
+```
+If your photos did not load, or albums looked empty, TidyByte now tells you why. When iOS shares no photos with the app, or a permission is stuck, you get the exact steps to fix it, with buttons for Settings, choosing photos, and trying again. Everything still runs on your device: no account, no ads, no subscription.
+```
+Length: 318 chars. Translated into all 21 storefront locales by `scripts/localization/translations/_notes-1.1.2.mjs`.
+
+### v1.1.1 release notes, for the record
 
 ```
 Now built for iPhone Duo: same cleanup, adapted to both displays. This update also fixes what a full review found: in Arabic and Hebrew a swipe could show Keep while deleting the photo, switching language mid-session could discard deletions you had not confirmed, and several labels stayed in English. Everything still runs on your device: no account, no ads, no subscription.
@@ -299,7 +306,8 @@ Length: 268 chars. Source: `scripts/localization/translations/_notes-1.1.0.mjs`.
 
 | Version | Build | Release notes source |
 |---|---|---|
-| 1.1.1 | 8 | §12 above. The iPhone Duo work and the review fixes, neither of which build 7 carried. |
+| 1.1.2 | 9 | §12 above. The photo-access recovery work from #11: an empty library now shows its cause and the fix. |
+| 1.1.1 | 8 | §12 (for the record). The iPhone Duo work and the review fixes, neither of which build 7 carried. |
 | 1.1.0 | 7 | The 20-language release: RTL, region-aware formatting, localized Siri phrases. Build 7 is what is live; build 8 was never uploaded for this version. |
 | 1.0.5 | 6 | On-device AI search, Screen Recordings tool, Chat Media tool, smarter reminders. |
 | 1.0.4 | — | Cleanup tools refresh: UI, honest savings numbers, keep-choices preserved across scans. (1.0.3 was skipped.) |

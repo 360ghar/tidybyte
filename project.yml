@@ -12,14 +12,13 @@ settings:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
     # Single version source (A10): every target inherits these; bump once here.
-    # 1.1.1 / build 8: the release that finally ships the iPhone Duo work and
-    # the review fixes. Live 1.1.0 is build 7, uploaded before either landed, so
-    # users have the 20-language release and nothing else (see the version table
-    # in docs/APP_STORE_LISTING.md). A released version cannot be reopened, so
-    # the new work needs a new version string; build 8 was never uploaded and is
-    # still free.
-    CURRENT_PROJECT_VERSION: 8
-    MARKETING_VERSION: "1.1.1"
+    # 1.1.2 / build 9: the photo-access recovery release. 1.1.1 (build 8) is live,
+    # and a released version can never be reopened, so the empty-library work from
+    # #11 needs a new version string (see the version table in
+    # docs/APP_STORE_LISTING.md). Build 8 shipped on 1.1.1, so build 9 is the next
+    # free one.
+    CURRENT_PROJECT_VERSION: 9
+    MARKETING_VERSION: "1.1.2"
     INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "TidyByte needs access to your photo library to help you organize and clean up photos and videos."
     INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "TidyByte needs write access to save compressed videos and converted photos."
     CODE_SIGN_STYLE: Automatic
