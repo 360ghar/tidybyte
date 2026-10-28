@@ -91,4 +91,20 @@ public actor KeychainStore {
             throw KeychainError.unexpectedStatus(status)
         }
     }
+
+    /// Removes every API key this app stored, across all provider accounts.
+    /// Keys are saved under the provider name the user had configured at save
+    /// time (case-sensitive), so a single-account delete can never clear them
+    /// all; "Clear All Data" must not leave credentials behind.
+    public func deleteAllAPIKeys() throws {
+        if inMemory { testValues.removeAll(); return }
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service
+        ]
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainError.unexpectedStatus(status)
+        }
+    }
 }

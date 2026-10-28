@@ -240,6 +240,10 @@ struct GlassToolbar: View {
     }
 }
 
+// The availability boundary belongs on the view itself: glassEffect is
+// iOS 26-only, so an unguarded ToolbarButton breaks compilation for any
+// deployment target below 26, runtime checks notwithstanding.
+@available(iOS 26, *)
 struct ToolbarButton: View {
     let icon: String
     let action: () -> Void
@@ -351,14 +355,16 @@ if #available(iOS 26, *) {
 
 ```swift
 extension View {
+    // The fallback's signature must not expose iOS-26-only types such as
+    // GlassEffectStyle — the declaration itself would fail to compile for
+    // older deployment targets. Pin .regular inside the available branch.
     @ViewBuilder
     func glassEffectWithFallback(
-        _ style: GlassEffectStyle = .regular,
         in shape: some Shape = .rect,
         fallbackMaterial: Material = .ultraThinMaterial
     ) -> some View {
         if #available(iOS 26, *) {
-            self.glassEffect(style, in: shape)
+            self.glassEffect(.regular, in: shape)
         } else {
             self.background(fallbackMaterial, in: shape)
         }

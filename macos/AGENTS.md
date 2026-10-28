@@ -30,7 +30,7 @@ Four-target SPM layout: `MacOSCleanerCore` (library: all services, domain models
 2. **Plan**: `PlannerAgent` assembles a `Plan` of `PlannedAction` objects, sorted by risk then confidence
 3. **Review**: User approves/rejects each action; Why Panel shows evidence
 4. **Execute**: Only user-approved actions run through `SafetyAuditor` then `ActionExecutor`
-5. **Undo**: Every action creates an `UndoRecord`; user can restore via Undo History
+5. **Undo**: File actions create an `UndoRecord`; user can restore via Undo History. Package-manager cleanup (brew/docker/pnpm/simctl) is the documented exception: it runs external commands and is explicitly non-undoable, so the UI labels it irreversible and confirms it separately
 
 ### Actor-Based Concurrency
 
@@ -91,6 +91,7 @@ swift package clean
 
 CI runs on GitHub Actions (macOS 26) via `.github/workflows/qa.yml` (build, SwiftLint strict, tests, QA report).
 
-The project is pure SwiftPM — there is no Xcode project file. Three targets:
-`MacOSCleanerCore` (services + models), `MacOSCleanerAppKit` (SwiftUI app layer),
-`MacOSCleaner` (executable shim).
+The project is pure SwiftPM — there is no Xcode project file. Four targets:
+`MacOSCleanerCore` (services + models), `MacOSCleanerAppKit` (SwiftUI app
+layer), `MacOSCleaner` (executable `Tidybyte`), and `MacOSCleanerMCP`
+(executable `tidybyte-mcp`).

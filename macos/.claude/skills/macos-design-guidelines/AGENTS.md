@@ -42,7 +42,7 @@ Rules marked CRITICAL must never be skipped. Rules marked HIGH should be followe
 ## Key Principles
 
 - Mac users expect menu bars, keyboard shortcuts, and multi-window support
-- Every destructive action needs Cmd+Z undo
+- Destructive file actions need Cmd+Z undo (via Trash and Undo History); irreversible tool cleanups that the product allows (Docker prune, package-manager cleanup) must be clearly labeled irreversible and confirmed explicitly
 - Toolbars and sidebars should be user-customizable
 - Respect system appearance (Dark Mode, accent color, font size)
 - Support drag and drop everywhere it makes sense

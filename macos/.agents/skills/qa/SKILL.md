@@ -13,15 +13,15 @@ description: >
 
 ## Step 1: Load Configuration
 
-Read `.factory/skills/qa/config.yaml` for environment URLs, credentials, personas, and app definitions.
+Read `macos/.agents/skills/qa/config.yaml` for environment URLs, credentials, personas, and app definitions. All commands and paths below are relative to `macos/` (the Swift package root in this monorepo) unless noted.
 
 ## Step 2: Determine Target Environment
 
 This is a local-first macOS desktop app with no remote environments. The QA target is always the local build.
 
-- Build the app: `swift build` (from the project root)
-- The built binary is at `.build/debug/MacOS-Cleaner`
-- Launch the app for GUI testing via agent-browser
+- Build the app: `swift build` (from `macos/`)
+- The built binary is `macos/.build/debug/Tidybyte`
+- Build the launchable bundle with `Scripts/build-app.sh direct` (from `macos/`), then launch `macos/.build/Tidybyte.app` for GUI testing via agent-browser
 
 **CRITICAL: This app has no web deployment.** All testing happens against the locally built binary from the current branch code. Never test against a different version.
 
@@ -37,7 +37,7 @@ Run `git diff` to determine what changed. Map changed files to apps using the pa
 | `Package.swift` | desktop |
 | `Tests/**` | desktop |
 
-Files that don't match ANY app's path_patterns (e.g., `.factory/skills/**`, `docs/**`, `.github/**`, `AGENTS.md`, `DESIGN.md`, `README.md`) are NOT associated with any app. Do NOT run app test flows for them.
+Files that don't match ANY app's path_patterns (e.g., `.agents/skills/**`, `docs/**`, `.github/**`, `AGENTS.md`, `DESIGN.md`, `README.md`) are NOT associated with any app. Do NOT run app test flows for them.
 
 For the desktop app:
 
@@ -50,16 +50,17 @@ If NO app is affected by the diff (e.g., docs-only, CI-only, or config-only chan
 
 Run pre-flight checks for the desktop app:
 
-1. **Build the app:** `swift build` from project root
-2. **Verify the binary exists:** `.build/debug/MacOS-Cleaner`
-3. **Launch the app** via agent-browser or open command
-4. **Wait for the app window** to appear (check for the "macOS Cleaner" title)
+1. **Build the app:** `swift build` from `macos/`
+2. **Verify the binary exists:** `macos/.build/debug/Tidybyte`
+3. **Build the bundle:** `Scripts/build-app.sh direct` from `macos/` (GUI flows need the `.app` bundle)
+4. **Launch the app** via agent-browser or `open .build/Tidybyte.app`
+5. **Wait for the app window** to appear (check for the "Tidybyte" title)
 
 If a pre-flight check fails, report it as BLOCKED with the specific error and remediation steps.
 
 ## Step 5: Execute Diff-Relevant Flows Only
 
-Read the sub-skill from `.factory/skills/qa-desktop/SKILL.md`.
+Read the sub-skill from `macos/.agents/skills/qa-desktop/SKILL.md`.
 
 The sub-skill contains a MENU of available test flows. You must:
 
@@ -126,7 +127,7 @@ TEST QUALITY REQUIREMENTS:
 
 ## Step 9: Generate Report
 
-Generate the report at `./qa-results/report.md` using `.factory/skills/qa/REPORT-TEMPLATE.md`.
+Generate the report at `./qa-results/report.md` using `macos/.agents/skills/qa/REPORT-TEMPLATE.md`.
 
 The report MUST follow the template. Key rules:
 

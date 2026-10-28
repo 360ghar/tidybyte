@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Insights › Changes: how storage moved over time. A toolbar segmented
 /// control switches between the forecast, a two-scan comparison, and the
-/// Photos & Media trend.
+/// cleanup-scope trend.
 struct ChangesView: View {
     @Bindable var model: AppViewModel
     @SceneStorage("changesMode") private var mode = Mode.forecast
@@ -16,7 +16,10 @@ struct ChangesView: View {
             switch self {
             case .forecast: String(localized: "Forecast")
             case .compare: String(localized: "Compare Scans")
-            case .media: String(localized: "Photos & Media")
+            // Snapshots measure the whole cleanup scope (which may include
+            // arbitrary selected folders), so the title must not promise a
+            // photos-only trend.
+            case .media: String(localized: "Cleanup Scope")
             }
         }
     }

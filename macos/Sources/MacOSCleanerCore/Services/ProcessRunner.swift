@@ -5,6 +5,16 @@ struct ProcessResult: Sendable {
     let exitCode: Int32
     let stdout: String
     let stderr: String
+    /// True when a stream exceeded the capture cap, so the output is a
+    /// prefix of the real output and must not be treated as complete.
+    let truncated: Bool
+
+    init(exitCode: Int32, stdout: String, stderr: String, truncated: Bool = false) {
+        self.exitCode = exitCode
+        self.stdout = stdout
+        self.stderr = stderr
+        self.truncated = truncated
+    }
 }
 
 enum ProcessRunner {
@@ -75,36 +85,45 @@ enum ProcessRunner {
             return ProcessResult(exitCode: 1, stdout: "", stderr: startError)
         }
 
-        let stdoutStr = String(data: await stdoutTask.value, encoding: .utf8) ?? ""
-        let stderrStr = String(data: await stderrTask.value, encoding: .utf8) ?? ""
+        let stdoutStr = String(data: await stdoutTask.value.data, encoding: .utf8) ?? ""
+        let stderrDrained = await stderrTask.value
+        let stderrStr = String(data: stderrDrained.data, encoding: .utf8) ?? ""
+        let truncated = (await stdoutTask.value).capped || stderrDrained.capped
 
         if handle.didTimeOut {
-            return ProcessResult(exitCode: 124, stdout: stdoutStr, stderr: "Command timed out after \(Int(timeout)) seconds.")
+            return ProcessResult(
+                exitCode: 124, stdout: stdoutStr,
+                stderr: "Command timed out after \(Int(timeout)) seconds.",
+                truncated: truncated)
         }
-        return ProcessResult(exitCode: exitCode, stdout: stdoutStr, stderr: stderrStr)
+        return ProcessResult(exitCode: exitCode, stdout: stdoutStr, stderr: stderrStr, truncated: truncated)
+    }
+
+    private struct DrainedOutput: Sendable {
+        var data = Data()
+        var capped = false
     }
 
     /// Reads a pipe until EOF in small chunks so a full buffer never blocks the
     /// child. Captures at most `maxCapturedBytesPerStream` bytes and keeps
     /// discarding the rest, appending a truncation note when output was cut.
-    private static func drain(_ fileHandle: FileHandle) -> Data {
-        var data = Data()
-        var capped = false
+    private static func drain(_ fileHandle: FileHandle) -> DrainedOutput {
+        var output = DrainedOutput()
         while let chunk = try? fileHandle.read(upToCount: readChunkSize), !chunk.isEmpty {
-            if data.count >= maxCapturedBytesPerStream {
-                capped = true
+            if output.data.count >= maxCapturedBytesPerStream {
+                output.capped = true
                 continue
             }
-            let remaining = maxCapturedBytesPerStream - data.count
-            data.append(chunk.prefix(remaining))
+            let remaining = maxCapturedBytesPerStream - output.data.count
+            output.data.append(chunk.prefix(remaining))
             if chunk.count > remaining {
-                capped = true
+                output.capped = true
             }
         }
-        if capped {
-            data.append(Data(truncationNote.utf8))
+        if output.capped {
+            output.data.append(Data(truncationNote.utf8))
         }
-        return data
+        return output
     }
 }
 

@@ -34,7 +34,7 @@ final class AppViewModelTests: XCTestCase {
         (try? url.resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
     }
 
-    private func makeModel(defaults: UserDefaults, store: SQLiteStore? = nil, inboxRoot: URL? = nil) throws -> AppViewModel {
+    private func makeModel(defaults: UserDefaults, store: SQLiteStore? = nil, inboxRoot: URL? = nil, keychain: KeychainStore = KeychainStore(inMemory: true)) throws -> AppViewModel {
         let resolvedStore = try store ?? SQLiteStore.inMemory()
         let memory = MemoryEngine(store: resolvedStore)
         let planner = PlannerAgent()
@@ -44,7 +44,7 @@ final class AppViewModelTests: XCTestCase {
         let reports = ReportGenerator(store: resolvedStore)
         return AppViewModel(
             store: resolvedStore,
-            keychain: KeychainStore(inMemory: true),
+            keychain: keychain,
             memory: memory,
             orchestrator: orchestrator,
             executor: executor,
@@ -873,6 +873,86 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertEqual(reloaded.providerSettings.providerName, "OpenAI-compatible")
         XCTAssertEqual(reloaded.providerSettings.privacyMode, .localOnly)
         XCTAssertEqual(reloaded.selectedMode, .selectedFolders)
+    }
+
+    func testClearAllDataDeletesEveryProviderAPIKey() async throws {
+        // Keys are saved under the provider name, which is case-sensitive in
+        // Keychain: the default provider account, the legacy lowercase
+        // account, and custom providers must all be cleared.
+        let defaults = makeDefaultsSuite()
+        let keychain = KeychainStore(inMemory: true)
+        let model = try makeModel(defaults: defaults, keychain: keychain)
+        try await keychain.saveAPIKey("provider-key", account: "OpenAI-compatible")
+        try await keychain.saveAPIKey("legacy-key", account: "openai-compatible")
+        try await keychain.saveAPIKey("custom-key", account: "Custom Provider")
+
+        await model.clearAllData()
+
+        let providerKey = try await keychain.loadAPIKey(account: "OpenAI-compatible")
+        let legacyKey = try await keychain.loadAPIKey(account: "openai-compatible")
+        let customKey = try await keychain.loadAPIKey(account: "Custom Provider")
+        XCTAssertNil(providerKey)
+        XCTAssertNil(legacyKey)
+        XCTAssertNil(customKey)
+    }
+
+    func testClearAllDataTurnsAutoscanOffAndClearsItsPreference() async throws {
+        let defaults = makeDefaultsSuite()
+        defaults.set(true, forKey: "autoscanEnabled")
+        let model = try makeModel(defaults: defaults)
+
+        await model.clearAllData()
+
+        // The assignment (not just the defaults wipe) is what unregisters the
+        // LaunchAgent through the autoscanEnabled observer.
+        XCTAssertFalse(model.autoscanEnabled)
+        XCTAssertNil(defaults.object(forKey: "autoscanEnabled"))
+    }
+
+    func testStagedExploreActionIgnoresInspectOnlyActions() async throws {
+        let defaults = makeDefaultsSuite()
+        let model = try makeModel(defaults: defaults)
+        let root = try makeScanFixtureRoot()
+        let completed = await runScanOnFixture(model, root: root)
+        XCTAssertTrue(completed)
+        guard var currentPlan = model.plan else {
+            return XCTFail("Fixture scan must produce a plan")
+        }
+        // Pick a record with no staged cleanup action of its own; the fixture
+        // scan already stages single-target moveToTrash actions for some
+        // records, and those must still be found by stagedExploreAction.
+        guard let record = model.filesByID.values.first(where: { file in
+            !currentPlan.actions.contains {
+                $0.targets == [file.id] && $0.actionType == .moveToTrash
+                    && $0.status == .proposed && $0.executedAt == nil
+            }
+        }) else {
+            return XCTFail("Fixture must contain a record without a staged action")
+        }
+        let inspectOnly = PlannedAction(
+            id: UUID().uuidString,
+            planID: currentPlan.id,
+            actionType: .inspectOnly,
+            targets: [record.id],
+            destination: nil,
+            status: .proposed,
+            risk: .low,
+            confidence: 0.5,
+            reason: "Fixture inspect action",
+            userDecision: .undecided,
+            executedAt: nil,
+            findingID: nil
+        )
+        currentPlan.actions.append(inspectOnly)
+        model.plan = currentPlan
+
+        XCTAssertNil(
+            model.stagedExploreAction(matching: record),
+            "An inspect-only action must not read as a staged cleanup: returning it would make approval a no-op")
+
+        let staged = model.stageExploreRecordForCleanup(record)
+        XCTAssertEqual(staged?.actionType, .moveToTrash)
+        XCTAssertEqual(staged?.targets, [record.id])
     }
 
     func testSaveAPIKeyDoesNotOverridePrivacyMode() async throws {

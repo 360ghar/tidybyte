@@ -4,5 +4,8 @@
     <key>com.apple.security.app-sandbox</key><true/>
     <key>com.apple.security.files.user-selected.read-write</key><true/>
     <key>com.apple.security.files.bookmarks.app-scope</key><true/>
+    <!-- The Add Downloads shortcut selects ~/Downloads programmatically; the
+         app needs read-write there because cleanup trashes files it finds. -->
+    <key>com.apple.security.files.downloads.read-write</key><true/>
     <key>com.apple.security.personal-information.photos-library</key><true/>
 </dict></plist>

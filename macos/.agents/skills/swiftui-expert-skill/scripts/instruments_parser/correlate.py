@@ -10,11 +10,18 @@ from collections import defaultdict
 from typing import Any
 
 
-def build(lanes: dict[str, dict], top_hitches: int = 5, top_symbols: int = 5) -> list[dict]:
+def build(
+    lanes: dict[str, dict],
+    top_hitches: int = 5,
+    top_symbols: int = 5,
+    window_ns: tuple[int, int] | None = None,
+) -> list[dict]:
     """Produce a list of correlation entries.
 
     `lanes` is a dict keyed by lane name (time-profiler, hangs, hitches,
-    swiftui) of their analyzer outputs.
+    swiftui) of their analyzer outputs. `window_ns` is the analysis window
+    the Time Profiler samples were filtered to; it clips the coverage
+    denominator for events that cross the window edge.
     """
     tp = lanes.get("time-profiler")
     hangs = lanes.get("hangs")
@@ -37,6 +44,7 @@ def build(lanes: dict[str, dict], top_hitches: int = 5, top_symbols: int = 5) ->
                     tp_index=tp_index,
                     sui_events=sui_events,
                     top_symbols=top_symbols,
+                    window_ns=window_ns,
                 )
             )
 
@@ -55,6 +63,7 @@ def build(lanes: dict[str, dict], top_hitches: int = 5, top_symbols: int = 5) ->
                     tp_index=tp_index,
                     sui_events=sui_events,
                     top_symbols=top_symbols,
+                    window_ns=window_ns,
                 )
             )
 
@@ -82,6 +91,7 @@ def _correlate_event(
     tp_index: dict | None,
     sui_events: list[dict] | None,
     top_symbols: int,
+    window_ns: tuple[int, int] | None = None,
 ) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "trigger": {
@@ -97,7 +107,15 @@ def _correlate_event(
         tp = _time_profile_hot_symbols(
             tp_index, start_ns, end_ns, top_symbols
         )
-        duration_ns = end_ns - start_ns
+        # The Time Profiler samples were filtered to the analysis window, so
+        # an event crossing the window edge must be clipped before the
+        # coverage denominator is derived from its duration; unclipped, a
+        # fully running sliced event reports as blocked.
+        clipped_start_ns, clipped_end_ns = start_ns, end_ns
+        if window_ns is not None:
+            clipped_start_ns = max(clipped_start_ns, window_ns[0])
+            clipped_end_ns = min(clipped_end_ns, window_ns[1])
+        duration_ns = max(0, clipped_end_ns - clipped_start_ns)
         # Sample rate is 1ms/sample on standard Time Profiler. If the window
         # is N ms long we'd expect ~N main-thread samples if main was fully
         # running; fewer means main was blocked (I/O, lock, etc.).

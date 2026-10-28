@@ -107,7 +107,9 @@ For production use, wrap the logic in an `actor` with scale-aware sizing and cac
 
 ```swift
 actor ImageProcessor {
-    func downsample(data: Data, targetSize: CGSize) -> UIImage? {
+    func downsample(data: Data, targetSize: CGSize) async -> UIImage? {
+        // UIScreen.main is MainActor-isolated in Swift 6, so reading the
+        // scale from an actor requires await — and that makes the method async.
         let scale = await UIScreen.main.scale
         let maxPixel = max(targetSize.width, targetSize.height) * scale
         let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]

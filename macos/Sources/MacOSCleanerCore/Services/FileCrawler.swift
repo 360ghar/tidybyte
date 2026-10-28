@@ -145,6 +145,12 @@ public actor FileCrawler {
             }
             if record.kind == .directory, !policy.shouldSkipTraversal(of: child), !closed.contains(child.path) {
                 expansion.folders.append(child)
+            } else if record.kind == .package {
+                // Packages are containers (see crawlFolder): measure the
+                // subtree instead of trusting the directory-entry size.
+                let summary = rolledUp(record, sessionID: sessionID, policy: policy, closed: closed)
+                expansion.records += summary.records
+                expansion.errors += summary.errors
             } else {
                 expansion.records.append(record)
             }
@@ -193,6 +199,16 @@ public actor FileCrawler {
                     return
                 }
                 let withinBudget = budget.take()
+                // The enumerator skips package descendants, so a package's
+                // record would otherwise carry only the directory entry's own
+                // size (a few KB). Measure the subtree so Explore and the
+                // trash estimate see the package's real footprint.
+                if record.kind == .package, withinBudget {
+                    let summary = rolledUp(record, sessionID: sessionID, policy: policy, closed: closed)
+                    output += summary.records
+                    errors += summary.errors
+                    return
+                }
                 if record.kind == .directory, !skipped, !withinBudget || rollsUp(url) {
                     enumerator.skipDescendants()
                     let summary = rolledUp(record, sessionID: sessionID, policy: policy, closed: closed)

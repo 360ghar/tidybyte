@@ -22,6 +22,7 @@ public struct PlanIntent: Sendable, Equatable {
         case logs
         case downloads
         case oldDownloads(days: Int)
+        case oldInstallers(days: Int)
         case olderThan(days: Int)
         case largerThan(bytes: Int64)
         case pythonCaches
@@ -58,9 +59,14 @@ public enum IntentParser {
         }
 
         var scopes: [PlanIntent.Scope] = []
-        let wantsRestore = words.contains("everything") || lowered.contains("all actions")
-            || words.isDisjoint(with: ["undo", "reset"]) == false
-            || (words.contains("full") && words.isDisjoint(with: ["show", "restore", "reset"]) == false)
+        // Restore vocabulary only belongs to review commands. "delete
+        // everything" / "archive everything" are mutating commands that must
+        // keep targeting every action; only bare "everything", "undo",
+        // "reset", "show full …" restore the original plan.
+        let wantsRestore = action == .review
+            && (words.contains("everything") || lowered.contains("all actions")
+                || words.isDisjoint(with: ["undo", "reset"]) == false
+                || (words.contains("full") && words.isDisjoint(with: ["show", "restore", "reset"]) == false))
         if wantsRestore {
             scopes.append(.restoreAll)
         }
@@ -87,8 +93,16 @@ public enum IntentParser {
         }
         if let days = olderThanDays(in: lowered) {
             scopes.append(.olderThan(days: days))
-        } else if words.contains("old") && (words.contains("download") || words.contains("downloads") || words.contains("installer") || words.contains("installers")) {
-            scopes.append(.oldDownloads(days: 30))
+        } else if words.contains("old") {
+            // Installers get their own scope: they are worth clearing from
+            // Desktop and Documents too, while "old downloads" stays scoped
+            // to the Downloads folder.
+            if words.contains("download") || words.contains("downloads") {
+                scopes.append(.oldDownloads(days: 30))
+            }
+            if words.contains("installer") || words.contains("installers") {
+                scopes.append(.oldInstallers(days: 30))
+            }
         }
         if words.isDisjoint(with: ["download", "downloads"]) == false, !scopes.contains(where: { if case .oldDownloads = $0 { return true }; return false }) {
             scopes.append(.downloads)

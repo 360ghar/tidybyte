@@ -750,6 +750,28 @@ final class MacOSCleanerTests: XCTestCase {
         XCTAssertFalse(result.stderr.isEmpty)
     }
 
+    func testProcessRunnerFlagsTruncatedOutput() async {
+        // 2 MB of stdout: over the 1 MiB per-stream capture cap. Consumers
+        // like InstalledAppIndex rely on this flag to fail closed instead of
+        // treating a partial listing as complete.
+        let big = await ProcessRunner.run(
+            URL(fileURLWithPath: "/usr/bin/python3"),
+            arguments: ["-c", "print('a' * 2_000_000)"],
+            timeout: 60
+        )
+        XCTAssertEqual(big.exitCode, 0)
+        XCTAssertTrue(big.truncated, "Output past the capture cap must be flagged")
+        XCTAssertLessThan(big.stdout.count, 2_000_000, "Only the capped portion is captured")
+
+        let small = await ProcessRunner.run(
+            URL(fileURLWithPath: "/bin/echo"),
+            arguments: ["tiny"],
+            timeout: 5
+        )
+        XCTAssertEqual(small.exitCode, 0)
+        XCTAssertFalse(small.truncated)
+    }
+
     // MARK: - CleanerRuleEngine Individual Rules
 
     func testCleanerRuleEngineDetectsScreenshotFindings() async throws {

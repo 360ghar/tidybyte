@@ -324,18 +324,18 @@ struct Wedge: Shape {
 
 ### Presentations
 
-**Use `navigationZoomTransition` to morph sheets out of their source view.** Toolbar items and buttons can serve as the transition source.
+**Use a zoom navigation transition to morph sheets out of their source view.** Mark the source with `matchedTransitionSource(id:in:)` and the destination with `navigationTransition(.zoom(sourceID:in:))`.
 
 ```swift
 .toolbar {
     ToolbarItem {
         Button("Add", systemImage: "plus") { showSheet = true }
-            .navigationTransitionSource(id: "addSheet", namespace: namespace)
+            .matchedTransitionSource(id: "addSheet", in: namespace)
     }
 }
 .sheet(isPresented: $showSheet) {
     AddItemView()
-        .navigationTransitionDestination(id: "addSheet", namespace: namespace)
+        .navigationTransition(.zoom(sourceID: "addSheet", in: namespace))
 }
 ```
 
@@ -398,7 +398,8 @@ WebView(url: URL(string: "https://example.com")!)
 @State private var page = WebPage()
 
 WebView(page)
-    .onAppear { page.load(URLRequest(url: myURL)) }
+    // WebPage.load(_:) is async throws — start it from .task, not onAppear.
+    .task { try? await page.load(URLRequest(url: myURL)) }
     .navigationTitle(page.title ?? "")
 ```
 

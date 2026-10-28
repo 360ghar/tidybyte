@@ -1,6 +1,6 @@
 # Build and release
 
-Run from the repository root with Xcode command-line tools selected. Publication is a separate action.
+Run from `macos/` (the Swift package root) with Xcode command-line tools selected. Publication is a separate action.
 
 ## Local builds
 
@@ -12,23 +12,24 @@ Scripts/build-app.sh direct
 Scripts/build-app.sh app-store
 ```
 
-The direct bundle is `.build/macOS-Cleaner.app`. The App Store bundle is `.build/app-store/macOS-Cleaner.app`. The App Store script passes `-DAPP_STORE` and applies an ad-hoc sandbox signature for local verification. It excludes Advanced navigation and network-client access. Ad-hoc signatures are not distribution signatures.
+The direct bundle is `.build/Tidybyte.app`. The App Store bundle is `.build/app-store/Tidybyte.app`. The App Store script passes `-DAPP_STORE` and applies an ad-hoc sandbox signature for local verification. It excludes Advanced navigation and network-client access. Ad-hoc signatures are not distribution signatures.
 
 `Configuration/Direct.entitlements` and `Configuration/AppStore.entitlements` are the channel-specific entitlement inputs. App Store file access depends on user-selected, persistent folder grants. See [Apple sandbox file-access guidance](https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox).
 
 ## Direct distribution
 
-Supply a Developer ID Application identity through the release environment. Do not put credentials in the repository.
+Supply a Developer ID Application identity and a notarytool keychain profile through the release environment. Do not put credentials in the repository.
 
 ```sh
-SIGNING_IDENTITY='Developer ID Application: RELEASE IDENTITY' Scripts/package-release.sh direct
-xcrun notarytool submit .build/direct/macOS-Cleaner.zip --keychain-profile RELEASE_PROFILE --wait
-xcrun stapler staple .build/macOS-Cleaner.app
-xcrun stapler validate .build/macOS-Cleaner.app
-ditto -c -k --keepParent .build/macOS-Cleaner.app .build/direct/macOS-Cleaner.zip
+SIGNING_IDENTITY='Developer ID Application: RELEASE IDENTITY' \
+NOTARY_PROFILE=tidybyte-notary \
+SPARKLE_PUBLIC_KEY=... SPARKLE_PRIVATE_KEY_FILE=/secure/ed25519.key \
+Scripts/package-release.sh direct
 ```
 
-The release operator configures `RELEASE_PROFILE` in Keychain before submission. Verify the notarization result before publishing the ZIP.
+`package-release.sh` performs the whole pipeline itself: it builds the app, signs Sparkle and the bundle inside out, notarizes the ZIP, staples the app, then builds, signs, notarizes, and staples the DMG, and finishes with `spctl --assess`. Do not re-zip or re-submit the artifacts manually afterwards. A dry run without credentials is `SIGNING_IDENTITY=- SKIP_NOTARIZE=1 Scripts/package-release.sh direct`.
+
+The release operator creates the `NOTARY_PROFILE` keychain profile with `xcrun notarytool store-credentials` before submission. Validate the results before publishing: `codesign --verify --deep --strict .build/Tidybyte.app`, `spctl --assess --type open --context context:primary-signature .build/direct/Tidybyte-<version>.dmg`, and launch the DMG's app once. The release artifacts are `.build/direct/Tidybyte-<version>.dmg` and, when Sparkle keys are supplied, `.build/direct/appcast.xml`.
 
 ## App Store distribution
 
@@ -40,7 +41,7 @@ INSTALLER_IDENTITY='3rd Party Mac Developer Installer: RELEASE IDENTITY' \
 Scripts/package-release.sh app-store
 ```
 
-The output is `.build/app-store/macOS-Cleaner.pkg`. Upload it with Transporter using the release account. Complete App Store Connect privacy information, screenshots, Photos-access explanation, and submission review. Apple credentials, certificates, provisioning, and approval are external inputs.
+The output is `.build/app-store/Tidybyte.pkg`. Upload it with Transporter using the release account. Complete App Store Connect privacy information, screenshots, Photos-access explanation, and submission review. Apple credentials, certificates, provisioning, and approval are external inputs.
 
 ## Release gates
 

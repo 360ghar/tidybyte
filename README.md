@@ -16,9 +16,9 @@ Everything runs on your device. This repository holds every part of it.
 Each folder builds on its own. Run its commands from inside it:
 
 ```bash
-cd ios && xcodegen generate && npm ci      # then see ios/README.md
-cd macos && swift build && swift test      # see macos/README.md
-cd website && npm ci && npm run dev        # http://localhost:4321
+(cd ios && xcodegen generate && npm ci)      # then see ios/README.md
+(cd macos && swift build && swift test)      # see macos/README.md
+(cd website && npm ci && npm run dev)        # http://localhost:4321
 ```
 
 Releases: iOS tags are `v*` (for example `v1.1.3`), and Mac tags are `mac-v*`

@@ -199,10 +199,17 @@ def _render_correlations(lines: list[str], correlations: list[dict]) -> None:
         tp = c.get("time_profiler_main_thread")
         if tp is not None:
             cov = tp["main_running_coverage_pct"]
+            # Three-way classification per trace-analysis.md: <25% blocked,
+            # 25-75% a mix, >=75% CPU-bound main-thread work.
+            if cov < 25:
+                verdict = "blocked"
+            elif cov >= 75:
+                verdict = "CPU-bound"
+            else:
+                verdict = "mix of running and blocked"
             lines.append(
                 f"  - Main thread: {tp['samples_on_main']} running samples "
-                f"({cov:.0f}% coverage — "
-                f"{'blocked' if cov < 25 else 'mostly running'})"
+                f"({cov:.0f}% coverage — {verdict})"
             )
             for s in tp["hot_symbols"][:3]:
                 lines.append(

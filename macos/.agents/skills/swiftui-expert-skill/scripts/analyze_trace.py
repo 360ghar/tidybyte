@@ -203,7 +203,7 @@ def main(argv: list[str] | None = None) -> int:
         "swiftui-causes": causes.analyze(trace, schemas, top_n=args.top, window=window_ns, run=run_number),
     }
     correlations = correlate.build(
-        lanes_out, top_hitches=args.top_hitches, top_symbols=5
+        lanes_out, top_hitches=args.top_hitches, top_symbols=5, window_ns=window_ns
     )
     public_lanes = [_strip_internal(l) for l in lanes_out.values()]
 

@@ -21,8 +21,10 @@ public struct InstalledAppIndex: Sendable {
     }
 
     /// Spotlight's list of application bundles plus the standard app folders.
-    /// Nil when Spotlight indexing is off: without a complete inventory no
-    /// data may be called orphaned (fail closed).
+    /// Nil when Spotlight indexing is off or the listing came back truncated:
+    /// without a complete inventory no data may be called orphaned (fail
+    /// closed — an app missing from a partial list must never be staged for
+    /// deletion).
     public static func live(home: URL) async -> InstalledAppIndex? {
         let status = await ProcessRunner.run(
             URL(fileURLWithPath: "/usr/bin/mdutil"), arguments: ["-s", "/"], timeout: 10)
@@ -30,7 +32,7 @@ public struct InstalledAppIndex: Sendable {
         let found = await ProcessRunner.run(
             URL(fileURLWithPath: "/usr/bin/mdfind"),
             arguments: ["kMDItemContentType == 'com.apple.application-bundle'"], timeout: 30)
-        guard found.exitCode == 0 else { return nil }
+        guard found.exitCode == 0, !found.truncated else { return nil }
         let bundles = found.stdout.split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
             + standardBundles(home: home)
         return InstalledAppIndex(bundleIDs: Set(bundles.compactMap { Bundle(url: $0)?.bundleIdentifier }))

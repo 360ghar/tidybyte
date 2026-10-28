@@ -125,6 +125,10 @@ npm run check        # hash-assets --check + seo-audit + og-card check (build fi
 npm run og           # regenerate the 1200x630 OG cards after changing page titles
 ```
 
+`npm run og` needs a Playwright Chromium that `npm ci` does not install;
+run `npx playwright install chromium` once after a fresh install. (`npm run
+check` only verifies that the generated cards exist and needs no browser.)
+
 `npm run check` runs three validators against `dist/`:
 
 - **`hash-assets.mjs --check`** — every fingerprinted CSS/JS reference resolves.
@@ -140,6 +144,7 @@ npm run og           # regenerate the 1200x630 OG cards after changing page titl
 
 The `og` script renders cards with Playwright (Chromium), reading titles from
 the built HTML so a card can never advertise a title the page no longer uses.
+It requires the one-time `npx playwright install chromium` above.
 
 The `dist/` folder is the deployable artifact (never committed).
 

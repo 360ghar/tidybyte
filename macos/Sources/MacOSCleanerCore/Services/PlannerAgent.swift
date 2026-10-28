@@ -204,6 +204,16 @@ public actor PlannerAgent {
                     }
                 }
                 summaryText = String(localized: "old files in Downloads", comment: "Natural language summary fragment for old Downloads filter")
+            case .oldInstallers(let days):
+                let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+                filters.append { action in
+                    action.targets.contains { target in
+                        guard let record = filesByID[target] else { return false }
+                        let isInstaller = record.fileExtension.map(CleanerRuleEngine.installerExtensions.contains) ?? false
+                        return isInstaller && (record.modifiedAt ?? record.createdAt ?? Date.distantPast) < cutoff
+                    }
+                }
+                summaryText = String(localized: "old installers", comment: "Natural language summary fragment for old installers filter")
             case .downloads:
                 filters.append { action in
                     action.targets.contains { filesByID[$0]?.url.pathComponents.contains("Downloads") ?? false }

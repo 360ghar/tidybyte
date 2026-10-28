@@ -44,6 +44,20 @@ final class CrawlerRollupTests: XCTestCase {
         XCTAssertNil(record(files, at: "Project/src")?.rolledUpItemCount)
     }
 
+    func testPackageCarriesItsContentsSizeNotItsDirectoryEntry() async throws {
+        try write("Old.app/Contents/MacOS/launcher", bytes: 900)
+        try write("Old.app/Contents/Resources/icon.png", bytes: 100)
+
+        let files = await crawl()
+        let app = try XCTUnwrap(record(files, at: "Old.app"))
+
+        XCTAssertEqual(app.kind, .package)
+        XCTAssertEqual(app.sizeBytes, 1_000, "A package is a container: its record must total its contents, not the directory entry's few KB")
+        XCTAssertNotNil(app.rolledUpItemCount)
+        XCTAssertFalse(files.contains { $0.displayPath.hasPrefix(app.displayPath + "/") },
+                       "Package descendants must not get their own records")
+    }
+
     func testCacheFolderInsideABulkFolderKeepsItsOwnRecord() async throws {
         try write("Project/package.json", bytes: 2)
         try write("Project/node_modules/react.js", bytes: 50)

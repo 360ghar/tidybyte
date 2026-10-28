@@ -68,8 +68,11 @@ For views with expensive bodies, conform to `Equatable`:
 struct ExpensiveView: View, Equatable {
     let data: SomeData
 
+    // Compare every field the body renders (SomeData: Equatable).
+    // Comparing only data.id would suppress updates whenever another
+    // rendered field changes, leaving the body stale.
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.data.id == rhs.data.id  // Custom equality check
+        lhs.data == rhs.data
     }
 
     var body: some View {
@@ -364,7 +367,7 @@ var body: some View {
 
 var body: some View {
     List(sortedItems) { item in Text(item.name) }
-        .onChange(of: items) { _, newItems in
+        .onChange(of: items, initial: true) { _, newItems in
             sortedItems = newItems.sorted { $0.name < $1.name }
         }
 }

@@ -60,22 +60,28 @@ ForEach(items) { item in
 }
 ```
 
-**Avoid inline filtering:**
+**Filtering in `ForEach`:** inline filtering does not destabilize identity —
+`ForEach` identity follows the elements' IDs, so a filtered collection is as
+stable as its source.
 
 ```swift
-// Bad - unstable identity, changes on every update
 ForEach(items.filter { $0.isEnabled }) { item in
     ItemRow(item: item)
 }
+```
 
-// Good - prefilter and cache
+If profiling shows the filter is expensive, cache it — but the cache must be
+in sync from the first render, or the list starts empty until `items` mutates:
+
+```swift
+// Good - cached filter, initialized with `initial: true`
 @State private var enabledItems: [Item] = []
 
 var body: some View {
     ForEach(enabledItems) { item in
         ItemRow(item: item)
     }
-    .onChange(of: items) { _, newItems in
+    .onChange(of: items, initial: true) { _, newItems in
         enabledItems = newItems.filter { $0.isEnabled }
     }
 }
@@ -383,7 +389,7 @@ Table(people) { /* columns */ }
 - [ ] ForEach uses stable identity (never `.indices` for dynamic content)
 - [ ] Identifiable IDs are truly unique across all items
 - [ ] Constant number of views per ForEach element
-- [ ] No inline filtering in ForEach (prefilter and cache instead)
+- [ ] Cached ForEach filters are initialized with `onChange(initial: true)`
 - [ ] No `AnyView` in list rows
 - [ ] Don't convert enumerated sequences to arrays
 - [ ] Use `.refreshable` for pull-to-refresh

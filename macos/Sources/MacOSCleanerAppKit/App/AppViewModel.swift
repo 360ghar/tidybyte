@@ -24,6 +24,7 @@ private enum SettingsKey: String, CaseIterable {
     case exploreDepth
     case duplicateStrategy
     case autoscanEnabled
+    case inboxRootPath
 }
 
 @MainActor
@@ -434,8 +435,22 @@ final class AppViewModel {
 
     func createInbox() async {
         guard !isScanning, !isExecuting else { return }
+        let root: URL?
+        if let inboxRoot {
+            root = inboxRoot
+        } else if !DistributionChannel.supportsAdvanced {
+            // The App Store sandbox denies creating folders at arbitrary home
+            // paths, so the user picks (and we remember) the parent folder.
+            guard let picked = pickInboxParentFolder() else {
+                statusMessage = String(localized: "Inbox creation canceled.")
+                return
+            }
+            root = picked
+        } else {
+            root = nil
+        }
         do {
-            let inbox = try await inboxManager.ensureInboxExists(at: inboxRoot)
+            let inbox = try await inboxManager.ensureInboxExists(at: root)
             if !selectedFolders.contains(inbox) {
                 selectedFolders.append(inbox)
             }
@@ -445,6 +460,26 @@ final class AppViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Returns the folder the sandboxed build should create the inbox in:
+    /// the previously chosen location if there is one, otherwise an
+    /// NSOpenPanel selection that is persisted for later launches.
+    private func pickInboxParentFolder() -> URL? {
+        if let stored = defaults.string(forKey: SettingsKey.inboxRootPath.rawValue) {
+            return URL(fileURLWithPath: stored)
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.message = String(
+            localized: "Choose where Tidybyte should create the inbox folder.",
+            comment: "Inbox creation folder picker message")
+        panel.prompt = String(localized: "Create Here", comment: "Inbox creation folder picker button")
+        guard panel.runModal() == .OK, let parent = panel.url else { return nil }
+        defaults.set(parent.path, forKey: SettingsKey.inboxRootPath.rawValue)
+        return parent
     }
 
     func saveAPIKey() async {
@@ -1104,7 +1139,7 @@ final class AppViewModel {
             return
         }
         do {
-            try await keychain.deleteAPIKey()
+            try await keychain.deleteAllAPIKeys()
             try await store.deleteAllData()
             outcome = nil
             plan = nil
@@ -1118,6 +1153,9 @@ final class AppViewModel {
             cleanupPosture = .conservative
             includeAI = false
             providerSettings = ProviderSettings()
+            // Must run before the defaults wipe below: the observer unregisters
+            // the LaunchAgent, while removeObject alone leaves it installed.
+            autoscanEnabled = false
             resetExecutionState()
             showOnboarding = true
             resetWorkspaceState()

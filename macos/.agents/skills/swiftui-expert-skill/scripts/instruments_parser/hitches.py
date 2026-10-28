@@ -56,7 +56,12 @@ def analyze(
         )
 
         narrative_el = row.get("narrative-description")
-        narrative = xml_utils.str_text(stream.resolve(narrative_el)) if narrative_el is not None else None
+        narrative = None
+        if narrative_el is not None:
+            resolved = stream.resolve(narrative_el)
+            # xctrace often stores these only as fmt attributes; str_text alone
+            # would drop Apple's own hitch attribution.
+            narrative = xml_utils.str_text(resolved) or resolved.get("fmt")
         if narrative:
             narrative_counts[narrative] += 1
 
@@ -139,7 +144,10 @@ def _first_int(row, stream, keys):
 
 
 def _bool_text(elem) -> bool | None:
-    txt = xml_utils.str_text(elem)
+    # Same fmt fallback as the narrative text: some exports encode the flag
+    # only as a format attribute, and a None here would misclassify a system
+    # hitch as an app hitch.
+    txt = xml_utils.str_text(elem) or (elem.get("fmt") if elem is not None else None)
     if txt is None:
         return None
     return txt.strip() in ("1", "true", "True", "YES", "Yes")

@@ -56,11 +56,16 @@ mv -f "$MACOS_DIR/$APP_NAME.next" "$MACOS_DIR/$APP_NAME"
 rm -rf "$CONTENTS/Frameworks" "$CONTENTS/Library"
 if [ "$CHANNEL" = direct ]; then
     cp "$BIN_DIR/$MCP_NAME" "$MACOS_DIR/$MCP_NAME"
-    if [ -d "$BIN_DIR/Sparkle.framework" ]; then
-        mkdir -p "$CONTENTS/Frameworks"
-        ditto "$BIN_DIR/Sparkle.framework" "$CONTENTS/Frameworks/Sparkle.framework"
-        install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME" 2>/dev/null || true
+    # SwiftPM places binary-target frameworks like Sparkle in the bin path.
+    # Fail loudly instead of silently shipping a bundle that dies on launch
+    # with a missing dynamic library.
+    if [ ! -d "$BIN_DIR/Sparkle.framework" ]; then
+        echo "error: $BIN_DIR/Sparkle.framework not found; the direct build links Sparkle and cannot run without it" >&2
+        exit 1
     fi
+    mkdir -p "$CONTENTS/Frameworks"
+    ditto "$BIN_DIR/Sparkle.framework" "$CONTENTS/Frameworks/Sparkle.framework"
+    install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME" 2>/dev/null || true
     # Autoscan agent registered at runtime through SMAppService.agent(plistName:).
     mkdir -p "$CONTENTS/Library/LaunchAgents"
     cp "Configuration/$BUNDLE_ID.autoscan.plist" "$CONTENTS/Library/LaunchAgents/"

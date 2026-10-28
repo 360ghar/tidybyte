@@ -17,12 +17,24 @@ class Column:
     engineering_type: str  # e.g. "sample-time", "weight", "tagged-backtrace"
 
 
+# Purge already-parsed children from the row container after this many
+# elements, so sibling accumulation never grows with the document.
+_PURGE_INTERVAL = 10_000
+
+
 class RowStream:
     """Iterate <row> elements of a single <table> schema export.
 
-    Yields `dict[str, Element]` keyed by column mnemonic. Elements inside a
-    yielded row are live ET elements (rooted in the id cache where applicable
-    so ref resolution via `resolve()` remains valid after the row is yielded).
+    Yields `dict[str, Element]` keyed by column mnemonic. A yielded row (and
+    the elements in it) is only valid until the iterator advances; extract
+    values into plain Python types as you go, which every lane parser does.
+
+    Memory: two passes over the bytes keep peak RAM bounded on very large
+    exports instead of ≈ document size. Pass one collects the set of ids that
+    are actually referenced by `ref` attributes later in the document; pass
+    two retains only those id elements in the cache (strong references, so
+    periodic purges of the row container cannot drop them) and purges parsed
+    children from the container as it streams.
     """
 
     def __init__(self, xml_bytes: bytes):
@@ -41,33 +53,65 @@ class RowStream:
         return target
 
     def __iter__(self) -> Iterator[dict[str, ET.Element]]:
-        # iterparse fires `end` events once an element is fully parsed, so ids
-        # are visible to descendants via the cache. We only need `end` events;
-        # row bodies are reconstructed from the end element itself in _row_dict.
-        #
-        # NOTE: we intentionally don't call `elem.clear()` after yielding a row.
-        # Instruments' XML is a single shared doc where any row can `ref` an
-        # `id` defined earlier (threads, processes, stacks, metadata), and
-        # clearing would break those later lookups. The tradeoff is peak RAM
-        # ≈ document size. That's fine for typical traces up to a few hundred
-        # MB; very large exports may need a smarter pass that first indexes
-        # referenced ids and only retains those.
+        referenced = self._collect_referenced_ids()
+        context = ET.iterparse(_bytes_to_file(self._xml), events=("start", "end"))
+        root: ET.Element | None = None
+        container: ET.Element | None = None  # <table>: accumulates the rows
         schema_seen = False
-
-        context = ET.iterparse(_bytes_to_file(self._xml), events=("end",))
-        for _event, elem in context:
-            eid = elem.get("id")
-            if eid is not None:
-                self._id_cache[eid] = elem
+        since_purge = 0
+        for event, elem in context:
+            if event == "start":
+                if root is None:
+                    root = elem
+                elif container is None and elem.tag == "table":
+                    container = elem
+                continue
 
             if elem.tag == "schema" and not schema_seen:
                 self.columns = _parse_columns(elem)
                 schema_seen = True
-                continue
-
-            if elem.tag == "row":
+            elif elem.tag == "row":
                 yield _row_dict(elem, self.columns)
-                # Do not clear elem — children referenced via id may still be needed.
+
+            eid = elem.get("id")
+            if eid is not None and eid in referenced:
+                self._id_cache[eid] = elem
+
+            since_purge += 1
+            if since_purge >= _PURGE_INTERVAL:
+                if container is not None:
+                    container.clear()
+                if root is not None:
+                    root.clear()
+                since_purge = 0
+        # Parse finished: the export bytes and the tree are no longer needed.
+        self._xml = b""
+
+    def _collect_referenced_ids(self) -> frozenset[str]:
+        """First pass: which ids does anything `ref` later in the document."""
+        refs: set[str] = set()
+        context = ET.iterparse(_bytes_to_file(self._xml), events=("start", "end"))
+        root: ET.Element | None = None
+        container: ET.Element | None = None
+        since_purge = 0
+        for event, elem in context:
+            if event == "start":
+                if root is None:
+                    root = elem
+                elif container is None and elem.tag == "table":
+                    container = elem
+                continue
+            ref = elem.get("ref")
+            if ref is not None:
+                refs.add(ref)
+            since_purge += 1
+            if since_purge >= _PURGE_INTERVAL:
+                if container is not None:
+                    container.clear()
+                if root is not None:
+                    root.clear()
+                since_purge = 0
+        return frozenset(refs)
 
 
 def _parse_columns(schema_el: ET.Element) -> list[Column]:

@@ -67,7 +67,7 @@ export const GET: APIRoute = () => {
     "",
     "- Page: https://tidybyte.360ghar.com/mac",
     "- What: a Mac cleaner for caches, developer files, large and old files, duplicates, photos and media, apps and their leftovers, and login items, plus Space Explorer, Changes, and History",
-    "- Safety: nothing changes until you approve it; files go to the Trash first; each file is checked again just before it changes; keychains, keys, provisioning profiles, .ssh, source code, and system paths are never changed",
+    "- Safety: nothing changes until you approve it; most deletions go to the Trash first (photos move to the system Recently Deleted album, APFS deduplication reclaims space without deleting any file, and package-manager or simulator cleanup asks the tool itself to remove files and cannot be undone by Tidybyte); each file is checked again just before it changes; keychains, keys, provisioning profiles, .ssh, source code, and system paths are never changed",
     "- Price: free, MIT licensed; source in macos/ at https://github.com/360ghar/tidybyte",
     "- Platform: macOS 26 or later, Apple silicon",
     "- Network: none by default; update checks, and an AI provider only if you turn one on",

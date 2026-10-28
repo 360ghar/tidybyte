@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.time_limit:
         stop_hints.append(f"after {args.time_limit}")
     print(f"[record] stop via: {', '.join(stop_hints)}", flush=True)
-    print(f"[record] cmd: {' '.join(_shell_quote(c) for c in cmd)}", flush=True)
+    print(f"[record] cmd: {' '.join(_shell_quote(c) for c in _redacted_cmd(cmd))}", flush=True)
 
     # Start xctrace in its own process group so we can signal cleanly.
     proc = subprocess.Popen(cmd, start_new_session=True)
@@ -163,6 +163,27 @@ def _describe_target(args) -> str:
     if args.all_processes:
         return "all processes"
     return "(none)"
+
+
+def _redacted_cmd(cmd: list[str]) -> list[str]:
+    """Copy of cmd with --env values masked, for the printed status line.
+
+    Launch secrets passed via --env must not land in logs; Popen still
+    receives the original cmd.
+    """
+    redacted: list[str] = []
+    masking = False
+    for c in cmd:
+        if masking:
+            key = c.split("=", 1)[0]
+            redacted.append(f"{key}=***")
+            masking = False
+        elif c == "--env":
+            redacted.append(c)
+            masking = True
+        else:
+            redacted.append(c)
+    return redacted
 
 
 def _default_trace_name(template: str) -> str:

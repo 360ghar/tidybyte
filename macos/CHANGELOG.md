@@ -29,7 +29,7 @@ First public release, as Tidybyte for Mac.
 
 ### Fixed
 
-- A full scan of a large home folder no longer runs out of memory. Folders that no review lists file by file (`node_modules`, `.git`, build output beside a build manifest, each cache entry, each simulator device) are now one item with the total size of their contents, and a scan holds at most one million items. On a Mac with 7.9 million files in the home folder, the scan used 42 GB before this fix.
+- A full scan of a large home folder no longer runs out of memory. Folders that no review lists file by file (`node_modules`, `.git`, build output beside a build manifest, each cache entry, each simulator device) are now one item with the total size of their contents. The detailed-record budget is capped at one million records; folders past the budget are still summarized as one record each, and only files of 1 GB or more keep a record of their own. On a Mac with 7.9 million files in the home folder, the scan used 42 GB before this fix.
 - Xcode archives, Xcode UserData, simulator devices, keychains, and provisioning profiles can no longer be proposed for deletion.
 - Duplicate folding no longer reaches into `~/Library`.
 - The autoscan agent is now bundled and registered through `SMAppService` instead of a plist the app never loaded.

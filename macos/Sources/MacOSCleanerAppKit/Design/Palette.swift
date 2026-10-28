@@ -9,7 +9,10 @@ public struct CategoricalPalette {
     private init(_ color: Color) {
         soft = color.opacity(0.12)
         mid = color
-        ink = .primary
+        // Fixed black, not Color.primary: labels sit on bright system-color
+        // fills (Treemap, Bubbles), where the dark-mode primary (white) loses
+        // all contrast.
+        ink = .black
     }
 }
 

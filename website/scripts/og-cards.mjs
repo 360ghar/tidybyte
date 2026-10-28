@@ -114,7 +114,19 @@ const card = (p) => `<!doctype html>
   </div>
 </body></html>`;
 
-const browser = await chromium.launch();
+// The playwright npm package does not bundle the browser binary. A fresh
+// `npm ci` cannot render until Chromium is downloaded once.
+let browser;
+try {
+  browser = await chromium.launch();
+} catch (err) {
+  console.error(
+    "Playwright cannot launch Chromium. Install it once with:\n" +
+      "  npx playwright install chromium\n" +
+      "then re-run this script."
+  );
+  process.exit(1);
+}
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
 
 let written = 0;

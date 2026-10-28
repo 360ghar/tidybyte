@@ -240,7 +240,9 @@ public actor CleanerRuleEngine {
         return (finding, recommendation)
     }
 
-    private static let installerExtensions: Set<String> = ["dmg", "pkg", "mpkg", "xip", "iso"]
+    /// Installer archive extensions. Internal so the natural-language planner
+    /// can apply the same set to "old installers" commands.
+    static let installerExtensions: Set<String> = ["dmg", "pkg", "mpkg", "xip", "iso"]
     private static let desktopAndDocuments = ["Desktop", "Documents"].map {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent($0).standardizedFileURL.path + "/"
     }

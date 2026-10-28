@@ -53,7 +53,11 @@ def analyze(
         sample_time_ns = xml_utils.int_text(stream.resolve(time_el))
         if not xml_utils.in_window(sample_time_ns, window):
             continue
-        weight_ns = xml_utils.int_text(stream.resolve(weight_el)) or 0
+        # `weight` is optional in some exports; resolve(None) would crash the
+        # whole lane, so guard before resolving.
+        weight_ns = (
+            xml_utils.int_text(stream.resolve(weight_el)) if weight_el is not None else None
+        ) or 0
         frames = xml_utils.extract_backtrace(stack_el, stream, max_frames=20)
         if not frames:
             continue
@@ -75,14 +79,14 @@ def analyze(
             min_time = sample_time_ns if min_time is None else min(min_time, sample_time_ns)
             max_time = sample_time_ns if max_time is None else max(max_time, sample_time_ns)
 
+            # Only the fields correlate.py consumes (time_ns, is_main,
+            # leaf_symbol, weight_ns): retaining frame dicts and thread/process
+            # names here multiplied memory use on large exports.
             samples.append({
                 "time_ns": sample_time_ns,
                 "weight_ns": weight_ns,
-                "thread_name": thread["name"],
                 "is_main": thread["is_main"],
-                "process": process_name,
                 "leaf_symbol": leaf,
-                "frames": frames[:5],
             })
 
     samples.sort(key=lambda s: s["time_ns"])
@@ -122,8 +126,8 @@ def analyze(
         },
         "top_offenders": top_offenders,
         "notes": notes,
-        # Internal: retained for correlation. Stripped before JSON emission
-        # if --slim is requested by the orchestrator.
+        # Internal: retained for correlation. Stripped from JSON output by
+        # analyze_trace's _strip_internal.
         "_samples": samples,
     }
 

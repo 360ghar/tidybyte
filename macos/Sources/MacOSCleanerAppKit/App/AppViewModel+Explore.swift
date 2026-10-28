@@ -38,9 +38,15 @@ extension AppViewModel {
         focusedExploreRecordID = id
     }
 
-    /// The existing plan action already staging this record, if any.
+    /// The existing plan action already staging this record, if any. Only an
+    /// unexecuted, proposed Trash action counts: returning e.g. an
+    /// `.inspectOnly` action here would make "Add to Review" a no-op that
+    /// never cleans the file.
     func stagedExploreAction(matching record: FileRecord) -> PlannedAction? {
-        plan?.actions.first { $0.targets == [record.id] }
+        plan?.actions.first {
+            $0.targets == [record.id] && $0.actionType == .moveToTrash
+                && $0.status == .proposed && $0.executedAt == nil
+        }
     }
 
     /// Stages an Explore-selected record for cleanup as a proposed,

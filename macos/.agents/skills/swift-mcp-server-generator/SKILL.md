@@ -252,7 +252,9 @@ func registerToolHandlers(server: Server) async {
     }
 }
 
-private func handleGreet(params: CallTool.Params) -> CallTool.Result {
+// Internal, not private: the generated ServerTests.swift calls these
+// through @testable import, which does not raise private members.
+func handleGreet(params: CallTool.Params) -> CallTool.Result {
     guard let name = params.arguments?["name"]?.stringValue else {
         return .init(
             content: [.text("Missing 'name' parameter")],
@@ -269,7 +271,7 @@ private func handleGreet(params: CallTool.Params) -> CallTool.Result {
     )
 }
 
-private func handleCalculate(params: CallTool.Params) -> CallTool.Result {
+func handleCalculate(params: CallTool.Params) -> CallTool.Result {
     guard let operation = params.arguments?["operation"]?.stringValue,
           let a = params.arguments?["a"]?.doubleValue,
           let b = params.arguments?["b"]?.doubleValue else {

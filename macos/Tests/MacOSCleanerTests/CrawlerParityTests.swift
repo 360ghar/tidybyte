@@ -23,7 +23,16 @@ final class CrawlerParityTests: XCTestCase {
         for (new, old) in zip(fast, legacy) {
             XCTAssertEqual(new.id, old.id, new.displayPath)
             XCTAssertEqual(new.kind, old.kind, new.displayPath)
-            XCTAssertEqual(new.sizeBytes, old.sizeBytes, new.displayPath)
+            if new.kind == .package {
+                // The fast crawler measures a mid-crawl package's subtree
+                // instead of its directory entry; the frozen legacy reference
+                // predates that fix. Tool.app holds one 2800-byte file, and
+                // its directory entry is 96 bytes.
+                XCTAssertEqual(new.sizeBytes, 2_800, new.displayPath)
+                XCTAssertEqual(old.sizeBytes, 96, new.displayPath)
+            } else {
+                XCTAssertEqual(new.sizeBytes, old.sizeBytes, new.displayPath)
+            }
             XCTAssertEqual(new.identity.inodeIdentifier, old.identity.inodeIdentifier, new.displayPath)
             XCTAssertEqual(new.identity.deviceIdentifier, old.identity.deviceIdentifier, new.displayPath)
             XCTAssertEqual(new.riskFlags, old.riskFlags, new.displayPath)

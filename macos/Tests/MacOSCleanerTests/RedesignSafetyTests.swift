@@ -164,6 +164,16 @@ final class RedesignSafetyTests: XCTestCase {
         XCTAssertTrue(IntentParser.parse("be safe").scopes.contains(.safeOnly))
         XCTAssertTrue(IntentParser.parse("show everything").scopes.contains(.restoreAll))
         XCTAssertTrue(IntentParser.parse("undo my filter").scopes.contains(.restoreAll))
+        // "everything" only restores with review verbs: mutating commands keep
+        // targeting every action instead of silently restoring the plan.
+        XCTAssertEqual(IntentParser.parse("delete everything").action, .delete)
+        XCTAssertFalse(IntentParser.parse("delete everything").scopes.contains(.restoreAll))
+        XCTAssertEqual(IntentParser.parse("delete everything").scopes, [.all])
+        XCTAssertFalse(IntentParser.parse("archive everything").scopes.contains(.restoreAll))
+        // Installers get their own scope so they match in Desktop/Documents too.
+        XCTAssertTrue(IntentParser.parse("old installers").scopes.contains(.oldInstallers(days: 30)))
+        XCTAssertFalse(IntentParser.parse("old installers").scopes.contains { if case .oldDownloads = $0 { return true }; return false })
+        XCTAssertTrue(IntentParser.parse("old downloads").scopes.contains(.oldDownloads(days: 30)))
         XCTAssertEqual(IntentParser.parse("hello world").scopes, [.all])
     }
 

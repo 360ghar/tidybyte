@@ -1,7 +1,7 @@
 ---
 name: qa-desktop
 description: >
-  QA tests for the macOS Cleaner desktop app. Tests the native SwiftUI macOS
+  QA tests for the Tidybyte for Mac desktop app. Tests the native SwiftUI macOS
   application including onboarding, scanning, action review, execution, undo,
   natural language commands, settings, report generation, the menu bar,
   dashboard and visualizations, keyboard shortcuts, notifications, and
@@ -9,7 +9,7 @@ description: >
   Uses agent-browser for desktop GUI testing.
 ---
 
-# QA Tests: macOS Cleaner Desktop App
+# QA Tests: Tidybyte for Mac Desktop App
 
 ## Testing Target
 
@@ -17,9 +17,9 @@ This is a local-only macOS desktop app. There are no preview deployments or remo
 
 **How to get a running app for testing:**
 
-1. Build from the current branch: `swift build` (from project root)
-2. The binary is at `.build/debug/MacOS-Cleaner`
-3. Launch the app: `open .build/debug/MacOS-Cleaner.app` or run the binary directly
+1. Build from the current branch: `swift build` (from `macos/`, the Swift package root in this monorepo)
+2. The binary is at `macos/.build/debug/Tidybyte`
+3. Build the launchable bundle with `Scripts/build-app.sh direct` (from `macos/`; `swift build` alone creates no `.app`), then launch the app: `open .build/Tidybyte.app`
 4. Use agent-browser to interact with the launched app window
 
 **CRITICAL:** Always test against the current branch's built binary. Never test against a previously installed version or a different branch.
@@ -41,21 +41,17 @@ If the build fails, report ALL tests as BLOCKED: "Build failed -- cannot test br
 
 ### Flow 1: Onboarding
 
-**When to run:** Diff changes `Sources/MacOSCleanerAppKit/UI/ContentView.swift` (OnboardingView), or `Sources/MacOSCleanerAppKit/App/AppViewModel.swift` (showOnboarding, chooseFolders), or first-launch experience.
+**When to run:** Diff changes `Sources/MacOSCleanerAppKit/UI/Views/OnboardingView.swift`, or `Sources/MacOSCleanerAppKit/App/AppViewModel.swift` (showOnboarding, scan launch), or first-launch experience.
 
 **Steps:**
-1. Launch the app (fresh state, no prior scans)
-2. Verify the onboarding view appears with three step cards
-3. Verify step 1: "Pick a safe scan mode" with description text
-4. Verify step 2: "Choose privacy" with description text
-5. Verify step 3: "Review before action" with description text
-6. Verify "Select Folders" button is present and enabled
-7. Verify "Start Scan" button is disabled (no folders selected yet in selectedFolders mode)
-8. Verify the optional API key section is present
-9. Verify the API key text field has placeholder text
-10. Verify the "Save" button is disabled when API key input is empty
+1. Launch the app with fresh state (no prior scans; a clean user profile or `defaults delete com.sakshammittal.tidybyte` works)
+2. Verify the Welcome step appears: the "Welcome to Tidybyte" title, the app icon, three feature points, and a "Continue" button
+3. Click "Continue" (direct builds) and verify the Full Disk Access step appears: "Allow Full Disk Access" title, "Skip for Now" and "Open Privacy & Security" buttons, and the note that Tidybyte continues on its own once access is on
+4. Click "Skip for Now" and verify the Photos step appears: "Include your Photos library?" with "Not Now" and "Allow Photos Access" buttons
+5. Click "Not Now" and verify the final step: the "You're all set" title, the "Show free space in the menu bar" toggle, and the "Scan My Mac" button
+6. Verify there is no API key section in onboarding (the optional BYOK key is configured later in Settings, not here)
 
-**Success criteria:** Onboarding view renders correctly with all three steps, folder button enabled, scan button disabled, API key section visible.
+**Success criteria:** The four steps render in order (Welcome → Full Disk Access → Photos → You're all set); "Skip for Now" and "Not Now" both advance; "Scan My Mac" starts the first scan.
 
 ### Flow 2: Scan
 
@@ -66,7 +62,7 @@ If the build fails, report ALL tests as BLOCKED: "Build failed -- cannot test br
 2. Select a test directory with known files (e.g., a directory with a few files including some caches/duplicates)
 3. Verify the folder path appears in the sidebar "Scan Roots" section
 4. Verify the scan mode picker shows "Selected Folders" selected
-5. Click "Scan" button in the header bar
+5. Click the "Scan" button in the toolbar
 6. Verify the status message changes to indicate scanning
 7. Wait for the scan to complete
 8. Verify the main workspace view appears (dashboard, action stack)
@@ -183,31 +179,30 @@ If the build fails, report ALL tests as BLOCKED: "Build failed -- cannot test br
 
 **When to run:** Diff changes `Sources/MacOSCleanerAppKit/App/MacOSCleanerApp.swift` (MenuBarExtra, MenuBarView, AppDelegate), or the AppViewModel methods the menu bar calls (runScan, loadUndoHistory, restore).
 
-**Goal:** Verify the sparkle menu bar extra offers all six commands and that keyboard shortcuts (Cmd+O, Cmd+,, Cmd+Q) trigger them, including reopening the main window after it is closed.
+**Goal:** Verify the menu bar extra shows its status lines plus all five commands, and that the keyboard shortcuts (Cmd+O, Cmd+Q) work, including reopening the main window after it is closed.
 
 **Preconditions:**
-- The app is running with the menu bar extra visible (sparkle icon). The extra lives in the system menu bar, outside the app window; agent-browser may need keyboard shortcuts or AX-level driving (see Known Failure Modes).
-- At least one executed action with an available undo record for Undo Last Action.
+- The app is running with the menu bar extra enabled (internal-drive icon; it is off by default — turn on "Show free space in the menu bar" in onboarding or Settings). The extra lives in the system menu bar, outside the app window; agent-browser may need keyboard shortcuts or AX-level driving (see Known Failure Modes).
+- At least one executed action with an available undo record for Undo Last Cleanup.
 
 **Steps (Given/When/Then):**
-1. Given the app is running, when the user opens the sparkle menu bar icon, then the menu shows: Open macOS Cleaner, Quick Scan Downloads, Storage Overview, Undo Last Action, Settings…, Quit.
-2. Given the main window is closed (the app keeps running because the delegate returns false for applicationShouldTerminateAfterLastWindowClosed), when the user clicks "Open macOS Cleaner" or presses Cmd+O, then the main window reappears and comes to front.
-3. Given a completed scan, when the user clicks "Quick Scan Downloads", then the mode switches to Selected Folders with Downloads as the only root and a scan starts immediately.
-4. When the user clicks "Storage Overview", then the main window is brought to front showing the dashboard storage information (no separate storage screen exists).
-5. Given at least one available undo record, when the user clicks "Undo Last Action", then the most recent record is restored directly (no regret dialog) and its row shows restored state.
-6. Given no undo records exist, when the user clicks "Undo Last Action", then nothing happens (silent no-op, no error).
-7. When the user clicks "Settings…" or presses Cmd+,, then the Settings window opens.
-8. When the user clicks "Quit" or presses Cmd+Q, then the app terminates.
+1. Given the app is running, when the user opens the menu bar extra, then it shows two status lines ("N free on disk" and a memory line) followed by: Open Tidybyte, Scan Now, Undo Last Cleanup, Settings…, Quit Tidybyte.
+2. Given the main window is closed (the app keeps running because the delegate returns false for applicationShouldTerminateAfterLastWindowClosed), when the user clicks "Open Tidybyte" or presses Cmd+O, then the main window reappears and comes to front.
+3. Given any app state, when the user clicks "Scan Now", then the main window opens and a scan of the current mode starts immediately.
+4. Given at least one available undo record, when the user clicks "Undo Last Cleanup", then the most recent record is restored directly (no regret dialog) and its row shows restored state.
+5. Given no undo records exist, when the user clicks "Undo Last Cleanup", then nothing happens (silent no-op, no error).
+6. When the user clicks "Settings…", then the Settings window opens.
+7. When the user clicks "Quit Tidybyte" or presses Cmd+Q, then the app terminates.
 
-**Expected result:** All six menu items work; Cmd+O reopens the closed window; Cmd+, opens Settings; Cmd+Q quits; Quick Scan Downloads starts a Downloads scan; Undo Last Action restores the latest record.
+**Expected result:** Both status lines and all five commands appear; Cmd+O reopens the closed window; Scan Now opens the window and starts a scan; Undo Last Cleanup restores the latest record; Cmd+Q quits.
 
-**Evidence to capture:** Snapshot of the menu bar menu items, snapshot of the main window after reopen, status message after quick scan, undo row state after menu-bar undo, app termination.
+**Evidence to capture:** Snapshot of the menu bar menu items, snapshot of the main window after reopen, status message after Scan Now, undo row state after menu-bar undo, app termination.
 
-**Pass criteria:** Every menu item behaves as described; all three keyboard shortcuts work; window reopen works from the closed state.
+**Pass criteria:** Every command behaves as described; both keyboard shortcuts work; window reopen works from the closed state.
 
 ### Flow 11: Dashboard & Visualizations
 
-**When to run:** Diff changes `DashboardView`, `TreemapView`, `RelationshipGraphView`, `ContentView` (StatusBarView), `SpaceForecaster`, or AppViewModel dashboard computed properties (dashboardSections, spaceForecast).
+**When to run:** Diff changes `OverviewView`, `TreemapView`, `RelationshipGraphView`, `ContentView`, `MonitorTabView`, `SpaceForecaster`, or AppViewModel dashboard computed properties (dashboardSections, spaceForecast).
 
 **Goal:** Verify metric cards, treemap overlays and block selection, the relationship graph (hover, legend, empty state), the storage forecast, and the status bar.
 
@@ -230,7 +225,7 @@ If the build fails, report ALL tests as BLOCKED: "Build failed -- cannot test br
 
 ### Flow 12: Keyboard Shortcuts (In-Window)
 
-**When to run:** Diff changes `HeaderBar` (hidden Retry Scan and Focus command field buttons with keyboardShortcut), `NaturalLanguagePlanView` (Cmd+Return on Plan), or focus-state wiring in `ContentView`.
+**When to run:** Diff changes the `ContentView` toolbar (hidden Retry Scan and Focus command field buttons with keyboardShortcut), `NaturalLanguagePlanView` (Cmd+Return on Plan), or focus-state wiring in `ContentView`.
 
 **Goal:** Verify Cmd+R retries the scan, Cmd+F focuses the NL command field, and Cmd+Return applies the NL plan, including their disabled states.
 
@@ -252,7 +247,7 @@ If the build fails, report ALL tests as BLOCKED: "Build failed -- cannot test br
 
 ### Flow 13: Execute Safe vs Execute All
 
-**When to run:** Diff changes `HeaderBar` execute buttons and confirmation dialogs, `AppViewModel.executeApprovedActions`/`executeSafeActions`, `ActionExecutor`, or `SafetyAuditor`.
+**When to run:** Diff changes the `ContentView` toolbar execute buttons and confirmation dialogs, `AppViewModel.executeApprovedActions`/`executeSafeActions`, `ActionExecutor`, or `SafetyAuditor`.
 
 **Goal:** Verify both execution variants, their confirmation dialogs, header progress display, and the no-op message when no actions match the selected risk band.
 
@@ -295,7 +290,7 @@ If the build fails, report ALL tests as BLOCKED: "Build failed -- cannot test br
 
 ### Flow 15: Scan Cancellation
 
-**When to run:** Diff changes `AppViewModel.cancelScan` and the cancellation handling in `runScan`, `ScanOrchestrator` cooperative cancellation, or the HeaderBar Stop button.
+**When to run:** Diff changes `AppViewModel.cancelScan` and the cancellation handling in `runScan`, `ScanOrchestrator` cooperative cancellation, or the Stop button in the `ContentView` toolbar.
 
 **Goal:** Verify the Stop button cancels a mid-scan run, no stale progress repaints, and the status shows "Scan cancelled."
 
@@ -502,7 +497,7 @@ If the build fails, report ALL tests as BLOCKED: "Build failed -- cannot test br
 3. When the user selects a reason, then the record restores with the reason recorded for regret learning and the status reads "Undo completed."
 4. When the user clicks Restore and then "Skip", then the record restores without recording a reason.
 5. Given restored or expired records, when the list renders, then those rows show the checkmark.circle icon, restored/expired status text, and a disabled Restore button.
-6. Given the menu bar, when the user clicks "Undo Last Action", then the most recent available record restores directly without the regret dialog and its row updates.
+6. Given the menu bar, when the user clicks "Undo Last Cleanup", then the most recent available record restores directly without the regret dialog and its row updates.
 
 **Expected result:** The dialog offers all 5 reasons plus Skip; restore works with and without a reason; expired/restored rows are disabled; Show All (N)/Show Less toggles; menu-bar undo bypasses the dialog.
 
@@ -512,7 +507,7 @@ If the build fails, report ALL tests as BLOCKED: "Build failed -- cannot test br
 
 ### Flow 25: Error-Path Flows
 
-**When to run:** Diff changes `AppViewModel.runScan` guards, `AIGateway` failure handling, `ScanOrchestrator` AI catch, `SQLiteStore` fallbacks, or the HeaderBar error and temp-database display.
+**When to run:** Diff changes `AppViewModel.runScan` guards, `AIGateway` failure handling, `ScanOrchestrator` AI catch, `SQLiteStore` fallbacks, or the error and temp-database notices (`StatusNotices`, shown from `ContentView`).
 
 **Goal:** Verify guarded errors appear without crashing, AI failure degrades to a local-only scan, the temp-database banner renders, and errors are dismissible.
 
@@ -538,9 +533,10 @@ Use this map to pick flows from a diff, mirroring the orchestrator's mapping tab
 |---|---|
 | `Sources/MacOSCleanerAppKit/App/MacOSCleanerApp.swift` | 10 (menu bar), 21 (notification precondition), 24 (menu-bar undo) |
 | `Sources/MacOSCleanerAppKit/App/AppViewModel.swift` | All flows; core of 2, 3, 4, 13, 14, 15, 16, 17, 18, 20, 22, 24, 25 |
-| `Sources/MacOSCleanerAppKit/UI/ContentView.swift` | 1 (layout), 3, 11, 14 (workspace shell), 21 (permission prompt) |
-| `Sources/MacOSCleanerAppKit/UI/Views/HeaderBar.swift` | 2, 5 (scan progress), 12 (Cmd+R, Cmd+F), 13 (execute buttons and dialogs), 15 (Stop), 25 (error and temp-DB banner) |
-| `Sources/MacOSCleanerAppKit/UI/Views/DashboardView.swift` | 9, 11 (metrics, treemap picker, forecast) |
+| `Sources/MacOSCleanerAppKit/UI/ContentView.swift` | 1 (layout), 2, 3, 5 (scan progress), 11, 12 (Cmd+R, Cmd+F), 13 (execute buttons and dialogs), 14, 15 (Stop), 21, 25 (error and temp-DB notices) |
+| `Sources/MacOSCleanerAppKit/UI/Views/StatusNotices.swift` | 21 (permission prompt), 25 (error and temp-DB banner) |
+| `Sources/MacOSCleanerAppKit/UI/Views/OverviewView.swift` | 9, 11 (metrics, forecast) |
+| `Sources/MacOSCleanerAppKit/UI/Views/MonitorTabView.swift` | 11 (forecast) |
 | `Sources/MacOSCleanerAppKit/UI/Views/TreemapView.swift` | 11 (overlay modes, block selection) |
 | `Sources/MacOSCleanerAppKit/UI/Views/RelationshipGraphView.swift` | 11, 14 |
 | `Sources/MacOSCleanerAppKit/UI/Views/ActionStackView.swift` | 3, 4, 14, 16 |
