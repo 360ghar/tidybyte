@@ -16,7 +16,7 @@ on:
 
 concurrency:
   group: macos-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   SWIFTLINT_VERSION: 0.65.1

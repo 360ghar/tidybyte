@@ -45,7 +45,7 @@ public enum LaunchItems {
             (.systemAgent, systemLibrary.appendingPathComponent("LaunchAgents")),
             (.systemDaemon, systemLibrary.appendingPathComponent("LaunchDaemons"))
         ]
-        return folders.flatMap { domain, folder in
+        return folders.flatMap { domain, folder -> [LaunchItem] in
             let plists = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
             return plists.filter { $0.pathExtension == "plist" }.compactMap { item(at: $0, domain: domain) }
         }

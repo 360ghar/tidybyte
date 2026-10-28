@@ -1,7 +1,8 @@
   <main id="main">
 <!-- Hero. One action, then the real app. The screen switcher is radio inputs
-     and CSS only (see .mac-views in src/input.css): the first screen shows
-     with no JS, and arrow keys move between screens. -->
+     and CSS only (see .mac-views in src/input.css). Only the overview image
+     exists, so there are no tabs yet. Add the radios, tabs and figures back
+     with the 02-04 images. -->
 <section class="pb-12 pt-14 sm:pb-16 sm:pt-20">
   <div class="container-prose">
     <header class="mx-auto max-w-4xl text-center">
@@ -17,18 +18,8 @@
     </header>
 
     <fieldset class="mac-views mt-14 sm:mt-16">
-      <legend class="sr-only">Choose a screen to see</legend>
+      <legend class="sr-only">Screen</legend>
       <input type="radio" name="mac-view" id="mac-view-overview" class="sr-only" checked>
-      <input type="radio" name="mac-view" id="mac-view-space" class="sr-only">
-      <input type="radio" name="mac-view" id="mac-view-duplicates" class="sr-only">
-      <input type="radio" name="mac-view" id="mac-view-apps" class="sr-only">
-
-      <div class="mac-views__tabs">
-        <label for="mac-view-overview">Overview</label>
-        <label for="mac-view-space">Space Explorer</label>
-        <label for="mac-view-duplicates">Duplicates</label>
-        <label for="mac-view-apps">Applications</label>
-      </div>
 
       <div class="mac-views__panels">
         <figure data-view="overview">
@@ -37,27 +28,6 @@
             <img src="/assets/img/mac/01-overview-1200.webp" srcset="/assets/img/mac/01-overview-1200.webp 1200w, /assets/img/mac/01-overview.webp 2400w" sizes="(max-width: 1120px) 94vw, 1060px" alt="TidyByte for Mac Overview: startup disk use, Trash size, and what each area can free." width="1200" height="800" loading="eager" fetchpriority="high" decoding="async">
           </picture>
           <figcaption>Overview shows the startup disk, the Trash, and what each area can free.</figcaption>
-        </figure>
-        <figure data-view="space">
-          <picture>
-            <source srcset="/assets/img/mac/02-space-explorer-1200.avif 1200w, /assets/img/mac/02-space-explorer.avif 2400w" sizes="(max-width: 1120px) 94vw, 1060px" type="image/avif">
-            <img src="/assets/img/mac/02-space-explorer-1200.webp" srcset="/assets/img/mac/02-space-explorer-1200.webp 1200w, /assets/img/mac/02-space-explorer.webp 2400w" sizes="(max-width: 1120px) 94vw, 1060px" alt="TidyByte for Mac Space Explorer: a sunburst chart of the folders that use the most space." width="1200" height="800" loading="lazy" decoding="async">
-          </picture>
-          <figcaption>Space Explorer has eight views of your files, from a folder list to a sunburst.</figcaption>
-        </figure>
-        <figure data-view="duplicates">
-          <picture>
-            <source srcset="/assets/img/mac/03-duplicates-1200.avif 1200w, /assets/img/mac/03-duplicates.avif 2400w" sizes="(max-width: 1120px) 94vw, 1060px" type="image/avif">
-            <img src="/assets/img/mac/03-duplicates-1200.webp" srcset="/assets/img/mac/03-duplicates-1200.webp 1200w, /assets/img/mac/03-duplicates.webp 2400w" sizes="(max-width: 1120px) 94vw, 1060px" alt="TidyByte for Mac Duplicates: groups of exact copies checked with SHA-256." width="1200" height="800" loading="lazy" decoding="async">
-          </picture>
-          <figcaption>Duplicates are exact copies, checked with SHA-256.</figcaption>
-        </figure>
-        <figure data-view="apps">
-          <picture>
-            <source srcset="/assets/img/mac/04-applications-1200.avif 1200w, /assets/img/mac/04-applications.avif 2400w" sizes="(max-width: 1120px) 94vw, 1060px" type="image/avif">
-            <img src="/assets/img/mac/04-applications-1200.webp" srcset="/assets/img/mac/04-applications-1200.webp 1200w, /assets/img/mac/04-applications.webp 2400w" sizes="(max-width: 1120px) 94vw, 1060px" alt="TidyByte for Mac Applications: installed apps with the size of their settings, caches, and helpers." width="1200" height="800" loading="lazy" decoding="async">
-          </picture>
-          <figcaption>Applications removes an app with its settings, caches, and helpers.</figcaption>
         </figure>
       </div>
     </fieldset>
