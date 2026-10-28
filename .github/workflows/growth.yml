@@ -4,30 +4,31 @@ name: Growth creatives
 # CI and added about 6 minutes to every run, so it now runs only when a file
 # the render reads changes: the art and manifests, the render scripts, the copy
 # (the String Catalogs and the store listings), the fonts, or the dependencies.
+# The tooling lives in ios/; the Fredoka fonts are the website's copy.
 on:
   push:
     branches: [main]
     paths:
-      - docs/growth/**
-      - scripts/growth/**
-      - docs/appstore/listings.json
-      - Tidybyte/Resources/Localizable.xcstrings
-      - Tidybyte/Resources/AppShortcuts.xcstrings
-      - public/assets/fonts/**
-      - package.json
-      - package-lock.json
+      - ios/docs/growth/**
+      - ios/scripts/growth/**
+      - ios/docs/appstore/listings.json
+      - ios/Tidybyte/Resources/Localizable.xcstrings
+      - ios/Tidybyte/Resources/AppShortcuts.xcstrings
+      - website/public/assets/fonts/**
+      - ios/package.json
+      - ios/package-lock.json
       - .github/workflows/growth.yml
   pull_request:
     branches: [main]
     paths:
-      - docs/growth/**
-      - scripts/growth/**
-      - docs/appstore/listings.json
-      - Tidybyte/Resources/Localizable.xcstrings
-      - Tidybyte/Resources/AppShortcuts.xcstrings
-      - public/assets/fonts/**
-      - package.json
-      - package-lock.json
+      - ios/docs/growth/**
+      - ios/scripts/growth/**
+      - ios/docs/appstore/listings.json
+      - ios/Tidybyte/Resources/Localizable.xcstrings
+      - ios/Tidybyte/Resources/AppShortcuts.xcstrings
+      - website/public/assets/fonts/**
+      - ios/package.json
+      - ios/package-lock.json
       - .github/workflows/growth.yml
   workflow_dispatch:
 
@@ -38,6 +39,9 @@ concurrency:
 jobs:
   render:
     runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
     steps:
       - uses: actions/checkout@v4
 
@@ -45,6 +49,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: ios/package-lock.json
 
       - run: npm ci
 
