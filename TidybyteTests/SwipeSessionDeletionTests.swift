@@ -27,6 +27,8 @@ final class SwipeSessionDeletionTests: XCTestCase {
             modelContext: container.mainContext
         )
         viewModel.assets = (0..<assetCount).map { makeAsset(id: "asset-\($0)") }
+        // The fixtures are complete summaries already; keep PhotoKit out of it.
+        viewModel.loadDetails = { _ in [:] }
         return viewModel
     }
 
@@ -113,6 +115,33 @@ final class SwipeSessionDeletionTests: XCTestCase {
         let assets = ["a", "b", "c"].map(makeAsset(id:))
         let deck = SwipeSessionViewModel.deckAssets(assets, excludingPending: ["b"])
         XCTAssertEqual(deck.map(\.id), ["a", "c"])
+    }
+
+    /// Swipes faster than the background detail window can load: every
+    /// deletion must still be recorded with the photo's real size.
+    func testSwipesThatOutrunTheDetailWindowStillRecordSizes() throws {
+        let vm = try makeViewModel(assetCount: 0)
+        vm.assets = (0..<60).map { makeListing(id: "asset-\($0)") }
+        let library = Dictionary(uniqueKeysWithValues: vm.assets.map { ($0.id, makeAsset(id: $0.id)) })
+        vm.loadDetails = { ids in library.filter { ids.contains($0.key) } }
+
+        vm.skip() // card 0 is shown before any window is loaded
+        for _ in 1..<50 { vm.swipeLeft() } // no await: the async window never lands
+
+        XCTAssertEqual(vm.pendingDeletionIds.count, 49)
+        XCTAssertEqual(vm.sessionStats.deletedBytes, 49 * 8_000_000)
+        XCTAssertEqual(vm.pendingDeletionBytes, 49 * 8_000_000)
+    }
+
+    func testDeckDetailsReplaceOnlyListedCardsInTheWindow() {
+        var deck = ["a", "b", "c"].map(makeAsset(id:))
+        var detailA = makeAsset(id: "a")
+        detailA.assetOrigin = .camera
+        var detailC = makeAsset(id: "c")
+        detailC.assetOrigin = .camera
+        // "b" is missing from the details (deleted elsewhere) and keeps its listing.
+        SwipeSessionViewModel.apply(["a": detailA, "c": detailC], to: &deck, in: 0..<2)
+        XCTAssertEqual(deck.map(\.assetOrigin), [.camera, .unknown, .unknown])
     }
 
     func testSwipeLeftDoesNotDoubleCountAlreadyPendingAsset() throws {
@@ -211,6 +240,27 @@ final class SwipeSessionDeletionTests: XCTestCase {
         XCTAssertEqual(vm.pendingDeletionBytes, 0)
         XCTAssertEqual(vm.sessionStats.deletedCount, 0)
         XCTAssertEqual(vm.sessionStats.deletedBytes, 0)
+    }
+
+    /// What `PhotoLibraryService.fetchDeckListing(filter:)` returns: no resource fields.
+    private func makeListing(id: String) -> AssetSummary {
+        AssetSummary(
+            id: id,
+            mediaType: .photo,
+            creationDate: .now,
+            modificationDate: .now,
+            pixelWidth: 4032,
+            pixelHeight: 3024,
+            duration: 0,
+            fileSize: 0,
+            filename: nil,
+            isFavorite: false,
+            isBurst: false,
+            burstIdentifier: nil,
+            isLivePhoto: false,
+            isScreenshot: false,
+            isLocallyAvailable: true
+        )
     }
 
     private func makeAsset(id: String) -> AssetSummary {

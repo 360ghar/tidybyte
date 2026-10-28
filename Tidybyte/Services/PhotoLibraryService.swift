@@ -207,52 +207,84 @@ actor PhotoLibraryService {
     }
 
     func fetchAssets(filter: SwipeFilter) -> [AssetSummary] {
+        guard let query = query(for: filter) else { return [] }
+        return extractSummaries(from: query.assets, excluding: query.excluding)
+    }
+
+    /// The PhotoKit fetch behind each filter, plus the ids the filter drops
+    /// after fetching. Nil when the filter's album no longer exists.
+    nonisolated private func query(for filter: SwipeFilter) -> (assets: PHFetchResult<PHAsset>, excluding: Set<String>)? {
         switch filter {
         case .allMedia:
-            let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return (PHAsset.fetchAssets(with: allAssetsFetchOptions()), [])
 
         case .allMediaBefore(let cutoffDate):
             // Same options (and therefore ordering) as All Media, narrowed to
             // media created on or before the user's chosen starting position.
             let options = allAssetsFetchOptions()
             options.predicate = NSPredicate(format: "creationDate <= %@", cutoffDate as NSDate)
-            let fetchResult = PHAsset.fetchAssets(with: options)
-            return extractSummaries(from: fetchResult)
+            return (PHAsset.fetchAssets(with: options), [])
 
         case .notInAnyAlbum:
             let allAssets = PHAsset.fetchAssets(with: allAssetsFetchOptions())
-            let assetsInAlbums = collectAssetsInUserAlbums()
-            return extractSummaries(from: allAssets, excluding: assetsInAlbums)
+            return (allAssets, collectAssetsInUserAlbums())
 
         case .specificAlbum(let albumId):
             guard let collection = PHAssetCollection.fetchAssetCollections(
                 withLocalIdentifiers: [albumId], options: nil
             ).firstObject else {
-                return []
+                return nil
             }
-            let fetchResult = PHAsset.fetchAssets(in: collection, options: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return (PHAsset.fetchAssets(in: collection, options: allAssetsFetchOptions()), [])
 
         case .notSwipedYet:
             // Swipe history lives in SwiftData, not PhotoKit — the session view
             // model filters it out after the fetch.
-            let fetchResult = PHAsset.fetchAssets(with: allAssetsFetchOptions())
-            return extractSummaries(from: fetchResult)
+            return (PHAsset.fetchAssets(with: allAssetsFetchOptions()), [])
 
         case .worstShots:
-            return fetchAllPhotos()
+            // Same fetch as `fetchAllPhotos()`.
+            let options = allAssetsFetchOptions()
+            options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)
+            return (PHAsset.fetchAssets(with: options), [])
 
         case .screenshots:
             let options = allAssetsFetchOptions()
             options.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
-            let fetchResult = PHAsset.fetchAssets(with: options)
-            return extractSummaries(from: fetchResult)
+            return (PHAsset.fetchAssets(with: options), [])
 
         case .customAssetIds(let ids):
-            let assets = PHAsset.fetchAssets(withLocalIdentifiers: Array(ids), options: nil)
-            return extractSummaries(from: assets)
+            return (PHAsset.fetchAssets(withLocalIdentifiers: Array(ids), options: nil), [])
         }
+    }
+
+    // MARK: - Swipe Deck
+
+    /// One summary per asset for a swipe deck, without reading any asset's
+    /// resources. Resources (file size, filename, iCloud state) cost a Photos
+    /// database round trip per asset, so a deck that read them for the whole
+    /// library kept its first card waiting for minutes on a large library.
+    /// Those fields are left at their "unknown" values here (no file size, no
+    /// filename, locally available, origin guessed without a filename);
+    /// `fetchSummaries(for:)` fills them in for the cards about to be shown.
+    ///
+    /// Nonisolated so a deck never queues behind a library-wide scan on this
+    /// actor. It does not retain a change baseline; the full scans keep one.
+    nonisolated func fetchDeckListing(filter: SwipeFilter) async -> [AssetSummary] {
+        guard let query = query(for: filter) else { return [] }
+        return Self.buildSummaries(from: query.assets, excluding: query.excluding, readingResources: false)
+    }
+
+    /// Complete summaries for `ids`, keyed by id. Ids that are no longer in
+    /// the library are absent. Reads each asset's resources, so keep it off
+    /// the main actor for anything more than the few cards on screen.
+    nonisolated func fetchSummaries(for ids: [String]) -> [String: AssetSummary] {
+        guard !ids.isEmpty else { return [:] }
+        var summaries: [String: AssetSummary] = [:]
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
+            summaries[asset.localIdentifier] = Self.makeSummary(from: asset)
+        }
+        return summaries
     }
 
     func fetchAssetsByMediaType(_ mediaType: PHAssetMediaType) -> [AssetSummary] {
@@ -1035,8 +1067,11 @@ actor PhotoLibraryService {
         return sizes.reduce(0, +)
     }
 
-    nonisolated private static func makeSummary(from asset: PHAsset) -> AssetSummary {
-        let resources = PHAssetResource.assetResources(for: asset)
+    /// With `readingResources` false, the fields that come from the asset's
+    /// resources stay at their "unknown" values: no file size, no filename,
+    /// locally available.
+    nonisolated private static func makeSummary(from asset: PHAsset, readingResources: Bool = true) -> AssetSummary {
+        let resources = readingResources ? PHAssetResource.assetResources(for: asset) : []
         let isLocal = resources.allSatisfy { resource in
             guard resource.responds(to: NSSelectorFromString("locallyAvailable")) else { return true }
             return (resource.value(forKey: "locallyAvailable") as? Bool) ?? true
@@ -1121,12 +1156,17 @@ actor PhotoLibraryService {
         return Self.buildSummaries(from: fetchResult, excluding: excluding, sort: sort)
     }
 
-    nonisolated private static func buildSummaries(from fetchResult: PHFetchResult<PHAsset>, excluding: Set<String> = [], sort: Bool = true) -> [AssetSummary] {
+    nonisolated private static func buildSummaries(
+        from fetchResult: PHFetchResult<PHAsset>,
+        excluding: Set<String> = [],
+        sort: Bool = true,
+        readingResources: Bool = true
+    ) -> [AssetSummary] {
         var summaries: [AssetSummary] = []
         summaries.reserveCapacity(fetchResult.count)
         fetchResult.enumerateObjects { asset, _, _ in
             if !excluding.contains(asset.localIdentifier) {
-                summaries.append(Self.makeSummary(from: asset))
+                summaries.append(Self.makeSummary(from: asset, readingResources: readingResources))
             }
         }
         if sort {
