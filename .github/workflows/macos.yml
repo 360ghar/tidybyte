@@ -62,11 +62,13 @@ jobs:
           ! otool -L .build/app-store-scratch/debug/Tidybyte | grep -i sparkle
 
       - name: Test
-        # Serial: under --parallel the swift-testing runner on hosted macOS 26
-        # runners started all 492 tests and completed none within 30 minutes
-        # (zero result lines; both local runners pass the whole suite in
-        # seconds, serial and parallel).
-        run: swift test 2>&1 | tee test.log
+        # xcodebuild, not `swift test`: the swift-testing/XCTest interop
+        # runner stalls without completing a single test on hosted macOS 26
+        # runners (zero result lines under --parallel; an arbitrary mid-suite
+        # freeze when serial), while the same suite passes locally in under a
+        # minute both ways. xcodebuild's classic runner is what the iOS job
+        # already uses successfully on these runners.
+        run: xcodebuild -scheme Tidybyte-Package -destination 'platform=macOS' test 2>&1 | tee test.log
 
       - name: MCP end-to-end (fold and undo on APFS)
         run: |
