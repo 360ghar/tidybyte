@@ -112,11 +112,12 @@ public actor NotificationScheduler {
     public static let bundlePathKey = "bundlePath"
     private static let weeklyDigestIdentifier = "weekly-growth-digest"
 
+    /// UNUserNotificationCenter.current() raises an uncatchable
+    /// NSInternalInconsistencyException in hosts without an app bundle proxy
+    /// (xcodebuild's test agents run from Xcode's Agents directory), so every
+    /// entry point gates on a real .app bundle — same rule as the delegate
+    /// wiring in MacOSCleanerApp and the reminder path in CleanupModel.
     private var canUseUserNotifications: Bool {
-        #if DEBUG
-        return Bundle.main.bundleURL.pathExtension == "app" || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        #else
-        return Bundle.main.bundleURL.pathExtension == "app"
-        #endif
+        Bundle.main.bundleURL.pathExtension == "app"
     }
 }
