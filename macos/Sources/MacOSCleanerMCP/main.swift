@@ -1,5 +1,6 @@
 import Foundation
 import MacOSCleanerCore
+import MacOSCleanerMCPLibrary
 
 // Tidybyte MCP server: newline-delimited JSON-RPC over stdio. Point an
 // MCP client at the built binary; tools and the mandatory dry-run/confirm

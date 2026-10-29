@@ -49,9 +49,17 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        .target(
+            name: "MacOSCleanerMCPLibrary",
+            dependencies: ["MacOSCleanerCore"],
+            path: "Sources/MacOSCleanerMCPLibrary",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         .executableTarget(
             name: "MacOSCleanerMCP",
-            dependencies: ["MacOSCleanerCore"],
+            dependencies: ["MacOSCleanerCore", "MacOSCleanerMCPLibrary"],
             path: "Sources/MacOSCleanerMCP",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
@@ -59,7 +67,9 @@ let package = Package(
         ),
         .testTarget(
             name: "MacOSCleanerTests",
-            dependencies: ["MacOSCleanerCore", "MacOSCleanerAppKit", "MacOSCleanerMCP"],
+            // The MCP server logic lives in a library target: test bundles
+            // cannot link against an executable target under xcodebuild.
+            dependencies: ["MacOSCleanerCore", "MacOSCleanerAppKit", "MacOSCleanerMCPLibrary"],
             exclude: [
                 "UserStories/UX/UX_USER_BEHAVIOR_TEST_CASES.md",
                 "UserStories/UX/README.md"

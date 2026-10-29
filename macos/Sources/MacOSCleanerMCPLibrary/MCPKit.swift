@@ -35,7 +35,7 @@ enum MCPError: Error, LocalizedError {
 /// transport-agnostic (stdio lives in main.swift) so unit tests can drive
 /// `handle(request:)` directly. Not an actor: the stdio loop processes one
 /// request at a time on a single task, and every service it touches is an actor.
-final class MCPKit {
+public final class MCPKit {
     static let serverName = AppIdentity.mcpServerName
     static let serverVersion = "1.0"
     static let defaultProtocolVersion = "2025-06-18"
@@ -407,7 +407,7 @@ extension MCPKit {
         ["jsonrpc": "2.0", "id": id, "result": result]
     }
 
-    static func errorPayload(id: Any, code: Int, message: String) -> [String: Any] {
+    public static func errorPayload(id: Any, code: Int, message: String) -> [String: Any] {
         ["jsonrpc": "2.0", "id": id, "error": ["code": code, "message": message]]
     }
 
@@ -415,7 +415,7 @@ extension MCPKit {
     /// stable for tests. Writes through FileHandle (not `print`) because
     /// stdio pipes are block-buffered — a buffered response would strand the
     /// client waiting for a line that never arrives.
-    static func emit(_ payload: [String: Any]) {
+    public static func emit(_ payload: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
               let line = String(data: data, encoding: .utf8) else {
             return

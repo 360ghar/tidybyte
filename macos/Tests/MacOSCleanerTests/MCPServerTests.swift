@@ -1,6 +1,6 @@
 import Foundation
 @testable import MacOSCleanerCore
-@testable import MacOSCleanerMCP
+@testable import MacOSCleanerMCPLibrary
 import XCTest
 
 /// MCP server dispatcher tests: the JSON-RPC contract (initialize, ping,
