@@ -8,7 +8,8 @@
 #   SPARKLE_PUBLIC_KEY=... SPARKLE_PRIVATE_KEY_FILE=/secure/ed25519.key \
 #   Scripts/package-release.sh direct
 #
-# Dry run without credentials: SIGNING_IDENTITY=- SKIP_NOTARIZE=1 Scripts/package-release.sh direct
+# Dry run without credentials: NO_SPARKLE=1 SIGNING_IDENTITY=- SKIP_NOTARIZE=1 \
+#   Scripts/package-release.sh direct
 set -euo pipefail
 CHANNEL="${1:-direct}"
 case "$CHANNEL" in direct|app-store) ;; *) echo "Usage: $0 direct|app-store" >&2; exit 2 ;; esac

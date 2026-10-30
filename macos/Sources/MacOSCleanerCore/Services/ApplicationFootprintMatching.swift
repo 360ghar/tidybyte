@@ -129,8 +129,24 @@ extension ApplicationFootprintService {
         guard !Self.normalized(app.name).isEmpty, Self.normalized(stripped) == Self.normalized(app.name) else {
             return nil
         }
+        // A third-party app whose display name equals one of Apple's own
+        // Library folder names (an app called "Notes" against ~/Library/Notes)
+        // would otherwise have Apple's data staged as its leftover. Those
+        // folders are never name-matched; a real bundle-ID match still works.
+        if Self.appleOnlyLibraryFolderNames.contains(stripped.lowercased()) {
+            return nil
+        }
         return (.likely, String(localized: "Named after the app"))
     }
+
+    /// Apple-owned ~/Library folder names that must never match a third-party
+    /// app by display name alone.
+    private static let appleOnlyLibraryFolderNames: Set<String> = [
+        "mail", "notes", "keychains", "accounts", "cookies", "preferences",
+        "safari", "facetime", "messages", "reminders", "calendar", "calendars",
+        "contacts", "stickies", "syncservices", "autosave information",
+        "identityservices", "sharing", "suggestions", "gamekit", "sync"
+    ]
 
     /// Lowercase with spaces, dashes, and underscores removed, so "Google
     /// Chrome" matches "GoogleChrome" but never merely contains it.

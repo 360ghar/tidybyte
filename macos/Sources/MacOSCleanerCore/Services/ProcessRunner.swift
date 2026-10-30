@@ -177,10 +177,12 @@ private final class PipeDrains: @unchecked Sendable {
 
     /// Waits up to `seconds` for both drains to reach EOF. Returns false when
     /// the wait expired with a drain still blocked (grandchild holding the
-    /// pipe); the caller then proceeds with the bytes captured so far. The
+    /// pipe): the caller then gets EMPTY output for that stream plus the
+    /// truncation note, because a drain publishes its buffer only at EOF. The
     /// still-blocked drain keeps running on its GCD thread and finishes
     /// whenever the last pipe writer exits — it never blocks the caller or
-    /// the cooperative pool.
+    /// the cooperative pool. Returning on time beats hanging forever on a
+    /// forked child that inherited the pipe.
     func wait(seconds: TimeInterval) -> Bool {
         let deadline = DispatchTime.now() + seconds
         while state.withLock({ $0.finishedCount }) < 2 {
@@ -194,7 +196,8 @@ private final class PipeDrains: @unchecked Sendable {
         return true
     }
 
-    /// The outputs captured so far (empty for a drain that never finished).
+    /// Published drain outputs (empty for a drain that has not hit EOF yet —
+    /// its bytes are still local to the drain loop until then).
     func results() -> (stdout: DrainedOutput, stderr: DrainedOutput) {
         state.withLock { st in
             (st.stdout ?? DrainedOutput(), st.stderr ?? DrainedOutput())

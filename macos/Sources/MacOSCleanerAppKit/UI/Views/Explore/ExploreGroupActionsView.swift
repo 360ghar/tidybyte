@@ -57,7 +57,7 @@ struct ExploreGroupActionsView: View {
                                 if model.stageExploreRecordForCleanup(record) != nil {
                                     actionMessage = String(localized: "Added to the cleanup plan. Review it in Proposed Actions.")
                                 } else {
-                                    actionMessage = String(localized: "Could not stage. Run a scan first.")
+                                    actionMessage = String(localized: "Could not stage. A scan, execution, or plan change is in flight — or there is nothing to stage yet.", comment: "Explore group staging refused")
                                 }
                             }
                         )

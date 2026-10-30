@@ -2,6 +2,7 @@ import AVFoundation
 import AppKit
 import CryptoKit
 import Foundation
+import os
 import ImageIO
 @preconcurrency import Vision
 
@@ -76,10 +77,24 @@ public enum FingerprintService {
         }
 
         return await withCheckedContinuation { continuation in
+            // Resume exactly once: a Vision failure can surface both through
+            // the request completion and through perform() throwing, and a
+            // double resume of a CheckedContinuation traps at runtime.
+            let resumed = OSAllocatedUnfairLock(initialState: false)
+            func resumeOnce(_ value: String?) {
+                let first = resumed.withLock { flag -> Bool in
+                    let wasFirst = !flag
+                    flag = true
+                    return wasFirst
+                }
+                if first {
+                    continuation.resume(returning: value)
+                }
+            }
             let request = VNGenerateImageFeaturePrintRequest { request, error in
                 guard error == nil,
                       let result = request.results?.first as? VNFeaturePrintObservation else {
-                    continuation.resume(returning: nil)
+                    resumeOnce(nil)
                     return
                 }
                 // Use the raw feature print data, not the NSKeyedArchiver encoding.
@@ -87,14 +102,14 @@ public enum FingerprintService {
                 // first N bytes depend on encoding metadata rather than the image content.
                 let data = result.data
                 let hash = SHA256.hash(data: data)
-                continuation.resume(returning: hash.map { String(format: "%02x", $0) }.joined())
+                resumeOnce(hash.map { String(format: "%02x", $0) }.joined())
             }
 
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             do {
                 try handler.perform([request])
             } catch {
-                continuation.resume(returning: nil)
+                resumeOnce(nil)
             }
         }
     }
@@ -125,19 +140,31 @@ public enum FingerprintService {
             return nil
         }
         return await withCheckedContinuation { continuation in
+            // Resume exactly once (see perceptualHash).
+            let resumed = OSAllocatedUnfairLock(initialState: false)
+            func resumeOnce(_ value: ImageFeaturePrint?) {
+                let first = resumed.withLock { flag -> Bool in
+                    let wasFirst = !flag
+                    flag = true
+                    return wasFirst
+                }
+                if first {
+                    continuation.resume(returning: value)
+                }
+            }
             let request = VNGenerateImageFeaturePrintRequest { request, error in
                 guard error == nil,
                       let result = request.results?.first as? VNFeaturePrintObservation else {
-                    continuation.resume(returning: nil)
+                    resumeOnce(nil)
                     return
                 }
-                continuation.resume(returning: ImageFeaturePrint(observation: result))
+                resumeOnce(ImageFeaturePrint(observation: result))
             }
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             do {
                 try handler.perform([request])
             } catch {
-                continuation.resume(returning: nil)
+                resumeOnce(nil)
             }
         }
     }

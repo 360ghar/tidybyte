@@ -886,8 +886,11 @@ public actor ActionExecutor {
     }
 
     /// Reject destinations the policy forbids (protected, cloud-synced, Trash).
+    /// An existing symlinked destination is judged by where it points: a leaf
+    /// symlink into a protected area must not become a move/rename target.
     private func validatedDestination(_ destination: URL) throws {
-        if case .deny = PathSafetyPolicy().decide(target: destination, isDirectory: true) {
+        let resolved = destination.resolvingSymlinksInPath()
+        if case .deny = PathSafetyPolicy().decide(target: resolved, isDirectory: true) {
             throw SafetyAuditError.unsafeDestination(destination)
         }
     }

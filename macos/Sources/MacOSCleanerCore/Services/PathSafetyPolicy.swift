@@ -190,7 +190,9 @@ public struct PathSafetyPolicy: Sendable {
         if lowered.contains("google drive") || lowered.contains("/googledrive") {
             return "Google Drive"
         }
-        if path.contains("/Dropbox/") {
+        // Case-insensitive like the other providers: Dropbox supports renaming
+        // its root, and a differently-cased folder must not escape the guard.
+        if lowered.contains("/dropbox/") {
             return "Dropbox"
         }
         if lowered.contains("onedrive") {

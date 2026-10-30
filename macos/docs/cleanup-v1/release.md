@@ -27,7 +27,7 @@ SPARKLE_PUBLIC_KEY=... SPARKLE_PRIVATE_KEY_FILE=/secure/ed25519.key \
 Scripts/package-release.sh direct
 ```
 
-`package-release.sh` performs the whole pipeline itself: it builds the app, signs Sparkle and the bundle inside out, notarizes the ZIP, staples the app, then builds, signs, notarizes, and staples the DMG, and finishes with `spctl --assess`. Do not re-zip or re-submit the artifacts manually afterwards. A dry run without credentials is `SIGNING_IDENTITY=- SKIP_NOTARIZE=1 Scripts/package-release.sh direct`.
+`package-release.sh` performs the whole pipeline itself: it builds the app, signs Sparkle and the bundle inside out, notarizes the ZIP, staples the app, then builds, signs, notarizes, and staples the DMG, and finishes with `spctl --assess`. Do not re-zip or re-submit the artifacts manually afterwards. A dry run without credentials is `SIGNING_IDENTITY=- NO_SPARKLE=1 SKIP_NOTARIZE=1 Scripts/package-release.sh direct`.
 
 The release operator creates the `NOTARY_PROFILE` keychain profile with `xcrun notarytool store-credentials` before submission. Validate the results before publishing: `codesign --verify --deep --strict .build/Tidybyte.app`, `spctl --assess --type open --context context:primary-signature .build/direct/Tidybyte-<version>.dmg`, and launch the DMG's app once. The release artifacts are `.build/direct/Tidybyte-<version>.dmg` and, when Sparkle keys are supplied, `.build/direct/appcast.xml`.
 

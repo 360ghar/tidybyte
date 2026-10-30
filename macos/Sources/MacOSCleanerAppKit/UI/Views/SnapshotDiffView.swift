@@ -172,33 +172,3 @@ struct SnapshotDiffView: View {
     }
 }
 
-struct SnapshotDetailsView: View {
-    @Bindable var model: AppViewModel
-
-    var body: some View {
-        if let snapshot = model.storageSnapshots.first(where: { $0.id == model.selectedSnapshotID }) {
-            Form {
-                Section(String(localized: "Scan snapshot")) {
-                    Text(snapshot.createdAt, format: .dateTime).font(.headline)
-                    LabeledContent(String(localized: "Scanned size"), value: snapshot.totalBytes.formattedByteCount)
-                    LabeledContent(String(localized: "Removed through Tidybyte"),
-                                   value: snapshot.removedBytesThroughApp.formattedByteCount)
-                }
-                Section(String(localized: "Scan locations")) {
-                    ForEach(snapshot.bytesByRootPath.keys.sorted(), id: \.self) { path in
-                        LabeledContent(path, value: (snapshot.bytesByRootPath[path] ?? 0).formattedByteCount)
-                            .textSelection(.enabled)
-                    }
-                }
-                Section(String(localized: "Categories")) {
-                    ForEach(snapshot.bytesByCategory.keys.sorted { $0.rawValue < $1.rawValue }, id: \.self) { category in
-                        LabeledContent(category.displayName,
-                                       value: (snapshot.bytesByCategory[category] ?? 0).formattedByteCount)
-                    }
-                }
-            }.formStyle(.grouped)
-        } else {
-            ContentUnavailableView(String(localized: "No snapshot selected"), systemImage: "square.stack.3d.up")
-        }
-    }
-}

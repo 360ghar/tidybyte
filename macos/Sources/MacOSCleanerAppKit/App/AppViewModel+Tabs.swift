@@ -39,7 +39,8 @@ extension AppViewModel {
     /// intent (button + confirmation dialog); staged actions still pass
     /// SafetyAuditor and ActionExecutor before anything touches the disk.
     func stageUninstall(for app: InstalledApplication) async {
-        guard !isScanning, !isExecuting, !isPlanning, !stagedUninstallAppIDs.contains(app.id) else { return }
+        // Busy state is owned (and messaged) by stage(); keep only the dedup.
+        guard !stagedUninstallAppIDs.contains(app.id) else { return }
         let staged = await stage(name: app.name) { service, sessionID in
             try await service.stagedUninstall(for: app, sessionID: sessionID)
         }
@@ -50,7 +51,8 @@ extension AppViewModel {
     /// - Returns: true when the item is now in Leftovers.
     @discardableResult
     func stageRemoval(of item: LaunchItem) async -> Bool {
-        guard item.canRemove, !isScanning, !isExecuting, !isPlanning else { return false }
+        // Busy state is owned (and messaged) by stage(); canRemove is local.
+        guard item.canRemove else { return false }
         return await stage(name: item.label) { service, sessionID in
             await service.stagedRemoval(
                 of: [item.url],

@@ -128,7 +128,7 @@ struct RelationshipGraphView: View {
                 }
 
                 // Draw nodes
-                ForEach(Array(nodes.keys), id: \.self) { fileID in
+                ForEach(nodes.keys.sorted(), id: \.self) { fileID in
                     if let position = nodes[fileID],
                        let record = filesByID[fileID] {
                         nodeView(for: record, at: position)

@@ -144,7 +144,7 @@ public actor SQLiteStore {
 
     /// Returns the raw database pointer for use in nonisolated contexts (e.g., deinit).
     /// This is intentionally nonisolated to allow safe cleanup during deallocation.
-    nonisolated func unsafeDatabasePointer() -> OpaquePointer? {
+    private nonisolated func unsafeDatabasePointer() -> OpaquePointer? {
         database
     }
 

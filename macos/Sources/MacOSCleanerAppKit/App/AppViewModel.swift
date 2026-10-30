@@ -443,16 +443,6 @@ final class AppViewModel {
         showOnboarding = selectedMode == .selectedFolders
     }
 
-    func openSelectedFolder(_ folder: URL) {
-        let normalized = folder.standardizedFileURL
-        guard FileManager.default.fileExists(atPath: normalized.path) else {
-            errorMessage = String(localized: "This folder no longer exists.")
-            return
-        }
-        NSWorkspace.shared.open(normalized)
-        statusMessage = String(localized: "Opened \(normalized.path).")
-    }
-
     func openLatestReport() {
         guard let reportURL = generatedReportURL else {
             errorMessage = String(localized: "No report generated yet.")
@@ -649,10 +639,6 @@ final class AppViewModel {
         }
     }
 
-    func retryScan() {
-        runScan()
-    }
-
     func runSaferScan() {
         let saferPosture: CleanupPosture = switch cleanupPosture {
         case .aggressive:
@@ -823,16 +809,17 @@ final class AppViewModel {
         await executeApprovedActions(allowingRiskUpTo: .forbidden)
     }
 
-    func executeSafeActions() async {
-        await executeApprovedActions(allowingRiskUpTo: .low)
-    }
-
-    func executeConfirmedRequest(_ request: ExecutionRequest) async {
+    func executeConfirmedRequest(_ request: ExecutionRequest, packageCommandsOnly: Bool = false) async {
         guard request.isCurrent(in: self) else {
             errorMessage = String(localized: "The plan changed. Review the current actions and confirm again.")
             return
         }
-        await executeApprovedActions(allowingRiskUpTo: request.maximumRisk, confirmedActionIDs: request.actionIDs)
+        // Package-manager commands are non-undoable, so the UI confirms them
+        // in a dedicated step, separate from file actions (AGENTS.md flow).
+        let ids = packageCommandsOnly
+            ? Set(request.actions.filter { $0.actionType == .runPackageManagerCleanup }.map(\.id))
+            : request.actionIDs
+        await executeApprovedActions(allowingRiskUpTo: request.maximumRisk, confirmedActionIDs: ids)
     }
 
     private func executeApprovedActions(

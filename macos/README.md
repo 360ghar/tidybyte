@@ -58,7 +58,7 @@ Tidybyte updates itself. Choose **Tidybyte › Check for Updates…** to check n
 
 ```sh
 swift build                    # build
-swift test                     # ~500 tests; destructive tests use fixture folders only
+swift test                     # 492 tests (2 skip headless); destructive tests use fixture folders only
 swiftlint lint --strict --baseline .swiftlint-baseline.json
 Scripts/build-app.sh direct    # .build/Tidybyte.app
 ```

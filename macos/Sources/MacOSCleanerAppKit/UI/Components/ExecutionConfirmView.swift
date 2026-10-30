@@ -76,7 +76,25 @@ struct ExecutionConfirmView: View {
                 Spacer()
                 Button(request.confirmTitle, role: request.isTrashOnly ? .destructive : nil) {
                     dismiss()
-                    Task { await model.executeConfirmedRequest(request) }
+                    // File actions only: package-manager commands are
+                    // confirmed in their own dedicated step below.
+                    Task { await model.executeConfirmedRequest(request, packageCommandsOnly: false) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!planCurrent)
+            }
+            if request.hasPackageCommands {
+                Divider()
+                Label {
+                    Text(String(localized: "Package-manager commands are irreversible. They run external tools (brew, docker, npm) and cannot be undone from Tidybyte.", comment: "Irreversibility warning for package-manager cleanup commands"))
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
+                }
+                .foregroundStyle(SemanticScale.error)
+                .font(.callout)
+                Button(String(localized: "Run Package-Manager Commands", comment: "Separate confirmation button for irreversible package-manager commands"), role: .destructive) {
+                    dismiss()
+                    Task { await model.executeConfirmedRequest(request, packageCommandsOnly: true) }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!planCurrent)

@@ -433,6 +433,8 @@ public actor DuplicateDetector {
         edgesOut: inout [RelationshipEdge]
     ) async throws {
         let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "tiff", "heic", "webp"]
+        // One Set per exact-match finding, built once for the whole pass.
+        let existingTargetSets = existingFindings.map { Set($0.targetFileIDs) }
         let images = files.filter { file in
             guard let ext = file.fileExtension?.lowercased(), imageExtensions.contains(ext) else {
                 return false
@@ -487,10 +489,10 @@ public actor DuplicateDetector {
             guard let keep = members.first else { continue }
             let nearDuplicates = Array(members.dropFirst())
             // Skip groups already fully covered by an exact-match finding.
+            // Target sets are precomputed once: rebuilding a Set per finding
+            // per component was quadratic on duplicate-heavy libraries.
             let memberIDs = Set(members.map(\.id))
-            if existingFindings.contains(where: { finding in
-                Set(finding.targetFileIDs).isSuperset(of: memberIDs)
-            }) {
+            if existingTargetSets.contains(where: { $0.isSuperset(of: memberIDs) }) {
                 continue
             }
             let bytes = nearDuplicates.reduce(Int64(0)) { $0 + $1.sizeBytes }
