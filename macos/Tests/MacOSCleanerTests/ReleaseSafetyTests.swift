@@ -124,3 +124,24 @@ final class FullDiskAccessTests: XCTestCase {
         XCTAssertNil(FullDiskAccess.canOpen(home.appendingPathComponent("missing")))
     }
 }
+
+/// Constant-level release gates that must run in CI even though the
+/// Vision-dependent suite they were extracted from is skipped headless.
+
+/// Constant-level release gates that must run in CI even though the
+/// Vision-dependent suite they were extracted from is skipped headless.
+
+/// Constant-level release gates that must run in CI even though the
+/// Vision-dependent suite they were extracted from is skipped headless.
+
+final class NearDuplicateBoundsTests: XCTestCase {
+    func testNearDuplicateThresholdSeparatesUnrelatedImages() {
+        // About 1 for unrelated images on the current feature print; 8 matched every pair.
+        XCTAssertLessThan(DuplicateDetector.nearDuplicateDistanceThreshold, 0.9)
+    }
+
+    func testNearDuplicateWorkIsBounded() {
+        XCTAssertLessThanOrEqual(DuplicateDetector.maxNearDuplicateImages, 20_000)
+        XCTAssertLessThanOrEqual(DuplicateDetector.nearDuplicateWindow, 64)
+    }
+}

@@ -1,7 +1,8 @@
 import CryptoKit
 import Foundation
 import ImageIO
-@preconcurrency import Photos
+@preconcurrency import os
+import Photos
 import UniformTypeIdentifiers
 
 public protocol PhotoMutationService: Sendable {
@@ -175,23 +176,30 @@ public actor PhotoLibraryService: PhotoMutationService {
 
     public func analysisPreview(_ item: ReviewItem, size: Int = 512) async throws -> URL {
         let original = try asset(item)
-        let image: CGImage = try await withCheckedThrowingContinuation { continuation in
-            let options = PHImageRequestOptions()
-            options.isNetworkAccessAllowed = false
-            options.deliveryMode = .highQualityFormat
-            options.resizeMode = .fast
-            PHImageManager.default().requestImage(
-                for: original, targetSize: CGSize(width: size, height: size),
-                contentMode: .aspectFit, options: options
-            ) { image, information in
-                if information?[PHImageResultIsDegradedKey] as? Bool == true { return }
-                guard let decoded = image?.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-                    continuation.resume(
-                        throwing: CleanupError.message(String(localized: "Local Photos preview unavailable.")))
-                    return
+        // Cancellation-aware like read(): a cancelled caller must not stay
+        // suspended until Photos eventually delivers a non-degraded image,
+        // and a degraded-then-final double delivery must resume exactly once.
+        let pending = PendingPreviewRequest()
+        let image: CGImage = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let options = PHImageRequestOptions()
+                options.isNetworkAccessAllowed = false
+                options.deliveryMode = .highQualityFormat
+                options.resizeMode = .fast
+                // Store the continuation BEFORE the request starts so a
+                // cancellation racing the callback can always resolve it.
+                pending.store(continuation)
+                let requestID = PHImageManager.default().requestImage(
+                    for: original, targetSize: CGSize(width: size, height: size),
+                    contentMode: .aspectFit, options: options
+                ) { image, information in
+                    if information?[PHImageResultIsDegradedKey] as? Bool == true { return }
+                    pending.deliver(image?.cgImage(forProposedRect: nil, context: nil, hints: nil))
                 }
-                continuation.resume(returning: decoded)
+                pending.setRequestID(requestID)
             }
+        } onCancel: {
+            pending.cancelIfPending()
         }
         try Task.checkCancellation()
         try FileManager.default.createDirectory(at: cacheRoot, withIntermediateDirectories: true)
@@ -288,6 +296,62 @@ public actor PhotoLibraryService: PhotoMutationService {
         // This directory contains only exports created by this service, never user originals.
         try? FileManager.default.removeItem(at: cacheRoot)
         exportCache.removeAll()
+    }
+
+    /// Resolves the analysisPreview continuation exactly once: the first
+    /// final (non-degraded) delivery wins, and task cancellation cancels the
+    /// underlying Photos request and resumes the continuation with a
+    /// CancellationError instead of leaving the caller suspended forever.
+    private final class PendingPreviewRequest: @unchecked Sendable {
+        private struct State {
+            var requestID: PHImageRequestID = PHInvalidImageRequestID
+            var isCancelled = false
+            var continuation: CheckedContinuation<CGImage, Error>?
+        }
+
+        private let lock = OSAllocatedUnfairLock(initialState: State())
+
+        func store(_ continuation: CheckedContinuation<CGImage, Error>) {
+            let alreadyCancelled = lock.withLock { state -> Bool in
+                if state.isCancelled { return true }
+                state.continuation = continuation
+                return false
+            }
+            if alreadyCancelled {
+                continuation.resume(throwing: CancellationError())
+            }
+        }
+
+        func setRequestID(_ id: PHImageRequestID) {
+            lock.withLock { $0.requestID = id }
+        }
+
+        func deliver(_ image: CGImage?) {
+            let continuation = lock.withLock { state -> CheckedContinuation<CGImage, Error>? in
+                let pending = state.continuation
+                state.continuation = nil
+                return pending
+            }
+            if let decoded = image {
+                continuation?.resume(returning: decoded)
+            } else {
+                continuation?.resume(throwing: CleanupError.message(
+                    String(localized: "Local Photos preview unavailable.")))
+            }
+        }
+
+        func cancelIfPending() {
+            let (requestID, continuation) = lock.withLock { state -> (PHImageRequestID, CheckedContinuation<CGImage, Error>?) in
+                state.isCancelled = true
+                let pending = state.continuation
+                state.continuation = nil
+                return (state.requestID, pending)
+            }
+            if requestID != PHInvalidImageRequestID {
+                PHImageManager.default().cancelImageRequest(requestID)
+            }
+            continuation?.resume(throwing: CancellationError())
+        }
     }
 
     private static func read(_ resource: PHAssetResource, output: URL?) async throws -> (Int64, String) {

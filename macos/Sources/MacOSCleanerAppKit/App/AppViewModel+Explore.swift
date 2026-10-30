@@ -67,6 +67,14 @@ extension AppViewModel {
         guard filesByID[record.id] != nil else {
             return nil
         }
+        // Review-only targets (Xcode archives etc.) are staged as plain trash
+        // everywhere else's demotion path; refuse them here instead.
+        guard !record.riskFlags.contains(.reviewOnly) else {
+            statusMessage = String(
+                localized: "\(record.fileName) is review-only and cannot be staged for cleanup.",
+                comment: "Explore staging refused for a review-only file")
+            return nil
+        }
         let action = PlannedAction(
             id: UUID().uuidString,
             planID: currentPlan.id,
@@ -74,7 +82,7 @@ extension AppViewModel {
             targets: [record.id],
             destination: nil,
             status: .proposed,
-            risk: record.riskFlags.isEmpty ? .low : .medium,
+            risk: max(.low, PlannerAgent.riskFloor(for: record.riskFlags)),
             confidence: 0.7,
             reason: String(localized: "Staged from Explore: \(record.fileName) (\(record.sizeBytes.formattedByteCount))."),
             userDecision: .undecided,
@@ -83,6 +91,7 @@ extension AppViewModel {
         )
         currentPlan.actions.append(action)
         currentPlan.originalActions?.append(action)
+        schedulePlanPersistence()
         refreshPlanEstimates(plan: &currentPlan)
         plan = currentPlan
         selectedActionID = action.id

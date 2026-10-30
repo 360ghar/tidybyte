@@ -11,6 +11,14 @@ enum MCPError: Error, LocalizedError {
     /// High-risk destructive actions never execute through MCP — the user
     /// must run those in the app where the explicit-confirmation flow lives.
     case highRiskRequiresApp
+    /// Destructive actions (everything except the non-deleting APFS fold)
+    /// never execute through MCP. A client's "confirm" flag is the connecting
+    /// agent's say-so, not a human approval, so irreversible work is refused
+    /// here by code, not just by the instructions prose.
+    case destructiveRequiresApp([String])
+    /// An id argument was missing or shorter than the 8-character short ids
+    /// the server emits; an empty prefix would match everything.
+    case invalidIDPrefix
 
     var errorDescription: String? {
         switch self {
@@ -27,18 +35,39 @@ enum MCPError: Error, LocalizedError {
         case .highRiskRequiresApp:
             "This action is high risk and destructive; it can only be approved in the"
                 + " Tidybyte app, never through MCP."
+        case .destructiveRequiresApp(let types):
+            "These actions change or delete files (\(types.joined(separator: ", "))) and can only"
+                + " be approved in the Tidybyte app, never through MCP. Only the"
+                + " clone-fold action (apfs_clone strategy, deletes nothing) executes here."
+        case .invalidIDPrefix:
+            "Missing id argument, or shorter than the 8-character ids the server emits."
         }
+    }
+}
+
+/// A JSON-RPC response dictionary. `@unchecked Sendable` because the payload
+/// holds only JSON-serializable values (strings, numbers, booleans, arrays,
+/// dictionaries of the same) and is never mutated after the handler builds it.
+public struct MCPResponse: @unchecked Sendable {
+    public let payload: [String: Any]
+    init(_ payload: [String: Any]) {
+        self.payload = payload
     }
 }
 
 /// The MCP server brain: JSON-RPC request → response dictionaries. Deliberately
 /// transport-agnostic (stdio lives in main.swift) so unit tests can drive
-/// `handle(request:)` directly. Not an actor: the stdio loop processes one
-/// request at a time on a single task, and every service it touches is an actor.
-public final class MCPKit {
+/// `handle(request:)` directly. An actor: the stdio loop still processes one
+/// request at a time, but isolation does not depend on that caller discipline,
+/// and every service it touches is an actor too.
+public actor MCPKit {
     static let serverName = AppIdentity.mcpServerName
     static let serverVersion = "1.0"
     static let defaultProtocolVersion = "2025-06-18"
+    static let supportedProtocolVersions = ["2024-11-05", "2025-03-26", "2025-06-18"]
+    /// Short ids surfaced to agents are 8 characters; a shorter id argument is
+    /// ambiguous (an empty prefix would match every record).
+    static let minIDPrefixLength = 8
 
     struct ScanState {
         let outcome: ScanOutcome
@@ -65,48 +94,57 @@ public final class MCPKit {
 
     /// Handles one decoded JSON-RPC request. Returns nil for notifications
     /// (requests without an id get no response, per the MCP transport rules).
-    public func handle(request: [String: Any]) async -> [String: Any]? {
-        guard let method = request["method"] as? String else {
-            return Self.errorPayload(id: request["id"] as Any, code: -32600, message: "Invalid Request")
-        }
+    public func handle(request: [String: Any]) async -> MCPResponse? {
+        // Notifications (no id) get no response — even malformed ones. JSON-RPC
+        // forbids replying to a notification, so the id check must come first;
+        // otherwise a method-less notification would draw an error reply.
         guard let id = request["id"] else { return nil }
+        guard let method = request["method"] as? String else {
+            return MCPResponse(Self.errorPayload(id: id, code: -32600, message: "Invalid Request"))
+        }
         switch method {
         case "initialize":
             let params = request["params"] as? [String: Any]
-            let version = params?["protocolVersion"] as? String ?? Self.defaultProtocolVersion
-            return Self.responsePayload(id: id, result: [
+            // Respond with a version the server actually speaks when the
+            // client requests an unknown one, per the MCP negotiation rules.
+            let requested = params?["protocolVersion"] as? String
+            let version = requested.flatMap { requested in
+                Self.supportedProtocolVersions.contains(requested) ? requested : nil
+            } ?? Self.defaultProtocolVersion
+            return MCPResponse(Self.responsePayload(id: id, result: [
                 "protocolVersion": version,
                 "capabilities": ["tools": [:] as [String: Any]],
                 "serverInfo": ["name": Self.serverName, "version": Self.serverVersion],
                 "instructions": """
                 Local Mac cleanup agent. A human approves every change: always call execute without \
                 confirm first, show the plan, and only call execute with confirm: true after the user \
-                agrees. The fold action (cloneDeduplicate) deletes nothing; trash actions keep files \
-                recoverable in Trash.
+                agrees. Enforced policy: execute runs ONLY clone-fold actions (apfs_clone strategy, \
+                deletes nothing). Destructive actions (trash, package-manager cleanups) are refused \
+                here and must be approved in the Tidybyte app, where files stay recoverable in Trash.
                 """
-            ])
+            ]))
         case "ping":
-            return Self.responsePayload(id: id, result: [:])
+            return MCPResponse(Self.responsePayload(id: id, result: [:]))
         case "tools/list":
-            return Self.responsePayload(id: id, result: ["tools": Self.toolDescriptions])
+            return MCPResponse(Self.responsePayload(id: id, result: ["tools": Self.toolDescriptions]))
         case "tools/call":
             let params = request["params"] as? [String: Any] ?? [:]
             let name = params["name"] as? String ?? ""
             let arguments = params["arguments"] as? [String: Any] ?? [:]
             do {
                 let text = try await callTool(name: name, arguments: arguments)
-                return Self.responsePayload(id: id, result: [
+                return MCPResponse(Self.responsePayload(id: id, result: [
                     "content": [["type": "text", "text": text]],
                     "isError": false
-                ])
+                ]))
             } catch {
-                return Self.responsePayload(id: id, result: [
+                return MCPResponse(Self.responsePayload(id: id, result: [
                     "content": [["type": "text", "text": error.localizedDescription]],
                     "isError": true
-                ])
+                ]))
             }
         default:
-            return Self.errorPayload(id: id, code: -32601, message: "Method not found: \(method)")
+            return MCPResponse(Self.errorPayload(id: id, code: -32601, message: "Method not found: \(method)"))
         }
     }
 
@@ -183,7 +221,7 @@ public final class MCPKit {
 
     private func toolShowPlan(_ arguments: [String: Any]) throws -> String {
         guard let lastScan else { throw MCPError.noScan }
-        let findingID = arguments["finding_id"] as? String
+        let findingID = try Self.validatedIDPrefix(arguments["finding_id"] as? String, allowNil: true)
         let actions = lastScan.plan.actions.filter { action in
             guard let findingID else { return true }
             return action.findingID?.hasPrefix(findingID) == true
@@ -210,7 +248,7 @@ public final class MCPKit {
     /// a stale plan never gets executed on changed files.
     private func toolCheckFinding(_ arguments: [String: Any]) async throws -> String {
         guard let lastScan else { throw MCPError.noScan }
-        let id = arguments["finding_id"] as? String ?? ""
+        let id = try Self.validatedIDPrefix(arguments["finding_id"] as? String)
         guard let finding = lastScan.outcome.findings.first(where: { $0.id.hasPrefix(id) }) else {
             throw MCPError.unknownFinding(id)
         }
@@ -279,17 +317,12 @@ public final class MCPKit {
     private func toolExecute(_ arguments: [String: Any]) async throws -> String {
         guard let lastScan else { throw MCPError.noScan }
         let confirm = arguments["confirm"] as? Bool == true
-        let requestedIDs = arguments["action_ids"] as? [String]
+        let requestedIDs = try Self.validatedIDPrefixes(arguments["action_ids"] as? [String])
         let pending = lastScan.plan.actions.filter { action in
             action.userDecision == .undecided && action.executedAt == nil
                 && (requestedIDs == nil || requestedIDs?.contains(where: { action.id.hasPrefix($0) }) == true)
         }
         guard !pending.isEmpty else { throw MCPError.unknownAction(requestedIDs?.joined(separator: ", ") ?? "any") }
-        // High-risk destructive work stays behind the app's explicit
-        // confirmation flow; MCP never bypasses it.
-        if pending.contains(where: { $0.risk >= .high }) {
-            throw MCPError.highRiskRequiresApp
-        }
 
         let targetBytes = pending.reduce(Int64(0)) { total, action in
             total + action.targets.reduce(Int64(0)) { sum, id in
@@ -304,11 +337,26 @@ public final class MCPKit {
         }.joined(separator: "\n")
 
         guard confirm else {
+            // The dry run is read-only and stays available for destructive
+            // plans: it shows the plan and points at the app that must do it.
             return """
             Dry run. Nothing changed. Would \(pending.count) actions affecting \(bytes(targetBytes)):
             \(summaryText)
             Ask the user, then call execute again with confirm: true.
             """
+        }
+
+        // ENFORCED policy, not prose: a client-supplied "confirm" flag is the
+        // connecting agent's say-so, never proof a human saw anything. Only
+        // the non-deleting clone fold may execute here; everything destructive
+        // (trash, package-manager cleanups, high risk of any kind) requires
+        // the app's explicit-confirmation flow.
+        if pending.contains(where: { $0.risk >= .high }) {
+            throw MCPError.highRiskRequiresApp
+        }
+        let destructiveTypes = Set(pending.filter { $0.actionType != .cloneDeduplicate }.map(\.actionType.rawValue))
+        if !destructiveTypes.isEmpty {
+            throw MCPError.destructiveRequiresApp(Array(destructiveTypes).sorted())
         }
 
         var approved: [PlannedAction] = []
@@ -356,7 +404,9 @@ public final class MCPKit {
     }
 
     private func toolUndo(_ arguments: [String: Any]) async throws -> String {
-        let id = arguments["operation_log_id"] as? String ?? ""
+        // Without this guard a missing id ("") prefix-matches every recorded
+        // operation and a confirmed call would bulk-restore all of them.
+        let id = try Self.validatedIDPrefix(arguments["operation_log_id"] as? String)
         var records = try await store.loadUndoRecords(operationLogID: id)
         if records.isEmpty {
             // History lists 8-character prefixes; resolve those against full ids.
@@ -416,11 +466,16 @@ extension MCPKit {
     /// stdio pipes are block-buffered — a buffered response would strand the
     /// client waiting for a line that never arrives.
     public static func emit(_ payload: [String: Any]) {
-        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
-              let line = String(data: data, encoding: .utf8) else {
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
             return
         }
-        FileHandle.standardOutput.write(Data((line + "\n").utf8))
+        emitRaw(data)
+    }
+
+    /// Writes one pre-serialized response frame (Sendable across task
+    /// boundaries, which raw `[String: Any]` dictionaries are not).
+    public static func emitRaw(_ data: Data) {
+        FileHandle.standardOutput.write(Data((String(decoding: data, as: UTF8.self) + "\n").utf8))
     }
 
     static func strategy(from raw: String?) -> DuplicateStrategy {
@@ -429,6 +484,35 @@ extension MCPKit {
 
     static func shortID(_ id: String) -> String {
         String(id.prefix(8))
+    }
+
+    /// Id arguments must be at least `minIDPrefixLength` characters: the dry
+    /// runs and history list 8-character short ids, and an empty (or very
+    /// short) prefix would silently match everything.
+    static func validatedIDPrefix(_ raw: String?) throws -> String {
+        guard var id = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty else {
+            throw MCPError.invalidIDPrefix
+        }
+        if id.count < minIDPrefixLength {
+            throw MCPError.invalidIDPrefix
+        }
+        return id
+    }
+
+    /// Same gate for a list of id arguments: nil means "no filter".
+    static func validatedIDPrefixes(_ raw: [String]?) throws -> [String]? {
+        guard let raw else { return nil }
+        return try raw.map { try validatedIDPrefix($0) }
+    }
+
+    /// Same gate for optional id arguments: nil means "no filter", but an
+    /// empty string would be a match-everything prefix, so it is rejected.
+    static func validatedIDPrefix(_ raw: String?, allowNil: Bool) throws -> String? {
+        guard let raw else {
+            if allowNil { return nil }
+            throw MCPError.invalidIDPrefix
+        }
+        return try validatedIDPrefix(raw)
     }
 
 
@@ -456,22 +540,26 @@ extension MCPKit {
             tool(
                 "show_plan",
                 "Show the proposed actions, optionally for one finding.",
-                ["finding_id": string("Finding id (or its first characters) from list_findings.")]
+                ["finding_id": string("Finding id (or its first characters) from list_findings.")],
+                required: ["finding_id"]
             ),
             tool(
                 "check_finding",
                 "Re-read a finding's files from disk now: still present, still the scanned "
                     + "identity, still byte-identical. Always check before executing a stale plan.",
-                ["finding_id": string("Finding id from list_findings.")]
+                ["finding_id": string("Finding id from list_findings.")],
+                required: ["finding_id"]
             ),
             tool(
                 "execute",
-                "Run proposed actions after the user agrees. Without confirm: true this is a dry "
-                    + "run that only describes what would happen. Ask the user first, then call "
-                    + "again with confirm: true. High-risk destructive actions are refused here and "
-                    + "must be approved in the app.",
+                "Run proposed clone-fold actions (apfs_clone strategy — nothing is deleted) after "
+                    + "the user agrees. Without confirm: true this is a dry run that only describes "
+                    + "what would happen. Ask the user first, then call again with confirm: true. "
+                    + "Destructive actions (move_to_trash results, package-manager cleanups) and "
+                    + "high-risk actions are refused here by policy; they must be approved in the "
+                    + "Tidybyte app.",
                 [
-                    "action_ids": stringArray("Action ids to run; omit for every pending action."),
+                    "action_ids": stringArray("Action ids to run; omit for every pending clone-fold action."),
                     "confirm": boolean("true to actually execute; false or missing for a dry run.")
                 ]
             ),
@@ -482,23 +570,25 @@ extension MCPKit {
             ),
             tool(
                 "undo",
-                "Restore what an executed operation changed. Without confirm: true it only "
-                    + "describes the restore. Ask the user first.",
+                "Restore what one executed operation changed (pass its id from history). Without "
+                    + "confirm: true it only describes the restore. Ask the user first.",
                 [
                     "operation_log_id": string("Operation id from history."),
                     "confirm": boolean("true to actually undo; false or missing for a dry run.")
-                ]
+                ],
+                required: ["operation_log_id"]
             )
         ]
     }
 
-    private static func tool(_ name: String, _ description: String, _ properties: [String: Any]) -> [String: Any] {
+    private static func tool(_ name: String, _ description: String, _ properties: [String: Any], required: [String] = []) -> [String: Any] {
         [
             "name": name,
             "description": description,
             "inputSchema": [
                 "type": "object",
-                "properties": properties
+                "properties": properties,
+                "required": required
             ]
         ]
     }

@@ -5,6 +5,9 @@ struct ExecutionConfirmView: View {
     @Bindable var model: AppViewModel
     let request: ExecutionRequest
     @Environment(\.dismiss) private var dismiss
+    // Recomputing `request.isCurrent(in:)` per render JSON-encoded the whole
+    // plan twice per render; recompute it only when the plan actually changes.
+    @State private var planCurrent = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.elementSection) {
@@ -61,7 +64,7 @@ struct ExecutionConfirmView: View {
                 )
             )
             .font(.caption).foregroundStyle(.secondary)
-            if !request.isCurrent(in: model) {
+            if !planCurrent {
                 Label(
                     String(localized: "The plan changed. Close this sheet and review it again."),
                     systemImage: "exclamationmark.triangle"
@@ -76,11 +79,15 @@ struct ExecutionConfirmView: View {
                     Task { await model.executeConfirmedRequest(request) }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!request.isCurrent(in: model))
+                .disabled(!planCurrent)
             }
         }
         .padding(Spacing.screenEdge)
         .frame(minWidth: 440)
         .presentationSizing(.fitted)
+        .onAppear { planCurrent = request.isCurrent(in: model) }
+        .onChange(of: model.planRevision) {
+            planCurrent = request.isCurrent(in: model)
+        }
     }
 }

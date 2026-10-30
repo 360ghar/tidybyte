@@ -97,12 +97,15 @@ struct OverviewView: View {
     }
 
     private func emptyTrash() {
-        do {
-            try TrashBin.empty()
-        } catch {
-            model.setErrorMessage(error.localizedDescription)
-        }
-        Task {
+        Task { @MainActor in
+            // Emptying a full Trash is a synchronous unlinkat loop; run it off
+            // the main actor so the window stays responsive, then re-measure.
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try TrashBin.empty() }
+            }.value
+            if case .failure(let error) = result {
+                model.setErrorMessage(error.localizedDescription)
+            }
             trashBytes = await TrashMeasure.userTrashBytes()
             disk = DiskGaugeData.currentHomeVolume()
         }

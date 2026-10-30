@@ -38,7 +38,12 @@ public actor CleanerRuleEngine {
         return false
     }
 
-    public func analyze(files: [FileRecord], projects: [ProjectUnit], sessionID: String, posture: CleanupPosture = .conservative) -> ([Finding], [Recommendation]) {
+    public func analyze(
+        files: [FileRecord],
+        projects: [ProjectUnit],
+        sessionID: String,
+        posture: CleanupPosture = .conservative
+    ) throws -> ([Finding], [Recommendation]) {
         var findings: [Finding] = []
         var recommendations: [Recommendation] = []
         let directorySizes = subtreeSizes(for: files)
@@ -46,6 +51,11 @@ public actor CleanerRuleEngine {
         // One autorelease pool per record: the policy and path checks autorelease URL
         // objects, and a pass over a million records otherwise keeps them all alive.
         for record in files {
+            // A million-record pass takes seconds; check cancellation
+            // periodically so cancelScan() does not wait for the whole pass.
+            if record.id.hashValue % 2048 == 0 {
+                try Task.checkCancellation()
+            }
             if let result = autoreleasepool(invoking: {
                 firstFinding(for: record, sessionID: sessionID, directorySizes: directorySizes, projects: projects)
             }) {

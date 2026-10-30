@@ -39,7 +39,7 @@ struct ApplicationsView: View {
                 if model.searchText.isEmpty {
                     ContentUnavailableView(
                         String(localized: "No applications found"), systemImage: "app",
-                        description: Text(String(localized: "Cleaner checks /Applications and ~/Applications.")))
+                        description: Text(String(localized: "Tidybyte checks /Applications and ~/Applications.")))
                 } else {
                     ContentUnavailableView.search(text: model.searchText)
                 }

@@ -54,6 +54,36 @@ final class AutoScanTests: XCTestCase {
         XCTAssertEqual(plist["RunAtLoad"] as? Bool, false)
     }
 
+    // MARK: - Unattended action filter
+
+    func testUnattendedFilterApprovesOnlyCloneFoldActions() {
+        // The headless pass must never self-approve destructive work: trash,
+        // moves, tags, package-manager commands all wait for a human.
+        var clone = PlannedAction(
+            id: "clone-1", planID: "plan", actionType: .cloneDeduplicate, targets: ["f1"],
+            destination: nil, status: .proposed, risk: .low, confidence: 0.9,
+            reason: "fold", userDecision: .undecided, executedAt: nil, findingID: nil)
+        var trash = clone
+        trash.id = "trash-1"
+        trash.actionType = .moveToTrash
+        var package = clone
+        package.id = "pkg-1"
+        package.actionType = .runPackageManagerCleanup
+        var executedClone = clone
+        executedClone.id = "clone-done"
+        executedClone.executedAt = Date()
+        var decidedClone = clone
+        decidedClone.id = "clone-decided"
+        decidedClone.userDecision = .approved
+
+        var plan = Plan.empty(sessionID: "s")
+        plan.actions = [clone, trash, package, executedClone, decidedClone]
+
+        let filtered = AutoScanRunner.unattendedActionFilter(plan)
+        XCTAssertEqual(filtered.map(\.id), ["clone-1"], "Only the pending clone-fold action may run unattended")
+        _ = clone // silence unused-var lint when mutable copies shadow it
+    }
+
     func testInstallLocationGuard() {
         // Installed apps may schedule unattended work.
         XCTAssertTrue(LaunchAgentInstaller.canInstall(

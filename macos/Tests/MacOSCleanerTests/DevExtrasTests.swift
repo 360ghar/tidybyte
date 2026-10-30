@@ -51,7 +51,7 @@ final class DevExtrasTests: XCTestCase {
             record.modifiedAt = Date().addingTimeInterval(-60 * 86_400)
             records.append(record)
         }
-        let (findings, recommendations) = await CleanerRuleEngine().analyze(files: records, projects: [], sessionID: "s")
+        let (findings, recommendations) = try await CleanerRuleEngine().analyze(files: records, projects: [], sessionID: "s")
         let risk = { (id: String) in recommendations.first { $0.targetFileIDs == [id] }?.risk }
         XCTAssertEqual(findings.first { $0.targetFileIDs == ["desktop"] }?.category, .oldInstaller)
         XCTAssertEqual(risk("desktop"), .medium, "Bulk Approve Low Risk skips installers kept outside Downloads")

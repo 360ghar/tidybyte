@@ -372,9 +372,11 @@ public actor SafetyAuditor {
     /// integrity checks as destructive ones. `cloneDeduplicate` never deletes
     /// anything, but a fold swaps the file's inode — a cloud sync engine would
     /// re-upload the file as a change, and a symlink or protected-path swap
-    /// must fail closed exactly like a destructive action.
+    /// must fail closed exactly like a destructive action. `.tag` writes an
+    /// xattr, which follows symlinks and modifies the target file's metadata,
+    /// so it demands the same checks.
     private func requiresIntegrity(_ actionType: ActionType) -> Bool {
-        isDestructive(actionType) || actionType == .cloneDeduplicate
+        isDestructive(actionType) || actionType == .cloneDeduplicate || actionType == .tag
     }
 
     private func undoStatus(for actionType: ActionType) -> UndoStatus {

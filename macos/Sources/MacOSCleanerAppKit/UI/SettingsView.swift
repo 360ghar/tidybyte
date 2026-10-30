@@ -225,10 +225,13 @@ struct SettingsView: View {
 
     private var apiBaseURLValidationMessage: String? {
         let text = apiBaseURLText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: text), let scheme = url.scheme?.lowercased(),
-            ["http", "https"].contains(scheme), url.host?.isEmpty == false
+        // HTTPS only: the gateway refuses cleartext endpoints at request time,
+        // so accepting http here would just save a URL that always fails — and
+        // credentials must never be offered over cleartext.
+        guard let url = URL(string: text), url.scheme?.lowercased() == "https",
+            url.host?.isEmpty == false
         else {
-            return String(localized: "Enter a provider URL such as https://api.example.com/v1.")
+            return String(localized: "Enter an https provider URL such as https://api.example.com/v1.")
         }
         return nil
     }

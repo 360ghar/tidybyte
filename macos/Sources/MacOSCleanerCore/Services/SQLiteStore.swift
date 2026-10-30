@@ -253,6 +253,8 @@ public actor SQLiteStore {
 
         var stepResult = sqlite3_backup_step(backup, -1)
         while stepResult == SQLITE_BUSY || stepResult == SQLITE_LOCKED {
+            // Nap between retries: a hot spin pegs a core while contended.
+            sqlite3_sleep(10)
             stepResult = sqlite3_backup_step(backup, -1)
         }
         guard stepResult == SQLITE_DONE else {
@@ -435,9 +437,27 @@ public actor SQLiteStore {
         // inserts are quadratic for large batches (each row pays fsync); a single
         // BEGIN IMMEDIATE/COMMIT keeps bulk persistence linear and atomic.
         try withTransaction {
+            // One prepared statement for the whole batch: preparing per row made
+            // a million-row save recompile the same SQL a million times.
+            var statement: OpaquePointer?
+            guard let database else {
+                throw DatabaseError.databaseUnavailable
+            }
+            guard sqlite3_prepare_v2(database, Self.upsertSQL(for: table), -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(lastErrorMessage())
+            }
+            defer { sqlite3_finalize(statement) }
             for item in items {
                 // One pool per row: a scan saves up to a million records in this loop.
-                try autoreleasepool { try upsert(item, id: item[keyPath: idKeyPath], table: table) }
+                try autoreleasepool {
+                    let json = try encodeJSON(item)
+                    try bind(upsertValues(item, id: item[keyPath: idKeyPath], table: table, json: json), to: statement)
+                    let result = sqlite3_step(statement)
+                    guard result == SQLITE_DONE || result == SQLITE_ROW else {
+                        throw DatabaseError.stepFailed(lastErrorMessage())
+                    }
+                    sqlite3_reset(statement)
+                }
             }
         }
     }
@@ -456,6 +476,51 @@ public actor SQLiteStore {
             values: [.text(id)],
             as: Plan.self
         ).first
+    }
+
+    /// Inserts `rule` only when no rule with the same identity already exists,
+    /// returning that existing rule instead. One synchronous transaction closes
+    /// the check-then-act gap: two concurrent learners could otherwise both
+    /// load "no rule" across awaits and both insert a duplicate row.
+    public func saveMemoryRuleIfAbsent(
+        _ rule: MemoryRule,
+        scopeType: String,
+        scopeValue: String,
+        actionType: ActionType?,
+        ruleType: MemoryRuleType,
+        matchOnRuleText: Bool
+    ) throws -> MemoryRule? {
+        try withTransaction {
+            let existing: [MemoryRule] = try selectJSON(
+                """
+                SELECT json FROM \(SQLiteTable.memoryRules.rawValue)
+                WHERE json_extract(json, '$.scopeType') = ?
+                  AND json_extract(json, '$.scopeValue') = ?
+                  AND json_extract(json, '$.ruleType') = ?
+                  AND json_extract(json, '$.actionType') IS ?
+                ORDER BY created_at DESC
+                """,
+                values: [
+                    .text(scopeType),
+                    .text(scopeValue),
+                    .text(ruleType.rawValue),
+                    actionType.map { .text($0.rawValue) } ?? .null
+                ],
+                as: MemoryRule.self
+            )
+            let actionTypeMatches: (MemoryRule) -> Bool = { candidate in
+                candidate.actionType == actionType
+            }
+            let match = existing.first { candidate in
+                actionTypeMatches(candidate)
+                    && (!matchOnRuleText || candidate.rule == rule.rule)
+            }
+            guard let match else {
+                try upsert(rule, id: rule.id, table: .memoryRules)
+                return nil
+            }
+            return match
+        }
     }
 
     public func loadMemoryRules() throws -> [MemoryRule] {
@@ -537,10 +602,15 @@ public actor SQLiteStore {
 
     public func purgeOldData(keepingDays: Int = 90) throws {
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -keepingDays, to: Date())?.timeIntervalSince1970 ?? 0
+        var deletedRows = 0
+        func executeCounting(_ sql: String, values: [SQLiteValue]) throws {
+            try execute(sql, values: values)
+            deletedRows += changedRowCount()
+        }
         // Delete old scan sessions (never purge running sessions). `status`
         // lives inside the JSON blob (the table schema is id/scan_session_id/
         // created_at/json), so it is read via json_extract.
-        try execute(
+        try executeCounting(
             "DELETE FROM \(SQLiteTable.scanSessions.rawValue) WHERE created_at < ? AND json_extract(json, '$.status') != 'running'",
             values: [.real(cutoffDate)]
         )
@@ -551,13 +621,19 @@ public actor SQLiteStore {
             .plannedActions, .relationshipEdges
         ]
         for table in sessionScopedTables {
-            try execute("DELETE FROM \(table.rawValue) WHERE scan_session_id NOT IN (SELECT id FROM \(SQLiteTable.scanSessions.rawValue))", values: [])
+            try executeCounting(
+                "DELETE FROM \(table.rawValue) WHERE scan_session_id NOT IN (SELECT id FROM \(SQLiteTable.scanSessions.rawValue))",
+                values: [])
         }
         // Delete orphaned fingerprints (linked to file_records via id=fileID; FileFingerprint
         // has no scanSessionID so scan_session_id is always NULL and the old join was a no-op).
-        try execute("DELETE FROM \(SQLiteTable.fingerprints.rawValue) WHERE id NOT IN (SELECT id FROM \(SQLiteTable.fileRecords.rawValue))", values: [])
+        try executeCounting(
+            "DELETE FROM \(SQLiteTable.fingerprints.rawValue) WHERE id NOT IN (SELECT id FROM \(SQLiteTable.fileRecords.rawValue))",
+            values: [])
         // Delete orphaned plans (linked to scan_sessions via scan_session_id).
-        try execute("DELETE FROM \(SQLiteTable.plans.rawValue) WHERE scan_session_id NOT IN (SELECT id FROM \(SQLiteTable.scanSessions.rawValue))", values: [])
+        try executeCounting(
+            "DELETE FROM \(SQLiteTable.plans.rawValue) WHERE scan_session_id NOT IN (SELECT id FROM \(SQLiteTable.scanSessions.rawValue))",
+            values: [])
 
         // Undo records are not session-scoped and were never purged, so they
         // accumulated forever. Purge records that can never be restored:
@@ -571,20 +647,31 @@ public actor SQLiteStore {
             let expired = undo.status == .expired || undo.status == .failed
             let validUntilExpired = undo.validUntil.map { $0 < now } ?? false
             if expired || validUntilExpired {
-                try execute("DELETE FROM \(SQLiteTable.undoRecords.rawValue) WHERE id = ?", values: [.text(undo.id)])
+                try executeCounting("DELETE FROM \(SQLiteTable.undoRecords.rawValue) WHERE id = ?", values: [.text(undo.id)])
             }
         }
         // Delete orphaned operation logs: their undo records were just purged
         // (or never existed). Only delete logs older than the cutoff so very
         // recent logs without a linked undo (e.g. in-flight operations) are not
         // accidentally removed.
-        try execute(
+        try executeCounting(
             "DELETE FROM \(SQLiteTable.operationLogs.rawValue) WHERE created_at < ? AND id NOT IN (SELECT operation_log_id FROM \(SQLiteTable.undoRecords.rawValue) WHERE operation_log_id IS NOT NULL)",
             values: [.real(cutoffDate)]
         )
 
-        // Vacuum to reclaim space
-        try execute("VACUUM", values: [])
+        // Vacuum to reclaim space — but only after something was actually
+        // deleted. On a multi-GB store VACUUM rewrites the whole file and can
+        // temporarily double its footprint; running it at every launch for a
+        // no-op purge is pure launch latency.
+        if deletedRows > 0 {
+            try execute("VACUUM", values: [])
+        }
+    }
+
+    /// Rows changed by the most recent statement on this connection.
+    private func changedRowCount() -> Int {
+        guard let database else { return 0 }
+        return Int(sqlite3_changes(database))
     }
 
     private static func migrate(database: OpaquePointer) throws {
@@ -600,6 +687,11 @@ public actor SQLiteStore {
         // undo trail — the durability guarantee the executor's write-ahead
         // persistence depends on.
         try executeMigration("PRAGMA synchronous=FULL", database: database)
+        // Three processes share this file (the app, the hourly --autoscan
+        // LaunchAgent, and the MCP server). Without a busy timeout, a write
+        // that collides with another process's write transaction fails
+        // immediately with SQLITE_BUSY; 5s lets short collisions resolve.
+        try executeMigration("PRAGMA busy_timeout=5000", database: database)
 
         // Idempotent base schema. CREATE TABLE/INDEX IF NOT EXISTS is safe to run
         // on any existing database, so base tables are always ensured regardless
@@ -630,37 +722,50 @@ public actor SQLiteStore {
             try setUserVersion(2, database: database)
         }
         if currentVersion < 3 {
-            try executeMigration("ALTER TABLE undo_records ADD COLUMN operation_log_id TEXT", database: database)
-            // Backfill from the JSON blob for rows written before the column existed.
-            // json_extract is part of SQLite's JSON1 extension (bundled on macOS).
-            try executeMigration(
-                "UPDATE undo_records SET operation_log_id = json_extract(json, '$.operationLogID') WHERE operation_log_id IS NULL",
-                database: database
-            )
-            try executeMigration("CREATE INDEX IF NOT EXISTS idx_undo_records_operation_log_id ON undo_records(operation_log_id)", database: database)
-            try setUserVersion(3, database: database)
+            try runMigrationStep(3, database: database) {
+                // Column-exists guard: a database that crashed mid-migration
+                // may already carry the column with user_version still behind.
+                if !hasColumn("undo_records", "operation_log_id", database: database) {
+                    try executeMigration("ALTER TABLE undo_records ADD COLUMN operation_log_id TEXT", database: database)
+                }
+                // Backfill from the JSON blob for rows written before the column existed.
+                // json_extract is part of SQLite's JSON1 extension (bundled on macOS).
+                try executeMigration(
+                    "UPDATE undo_records SET operation_log_id = json_extract(json, '$.operationLogID') WHERE operation_log_id IS NULL",
+                    database: database
+                )
+                try executeMigration(
+                    "CREATE INDEX IF NOT EXISTS idx_undo_records_operation_log_id ON undo_records(operation_log_id)",
+                    database: database)
+            }
         }
         if currentVersion < 4 {
             // v4: undo_records.status column so the startup sweep can find
             // interrupted (pending) operations without loading every JSON blob.
-            try executeMigration("ALTER TABLE undo_records ADD COLUMN status TEXT", database: database)
-            try executeMigration(
-                "UPDATE undo_records SET status = json_extract(json, '$.status') WHERE status IS NULL",
-                database: database
-            )
-            try executeMigration("CREATE INDEX IF NOT EXISTS idx_undo_records_status ON undo_records(status)", database: database)
-            try setUserVersion(4, database: database)
+            try runMigrationStep(4, database: database) {
+                if !hasColumn("undo_records", "status", database: database) {
+                    try executeMigration("ALTER TABLE undo_records ADD COLUMN status TEXT", database: database)
+                }
+                try executeMigration(
+                    "UPDATE undo_records SET status = json_extract(json, '$.status') WHERE status IS NULL",
+                    database: database
+                )
+                try executeMigration("CREATE INDEX IF NOT EXISTS idx_undo_records_status ON undo_records(status)", database: database)
+            }
         }
         if currentVersion < 5 {
             // v5: file_records.file_path column + index so path lookups and
             // stable-ID derivation avoid full-table JSON scans. Backfilled from
             // the JSON blob for rows written before the column existed.
-            try executeMigration("ALTER TABLE file_records ADD COLUMN file_path TEXT", database: database)
-            try executeMigration(
-                "UPDATE file_records SET file_path = json_extract(json, '$.url') WHERE file_path IS NULL",
-                database: database
-            )
-            try executeMigration("CREATE INDEX IF NOT EXISTS idx_file_records_file_path ON file_records(file_path)", database: database)
+            try runMigrationStep(5, database: database) {
+                if !hasColumn("file_records", "file_path", database: database) {
+                    try executeMigration("ALTER TABLE file_records ADD COLUMN file_path TEXT", database: database)
+                }
+                try executeMigration(
+                    "UPDATE file_records SET file_path = json_extract(json, '$.url') WHERE file_path IS NULL",
+                    database: database
+                )
+                try executeMigration("CREATE INDEX IF NOT EXISTS idx_file_records_file_path ON file_records(file_path)", database: database)
             // v5: persistent content-hash cache so re-scans skip re-hashing
             // unchanged files. Keyed by path; validity is (size, mtime).
             try executeMigration("""
@@ -673,7 +778,7 @@ public actor SQLiteStore {
             """, database: database)
             try executeMigration("CREATE INDEX IF NOT EXISTS idx_file_hashes_scan_session_id ON file_hashes(scan_session_id)", database: database)
             try executeMigration("CREATE INDEX IF NOT EXISTS idx_file_hashes_created_at ON file_hashes(created_at)", database: database)
-            try setUserVersion(5, database: database)
+            } 
         }
         if currentVersion < 6 {
             // Cleanup tables are additive and deliberately excluded from scan retention.
@@ -701,6 +806,40 @@ public actor SQLiteStore {
         try executeMigration(sql, database: database)
     }
 
+    /// Runs one migration version step atomically: every statement in the step
+    /// commits together with the user_version bump, or none of them do. A crash
+    /// mid-migration therefore cannot leave a schema change applied while
+    /// user_version still says the step is unapplied (which would make the next
+    /// launch re-run ALTER TABLE on an existing column and brick the open path).
+    private static func runMigrationStep(_ version: Int32, database: OpaquePointer, _ statements: () throws -> Void) throws {
+        try executeMigration("BEGIN IMMEDIATE", database: database)
+        do {
+            try statements()
+            try setUserVersion(version, database: database)
+            try executeMigration("COMMIT", database: database)
+        } catch {
+            try? executeMigration("ROLLBACK", database: database)
+            throw error
+        }
+    }
+
+    /// True when `table` already carries `column` (PRAGMA table_info). Lets
+    /// ALTER TABLE steps self-heal a database that half-ran a migration.
+    /// `table` is always a code constant, never user input.
+    private static func hasColumn(_ table: String, _ column: String, database: OpaquePointer) -> Bool {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "PRAGMA table_info(\(table))", -1, &statement, nil) == SQLITE_OK else {
+            return false
+        }
+        defer { sqlite3_finalize(statement) }
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let name = sqlite3_column_text(statement, 1), String(cString: name) == column {
+                return true
+            }
+        }
+        return false
+    }
+
     private static func executeMigration(_ sql: String, database: OpaquePointer) throws {
         var errorMessage: UnsafeMutablePointer<CChar>?
         let result = sqlite3_exec(database, sql, nil, nil, &errorMessage)
@@ -714,6 +853,11 @@ public actor SQLiteStore {
     }
 
     private func upsert<T: Encodable>(_ object: T, id: String, table: SQLiteTable) throws {
+        let json = try encodeJSON(object)
+        try execute(Self.upsertSQL(for: table), values: upsertValues(object, id: id, table: table, json: json))
+    }
+
+    private func encodeJSON<T: Encodable>(_ object: T) throws -> String {
         let data: Data
         do {
             data = try encoder.encode(object)
@@ -723,19 +867,19 @@ public actor SQLiteStore {
         guard let json = String(data: data, encoding: .utf8) else {
             throw DatabaseError.encodingFailed(String(localized: "Encoded JSON was not valid UTF-8.", comment: "Error when encoded JSON is not valid UTF-8"))
         }
-        let scanSessionID = extractScanSessionID(from: object)
-        let operationLogID = extractOperationLogID(from: object)
-        let filePath = extractFilePath(from: object)
-        // Use ON CONFLICT to preserve the original created_at timestamp on updates.
-        // INSERT OR REPLACE would delete-and-reinsert, resetting created_at and
-        // making purgeOldData() unable to age-out records that were re-saved.
-        let sql: String
-        let values: [SQLiteValue]
+        return json
+    }
+
+    /// The upsert statement for `table`. Use ON CONFLICT to preserve the
+    /// original created_at timestamp on updates: INSERT OR REPLACE would
+    /// delete-and-reinsert, resetting created_at and making purgeOldData()
+    /// unable to age-out records that were re-saved.
+    static func upsertSQL(for table: SQLiteTable) -> String {
         if table == .undoRecords {
             // undo_records carries dedicated columns (v3: operation_log_id,
             // v4: status) so sibling lookups and the pending-operations sweep
             // avoid full-table JSON scans.
-            sql = """
+            return """
             INSERT INTO \(table.rawValue) (id, scan_session_id, operation_log_id, status, created_at, json)
             VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
@@ -744,18 +888,10 @@ public actor SQLiteStore {
                 operation_log_id = excluded.operation_log_id,
                 status = excluded.status
             """
-            values = [
-                .text(id),
-                scanSessionID.map { .text($0) } ?? .null,
-                operationLogID.map { .text($0) } ?? .null,
-                (object as? UndoRecord).map { .text($0.status.rawValue) } ?? .null,
-                .real(Date().timeIntervalSince1970),
-                .text(json)
-            ]
         } else if table == .fileRecords {
             // file_records carries file_path (v5) so prefix lookups use the
             // index instead of scanning every JSON blob.
-            sql = """
+            return """
             INSERT INTO \(table.rawValue) (id, scan_session_id, file_path, created_at, json)
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
@@ -763,29 +899,48 @@ public actor SQLiteStore {
                 scan_session_id = excluded.scan_session_id,
                 file_path = excluded.file_path
             """
-            values = [
-                .text(id),
-                scanSessionID.map { .text($0) } ?? .null,
-                filePath.map { .text($0) } ?? .null,
-                .real(Date().timeIntervalSince1970),
-                .text(json)
-            ]
         } else {
-            sql = """
+            return """
             INSERT INTO \(table.rawValue) (id, scan_session_id, created_at, json)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 json = excluded.json,
                 scan_session_id = excluded.scan_session_id
             """
-            values = [
+        }
+    }
+
+    /// Bound parameter list matching `upsertSQL(for:)` for the same table.
+    private func upsertValues<T: Encodable>(_ object: T, id: String, table: SQLiteTable, json: String) -> [SQLiteValue] {
+        let scanSessionID = extractScanSessionID(from: object)
+        let operationLogID = extractOperationLogID(from: object)
+        let filePath = extractFilePath(from: object)
+        let now = Date().timeIntervalSince1970
+        if table == .undoRecords {
+            return [
                 .text(id),
                 scanSessionID.map { .text($0) } ?? .null,
-                .real(Date().timeIntervalSince1970),
+                operationLogID.map { .text($0) } ?? .null,
+                (object as? UndoRecord).map { .text($0.status.rawValue) } ?? .null,
+                .real(now),
                 .text(json)
             ]
         }
-        try execute(sql, values: values)
+        if table == .fileRecords {
+            return [
+                .text(id),
+                scanSessionID.map { .text($0) } ?? .null,
+                filePath.map { .text($0) } ?? .null,
+                .real(now),
+                .text(json)
+            ]
+        }
+        return [
+            .text(id),
+            scanSessionID.map { .text($0) } ?? .null,
+            .real(now),
+            .text(json)
+        ]
     }
 
     private func extractOperationLogID<T>(from object: T) -> String? {

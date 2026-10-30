@@ -104,6 +104,14 @@ fi
 
 # Update feed and signing key come from the release environment.
 SPARKLE_KEYS=""
+if [ "$CHANNEL" = direct ] && [ -z "${SPARKLE_PUBLIC_KEY:-}" ] && [ -z "${NO_SPARKLE:-}" ]; then
+    # Without the key the updater silently disables itself (main.swift checks
+    # SUPublicEDKey) — a shipped DMG that can never update, indistinguishable
+    # from a healthy build. CI smoke builds opt out explicitly with NO_SPARKLE=1.
+    echo "error: direct channel without SPARKLE_PUBLIC_KEY produces an app that can never self-update." >&2
+    echo "       set SPARKLE_PUBLIC_KEY (release) or NO_SPARKLE=1 (local/CI smoke builds) to continue." >&2
+    exit 1
+fi
 if [ "$CHANNEL" = direct ] && [ -n "${SPARKLE_PUBLIC_KEY:-}" ]; then
     FEED="${SPARKLE_FEED_URL:-https://tidybyte.360ghar.com/mac/appcast.xml}"
     SPARKLE_KEYS="

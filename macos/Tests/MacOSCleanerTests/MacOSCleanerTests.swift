@@ -68,8 +68,8 @@ final class MacOSCleanerTests: XCTestCase {
 
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
-        let projects = await ProjectDetector().detectProjects(in: records)
-        let (findings, recommendations) = await CleanerRuleEngine().analyze(files: records, projects: projects, sessionID: "scan")
+        let projects = try await ProjectDetector().detectProjects(in: records)
+        let (findings, recommendations) = try await CleanerRuleEngine().analyze(files: records, projects: projects, sessionID: "scan")
 
         XCTAssertTrue(findings.contains { $0.category == .developerArtifact })
         let packageRecord = try XCTUnwrap(records.first { $0.fileName == "package.json" })
@@ -116,7 +116,7 @@ final class MacOSCleanerTests: XCTestCase {
         XCTAssertFalse(logsRecord.riskFlags.contains(.protectedDirectory))
         XCTAssertTrue(authRecord.riskFlags.contains(.codingAgentMemoryOrConfig))
 
-        let (findings, recommendations) = await CleanerRuleEngine().analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, recommendations) = try await CleanerRuleEngine().analyze(files: records, projects: [], sessionID: "scan")
         XCTAssertTrue(findings.contains { $0.category == .codingAgentArtifact })
         XCTAssertTrue(recommendations.contains { $0.targetFileIDs.contains(logsRecord.id) && $0.actionType == .archive })
         XCTAssertFalse(recommendations.flatMap(\.targetFileIDs).contains(authRecord.id))
@@ -355,7 +355,7 @@ final class MacOSCleanerTests: XCTestCase {
 
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
-        let (_, recommendations) = await OrganizationPlanner().suggestOrganization(files: records, sessionID: "scan")
+        let (_, recommendations) = try await OrganizationPlanner().suggestOrganization(files: records, sessionID: "scan")
 
         XCTAssertTrue(recommendations.contains { $0.actionType == .createAlias })
     }
@@ -430,8 +430,8 @@ final class MacOSCleanerTests: XCTestCase {
     // MARK: - RiskFlag Tests
 
     func testRiskFlagEnumCoversAllProtectionCases() {
-        // Verify the enum has all expected cases.
-        XCTAssertEqual(RiskFlag.allCases.count, 10)
+        // Per-case membership checks; a count assertion here was a brittle
+        // change-detector (the file's own policy says so).
         XCTAssertTrue(RiskFlag.allCases.contains(.reviewOnly))
         XCTAssertTrue(RiskFlag.allCases.contains(.sipProtectedSystemPath))
         XCTAssertTrue(RiskFlag.allCases.contains(.protectedDirectory))
@@ -785,7 +785,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (findings, _) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, _) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
 
         let screenshotFindings = findings.filter { $0.category == .screenshot && $0.evidence["type"] == "screenshot" }
         XCTAssertEqual(screenshotFindings.count, 1)
@@ -809,7 +809,7 @@ final class MacOSCleanerTests: XCTestCase {
                                      "Sparse file should report its logical size")
 
         let engine = CleanerRuleEngine()
-        let (findings, recommendations) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, recommendations) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
 
         let largeFindings = findings.filter { $0.category == .largeFile }
         XCTAssertEqual(largeFindings.count, 1, "The single >= 1 GB file should be flagged as large")
@@ -831,7 +831,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (findings, _) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, _) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
 
         let cacheFindings = findings.filter { $0.category == .cache }
         XCTAssertFalse(cacheFindings.isEmpty)
@@ -1049,7 +1049,7 @@ final class MacOSCleanerTests: XCTestCase {
         XCTAssertTrue(testRecord.url.pathComponents.contains("Downloads"), "Path should contain Downloads")
 
         let engine = CleanerRuleEngine()
-        let (findings, _) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, _) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
         let testFindings = findings.filter { $0.targetFileIDs.contains(testRecord.id) }
         XCTAssertFalse(testFindings.isEmpty, "Old installer in Downloads should be detected")
         XCTAssertTrue(testFindings.contains { $0.category == .oldInstaller || $0.category == .oldDownload },
@@ -1067,7 +1067,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (findings, _) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, _) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
         let screenshotFindings = findings.filter { $0.category == .screenshot }
         XCTAssertFalse(screenshotFindings.isEmpty, "Screenshots should be detected")
         // Each screenshot finding should target specific files, not all screenshots lumped together
@@ -1231,7 +1231,7 @@ final class MacOSCleanerTests: XCTestCase {
             sourceFilesCount: 0, generatedFilesCount: 0, totalBytes: 5000,
             reclaimableBytes: 5000, status: .active
         )
-        let (findings, recs) = await engine.analyze(files: records, projects: [project], sessionID: "scan")
+        let (findings, recs) = try await engine.analyze(files: records, projects: [project], sessionID: "scan")
         let devFindings = findings.filter { $0.category == .developerArtifact }
         XCTAssertFalse(devFindings.isEmpty, "node_modules should be detected as developer artifact")
         XCTAssertFalse(recs.isEmpty, "Should generate recommendations for node_modules")
@@ -1247,7 +1247,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (findings, _) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, _) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
         let devFindings = findings.filter { $0.category == .developerArtifact }
         XCTAssertFalse(devFindings.isEmpty, "__pycache__ should be detected as developer artifact")
     }
@@ -1262,7 +1262,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (findings, _) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, _) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
         let devFindings = findings.filter { $0.category == .developerArtifact }
         XCTAssertFalse(devFindings.isEmpty, "DerivedData should be detected as developer artifact")
     }
@@ -1279,7 +1279,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (findings, _) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, _) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
         let agentFindings = findings.filter { $0.category == .codingAgentArtifact }
         XCTAssertFalse(agentFindings.isEmpty, "Coding agent logs should be detected")
     }
@@ -1331,7 +1331,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let detector = ProjectDetector()
-        let projects = await detector.detectProjects(in: records)
+        let projects = try await detector.detectProjects(in: records)
         XCTAssertFalse(projects.isEmpty, "Project with package.json should be detected")
         XCTAssertEqual(projects.first?.projectType, "Node")
     }
@@ -1347,7 +1347,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let detector = ProjectDetector()
-        let projects = await detector.detectProjects(in: records)
+        let projects = try await detector.detectProjects(in: records)
         XCTAssertFalse(projects.isEmpty, "Rust project should be detected")
         XCTAssertEqual(projects.first?.projectType, "Rust")
     }
@@ -1367,7 +1367,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let planner = OrganizationPlanner()
-        let (findings, recs) = await planner.suggestOrganization(files: records, sessionID: "scan")
+        let (findings, recs) = try await planner.suggestOrganization(files: records, sessionID: "scan")
         // Files 7-29 days old in Downloads should get organization suggestions
         XCTAssertFalse(findings.isEmpty, "Old files in Downloads should get organization suggestions")
         XCTAssertFalse(recs.isEmpty, "Should generate organization recommendations")
@@ -1888,23 +1888,8 @@ final class MacOSCleanerTests: XCTestCase {
         XCTAssertTrue(defaults.bool(forKey: "includeAI"))
     }
 
-    func testSettingsPersistenceProviderSettings() throws {
-        let suiteName = "TidybyteTests-\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        defaults.set("TestProvider", forKey: "providerName")
-        defaults.set("https://api.test.com", forKey: "apiBaseURL")
-        defaults.set("gpt-4", forKey: "textModel")
-        defaults.set(4000, forKey: "maxTokens")
-        defaults.set(0.7, forKey: "temperature")
-
-        XCTAssertEqual(defaults.string(forKey: "providerName"), "TestProvider")
-        XCTAssertEqual(defaults.string(forKey: "apiBaseURL"), "https://api.test.com")
-        XCTAssertEqual(defaults.string(forKey: "textModel"), "gpt-4")
-        XCTAssertEqual(defaults.integer(forKey: "maxTokens"), 4000)
-        XCTAssertEqual(defaults.double(forKey: "temperature"), 0.7, accuracy: 0.01)
-    }
+    // (testSettingsPersistenceProviderSettings removed: a UserDefaults round-trip on
+    // keys the app never reads tests Foundation, not the app.)
 
     // MARK: - NL Commands: Additional Patterns (NL-03 through NL-15)
 
@@ -2199,6 +2184,12 @@ final class MacOSCleanerTests: XCTestCase {
         try FileManager.default.createDirectory(at: nmDir, withIntermediateDirectories: true)
         try Data(repeating: 0, count: 5000).write(to: nmDir.appendingPathComponent("index.js", isDirectory: false))
 
+        // A second category: an exact duplicate pair triggers the duplicate
+        // rule alongside the developer-artifact rule.
+        let duplicatePayload = "shared duplicate payload for the treemap fixture"
+        try duplicatePayload.write(to: root.appendingPathComponent("dup-a.bin"), atomically: true, encoding: .utf8)
+        try duplicatePayload.write(to: root.appendingPathComponent("dup-b.bin"), atomically: true, encoding: .utf8)
+
         let store = try SQLiteStore.inMemory()
         let memory = MemoryEngine(store: store)
         let planner = PlannerAgent()
@@ -2212,9 +2203,14 @@ final class MacOSCleanerTests: XCTestCase {
         let sections = Dictionary(grouping: outcome.findings, by: \.category)
             .mapValues { $0.reduce(Int64(0)) { $0 + $1.bytesReclaimable } }
             .sorted { $0.value > $1.value }
-        if sections.count > 1 {
-            XCTAssertGreaterThanOrEqual(sections[0].value, sections[1].value, "Sections should be sorted by bytes descending")
+        // The fixture must produce at least two categories, otherwise this
+        // check is vacuous. Guard (not assert) — a failed precondition must
+        // exit the test, not crash it with an index-out-of-range.
+        guard sections.count >= 2 else {
+            XCTFail("Fixture should produce at least two finding categories for a sort check")
+            return
         }
+        XCTAssertGreaterThanOrEqual(sections[0].value, sections[1].value, "Sections should be sorted by bytes descending")
     }
 
     func testRelationshipEdgesFromDuplicates() async throws {
@@ -2241,7 +2237,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let detector = ProjectDetector()
-        let projects = await detector.detectProjects(in: records)
+        let projects = try await detector.detectProjects(in: records)
         let edges = await detector.buildEdges(files: records, projects: projects)
         XCTAssertFalse(edges.isEmpty, "Project files should produce sameProject edges")
     }
@@ -2720,7 +2716,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let planner = OrganizationPlanner()
-        let (_, recs) = await planner.suggestOrganization(files: records, sessionID: "scan")
+        let (_, recs) = try await planner.suggestOrganization(files: records, sessionID: "scan")
         // Inbox files should get alias recommendations
         let aliasRecs = recs.filter { $0.actionType == .createAlias }
         XCTAssertFalse(aliasRecs.isEmpty, "Inbox files should get alias recommendations")
@@ -2962,42 +2958,12 @@ final class MacOSCleanerTests: XCTestCase {
 
     // MARK: - Sidebar: Remaining Controls (SB-04 through SB-06)
 
-    func testSidebarBYOKToggleLogic() {
-        // BYOK AI toggle binds to includeAI
-        let defaults = UserDefaults.standard
-        let key = "test_includeAI_\(UUID().uuidString)"
-        defer { defaults.removeObject(forKey: key) }
-
-        defaults.set(true, forKey: key)
-        XCTAssertTrue(defaults.bool(forKey: key), "BYOK toggle should persist true")
-        defaults.set(false, forKey: key)
-        XCTAssertFalse(defaults.bool(forKey: key), "BYOK toggle should persist false")
-    }
+    // (testSidebarBYOKToggleLogic removed: a UserDefaults round-trip tautology.)
 
     // MARK: - Onboarding: Remaining Stories (ON-08 through ON-10)
 
-    func testOnboardingAPIBaseURLPersistence() {
-        let defaults = UserDefaults.standard
-        let key = "test_apiBaseURL_\(UUID().uuidString)"
-        defer { defaults.removeObject(forKey: key) }
-
-        let testURL = "https://custom-api.example.com/v1"
-        defaults.set(testURL, forKey: key)
-        XCTAssertEqual(defaults.string(forKey: key), testURL, "API base URL should persist")
-        let url = defaults.string(forKey: key).flatMap(URL.init)
-        XCTAssertNotNil(url, "Stored URL should be parseable")
-        XCTAssertEqual(url?.host, "custom-api.example.com")
-    }
-
-    func testOnboardingTextModelPersistence() {
-        let defaults = UserDefaults.standard
-        let key = "test_textModel_\(UUID().uuidString)"
-        defer { defaults.removeObject(forKey: key) }
-
-        let testModel = "gpt-4-turbo-preview"
-        defaults.set(testModel, forKey: key)
-        XCTAssertEqual(defaults.string(forKey: key), testModel, "Text model should persist")
-    }
+    // (testOnboardingAPIBaseURLPersistence / testOnboardingTextModelPersistence removed:
+    // UserDefaults round-trips on keys the app never reads.)
 
     // MARK: - Action Execution: Confirmation Dialog (EX-02)
 
@@ -3103,7 +3069,7 @@ final class MacOSCleanerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let planner = OrganizationPlanner()
-        let (_, recs) = await planner.suggestOrganization(files: records, sessionID: "scan")
+        let (_, recs) = try await planner.suggestOrganization(files: records, sessionID: "scan")
         let tagRecs = recs.filter { $0.actionType == .tag }
         XCTAssertFalse(tagRecs.isEmpty, "Old files in Downloads should get tag recommendations")
     }

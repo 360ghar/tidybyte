@@ -87,7 +87,7 @@ struct AgeMapView: View {
                 spotlightSection
             }
         }
-        .onChange(of: files.map(\.id)) { _, _ in
+        .onChange(of: ExploreFilesToken(files)) { _, _ in
             selectedMonthKey = nil
         }
     }

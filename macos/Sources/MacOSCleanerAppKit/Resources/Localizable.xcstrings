@@ -519,14 +519,14 @@
         }
       }
     },
-    "1 folder remain selected." : {
+    "1 folder remains selected." : {
       "extractionState" : "manual",
       "generatesSymbol" : false,
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "1 folder remain selected."
+            "value" : "1 folder remains selected."
           }
         }
       }
@@ -1258,14 +1258,14 @@
         }
       }
     },
-    "Ask Cleaner" : {
+    "Ask Tidybyte" : {
       "extractionState" : "manual",
       "generatesSymbol" : false,
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ask Cleaner"
+            "value" : "Ask Tidybyte"
           }
         }
       }
@@ -1845,13 +1845,13 @@
         }
       }
     },
-    "Cleaner checks /Applications and ~/Applications." : {
+    "Tidybyte checks /Applications and ~/Applications." : {
       "generatesSymbol" : false,
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cleaner checks /Applications and ~/Applications."
+            "value" : "Tidybyte checks /Applications and ~/Applications."
           }
         }
       }
@@ -5223,14 +5223,14 @@
         }
       }
     },
-    "Optional: tell Cleaner why you want to restore it." : {
+    "Optional: tell Tidybyte why you want to restore it." : {
       "extractionState" : "manual",
       "generatesSymbol" : false,
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Optional: tell Cleaner why you want to restore it."
+            "value" : "Optional: tell Tidybyte why you want to restore it."
           }
         }
       }
@@ -5878,14 +5878,14 @@
         }
       }
     },
-    "Removed through Cleaner" : {
+    "Removed through Tidybyte" : {
       "extractionState" : "manual",
       "generatesSymbol" : false,
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Removed through Cleaner"
+            "value" : "Removed through Tidybyte"
           }
         }
       }
@@ -8045,14 +8045,14 @@
         }
       }
     },
-    "This action is for review only. Cleaner cannot execute it." : {
+    "This action is for review only. Tidybyte cannot execute it." : {
       "extractionState" : "manual",
       "generatesSymbol" : false,
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This action is for review only. Cleaner cannot execute it."
+            "value" : "This action is for review only. Tidybyte cannot execute it."
           }
         }
       }

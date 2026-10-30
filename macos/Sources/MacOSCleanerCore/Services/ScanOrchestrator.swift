@@ -138,7 +138,7 @@ public actor ScanOrchestrator {
 
             // Pipeline: crawl first (needed by all subsequent stages), then parallelize independent stages.
             // Content extraction, duplicate detection, and project detection are independent of each other.
-            let projects = await projectDetector.detectProjects(in: files)
+            let projects = try await projectDetector.detectProjects(in: files)
             let sessionID = session.id // Capture as local to avoid data race
 
             // Run duplicate detection in parallel with content extraction (they are independent).
@@ -157,8 +157,10 @@ public actor ScanOrchestrator {
             try Task.checkCancellation()
 
             let projectEdges = await projectDetector.buildEdges(files: files, projects: projects)
-            let (ruleFindings, ruleRecommendations) = await ruleEngine.analyze(files: files, projects: projects, sessionID: sessionID, posture: posture)
-            let (organizationFindings, organizationRecommendations) = await organizationPlanner.suggestOrganization(files: files, sessionID: sessionID)
+            let (ruleFindings, ruleRecommendations) = try await ruleEngine.analyze(
+                files: files, projects: projects, sessionID: sessionID, posture: posture)
+            let (organizationFindings, organizationRecommendations) = try await organizationPlanner
+                .suggestOrganization(files: files, sessionID: sessionID)
             let packageResult: ([Finding], [Recommendation], [PackageCleanupCandidate])
             // Whole-home and developer scans include the package managers' own
             // cleanup commands (dry-run only here; nothing runs until approved).

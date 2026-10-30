@@ -32,7 +32,7 @@ Storage uses logical bytes and deduplicated opportunity selections. Daily snapsh
 
 The lifetime ledger is outside routine scan retention. It separates Trash bytes, Recently Deleted bytes, and verified compression/format reductions. Restore dates produce negative chart adjustments. Interrupted operations appear in recent activity but do not contribute to totals.
 
-Weekly reminders are off by default and use the selected weekday at 09:00 local time. Their text includes the date and counts from the last completed scan. The `macos-cleaner://cleanup`, `macos-cleaner://swipe`, and `macos-cleaner://activity` routes only change navigation.
+Weekly reminders are off by default and use the selected weekday at 09:00 local time. Their text includes the date and counts from the last completed scan. The `tidybyte://cleanup`, `tidybyte://swipe`, and `tidybyte://activity` routes only change navigation.
 
 ## Persistence
 

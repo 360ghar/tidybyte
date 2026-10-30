@@ -11,12 +11,12 @@ final class MCPServerTests: XCTestCase {
         MCPKit(store: try SQLiteStore.inMemory())
     }
 
-    private func handle(_ kit: MCPKit, _ request: [String: Any]) async throws -> [String: Any] {
+    private func handle(_ kit: MCPKit, _ request: sending [String: Any]) async throws -> [String: Any] {
         let response = await kit.handle(request: request)
-        return try XCTUnwrap(response)
+        return try XCTUnwrap(response).payload
     }
 
-    private func toolCall(id: String, name: String, arguments: [String: Any] = [:]) -> [String: Any] {
+    private static func toolCall(id: String, name: String, arguments: [String: Any] = [:]) -> [String: Any] {
         ["jsonrpc": "2.0", "id": id, "method": "tools/call", "params": ["name": name, "arguments": arguments]]
     }
 
@@ -75,7 +75,7 @@ final class MCPServerTests: XCTestCase {
 
     func testExecuteBeforeScanFailsAsToolError() async throws {
         let kit = try makeKit()
-        let response = try await handle(kit, toolCall(id: "4", name: "execute", arguments: ["confirm": true]))
+        let response = try await handle(kit, Self.toolCall(id: "4", name: "execute", arguments: ["confirm": true]))
         let result = try XCTUnwrap(response["result"] as? [String: Any])
         XCTAssertEqual(result["isError"] as? Bool, true)
         let text = try textResult(of: response)
@@ -87,7 +87,7 @@ final class MCPServerTests: XCTestCase {
         // before the user has seen a plan. The tool's own description must
         // carry the dry-run/confirm contract for the agent.
         let kit = try makeKit()
-        let response = try await handle(kit, toolCall(id: "5", name: "execute"))
+        let response = try await handle(kit, Self.toolCall(id: "5", name: "execute"))
         let result = try XCTUnwrap(response["result"] as? [String: Any])
         XCTAssertEqual(result["isError"] as? Bool, true)
 
@@ -98,9 +98,57 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(description.contains("confirm"), "execute must document its confirm gate")
     }
 
+    // MARK: - Enforced execute policy
+
+    /// Creates a fixture with two byte-identical files and scans it through
+    /// the MCP surface with the trash duplicate strategy, producing real
+    /// destructive plan actions.
+    private func scanTrashStrategyFixture() async throws -> (MCPKit, URL) {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MCP-Destructive-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let data = Data("duplicate contents for the destructive-policy test".utf8)
+        try data.write(to: root.appendingPathComponent("one.bin"))
+        try data.write(to: root.appendingPathComponent("two.bin"))
+        let kit = MCPKit(store: try SQLiteStore.inMemory())
+        _ = try await handle(kit, Self.toolCall(id: "s1", name: "scan", arguments: [
+            "paths": [root.path], "duplicate_strategy": "move_to_trash"
+        ]))
+        return (kit, root)
+    }
+
+    func testConfirmedExecuteRefusesDestructiveActions() async throws {
+        // The client-supplied confirm flag is the agent's say-so, never proof
+        // a human approved: destructive actions are refused by code, and the
+        // dry run still describes them so the agent can direct the user to
+        // the app.
+        let (kit, root) = try await scanTrashStrategyFixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let dryRun = try await handle(kit, Self.toolCall(id: "e1", name: "execute"))
+        XCTAssertEqual((dryRun["result"] as? [String: Any])?["isError"] as? Bool, false)
+        let dryText = try textResult(of: dryRun)
+        XCTAssertTrue(dryText.contains("Dry run"), "Expected a dry run, got: \(dryText)")
+
+        let confirmed = try await handle(kit, Self.toolCall(id: "e2", name: "execute", arguments: ["confirm": true]))
+        XCTAssertEqual((confirmed["result"] as? [String: Any])?["isError"] as? Bool, true)
+        let text = try textResult(of: confirmed)
+        XCTAssertTrue(text.contains("Tidybyte app"), "Destructive execute must be refused, got: \(text)")
+    }
+
+    func testShortUndoIDPrefixIsRejected() async throws {
+        // An empty or very short id prefix would match every recorded
+        // operation; the server requires the 8-character short ids it emits.
+        let kit = try makeKit()
+        let response = try await handle(kit, Self.toolCall(id: "u1", name: "undo", arguments: ["operation_log_id": "abc"]))
+        XCTAssertEqual((response["result"] as? [String: Any])?["isError"] as? Bool, true)
+        let text = try textResult(of: response)
+        XCTAssertTrue(text.contains("8-character"), "Expected the short-id guidance, got: \(text)")
+    }
+
     func testUnknownToolIsAnError() async throws {
         let kit = try makeKit()
-        let response = try await handle(kit, toolCall(id: "7", name: "format_disk"))
+        let response = try await handle(kit, Self.toolCall(id: "7", name: "format_disk"))
         let result = try XCTUnwrap(response["result"] as? [String: Any])
         XCTAssertEqual(result["isError"] as? Bool, true)
         let text = try textResult(of: response)

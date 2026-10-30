@@ -69,6 +69,16 @@ extension AppViewModel {
         name: String,
         _ build: (ApplicationFootprintService, String) async throws -> StagedUninstall
     ) async -> Bool {
+        // Own the busy flag for the whole staging window: without it, two
+        // overlapping stagings both passed the callers' entry guards and the
+        // loser was silently dropped at the signature re-check below.
+        guard claimPlanning() else {
+            statusMessage = String(
+                localized: "Finish the current operation first, then try again.",
+                comment: "Staging blocked while another operation runs")
+            return false
+        }
+        defer { releasePlanning() }
         if outcome == nil || plan == nil {
             let session = ScanSession(
                 scanType: .selectedFolders, rootURLs: [], permissionsSnapshot: "staged", status: .completed)
@@ -80,8 +90,12 @@ extension AppViewModel {
         let signature = executionPlanSignature
         do {
             let staged = try await build(ApplicationFootprintService(), scan.session.id)
-            guard !Task.isCancelled, !isScanning, !isExecuting, !isPlanning,
-                signature == executionPlanSignature else { return false }
+            guard !Task.isCancelled, signature == executionPlanSignature else {
+                statusMessage = String(
+                    localized: "\(name) could not be added because the plan changed. Try again.",
+                    comment: "Staging lost a race with a plan mutation")
+                return false
+            }
             guard !staged.files.isEmpty else {
                 errorMessage = String(localized: "Nothing removable found for \(name). It may be missing or protected.")
                 return false
@@ -90,8 +104,12 @@ extension AppViewModel {
             for file in staged.files { mergedFilesByID[file.id] = file }
             let appended = await planner.appendRecommendations(
                 staged.recommendations, to: currentPlan, filesByID: mergedFilesByID)
-            guard !Task.isCancelled, !isScanning, !isExecuting, !isPlanning,
-                signature == executionPlanSignature else { return false }
+            guard !Task.isCancelled, signature == executionPlanSignature else {
+                statusMessage = String(
+                    localized: "\(name) could not be added because the plan changed. Try again.",
+                    comment: "Staging lost a race with a plan mutation")
+                return false
+            }
             guard !appended.isEmpty else {
                 statusMessage = String(localized: "\(name) is already in Leftovers.")
                 return false
@@ -107,6 +125,7 @@ extension AppViewModel {
             plan = currentPlan
             selectedActionID = appended.last?.id
             statusMessage = String(localized: "Added \(name) to Leftovers for review.")
+            schedulePlanPersistence()
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -151,7 +170,7 @@ extension AppViewModel {
     func refreshPlanEstimates(plan: inout Plan, filesByID: [String: FileRecord]? = nil) {
         let resolved = filesByID ?? self.filesByID
         plan.estimatedReclaimableBytes = Set(plan.actions.flatMap(\.targets))
-            .compactMap { resolved[$0].map { ReclaimableBytes.size(of: $0) } }
+            .compactMap { resolved[$0].map { ReclaimableBytes.size(of: $0, checkClones: false) } }
             .reduce(Int64(0), +)
         plan.estimatedFilesAffected = Set(plan.actions.flatMap(\.targets)).count
         plan.riskBreakdown = Dictionary(grouping: plan.actions, by: \.risk).mapValues(\.count)

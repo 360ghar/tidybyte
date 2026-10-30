@@ -72,9 +72,22 @@ final class AppViewModel {
     private(set) var isScanning = false
     private(set) var isExecuting = false
     private(set) var isPlanning = false
+
+    /// Claims the planning slot for a staging or NL-planning operation.
+    /// Returns false when a scan, execution, or other planning is in flight,
+    /// so callers can surface a "busy" message instead of a silent no-op.
+    func claimPlanning() -> Bool {
+        guard !isScanning, !isExecuting, !isPlanning else { return false }
+        isPlanning = true
+        return true
+    }
+
+    func releasePlanning() {
+        isPlanning = false
+    }
     /// Monotonic counter distinguishing the newest scan task from cancelled
     /// predecessors still unwinding; guards busy-state ownership.
-    private var scanGeneration = 0
+    private(set) var scanGeneration = 0
     // Internal setters (not `private(set)`) so the AppViewModel+Tabs and
     // AppViewModel+Explore extensions (separate files) can update state.
     // All mutation still funnels through @MainActor methods.
@@ -84,6 +97,7 @@ final class AppViewModel {
     var outcome: ScanOutcome? {
         didSet {
             _cachedFilesByID = nil
+            _cachedSubtreeTotals = nil
         }
     }
     /// Mutable plan stored separately from the immutable scan outcome.
@@ -182,6 +196,7 @@ final class AppViewModel {
     }
 
     private var _cachedFilesByID: [String: FileRecord]?
+    private var _cachedSubtreeTotals: [String: Int64]?
     private var scanTask: Task<Void, Never>?
     private var scanToastTask: Task<Void, Never>?
     private var activeScanID = UUID()
@@ -310,6 +325,20 @@ final class AppViewModel {
         }
     }
 
+    /// O(n·depth) subtree byte totals, computed once per scan. The Explore
+    /// inspector previously recomputed these on every render.
+    var subtreeTotals: [String: Int64] {
+        if let cached = _cachedSubtreeTotals {
+            return cached
+        }
+        guard let outcome else {
+            return [:]
+        }
+        let totals = ExploreSubtreeIndex.totals(files: outcome.files)
+        _cachedSubtreeTotals = totals
+        return totals
+    }
+
     var filesByID: [String: FileRecord] {
         if let cached = _cachedFilesByID {
             return cached
@@ -393,7 +422,7 @@ final class AppViewModel {
             statusMessage = String(localized: "No folders selected.")
             showOnboarding = selectedMode == .selectedFolders
         } else if selectedFolders.count == 1 {
-            statusMessage = String(localized: "1 folder remain selected.")
+            statusMessage = String(localized: "1 folder remains selected.")
         } else {
             statusMessage = String(localized: "\(selectedFolders.count) folders remain selected.")
         }
@@ -511,7 +540,7 @@ final class AppViewModel {
     }
 
     func runScan(postureOverride: CleanupPosture? = nil) {
-        guard !isScanning, !isExecuting else { return }
+        guard !isScanning, !isExecuting, !isPlanning else { return }
         guard !selectedFolders.isEmpty || selectedMode != .selectedFolders else {
             errorMessage = String(localized: "Please select folders to scan.", comment: "Error when no folders selected")
             return
@@ -809,7 +838,7 @@ final class AppViewModel {
     private func executeApprovedActions(
         allowingRiskUpTo maximumRisk: RiskLevel, confirmedActionIDs: Set<String>? = nil
     ) async {
-        guard let outcome, let currentPlan = plan, !isScanning, !isExecuting else {
+        guard let outcome, let currentPlan = plan, !isScanning, !isExecuting, !isPlanning else {
             return
         }
         isExecuting = true
@@ -900,8 +929,9 @@ final class AppViewModel {
         }
         // The auditor's `.needsManualReview` decision surfaces as a
         // manualReviewRequired failure; the user cannot resolve it in-place, so
-        // guide them to refresh file identities with a new scan.
-        if summary.failures.contains(where: { $0.hasPrefix("Manual review is still required") }) {
+        // guide them to refresh file identities with a new scan. Typed flag on
+        // the summary — matching localized strings breaks in every other language.
+        if summary.requiresRescan {
             errorMessage = String(localized: "Some actions need a fresh review: file identities changed since the scan. Run a new scan, then re-approve those actions.", comment: "Guidance when the safety auditor requires a re-scan")
         }
         isExecuting = false
@@ -1228,6 +1258,31 @@ final class AppViewModel {
             ? .partiallyApproved
             : .proposed
         plan = currentPlan
+        schedulePlanPersistence()
+    }
+
+    /// Cheap mutation counter for views: recomputing the plan's JSON signature
+    /// several times per render re-encoded the whole plan on the main thread.
+    private(set) var planRevision = 0
+
+    private var planSaveTask: Task<Void, Never>?
+
+    /// Debounced plan persistence: review decisions and staged actions must
+    /// survive a crash or quit instead of living only in memory until
+    /// execution. Rapid taps coalesce into one write after 500ms of quiet.
+    func schedulePlanPersistence() {
+        planRevision += 1
+        guard let currentPlan = plan else { return }
+        planSaveTask?.cancel()
+        planSaveTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.5))
+            guard !Task.isCancelled else { return }
+            do {
+                try await self?.store.savePlan(currentPlan)
+            } catch {
+                self?.logger.warning("Plan persistence failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     private static func tryFallbackStore() -> SQLiteStore {

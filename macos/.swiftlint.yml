@@ -5,10 +5,11 @@
 disabled_rules:
   - trailing_whitespace
   - todo
-  # NOTE (2026-08-01 review): force_unwrap/force_try/force_cast are disabled
-  # because the codebase contains a small number of deliberate forces on
-  # compile-time constants. New code must still avoid them per AGENTS.md; the
-  # CI lint job (qa.yml) enforces everything else.
+  # NOTE (2026-10-31 review): force_try/force_cast are disabled because the
+  # codebase contains a small number of deliberate forces on compile-time
+  # constants. force_unwrap stays ENFORCED (a default rule), and new code must
+  # still avoid all three per AGENTS.md; the Mac CI lint job (macos.yml)
+  # enforces everything else against the baseline.
   - force_try
   - force_cast
 

@@ -181,7 +181,7 @@ struct SnapshotDetailsView: View {
                 Section(String(localized: "Scan snapshot")) {
                     Text(snapshot.createdAt, format: .dateTime).font(.headline)
                     LabeledContent(String(localized: "Scanned size"), value: snapshot.totalBytes.formattedByteCount)
-                    LabeledContent(String(localized: "Removed through Cleaner"),
+                    LabeledContent(String(localized: "Removed through Tidybyte"),
                                    value: snapshot.removedBytesThroughApp.formattedByteCount)
                 }
                 Section(String(localized: "Scan locations")) {

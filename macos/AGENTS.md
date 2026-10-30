@@ -22,7 +22,7 @@ Define success criteria before starting. For scanning: "scan completes, results 
 
 ## Architecture
 
-Four-target SPM layout: `MacOSCleanerCore` (library: all services, domain models, SQLite store), `MacOSCleanerAppKit` (SwiftUI app layer: views, design system, view model), `MacOSCleaner` (executable `Tidybyte`; also runs `--autoscan` headless maintenance), and `MacOSCleanerMCP` (executable `tidybyte-mcp` MCP server over stdio JSON-RPC).
+Five-target SPM layout: `MacOSCleanerCore` (library: all services, domain models, SQLite store), `MacOSCleanerAppKit` (SwiftUI app layer: views, design system, view model), `MacOSCleaner` (executable `Tidybyte`; also runs `--autoscan` headless maintenance), `MacOSCleanerMCPLibrary` (library: the MCP dispatcher), and `MacOSCleanerMCP` (executable `tidybyte-mcp` MCP server over stdio JSON-RPC).
 
 ### Core Pipeline: Scan → Plan → Review → Execute → Undo
 
@@ -89,9 +89,15 @@ Scripts/build-app.sh
 swift package clean
 ```
 
-CI runs on GitHub Actions (macOS 26) via `.github/workflows/qa.yml` (build, SwiftLint strict, tests, QA report).
+CI runs on GitHub Actions (macOS 26) via `.github/workflows/macos.yml`:
+SwiftLint strict (new violations only, per the baseline), `swift build`,
+the `APP_STORE=1` variant (which must not link Sparkle), the test suite
+via xcodebuild, the `Scripts/mcp-e2e.py` end-to-end, and an app-bundle
+smoke build. Two Vision/notifications suites are skipped on headless
+runners; release packaging additionally requires `SPARKLE_PUBLIC_KEY` and
+`SPARKLE_PRIVATE_KEY_FILE` (or `NO_SPARKLE=1` for local builds).
 
-The project is pure SwiftPM — there is no Xcode project file. Four targets:
+The project is pure SwiftPM — there is no Xcode project file. Five targets:
 `MacOSCleanerCore` (services + models), `MacOSCleanerAppKit` (SwiftUI app
-layer), `MacOSCleaner` (executable `Tidybyte`), and `MacOSCleanerMCP`
-(executable `tidybyte-mcp`).
+layer), `MacOSCleaner` (executable `Tidybyte`), `MacOSCleanerMCPLibrary`
+(MCP dispatcher), and `MacOSCleanerMCP` (executable `tidybyte-mcp`).

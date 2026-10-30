@@ -47,3 +47,6 @@ yarn-error.log*
 
 # App Store Connect API keys, anywhere in the repo (ios/.gitignore explains why)
 *.p8
+
+# ZCode session state
+.zcode/

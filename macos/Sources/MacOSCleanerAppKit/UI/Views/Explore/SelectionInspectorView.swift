@@ -10,6 +10,12 @@ struct SelectionInspectorView: View {
     @State private var didCopyPath = false
 
     private var record: FileRecord? { model.selectedExploreRecord ?? model.focusedExploreRecord }
+
+    // Live filesystem values load in a task per selection instead of blocking
+    // every inspector render (stat + xattr reads used to re-run per keystroke).
+    @State private var liveSizes: FileSizeProbe.Sizes?
+    @State private var liveOwner: String?
+    @State private var liveTags: [String]?
     private var files: [FileRecord] { model.outcome?.files ?? [] }
 
     var body: some View {
@@ -37,15 +43,28 @@ struct SelectionInspectorView: View {
             }
         }
         .quickLookPreview($previewURL)
-        .onChange(of: model.selectedExploreRecordID) { didCopyPath = false }
+        .onChange(of: model.selectedExploreRecordID) {
+            didCopyPath = false
+            liveSizes = nil
+            liveOwner = nil
+            liveTags = nil
+        }
+        .task(id: model.selectedExploreRecordID) {
+            guard let selected = record else { return }
+            let url = selected.url
+            liveSizes = FileSizeProbe.sizes(for: url)
+            liveOwner = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.ownerAccountName] as? String
+            liveTags = (try? URL(fileURLWithPath: url.path).resourceValues(forKeys: [.tagNamesKey]))?.tagNames
+        }
     }
 
     private func sizeDetails(_ record: FileRecord) -> some View {
-        let totals = ExploreSubtreeIndex.totals(files: files)
+        // Cached once per scan on the model — this was an O(n×depth) walk per render.
+        let totals = model.subtreeTotals
         let total = ExploreSubtreeIndex.subtreeBytes(for: record, totals: totals)
-        let sizes = FileSizeProbe.sizes(for: record.url)
-        let logical = record.kind == .directory ? total : sizes.logical ?? total
-        let allocated = record.kind == .directory ? nil : sizes.allocated
+        let sizes = liveSizes
+        let logical = record.kind == .directory ? total : sizes?.logical ?? total
+        let allocated = record.kind == .directory ? nil : sizes?.allocated
         let parent = ExploreSubtreeIndex.parentPath(of: record.displayPath)
         let parentBytes = totals[parent] ?? files.filter { $0.kind != .directory }.reduce(0) { $0 + $1.sizeBytes }
         return Section(String(localized: "Size")) {
@@ -93,13 +112,12 @@ struct SelectionInspectorView: View {
                 LabeledContent(
                     String(localized: "Last opened"), value: date.formatted(date: .abbreviated, time: .shortened))
             }
-            // Owner and tags are read live for the selected item only; the scan skips them for speed.
-            if let owner = (try? FileManager.default.attributesOfItem(atPath: record.url.path))?[.ownerAccountName]
-                as? String {
+            // Owner and tags are read live for the selected item only (in a
+            // task, not per render); the scan skips them for speed.
+            if let owner = liveOwner {
                 LabeledContent(String(localized: "Owner"), value: owner)
             }
-            if let tags = (try? URL(fileURLWithPath: record.url.path).resourceValues(forKeys: [.tagNamesKey]))?.tagNames,
-                !tags.isEmpty {
+            if let tags = liveTags, !tags.isEmpty {
                 LabeledContent(String(localized: "Tags"), value: tags.joined(separator: ", "))
             }
             if let target = record.symlinkTarget {
@@ -126,7 +144,7 @@ struct SelectionInspectorView: View {
     @ViewBuilder
     private func children(_ record: FileRecord) -> some View {
         if record.kind == .directory || record.kind == .package {
-            let totals = ExploreSubtreeIndex.totals(files: files)
+            let totals = model.subtreeTotals
             let children = ExploreSubtreeIndex.directChildren(ofParentPath: record.displayPath, in: files)
                 .sorted {
                     ExploreSubtreeIndex.subtreeBytes(for: $0, totals: totals)

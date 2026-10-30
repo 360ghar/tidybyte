@@ -16,7 +16,8 @@ public actor OrganizationPlanner {
         return false
     }
 
-    public func suggestOrganization(files: [FileRecord], sessionID: String) -> ([Finding], [Recommendation]) {
+    public func suggestOrganization(files: [FileRecord], sessionID: String) throws -> ([Finding], [Recommendation]) {
+        try Task.checkCancellation()
         let candidates = files.filter { file in
             file.kind == .regularFile
                 && isAllowed(file)

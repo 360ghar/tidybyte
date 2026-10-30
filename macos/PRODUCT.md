@@ -1,4 +1,4 @@
-# macOS Cleaner
+# Tidybyte for Mac
 
 <!-- impeccable:product-schema 1 -->
 

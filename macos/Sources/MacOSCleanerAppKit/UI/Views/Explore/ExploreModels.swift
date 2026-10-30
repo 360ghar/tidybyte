@@ -66,6 +66,21 @@ enum ExploreSubtreeIndex {
 /// Reads both size keys for a URL in one stat call. FileRecord only carries a
 /// single size, so APFS compression savings are probed live at selection time
 /// and hidden when the filesystem cannot provide them.
+/// O(1) change token for "the scan's files changed": `[FileRecord]` is not
+/// cheaply Equatable, and mapping every id per render (the old `.onChange`
+/// payload) allocated an all-files array on every body evaluation.
+struct ExploreFilesToken: Equatable {
+    let count: Int
+    let firstID: String?
+    let lastID: String?
+
+    init(_ files: [FileRecord]) {
+        count = files.count
+        firstID = files.first?.id
+        lastID = files.last?.id
+    }
+}
+
 enum FileSizeProbe {
     struct Sizes: Equatable, Sendable {
         var logical: Int64?

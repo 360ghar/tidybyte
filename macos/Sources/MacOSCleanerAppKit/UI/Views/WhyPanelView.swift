@@ -68,7 +68,7 @@ struct WhyPanelView: View {
     private func recoveryText(for action: PlannedAction) -> String {
         if action.risk == .forbidden { return String(localized: "Blocked actions cannot run.") }
         if !AppViewModel.isSupportedOperation(action.actionType) {
-            return String(localized: "This action is for review only. Cleaner cannot execute it.")
+            return String(localized: "This action is for review only. Tidybyte cannot execute it.")
         }
         if action.actionType == .runPackageManagerCleanup {
             return String(localized: "Package-manager cleanup cannot be undone. Review the command before approval.")

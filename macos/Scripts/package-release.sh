@@ -14,6 +14,15 @@ CHANNEL="${1:-direct}"
 case "$CHANNEL" in direct|app-store) ;; *) echo "Usage: $0 direct|app-store" >&2; exit 2 ;; esac
 : "${SIGNING_IDENTITY:?Set SIGNING_IDENTITY to the channel-specific application signing identity (- for ad hoc)}"
 
+# Direct releases need the Sparkle inputs up front: a release without them
+# ships a DMG no existing user ever sees (no feed, no embedded update key).
+# Fail before the expensive build/notarize steps. NO_SPARKLE=1 opts out for
+# local testing only.
+if [ "$CHANNEL" = direct ] && [ -z "${NO_SPARKLE:-}" ]; then
+    : "${SPARKLE_PUBLIC_KEY:?direct releases require SPARKLE_PUBLIC_KEY (the app embeds it) — set NO_SPARKLE=1 to override}"
+    : "${SPARKLE_PRIVATE_KEY_FILE:?direct releases require SPARKLE_PRIVATE_KEY_FILE (sign_update input) — set NO_SPARKLE=1 to override}"
+fi
+
 Scripts/build-app.sh "$CHANNEL"
 
 TIMESTAMP=(--timestamp)
@@ -75,9 +84,11 @@ if [ -z "${SKIP_NOTARIZE:-}" ]; then
     spctl --assess --type open --context context:primary-signature --verbose "$DMG"
 fi
 
-# One-item Sparkle appcast for this release.
+# One-item Sparkle appcast for this release (inputs validated at the top).
 SIGN_UPDATE=".build/artifacts/sparkle/Sparkle/bin/sign_update"
-if [ -n "${SPARKLE_PRIVATE_KEY_FILE:-}" ] && [ -x "$SIGN_UPDATE" ]; then
+if [ -n "${NO_SPARKLE:-}" ]; then
+    :
+elif [ -n "${SPARKLE_PRIVATE_KEY_FILE:-}" ] && [ -x "$SIGN_UPDATE" ]; then
     SIGNATURE="$("$SIGN_UPDATE" --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" "$DMG")"
     BUILD="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APP/Contents/Info.plist")"
     URL="${DOWNLOAD_BASE_URL:-https://github.com/360ghar/tidybyte/releases/download/mac-v$VERSION}/$(basename "$DMG")"

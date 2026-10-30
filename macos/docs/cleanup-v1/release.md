@@ -47,6 +47,6 @@ The output is `.build/app-store/Tidybyte.pkg`. Upload it with Transporter using 
 
 1. Complete the manual native workflow checks in the validation report.
 2. Run Photos mutation tests with a disposable System Photos Library and iCloud disabled.
-3. Resolve the existing repository-wide SwiftLint violations before using strict lint as a release gate.
+3. Keep the SwiftLint baseline green (strict lint with the baseline is already a CI merge gate).
 4. Test the signed sandbox build's folder-grant renewal, relaunch, and Trash recovery on a clean Mac user account.
 5. Sign, notarize or upload, and publish only as a separate release action.

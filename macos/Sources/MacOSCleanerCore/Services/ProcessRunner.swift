@@ -22,8 +22,8 @@ enum ProcessRunner {
     /// (so the child never blocks on a full pipe buffer) but discarded, with a
     /// truncation note appended so callers know the output is incomplete.
     static let maxCapturedBytesPerStream = 1_048_576
-    private static let readChunkSize = 16_384
-    private static let truncationNote = "\n[ProcessRunner: output exceeded \(maxCapturedBytesPerStream) bytes; only the first portion is captured]"
+    static let readChunkSize = 16_384
+    static let truncationNote = "\n[ProcessRunner: output exceeded \(maxCapturedBytesPerStream) bytes; only the first portion is captured]"
 
     static func run(_ command: URL, arguments: [String], timeout: TimeInterval) async -> ProcessResult {
         let process = Process()
@@ -42,10 +42,13 @@ enum ProcessRunner {
         // Drain stdout and stderr concurrently WHILE the process runs. Reading
         // the pipes only after the process exits deadlocks the child once a
         // 64 KB pipe buffer fills, which previously forced a kill via timeout.
-        // Each drain runs in its own Task and keeps consuming until EOF, so
-        // producing large output can never block or kill the child.
-        let stdoutTask = Task { drain(handle.stdoutPipe.fileHandleForReading) }
-        let stderrTask = Task { drain(handle.stderrPipe.fileHandleForReading) }
+        // Each drain blocks on FileHandle.read until EOF, so they run on a
+        // dedicated GCD queue — parking Swift cooperative-pool threads on
+        // blocking pipe reads starved the timeout task and unrelated scan work.
+        let drains = PipeDrains(
+            stdout: handle.stdoutPipe.fileHandleForReading,
+            stderr: handle.stderrPipe.fileHandleForReading)
+        drains.start()
 
         let exitCode = await withCheckedContinuation { (continuation: CheckedContinuation<Int32, Never>) in
             process.terminationHandler = { p in
@@ -80,17 +83,29 @@ enum ProcessRunner {
             try? handle.stderrPipe.fileHandleForReading.close()
             try? handle.stdoutPipe.fileHandleForWriting.close()
             try? handle.stderrPipe.fileHandleForWriting.close()
-            _ = await stdoutTask.value
-            _ = await stderrTask.value
+            drains.wait(seconds: 2)
             return ProcessResult(exitCode: 1, stdout: "", stderr: startError)
         }
+        return await collectDrains(drains, didTimeOut: handle.didTimeOut, exitCode: exitCode, timeout: timeout)
+    }
 
-        let stdoutStr = String(data: await stdoutTask.value.data, encoding: .utf8) ?? ""
-        let stderrDrained = await stderrTask.value
-        let stderrStr = String(data: stderrDrained.data, encoding: .utf8) ?? ""
-        let truncated = (await stdoutTask.value).capped || stderrDrained.capped
-
-        if handle.didTimeOut {
+    /// Bounded post-exit drain collection: a forked grandchild can inherit the
+    /// pipe and hold it open long past the direct child's exit — the timeout
+    /// only kills the direct child. Wait up to a grace window so the call
+    /// returns on time with the bytes captured so far, marked truncated.
+    private static func collectDrains(
+        _ drains: PipeDrains, didTimeOut: Bool, exitCode: Int32, timeout: TimeInterval
+    ) async -> ProcessResult {
+        let finishedInTime = drains.wait(seconds: 5)
+        let drained = drains.results()
+        var stdoutStr = String(data: drained.stdout.data, encoding: .utf8) ?? ""
+        let stderrStr = String(data: drained.stderr.data, encoding: .utf8) ?? ""
+        var truncated = drained.stdout.capped || drained.stderr.capped
+        if !finishedInTime {
+            truncated = true
+            stdoutStr += truncationNote
+        }
+        if didTimeOut {
             return ProcessResult(
                 exitCode: 124, stdout: stdoutStr,
                 stderr: "Command timed out after \(Int(timeout)) seconds.",
@@ -98,32 +113,92 @@ enum ProcessRunner {
         }
         return ProcessResult(exitCode: exitCode, stdout: stdoutStr, stderr: stderrStr, truncated: truncated)
     }
+}
 
-    private struct DrainedOutput: Sendable {
-        var data = Data()
-        var capped = false
+private struct DrainedOutput: Sendable {
+    var data = Data()
+    var capped = false
+}
+
+/// Reads a pipe until EOF in small chunks so a full buffer never blocks the
+/// child. Captures at most `maxCapturedBytesPerStream` bytes and keeps
+/// discarding the rest, appending a truncation note when output was cut.
+private func drain(_ fileHandle: FileHandle) -> DrainedOutput {
+    var output = DrainedOutput()
+    while let chunk = try? fileHandle.read(upToCount: ProcessRunner.readChunkSize), !chunk.isEmpty {
+        if output.data.count >= ProcessRunner.maxCapturedBytesPerStream {
+            output.capped = true
+            continue
+        }
+        let remaining = ProcessRunner.maxCapturedBytesPerStream - output.data.count
+        output.data.append(chunk.prefix(remaining))
+        if chunk.count > remaining {
+            output.capped = true
+        }
+    }
+    if output.capped {
+        output.data.append(Data(ProcessRunner.truncationNote.utf8))
+    }
+    return output
+}
+
+/// Runs both pipe drains on a dedicated GCD queue and bounds how long the
+/// caller waits for them after the process exits.
+private final class PipeDrains: @unchecked Sendable {
+    private struct State {
+        var stdout: DrainedOutput?
+        var stderr: DrainedOutput?
+        var finishedCount = 0
     }
 
-    /// Reads a pipe until EOF in small chunks so a full buffer never blocks the
-    /// child. Captures at most `maxCapturedBytesPerStream` bytes and keeps
-    /// discarding the rest, appending a truncation note when output was cut.
-    private static func drain(_ fileHandle: FileHandle) -> DrainedOutput {
-        var output = DrainedOutput()
-        while let chunk = try? fileHandle.read(upToCount: readChunkSize), !chunk.isEmpty {
-            if output.data.count >= maxCapturedBytesPerStream {
-                output.capped = true
+    private let queue = DispatchQueue(label: AppIdentity.bundleIdentifier + ".process-drain", attributes: .concurrent)
+    private let state = OSAllocatedUnfairLock(initialState: State())
+    private let semaphore = DispatchSemaphore(value: 0)
+    private let stdoutHandle: FileHandle
+    private let stderrHandle: FileHandle
+
+    init(stdout: FileHandle, stderr: FileHandle) {
+        self.stdoutHandle = stdout
+        self.stderrHandle = stderr
+    }
+
+    func start() {
+        queue.async { [self] in
+            let out = drain(stdoutHandle)
+            state.withLock { $0.stdout = out; $0.finishedCount += 1 }
+            semaphore.signal()
+        }
+        queue.async { [self] in
+            let err = drain(stderrHandle)
+            state.withLock { $0.stderr = err; $0.finishedCount += 1 }
+            semaphore.signal()
+        }
+    }
+
+    /// Waits up to `seconds` for both drains to reach EOF. Returns false when
+    /// the wait expired with a drain still blocked (grandchild holding the
+    /// pipe); the caller then proceeds with the bytes captured so far. The
+    /// still-blocked drain keeps running on its GCD thread and finishes
+    /// whenever the last pipe writer exits — it never blocks the caller or
+    /// the cooperative pool.
+    func wait(seconds: TimeInterval) -> Bool {
+        let deadline = DispatchTime.now() + seconds
+        while state.withLock({ $0.finishedCount }) < 2 {
+            if semaphore.wait(timeout: .now() + 0.05) == .success {
                 continue
             }
-            let remaining = maxCapturedBytesPerStream - output.data.count
-            output.data.append(chunk.prefix(remaining))
-            if chunk.count > remaining {
-                output.capped = true
+            if DispatchTime.now() >= deadline {
+                return false
             }
         }
-        if output.capped {
-            output.data.append(Data(truncationNote.utf8))
+        return true
+    }
+
+    /// The outputs captured so far (empty for a drain that never finished).
+    func results() -> (stdout: DrainedOutput, stderr: DrainedOutput) {
+        state.withLock { st in
+            (st.stdout ?? DrainedOutput(), st.stderr ?? DrainedOutput())
         }
-        return output
     }
 }
 

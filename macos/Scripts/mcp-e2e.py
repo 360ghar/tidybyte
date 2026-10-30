@@ -10,6 +10,9 @@ Usage: Scripts/mcp-e2e.py [path-to-tidybyte-mcp-binary]
 """
 
 import json
+import select
+
+REQUEST_TIMEOUT = 120.0  # seconds
 import os
 import shutil
 import stat
@@ -26,17 +29,26 @@ class MCPClient:
         self.proc = proc
         self.next_id = 0
 
-    def request(self, method, params=None):
+    def request(self, method, params=None, timeout=REQUEST_TIMEOUT):
         self.next_id += 1
         payload = {"jsonrpc": "2.0", "id": self.next_id, "method": method}
         if params is not None:
             payload["params"] = params
         self.proc.stdin.write(json.dumps(payload) + "\n")
         self.proc.stdin.flush()
-        line = self.proc.stdout.readline()
+        line = self._readline_bounded(timeout)
         if not line:
             raise RuntimeError(f"server closed the stream during {method}")
         return json.loads(line)
+
+    def _readline_bounded(self, timeout):
+        # A wedged server must fail the e2e in seconds, not at the CI job
+        # timeout. select() bounds the wait for the next line.
+        ready, _, _ = select.select([self.proc.stdout], [], [], timeout)
+        if not ready:
+            self.proc.kill()
+            raise RuntimeError(f"server did not answer {timeout:.0f}s wait during a request")
+        return self.proc.stdout.readline()
 
     def call(self, tool, arguments=None):
         response = self.request("tools/call", {"name": tool, "arguments": arguments or {}})

@@ -105,7 +105,16 @@ public enum FingerprintService {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             return nil
         }
-        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+        // Feature prints are resolution-tolerant, so cap the decode at 2048px:
+        // a 100MP photo decoded at full resolution materializes ~400MB of RGBA
+        // per worker, and the near-duplicate pass decodes 4 images at a time
+        // over whole photo libraries.
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 2048,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
     /// Feature print of an image, for DISTANCE comparison between two images

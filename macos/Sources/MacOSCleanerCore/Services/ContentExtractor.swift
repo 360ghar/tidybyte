@@ -30,7 +30,17 @@ public actor ContentExtractor {
         // output order matches the input.
         await withTaskGroup(of: (Int, ContentSummary?).self) { group in
             var summariesByIndex: [Int: ContentSummary] = [:]
-            for (index, file) in files.enumerated() {
+            var iterator = files.makeIterator()
+            var nextIndex = 0
+            // Windowed scheduling: keep at most `maxConcurrentWorkers` child
+            // tasks in flight by adding one only as each result drains. The
+            // previous add-4-drain-1 loop grew the group by 3 tasks per file —
+            // for a large scan that materialized hundreds of thousands of live
+            // child tasks (and their captured records) at once.
+            func addNext() -> Bool {
+                guard let file = iterator.next() else { return false }
+                let index = nextIndex
+                nextIndex += 1
                 group.addTask {
                     if Task.isCancelled {
                         return (index, nil)
@@ -38,18 +48,14 @@ public actor ContentExtractor {
                     let summary = await self.summarizeOne(file, privacyMode: effectiveMode)
                     return (index, summary)
                 }
-                // Bound concurrency: drain one finished result (collecting it,
-                // never discarding) before scheduling more.
-                if index % maxConcurrentWorkers == maxConcurrentWorkers - 1,
-                   let drained = await group.next(),
-                   let summary = drained.1 {
-                    summariesByIndex[drained.0] = summary
-                }
+                return true
             }
-            for await (index, summary) in group {
+            for _ in 0..<maxConcurrentWorkers where addNext() {}
+            while let (index, summary) = await group.next() {
                 if let summary {
                     summariesByIndex[index] = summary
                 }
+                _ = addNext()
             }
             results = files.indices.compactMap { summariesByIndex[$0] }
         }

@@ -72,13 +72,8 @@ final class NearDuplicateTests: XCTestCase {
         XCTAssertEqual(names, ["sunset.png", "sunset-small.png"])
     }
 
-    func testThresholdSeparatesUnrelatedImages() {
-        // About 1 for unrelated images on the current feature print; 8 matched every pair.
-        XCTAssertLessThan(DuplicateDetector.nearDuplicateDistanceThreshold, 0.9)
-    }
-
-    func testNearDuplicateWorkIsBounded() {
-        XCTAssertLessThanOrEqual(DuplicateDetector.maxNearDuplicateImages, 20_000)
-        XCTAssertLessThanOrEqual(DuplicateDetector.nearDuplicateWindow, 64)
-    }
+    // The constant-only checks (threshold, work bounds) moved to
+    // ReleaseSafetyTests: this suite is -skip-testing'd in CI because the
+    // Vision test hangs headless, and those checks would be collaterally
+    // skipped with it despite needing no Vision at all.
 }

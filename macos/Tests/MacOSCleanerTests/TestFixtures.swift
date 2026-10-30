@@ -8,17 +8,20 @@ struct FixtureTrash: TrashService {
     let folder: URL
     var shouldFail = false
 
-    init(folder: URL = FixtureTrash.makeFolder(), shouldFail: Bool = false) {
+    init(folder: URL = FixtureTrash.sharedFolder, shouldFail: Bool = false) {
         self.folder = folder
         self.shouldFail = shouldFail
     }
 
-    static func makeFolder() -> URL {
+    /// One folder per test process instead of one per executor: ~490 tests
+    /// otherwise litter TMPDIR with per-test dirs (OS-purged, but noisy).
+    /// Collisions are handled per-item below, like the real Trash renames.
+    private static let sharedFolder: URL = {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("FixtureTrash-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
-    }
+    }()
 
     func trashItem(at url: URL) throws -> URL? {
         if shouldFail { throw CleanupError.message("Fixture failure") }

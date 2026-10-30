@@ -114,8 +114,10 @@ struct ActionStackView: View {
     }
 
     private func requestBulk(_ actions: [PlannedAction], approve: Bool) {
-        guard !actions.isEmpty, let signature = model.executionPlanSignature else { return }
-        bulkRequest = BulkReviewRequest(actions: actions, approve: approve, signature: signature)
+        guard !actions.isEmpty else { return }
+        // Revision token, not the plan's JSON signature: comparing signatures
+        // per render re-encoded the whole plan on the main thread.
+        bulkRequest = BulkReviewRequest(actions: actions, approve: approve, planRevision: model.planRevision)
     }
 
     private func bulkConfirmation(_ request: BulkReviewRequest) -> some View {
@@ -130,7 +132,7 @@ struct ActionStackView: View {
             if request.actions.contains(where: { $0.risk == .high }) {
                 Label(String(localized: "This includes high-risk actions."), systemImage: "exclamationmark.triangle")
             }
-            if request.signature != model.executionPlanSignature {
+            if request.planRevision != model.planRevision {
                 Text(String(localized: "The plan changed. Cancel and review the current actions."))
                     .foregroundStyle(SemanticScale.error)
             }
@@ -138,7 +140,7 @@ struct ActionStackView: View {
                 Button(String(localized: "Cancel")) { bulkRequest = nil }.keyboardShortcut(.cancelAction)
                 Spacer()
                 Button(request.approve ? String(localized: "Approve") : String(localized: "Reject")) {
-                    guard request.signature == model.executionPlanSignature else { return }
+                    guard request.planRevision == model.planRevision else { return }
                     for action in request.actions {
                         if request.approve { model.approve(action) } else { model.reject(action) }
                     }
@@ -146,7 +148,7 @@ struct ActionStackView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(
-                    request.signature != model.executionPlanSignature
+                    request.planRevision != model.planRevision
                         || model.isScanning || model.isExecuting || model.isPlanning)
             }
         }
@@ -160,7 +162,7 @@ private struct BulkReviewRequest: Identifiable {
     let id = UUID()
     let actions: [PlannedAction]
     let approve: Bool
-    let signature: Data
+    let planRevision: Int
 }
 
 struct ActionRow: View {

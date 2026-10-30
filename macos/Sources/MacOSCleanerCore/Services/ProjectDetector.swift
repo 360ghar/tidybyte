@@ -21,8 +21,9 @@ public actor ProjectDetector {
         "makefile": "Build",
         "gemfile": "Ruby",
         "podfile": "CocoaPods",
-        "readme": "General",
-        "readme.md": "General",
+        // README is deliberately NOT a manifest: a documents folder with a
+        // README is not a project, and treating it as one would legitimize
+        // trash recommendations for build/dist/target inside it.
         ".git": "git-repository"
     ]
 
@@ -47,11 +48,13 @@ public actor ProjectDetector {
         return isSorted ? files : files.sorted { $0.displayPath < $1.displayPath }
     }
 
-    public func detectProjects(in files: [FileRecord]) -> [ProjectUnit] {
+    public func detectProjects(in files: [FileRecord]) throws -> [ProjectUnit] {
+        try Task.checkCancellation()
         let manifests = files.filter { manifestTypes[$0.fileName.lowercased()] != nil || $0.fileExtension == "xcodeproj" || $0.fileExtension == "xcworkspace" }
         var grouped: [URL: [FileRecord]] = [:]
 
         for manifest in manifests {
+            try Task.checkCancellation()
             let root = manifest.url.deletingLastPathComponent()
             grouped[root.standardizedFileURL, default: []].append(manifest)
         }

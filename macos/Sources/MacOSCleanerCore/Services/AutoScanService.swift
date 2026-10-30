@@ -238,6 +238,16 @@ public enum AutoScanRunner {
         let freedBytes: Int64
     }
 
+    /// The unattended safety filter, as its own function so the invariant is
+    /// directly testable: headless runs may approve ONLY pending clone-fold
+    /// actions — they delete, move and rename nothing — and everything else
+    /// waits for a human in the app.
+    static func unattendedActionFilter(_ plan: Plan) -> [PlannedAction] {
+        plan.actions.filter {
+            $0.actionType == .cloneDeduplicate && $0.userDecision == .undecided && $0.executedAt == nil
+        }
+    }
+
     /// One unattended pass: scan, then approve and execute ONLY clone-fold
     /// actions. They never delete, move or rename anything, and every fold is
     /// undoable afterwards — trashing always needs a human in the app.
@@ -273,9 +283,7 @@ public enum AutoScanRunner {
             filesByID[record.id] = record
         }
 
-        var foldActions = plan.actions.filter {
-            $0.actionType == .cloneDeduplicate && $0.userDecision == .undecided && $0.executedAt == nil
-        }
+        var foldActions = Self.unattendedActionFilter(plan)
         for index in foldActions.indices {
             foldActions[index].userDecision = .approved
             foldActions[index].status = .approved

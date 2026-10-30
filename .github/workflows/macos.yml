@@ -59,6 +59,9 @@ jobs:
         # Own scratch path: the direct build's cached link plan still includes Sparkle.
         run: |
           APP_STORE=1 swift build -Xswiftc -DAPP_STORE --scratch-path .build/app-store-scratch
+          # Assert the binary exists first: otool on a missing path prints
+          # nothing, grep exits 1, and `!` would turn that into a false pass.
+          test -f .build/app-store-scratch/debug/Tidybyte
           ! otool -L .build/app-store-scratch/debug/Tidybyte | grep -i sparkle
 
       - name: Test
@@ -84,8 +87,10 @@ jobs:
           python3 Scripts/mcp-e2e.py .build/debug/tidybyte-mcp
 
       - name: App bundle smoke build
+        # NO_SPARKLE=1: the smoke build has no release keys; build-app.sh
+        # fails a keyless direct build unless the opt-out is explicit.
         run: |
-          Scripts/build-app.sh direct
+          NO_SPARKLE=1 Scripts/build-app.sh direct
           plutil -lint .build/Tidybyte.app/Contents/Info.plist
 
       - name: Upload test log

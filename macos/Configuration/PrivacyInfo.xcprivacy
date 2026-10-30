@@ -14,7 +14,8 @@
             <key>NSPrivacyAccessedAPIType</key>
             <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
             <key>NSPrivacyAccessedAPITypeReasons</key>
-            <array><string>DDA9.1</string></array>
+            <array><string>DDA9.1</string>
+				<string>3B52.1</string></array>
         </dict>
         <dict>
             <key>NSPrivacyAccessedAPIType</key>

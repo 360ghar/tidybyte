@@ -128,7 +128,7 @@ struct UndoHistoryView: View {
                 Text(String(localized: "Restore this change?")).font(.title2.bold())
                 Text(record.restoreURL?.path ?? record.trashURL?.path ?? record.inverseAction.displayName)
                     .textSelection(.enabled)
-                Text(String(localized: "Optional: tell Cleaner why you want to restore it."))
+                Text(String(localized: "Optional: tell Tidybyte why you want to restore it."))
                     .foregroundStyle(.secondary)
                 ForEach(AppViewModel.RegretReason.allCases, id: \.self) { reason in
                     Button(reason.rawValue) {

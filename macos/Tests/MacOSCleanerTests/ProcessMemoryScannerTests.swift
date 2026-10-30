@@ -202,7 +202,7 @@ final class ProcessMemoryScannerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (findings, recommendations) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (findings, recommendations) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
 
         XCTAssertFalse(findings.contains { $0.category == .developerArtifact }, "Build outputs outside a detected project root must not be proposed")
         XCTAssertTrue(recommendations.isEmpty, "No cleanup should be proposed for an unrooted node_modules")
@@ -218,7 +218,7 @@ final class ProcessMemoryScannerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (findings, _) = await engine.analyze(files: records, projects: [makeProject(root: root)], sessionID: "scan")
+        let (findings, _) = try await engine.analyze(files: records, projects: [makeProject(root: root)], sessionID: "scan")
 
         XCTAssertTrue(findings.contains { $0.category == .developerArtifact }, "node_modules inside a detected project root should be proposed")
     }
@@ -233,7 +233,7 @@ final class ProcessMemoryScannerTests: XCTestCase {
         _ = try UserStoryFixtures.createDirectory("node_modules/.cache", in: outside)
         _ = try UserStoryFixtures.writeFile("node_modules/.cache/blob.bin", in: outside, data: Data(repeating: 1, count: 2_000_000))
         let (outsideRecords, _) = await crawler.crawl(rootURLs: [outside], sessionID: "scan")
-        let (outsideFindings, outsideRecs) = await engine.analyze(files: outsideRecords, projects: [], sessionID: "scan")
+        let (outsideFindings, outsideRecs) = try await engine.analyze(files: outsideRecords, projects: [], sessionID: "scan")
         XCTAssertFalse(outsideFindings.contains { $0.category == .cache || $0.category == .developerArtifact })
         XCTAssertTrue(outsideRecs.isEmpty, "node_modules/.cache outside a project root must not be proposed")
 
@@ -244,7 +244,7 @@ final class ProcessMemoryScannerTests: XCTestCase {
         _ = try UserStoryFixtures.createDirectory("node_modules/.cache", in: inside)
         _ = try UserStoryFixtures.writeFile("node_modules/.cache/blob.bin", in: inside, data: Data(repeating: 1, count: 2_000_000))
         let (insideRecords, _) = await crawler.crawl(rootURLs: [inside], sessionID: "scan")
-        let (insideFindings, _) = await engine.analyze(files: insideRecords, projects: [makeProject(root: inside)], sessionID: "scan")
+        let (insideFindings, _) = try await engine.analyze(files: insideRecords, projects: [makeProject(root: inside)], sessionID: "scan")
         XCTAssertTrue(insideFindings.contains { $0.category == .cache }, "node_modules/.cache inside a project root should be proposed as cache")
     }
 
@@ -261,7 +261,7 @@ final class ProcessMemoryScannerTests: XCTestCase {
         let crawler = FileCrawler()
         let (records, _) = await crawler.crawl(rootURLs: [root], sessionID: "scan")
         let engine = CleanerRuleEngine()
-        let (_, recommendations) = await engine.analyze(files: records, projects: [], sessionID: "scan")
+        let (_, recommendations) = try await engine.analyze(files: records, projects: [], sessionID: "scan")
 
         let targetPaths = Set(
             recommendations.flatMap(\.targetFileIDs).compactMap { id in

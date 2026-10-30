@@ -49,8 +49,6 @@ The app should combine:
    * remote file graph
    * optional Mirage-based virtual filesystem abstraction
 
-The shortened link you provided resolves to **Strukto Mirage**, a unified virtual filesystem layer for AI agents. Mirage can mount providers such as S3, Google Drive, Slack, Gmail, and Redis side by side; it has Python and TypeScript SDKs; it supports FUSE mounts on macOS/Linux; and it can plug into agent frameworks such as OpenAI Agents SDK, Vercel AI SDK, LangChain, Claude Code, and Codex. That makes it very relevant for **Phase 2 cloud/provider abstraction**, but not a replacement for the app’s native macOS permission, safety, undo, and scanning layers. ([t.co][2])
-
 ---
 
 # 2. Competitive and reference landscape
@@ -508,8 +506,9 @@ Scope notes:
 - Near-duplicate image detection uses Vision feature-print DISTANCE
   thresholding (visually similar), not byte equality.
 - Also scoped here: menu-bar extra (quick scan, storage overview, undo-last),
-  launch-at-login, and database export. The PDF report was removed
-  deliberately (tracked as RP-04); prd.md remains the canonical spec.
+  launch-at-login, and database export. The PRD's monthly PDF report shipped
+  instead as an on-demand per-scan report (ReportGenerator, wired in the app
+  and tested); prd.md remains the canonical spec.
 
 ---
 

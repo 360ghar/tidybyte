@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 @testable import MacOSCleanerCore
 import XCTest
 
@@ -189,5 +190,36 @@ final class SQLiteBatchTests: XCTestCase {
         let reopened = try SQLiteStore(databaseURL: databaseURL)
         let loaded = try await reopened.loadFileRecords(for: "s1")
         XCTAssertEqual(loaded.count, 1, "Reopening an existing database must preserve data and migration must be idempotent")
+    }
+
+    /// Crash mid-migration: the process died between an ALTER TABLE and its
+    /// user_version bump, so the schema carries the column while user_version
+    /// still says the step is unapplied. The next open must succeed — the
+    /// column-exists guard skips the ALTER, the backfill is a no-op, and each
+    /// version step commits atomically. Before transactional migrations this
+    /// exact state re-ran ADD COLUMN and bricked the open path forever.
+    func testStoreRecoversFromMidMigrationCrash() async throws {
+        let root = try makeTemporaryDirectory(named: "SQLiteBatchCrashRecovery")
+        let databaseURL = root.appendingPathComponent("crashed.sqlite")
+        _ = try SQLiteStore(databaseURL: databaseURL)
+
+        var db: OpaquePointer?
+        guard sqlite3_open_v2(databaseURL.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK else {
+            XCTFail("Could not reopen the fixture database raw")
+            return
+        }
+        XCTAssertEqual(sqlite3_exec(db, "PRAGMA user_version = 2", nil, nil, nil), SQLITE_OK)
+        sqlite3_close(db)
+
+        // The v3/v4/v5 columns are all still present (migrated) but the
+        // version says they are not — the historical crash state. The store
+        // must open and be fully usable.
+        let recovered = try SQLiteStore(databaseURL: databaseURL)
+        let session = ScanSession(
+            scanType: .selectedFolders, rootURLs: [], permissionsSnapshot: "test", status: .completed)
+        try await recovered.saveScanSession(session)
+        // Reopening the recovered file must also succeed.
+        let reopened = try SQLiteStore(databaseURL: databaseURL)
+        try await reopened.saveScanSession(session)
     }
 }

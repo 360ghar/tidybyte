@@ -8,7 +8,7 @@ struct NaturalLanguagePlanView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.elementSection) {
-            Label(String(localized: "Ask Cleaner"), systemImage: "sparkle.magnifyingglass").font(.title2.bold())
+            Label(String(localized: "Ask Tidybyte"), systemImage: "sparkle.magnifyingglass").font(.title2.bold())
             Text(String(localized: "Describe the cleanup you want to review. This changes the plan, not your files."))
                 .foregroundStyle(.secondary)
             TextField(String(localized: "For example, find old installers"), text: $model.naturalLanguageCommand)

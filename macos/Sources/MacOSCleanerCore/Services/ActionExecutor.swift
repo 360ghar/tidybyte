@@ -14,6 +14,10 @@ public struct ExecutionSummary: Sendable {
     public var failures: [String]
     /// Action IDs that had at least one failed target. Used to mark actions as `.failed` instead of `.completed`.
     public var failedActionIDs: Set<String>
+    /// True when the safety auditor required manual review, so the caller can
+    /// guide the user to refresh file identities with a new scan — without
+    /// matching on localized failure strings.
+    public var requiresRescan = false
 }
 
 public enum ActionExecutorError: Error, LocalizedError, Sendable {
@@ -105,6 +109,7 @@ public actor ActionExecutor {
             )
         }
         var completed = 0
+        var requiresRescan = false
         isCancelled = false
         for action in executableActions {
             // Cancellation lands between actions: the in-flight action finishes
@@ -154,7 +159,9 @@ public actor ActionExecutor {
                 undoRecords.append(contentsOf: result.undoRecords)
                 failedActionIDs.formUnion(result.failedActionIDs)
                 if persistFailed {
-                    failures.append("Undo records for action may not persist across app restart.")
+                    failures.append(String(
+                        localized: "Undo records may not persist across app restart.",
+                        comment: "Execution summary note when the undo trail could not be written"))
                 }
                 if !result.failures.isEmpty {
                     failedActionIDs.insert(action.id)
@@ -162,6 +169,9 @@ public actor ActionExecutor {
                 }
             } catch {
                 logger.error("Action failed: \(error.localizedDescription, privacy: .public)")
+                if case ActionExecutorError.manualReviewRequired = error {
+                    requiresRescan = true
+                }
                 failedActionIDs.insert(action.id)
                 failures.append(error.localizedDescription)
             }
@@ -169,7 +179,9 @@ public actor ActionExecutor {
             await progress?(completed)
         }
 
-        return ExecutionSummary(logs: logs, undoRecords: undoRecords, failures: failures, failedActionIDs: failedActionIDs)
+        return ExecutionSummary(
+            logs: logs, undoRecords: undoRecords, failures: failures,
+            failedActionIDs: failedActionIDs, requiresRescan: requiresRescan)
     }
 
     private func execute(
@@ -231,15 +243,18 @@ public actor ActionExecutor {
                 undoStatus: .pending
             )
             do {
-                // TOCTOU closure: re-verify identity NOW, immediately before mutating.
-                try await auditor.verifyTargetUnchanged(record)
-                try await store.saveOperationLog(log)
-                try await store.saveUndoRecord(undo)
+                // Write-ahead persistence first: refuse the mutation when the
+                // trail cannot be recorded (deleting without a recoverable
+                // trail is never acceptable).
+                try await persistPendingTrail(log, undo)
             } catch {
                 errors.append(error.localizedDescription)
                 continue
             }
             do {
+                // TOCTOU closure: re-verify identity NOW, with nothing but the
+                // unavoidable syscall gap between this check and trashItem.
+                try await auditor.verifyTargetUnchanged(record)
                 let trashURL = try trash.trashItem(at: record.url)
                 // Finalize the trail with the real outcome: trash location plus the
                 // captured identity restore later verifies against.
@@ -259,9 +274,7 @@ public actor ActionExecutor {
             } catch {
                 // The trash failed — downgrade the pending trail so the startup
                 // sweep does not report a phantom interrupted operation forever.
-                var failedUndo = undo
-                failedUndo.status = .failed
-                try? await store.saveUndoRecord(failedUndo)
+                await downgradePendingTrail(undo)
                 errors.append(error.localizedDescription)
             }
         }
@@ -320,12 +333,20 @@ public actor ActionExecutor {
                 undoStatus: .pending
             )
             do {
-                // TOCTOU closure: re-verify identity NOW on both files.
+                // Write-ahead persistence first (same contract as moveToTrash).
+                try await persistPendingTrail(log, undo)
+            } catch {
+                errors.append(error.localizedDescription)
+                hadFailure = true
+                continue
+            }
+            do {
+                // TOCTOU closure: re-verify identity NOW on both files, right
+                // before the fold replaces the duplicate's inode.
                 try await auditor.verifyTargetUnchanged(record)
                 try await auditor.verifyTargetUnchanged(keeper)
-                try await store.saveOperationLog(log)
-                try await store.saveUndoRecord(undo)
             } catch {
+                await downgradePendingTrail(undo)
                 errors.append(error.localizedDescription)
                 hadFailure = true
                 continue
@@ -391,6 +412,27 @@ public actor ActionExecutor {
                 errors.append(ActionExecutorError.missingTarget(targetID).localizedDescription)
                 continue
             }
+            // Write-ahead undo trail: persist a PENDING log+record BEFORE
+            // moving the file. A crash between moveItem and the finalize
+            // update leaves a recoverable trail (the startup sweep surfaces
+            // the original path) instead of a silently moved file.
+            let (log, undo) = makeLogAndUndo(
+                action: action,
+                type: .move,
+                before: ["path": record.displayPath],
+                after: [:],
+                result: "moving",
+                inverse: .move,
+                restoreURL: record.url,
+                trashURL: nil,
+                undoStatus: .pending
+            )
+            do {
+                try await persistPendingTrail(log, undo)
+            } catch {
+                errors.append(error.localizedDescription)
+                continue
+            }
             do {
                 // TOCTOU closure: re-verify identity immediately before mutating.
                 try await auditor.verifyTargetUnchanged(record)
@@ -399,19 +441,20 @@ public actor ActionExecutor {
                 if let identity = FileArtifactIdentity.capture(at: newURL) {
                     afterState["moved_identity"] = identity.encodedString
                 }
-                let (log, undo) = makeLogAndUndo(
-                    action: action,
-                    type: .move,
-                    before: ["path": record.displayPath],
-                    after: afterState,
-                    result: "moved",
-                    inverse: .move,
-                    restoreURL: record.url,
-                    trashURL: newURL
-                )
-                logs.append(log)
-                undoRecords.append(undo)
+                var finalizedLog = log
+                finalizedLog.result = "moved"
+                finalizedLog.afterState = afterState
+                var finalizedUndo = undo
+                finalizedUndo.trashURL = newURL
+                finalizedUndo.status = .available
+                logs.append(finalizedLog)
+                undoRecords.append(finalizedUndo)
+                // The mutation succeeded; a failed finalize write keeps the
+                // PENDING record (the sweep surfaces it) but is not an error.
+                try? await store.saveOperationLog(finalizedLog)
+                try? await store.saveUndoRecord(finalizedUndo)
             } catch {
+                await downgradePendingTrail(undo)
                 errors.append(error.localizedDescription)
             }
         }
@@ -424,7 +467,26 @@ public actor ActionExecutor {
         var errors: [String] = []
         for targetID in action.targets {
             guard let record = filesByID[targetID] else {
-                errors.append("Missing target \(targetID)")
+                errors.append(ActionExecutorError.missingTarget(targetID).localizedDescription)
+                continue
+            }
+            // Write-ahead undo trail: the pending log carries the tag states
+            // only at finalize time, so persist the shell first and fill it in
+            // after the xattr write succeeds.
+            let (log, undo) = makeLogAndUndo(
+                action: action,
+                type: .tag,
+                before: ["tags": ""],
+                after: [:],
+                result: "tagging",
+                inverse: .tag,
+                restoreURL: record.url,
+                undoStatus: .pending
+            )
+            do {
+                try await persistPendingTrail(log, undo)
+            } catch {
+                errors.append(error.localizedDescription)
                 continue
             }
             do {
@@ -438,18 +500,18 @@ public actor ActionExecutor {
                 newTags.insert(tagName)
                 let sortedTags = Array(newTags).sorted()
                 try FinderTagHelper.write(sortedTags, to: record.url)
-                let (log, undo) = makeLogAndUndo(
-                    action: action,
-                    type: .tag,
-                    before: ["tags": oldTags.joined(separator: ",")],
-                    after: ["tags": sortedTags.joined(separator: ",")],
-                    result: "tagged",
-                    inverse: .tag,
-                    restoreURL: record.url
-                )
-                logs.append(log)
-                undoRecords.append(undo)
+                var finalizedLog = log
+                finalizedLog.beforeState = ["tags": oldTags.joined(separator: ",")]
+                finalizedLog.afterState = ["tags": sortedTags.joined(separator: ",")]
+                finalizedLog.result = "tagged"
+                var finalizedUndo = undo
+                finalizedUndo.status = .available
+                logs.append(finalizedLog)
+                undoRecords.append(finalizedUndo)
+                try? await store.saveOperationLog(finalizedLog)
+                try? await store.saveUndoRecord(finalizedUndo)
             } catch {
+                await downgradePendingTrail(undo)
                 // Per-target failure: keep tagging the remaining valid targets
                 // instead of aborting the whole action (matches moveToTrash).
                 errors.append(error.localizedDescription)
@@ -491,30 +553,49 @@ public actor ActionExecutor {
         var errors: [String] = []
         for targetID in action.targets {
             guard let record = filesByID[targetID] else {
-                errors.append("Missing target \(targetID)")
+                errors.append(ActionExecutorError.missingTarget(targetID).localizedDescription)
+                continue
+            }
+            // Collision-free alias name: two same-named targets in one batch
+            // must not silently overwrite each other's artifacts.
+            let aliasURL = collisionFreeArtifactURL(for: record.fileName, suffix: ".alias", in: destination)
+            // Write-ahead undo trail: persist a PENDING log+record BEFORE the
+            // bookmark write so a crash leaves a recoverable trail.
+            let (log, undo) = makeLogAndUndo(
+                action: action,
+                type: .createAlias,
+                before: ["path": record.displayPath],
+                after: [:],
+                result: "creating_alias",
+                inverse: .moveToTrash,
+                restoreURL: aliasURL,
+                undoStatus: .pending
+            )
+            do {
+                try await persistPendingTrail(log, undo)
+            } catch {
+                errors.append(error.localizedDescription)
                 continue
             }
             do {
                 try await auditor.verifyTargetUnchanged(record)
-                let aliasURL = destination.appendingPathComponent(record.fileName + ".alias", isDirectory: false)
                 let data = try record.url.bookmarkData(options: [.suitableForBookmarkFile], includingResourceValuesForKeys: nil, relativeTo: nil)
                 try URL.writeBookmarkData(data, to: aliasURL)
                 var afterState: [String: String] = ["alias_path": aliasURL.path]
                 if let identity = FileArtifactIdentity.capture(at: aliasURL) {
                     afterState["artifact_identity"] = identity.encodedString
                 }
-                let (log, undo) = makeLogAndUndo(
-                    action: action,
-                    type: .createAlias,
-                    before: ["path": record.displayPath],
-                    after: afterState,
-                    result: "alias_created",
-                    inverse: .moveToTrash,
-                    restoreURL: aliasURL
-                )
-                logs.append(log)
-                undoRecords.append(undo)
+                var finalizedLog = log
+                finalizedLog.result = "alias_created"
+                finalizedLog.afterState = afterState
+                var finalizedUndo = undo
+                finalizedUndo.status = .available
+                logs.append(finalizedLog)
+                undoRecords.append(finalizedUndo)
+                try? await store.saveOperationLog(finalizedLog)
+                try? await store.saveUndoRecord(finalizedUndo)
             } catch {
+                await downgradePendingTrail(undo)
                 // Per-target failure: keep creating aliases for the remaining
                 // valid targets instead of aborting the whole action.
                 errors.append(error.localizedDescription)
@@ -535,29 +616,46 @@ public actor ActionExecutor {
         var errors: [String] = []
         for targetID in action.targets {
             guard let record = filesByID[targetID] else {
-                errors.append("Missing target \(targetID)")
+                errors.append(ActionExecutorError.missingTarget(targetID).localizedDescription)
+                continue
+            }
+            let linkURL = collisionFreeArtifactURL(for: record.fileName, suffix: "", in: destination)
+            // Write-ahead undo trail: persist a PENDING log+record BEFORE the
+            // link creation so a crash leaves a recoverable trail.
+            let (log, undo) = makeLogAndUndo(
+                action: action,
+                type: .createSymlink,
+                before: ["path": record.displayPath],
+                after: [:],
+                result: "creating_symlink",
+                inverse: .moveToTrash,
+                restoreURL: linkURL,
+                undoStatus: .pending
+            )
+            do {
+                try await persistPendingTrail(log, undo)
+            } catch {
+                errors.append(error.localizedDescription)
                 continue
             }
             do {
                 try await auditor.verifyTargetUnchanged(record)
-                let linkURL = destination.appendingPathComponent(record.fileName, isDirectory: false)
                 try fileManager.createSymbolicLink(at: linkURL, withDestinationURL: record.url)
                 var afterState: [String: String] = ["link_path": linkURL.path]
                 if let identity = FileArtifactIdentity.capture(at: linkURL) {
                     afterState["artifact_identity"] = identity.encodedString
                 }
-                let (log, undo) = makeLogAndUndo(
-                    action: action,
-                    type: .createSymlink,
-                    before: ["path": record.displayPath],
-                    after: afterState,
-                    result: "symlink_created",
-                    inverse: .moveToTrash,
-                    restoreURL: linkURL
-                )
-                logs.append(log)
-                undoRecords.append(undo)
+                var finalizedLog = log
+                finalizedLog.result = "symlink_created"
+                finalizedLog.afterState = afterState
+                var finalizedUndo = undo
+                finalizedUndo.status = .available
+                logs.append(finalizedLog)
+                undoRecords.append(finalizedUndo)
+                try? await store.saveOperationLog(finalizedLog)
+                try? await store.saveUndoRecord(finalizedUndo)
             } catch {
+                await downgradePendingTrail(undo)
                 // Per-target failure: keep creating links for the remaining
                 // valid targets instead of aborting the whole action.
                 errors.append(error.localizedDescription)
@@ -573,17 +671,47 @@ public actor ActionExecutor {
         var errors: [String] = []
         for targetID in action.targets {
             guard let record = filesByID[targetID] else {
-                errors.append("Missing target \(targetID)")
+                errors.append(ActionExecutorError.missingTarget(targetID).localizedDescription)
                 continue
             }
             // UUID fragment prevents same-second same-name archives from overwriting
             // each other (the previous epoch-seconds suffix collided).
             let archiveName = record.fileName + "-" + String(Int(Date().timeIntervalSince1970)) + "-" + UUID().uuidString.prefix(8) + ".zip"
             let archiveURL = destination.appendingPathComponent(archiveName, isDirectory: false)
+            // Write-ahead undo trail: the original is about to enter the Trash
+            // with a 30-day clock, so the pending record must be durable BEFORE
+            // any mutation — a crash mid-archive must still surface the
+            // original's path via the startup sweep.
+            let (log, undo) = makeLogAndUndo(
+                action: action,
+                type: .archive,
+                before: ["path": record.displayPath, "file_id": record.id],
+                after: [:],
+                result: "archiving",
+                inverse: .restore,
+                restoreURL: record.url,
+                trashURL: nil,
+                validUntil: Calendar.current.date(byAdding: .day, value: 30, to: Date()),
+                undoStatus: .pending
+            )
+            do {
+                try await persistPendingTrail(log, undo)
+            } catch {
+                errors.append(error.localizedDescription)
+                continue
+            }
+            /// Downgrades the pending trail after a failed archive step so the
+            /// startup sweep never reports a phantom interrupted operation.
+            func downgradePendingToFailed() async {
+                var failedUndo = undo
+                failedUndo.status = .failed
+                try? await store.saveUndoRecord(failedUndo)
+            }
             do {
                 // TOCTOU closure: re-verify identity immediately before mutating.
                 try await auditor.verifyTargetUnchanged(record)
             } catch {
+                await downgradePendingTrail(undo)
                 errors.append(error.localizedDescription)
                 continue
             }
@@ -594,6 +722,7 @@ public actor ActionExecutor {
                 if fileManager.fileExists(atPath: archiveURL.path) {
                     try? fileManager.removeItem(at: archiveURL)
                 }
+                await await downgradePendingTrail(undo)
                 errors.append(ActionExecutorError.processFailed(result.stderr).localizedDescription)
                 continue
             }
@@ -611,6 +740,7 @@ public actor ActionExecutor {
                 } catch {
                     logger.warning("Failed to clean up orphan archive \(archiveURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
                 }
+                await downgradePendingTrail(undo)
                 errors.append(error.localizedDescription)
                 continue
             }
@@ -623,20 +753,16 @@ public actor ActionExecutor {
             if let trashURL {
                 afterState["trash_identity"] = FileArtifactIdentity.capture(at: trashURL)?.encodedString
             }
-            let (log, restoreUndo) = makeLogAndUndo(
-                action: action,
-                type: .archive,
-                before: ["path": record.displayPath, "file_id": record.id],
-                after: afterState,
-                result: "archived_and_moved_original_to_trash",
-                inverse: .restore,
-                restoreURL: record.url,
-                trashURL: trashURL,
-                validUntil: Calendar.current.date(byAdding: .day, value: 30, to: Date()),
-                undoStatus: trashURL == nil ? .failed : .available
-            )
-            logs.append(log)
-            undoRecords.append(restoreUndo)
+            var finalizedLog = log
+            finalizedLog.result = "archived_and_moved_original_to_trash"
+            finalizedLog.afterState = afterState
+            var finalizedUndo = undo
+            finalizedUndo.trashURL = trashURL
+            finalizedUndo.status = trashURL == nil ? .failed : .available
+            logs.append(finalizedLog)
+            undoRecords.append(finalizedUndo)
+            try? await store.saveOperationLog(finalizedLog)
+            try? await store.saveUndoRecord(finalizedUndo)
             // Second undo record: trash the archive itself.
             let archiveTrashUndo = UndoRecord(
                 id: UUID().uuidString,
@@ -648,6 +774,7 @@ public actor ActionExecutor {
                 status: .available
             )
             undoRecords.append(archiveTrashUndo)
+            try? await store.saveUndoRecord(archiveTrashUndo)
         }
         return ExecutionSummary(logs: logs, undoRecords: undoRecords, failures: errors, failedActionIDs: [])
     }
@@ -731,6 +858,26 @@ public actor ActionExecutor {
         return (log, undo)
     }
 
+    /// Write-ahead step shared by every mutating action: persist the PENDING
+    /// log+undo BEFORE the filesystem mutation. Throws `undoTrailUnavailable`
+    /// when persistence fails — the caller must then refuse the mutation.
+    private func persistPendingTrail(_ log: OperationLog, _ undo: UndoRecord) async throws {
+        do {
+            try await store.saveOperationLog(log)
+            try await store.saveUndoRecord(undo)
+        } catch {
+            throw ActionExecutorError.undoTrailUnavailable(error.localizedDescription)
+        }
+    }
+
+    /// Downgrades a pending trail after a failed step so the startup sweep
+    /// never reports a phantom interrupted operation.
+    private func downgradePendingTrail(_ undo: UndoRecord) async {
+        var failedUndo = undo
+        failedUndo.status = .failed
+        try? await store.saveUndoRecord(failedUndo)
+    }
+
     private func preparedOrganizationDestination(_ destination: URL?, folderName: String) throws -> URL {
         let resolved = destination ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent(folderName, isDirectory: true)
         try validatedDestination(resolved)
@@ -738,16 +885,10 @@ public actor ActionExecutor {
         return resolved
     }
 
-    /// Reject destinations the policy forbids (protected, cloud-synced, Trash)
-    /// and destinations without enough free space for the action's targets.
-    private func validatedDestination(_ destination: URL, requiredBytes: Int64? = nil) throws {
+    /// Reject destinations the policy forbids (protected, cloud-synced, Trash).
+    private func validatedDestination(_ destination: URL) throws {
         if case .deny = PathSafetyPolicy().decide(target: destination, isDirectory: true) {
             throw SafetyAuditError.unsafeDestination(destination)
-        }
-        if let requiredBytes, requiredBytes > 0,
-           let values = try? destination.resourceValues(forKeys: [.volumeAvailableCapacityKey]),
-           let available = values.volumeAvailableCapacity, Int64(available) < requiredBytes {
-            throw ActionExecutorError.batchLimitExceeded("Not enough free space at \(destination.path) for \(requiredBytes.formattedByteCount).")
         }
     }
 
@@ -761,7 +902,26 @@ public actor ActionExecutor {
         var errors: [String] = []
         for targetID in action.targets {
             guard let record = filesByID[targetID] else {
-                errors.append("Missing target \(targetID)")
+                errors.append(ActionExecutorError.missingTarget(targetID).localizedDescription)
+                continue
+            }
+            // Write-ahead undo trail: persist a PENDING log+record BEFORE
+            // renaming the file (same contract as .move).
+            let (log, undo) = makeLogAndUndo(
+                action: action,
+                type: .rename,
+                before: ["path": record.displayPath],
+                after: [:],
+                result: "renaming",
+                inverse: .rename,
+                restoreURL: record.url,
+                trashURL: nil,
+                undoStatus: .pending
+            )
+            do {
+                try await persistPendingTrail(log, undo)
+            } catch {
+                errors.append(error.localizedDescription)
                 continue
             }
             do {
@@ -772,23 +932,44 @@ public actor ActionExecutor {
                 if let identity = FileArtifactIdentity.capture(at: newURL) {
                     afterState["moved_identity"] = identity.encodedString
                 }
-                let (log, undo) = makeLogAndUndo(
-                    action: action,
-                    type: .rename,
-                    before: ["path": record.displayPath],
-                    after: afterState,
-                    result: "renamed",
-                    inverse: .rename,
-                    restoreURL: record.url,
-                    trashURL: newURL
-                )
-                logs.append(log)
-                undoRecords.append(undo)
+                var finalizedLog = log
+                finalizedLog.result = "renamed"
+                finalizedLog.afterState = afterState
+                var finalizedUndo = undo
+                finalizedUndo.trashURL = newURL
+                finalizedUndo.status = .available
+                logs.append(finalizedLog)
+                undoRecords.append(finalizedUndo)
+                try? await store.saveOperationLog(finalizedLog)
+                try? await store.saveUndoRecord(finalizedUndo)
             } catch {
+                var failedUndo = undo
+                failedUndo.status = .failed
+                try? await store.saveUndoRecord(failedUndo)
                 errors.append(error.localizedDescription)
             }
         }
         return ExecutionSummary(logs: logs, undoRecords: undoRecords, failures: errors, failedActionIDs: [])
+    }
+
+    /// Collision-free artifact path inside `destination`: appends a numeric
+    /// suffix when the name is taken so two same-named targets in one batch
+    /// cannot silently overwrite each other's alias or symlink.
+    private func collisionFreeArtifactURL(for fileName: String, suffix: String, in destination: URL) -> URL {
+        var candidate = destination.appendingPathComponent(fileName + suffix, isDirectory: false)
+        guard fileManager.fileExists(atPath: candidate.path) else {
+            return candidate
+        }
+        let nsName = fileName as NSString
+        let baseName = nsName.deletingPathExtension
+        let ext = nsName.pathExtension
+        var counter = 1
+        repeat {
+            let name = ext.isEmpty ? "\(baseName)-\(counter)\(suffix)" : "\(baseName)-\(counter).\(ext)\(suffix)"
+            candidate = destination.appendingPathComponent(name, isDirectory: false)
+            counter += 1
+        } while fileManager.fileExists(atPath: candidate.path)
+        return candidate
     }
 
     /// Shared relocation helper for `.move` and `.rename`. Resolves a

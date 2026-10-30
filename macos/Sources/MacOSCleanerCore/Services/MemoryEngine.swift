@@ -102,17 +102,30 @@ public actor MemoryEngine {
         confidence: Double,
         matchOnRuleText: Bool = false
     ) async throws {
-        let existing = try await store.loadMemoryRules()
-            .first { candidate in
-                candidate.scopeType == scopeType
-                    && candidate.scopeValue == scopeValue
-                    && candidate.actionType == actionType
-                    && candidate.ruleType == ruleType
-                    && (!matchOnRuleText || candidate.rule == rule)
-            }
-        let ruleToSave: MemoryRule
-        if let existing {
-            ruleToSave = MemoryRule(
+        // One atomic store call: insert-if-absent keyed on the rule identity,
+        // returning the existing row when one is already there. Reentrancy-safe
+        // — two concurrent learners cannot both insert.
+        let proposed = MemoryRule(
+            id: UUID().uuidString,
+            scopeType: scopeType,
+            scopeValue: scopeValue,
+            rule: rule,
+            source: source,
+            confidence: confidence,
+            createdAt: Date(),
+            lastReinforcedAt: nil,
+            ruleType: ruleType,
+            actionType: actionType
+        )
+        if let existing = try await store.saveMemoryRuleIfAbsent(
+            proposed,
+            scopeType: scopeType,
+            scopeValue: scopeValue,
+            actionType: actionType,
+            ruleType: ruleType,
+            matchOnRuleText: matchOnRuleText
+        ) {
+            let reinforced = MemoryRule(
                 id: existing.id,
                 scopeType: existing.scopeType,
                 scopeValue: existing.scopeValue,
@@ -124,21 +137,8 @@ public actor MemoryEngine {
                 ruleType: existing.ruleType,
                 actionType: existing.actionType
             )
-        } else {
-            ruleToSave = MemoryRule(
-                id: UUID().uuidString,
-                scopeType: scopeType,
-                scopeValue: scopeValue,
-                rule: rule,
-                source: source,
-                confidence: confidence,
-                createdAt: Date(),
-                lastReinforcedAt: nil,
-                ruleType: ruleType,
-                actionType: actionType
-            )
+            try await store.saveMemoryRule(reinforced)
         }
-        try await store.saveMemoryRule(ruleToSave)
     }
 
     public func learn(from action: PlannedAction, filesByID: [String: FileRecord]) async throws {
