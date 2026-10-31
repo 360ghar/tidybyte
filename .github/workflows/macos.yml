@@ -1,0 +1,104 @@
+name: Mac app
+
+# The Mac app lives in macos/ and builds only when its files change. It is not
+# a required check, so skipping it never blocks an iOS or website pull request.
+on:
+  push:
+    branches: [main]
+    paths:
+      - macos/**
+      - .github/workflows/macos.yml
+  pull_request:
+    paths:
+      - macos/**
+      - .github/workflows/macos.yml
+  workflow_dispatch:
+
+concurrency:
+  group: macos-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SWIFTLINT_VERSION: 0.65.1
+  SWIFTLINT_SHA256: c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0
+
+jobs:
+  qa:
+    name: Build, lint, test
+    runs-on: macos-26
+    # Headroom for capacity-constrained macOS runners: builds ~4 min, tests
+    # well under that when the runner is not stalling.
+    timeout-minutes: 60
+    defaults:
+      run:
+        # Explicit bash runs with -eo pipefail, so `swift test | tee` fails the job on test failures.
+        shell: bash
+        working-directory: macos
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install SwiftLint (pinned)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/swiftlint.zip" \
+            "https://github.com/realm/SwiftLint/releases/download/$SWIFTLINT_VERSION/portable_swiftlint.zip"
+          echo "$SWIFTLINT_SHA256  $RUNNER_TEMP/swiftlint.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/swiftlint.zip" swiftlint -d "$RUNNER_TEMP/swiftlint"
+          echo "$RUNNER_TEMP/swiftlint" >> "$GITHUB_PATH"
+
+      - name: Lint (new violations only)
+        run: swiftlint lint --quiet --strict --baseline .swiftlint-baseline.json
+
+      - name: Build (direct)
+        run: swift build
+
+      - name: Build (App Store, compile check)
+        # Own scratch path: the direct build's cached link plan still includes Sparkle.
+        run: |
+          APP_STORE=1 swift build -Xswiftc -DAPP_STORE --scratch-path .build/app-store-scratch
+          # Assert the binary exists first: otool on a missing path prints
+          # nothing, grep exits 1, and `!` would turn that into a false pass.
+          test -f .build/app-store-scratch/debug/Tidybyte
+          ! otool -L .build/app-store-scratch/debug/Tidybyte | grep -i sparkle
+
+      - name: Test
+        # xcodebuild, not `swift test`: the swift-testing/XCTest interop
+        # runner stalls without completing a single test on hosted macOS 26
+        # runners (zero result lines under --parallel; an arbitrary mid-suite
+        # freeze when serial), while the same suite passes locally in under a
+        # minute both ways. xcodebuild's classic runner is what the iOS job
+        # already uses successfully on these runners.
+        #
+        # Skipped suites hang forever on the headless runner (no WindowServer
+        # session), each one freezing the whole job at the job timeout; they
+        # pass locally in seconds:
+        #   NearDuplicateTests      Vision feature-print requests never return.
+        #   NotificationSchedulerTests  UNUserNotificationCenter authorization
+        #                           never completes without a notification
+        #                           session.
+        run: xcodebuild -scheme Tidybyte-Package -destination 'platform=macOS' -skip-testing:MacOSCleanerTests/NearDuplicateTests -skip-testing:MacOSCleanerTests/NotificationSchedulerTests test 2>&1 | tee test.log
+
+      - name: MCP end-to-end (fold and undo on APFS)
+        run: |
+          swift build --product tidybyte-mcp
+          python3 Scripts/mcp-e2e.py .build/debug/tidybyte-mcp
+
+      - name: App bundle smoke build
+        # NO_SPARKLE=1: the smoke build has no release keys; build-app.sh
+        # fails a keyless direct build unless the opt-out is explicit.
+        run: |
+          NO_SPARKLE=1 Scripts/build-app.sh direct
+          plutil -lint .build/Tidybyte.app/Contents/Info.plist
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          # upload-artifact resolves paths from the workspace root, not the
+          # working directory.
+          path: macos/test.log
+          retention-days: 14

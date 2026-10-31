@@ -1,0 +1,556 @@
+  <main id="main">
+<!-- Announcement bar: pill + link. Semantic tokens only — flips with theme. -->
+<div class="border-b border-hairline bg-surface-soft">
+  <div class="container-prose flex items-center justify-center py-2">
+    <p class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center text-xs text-body sm:text-sm">
+      <span class="badge">
+        <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-clay-pink"><circle cx="12" cy="12" r="5"/></svg>
+        1.0.5 の新機能 &mdash; 端末内 AI 写真検索
+      </span>
+      <a href="/changelog" class="link whitespace-nowrap">変更点を見る &rarr;</a>
+    </p>
+  </div>
+</div>
+
+<!-- Hero. Above the fold: no scroll-reveal attributes — renders fully without JS.
+     CTA label per DECISIONS.md: "Download TidyByte Free". Floating screenshot
+     card is hidden below sm so it can never crowd the h1 on mobile. -->
+<section class="relative overflow-hidden">
+  <div aria-hidden="true" class="absolute inset-x-0 -top-24 -z-10 h-[460px] bg-hero-glow"></div>
+  <div class="container-prose grid items-center gap-12 pb-16 pt-14 sm:pt-20 lg:grid-cols-[1.02fr_0.98fr] lg:pb-24">
+    <div>
+      <p class="badge" data-rise style="--in:0">
+        <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-clay-pink"><circle cx="12" cy="12" r="5"/></svg>
+        無料 &middot; iPhone &amp; iPad &middot; iPhone Duo &middot; iOS 17+
+      </p>
+      <svg aria-hidden="true" focusable="false" width="76" height="10" viewBox="0 0 76 10" fill="none" class="mt-2 block text-clay-pink" data-rise style="--in:1"><path d="M2 7c6-5.5 11-5.5 17 0s11 5.5 17 0 11-5.5 17 0 11 5 21-1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      <h1 class="h-display mt-5">iPhone 向け、いちばん使いやすい無料のストレージ整理・写真整理アプリ。</h1>
+      <p class="lede mt-5 max-w-prose">左にスワイプで削除、右にスワイプでキープ &mdash; 数分でギガバイトを取り戻せます。重複、スクリーンショット、チャットメディア、ぶれた写真、大きすぎる動画まで対応し、画像は圧縮。100% 端末内で完結します。広告なし、サブスクなし、アカウントなし。</p>
+      <div class="mt-7 flex flex-wrap items-center gap-3" data-rise style="--in:3">
+        <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">
+          <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+          TidyByte を無料でダウンロード
+        </a>
+        <a href="#how-it-works" class="btn-ghost">使い方</a>
+      </div>
+      <p class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted" data-rise style="--in:4">
+        <span class="inline-flex items-center gap-1.5"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="text-success"><path d="M5 12l5 5 9-11"/></svg>広告なし</span>
+        <span class="inline-flex items-center gap-1.5"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="text-success"><path d="M5 12l5 5 9-11"/></svg>アカウント不要</span>
+        <span class="inline-flex items-center gap-1.5"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="text-success"><path d="M5 12l5 5 9-11"/></svg>写真は端末から出ていきません</span>
+      </p>
+    </div>
+
+    <div class="relative mx-auto w-full max-w-[520px]" data-settle style="--in:1">
+      <div class="overflow-hidden rounded-[2rem] border border-hairline bg-surface-card shadow-pop">
+        <picture>
+          <source srcset="/assets/img/illustrations/hero-cleanup.avif" type="image/avif">
+          <img src="/assets/img/illustrations/hero-cleanup.webp" alt="緑の丘で、スマートフォンがフォトカードを仕分けトレーに投げ入れるクレイ風イラスト。" width="1248" height="832" loading="eager" fetchpriority="high" decoding="async" class="block h-auto w-full">
+        </picture>
+      </div>
+      <!-- Floating app screenshot: hidden below sm (never blocks the h1 on mobile). -->
+      <div class="absolute -bottom-10 -start-4 hidden w-[38%] max-w-[170px] overflow-hidden rounded-[1.4rem] border-4 border-canvas bg-canvas shadow-pop sm:-start-8 sm:block" data-rise style="--in:5">
+        <picture>
+          <source srcset="/assets/img/screenshots/05-swipe-session-768.avif" type="image/avif">
+          <img src="/assets/img/screenshots/05-swipe-session-768.webp" alt="TidyByte のスワイプ確認画面（セッション途中）。" width="387" height="839" loading="lazy" decoding="async" class="block w-full">
+        </picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Quick answer: rendered here from the page's meta description, so the
+     direct answer sits above the fold for featured snippets and AI citations.
+     The wrapper supplies the container width the injected box expects. -->
+<section class="section-tight pt-0 sm:pt-0">
+  <div class="container-prose">
+    <!-- quick-answer -->
+  </div>
+</section>
+
+<!-- Stats band. Fixes the old flex-ordering bug (order classes did nothing
+     inside a block parent, so labels rendered above numbers): every stat is one
+     self-contained cell with the number first and the label second, so the
+     reading order is correct at every breakpoint (2 cols mobile / 4 desktop). -->
+<section aria-label="数字で見る TidyByte" class="section-tight pt-0 sm:pt-0">
+  <div class="container-prose">
+    <ul role="list" class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-hairline bg-hairline md:grid-cols-4">
+      <li class="bg-surface-card px-4 py-6 text-center sm:px-6">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-clay-pink"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
+        <p class="mt-2 font-display text-3xl font-medium text-ink">12</p>
+        <p class="mt-1 text-sm text-muted">整理ツール</p>
+      </li>
+      <li class="bg-surface-card px-4 py-6 text-center sm:px-6">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-clay-teal"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z"/><path d="M9.5 11.5l2 2 3.5-4"/></svg>
+        <p class="mt-2 font-display text-3xl font-medium text-ink">0</p>
+        <p class="mt-1 text-sm text-muted">これまでにアップロードされたバイト数</p>
+      </li>
+      <li class="bg-surface-card px-4 py-6 text-center sm:px-6">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-clay-ochre"><path d="M12 2H3v9l9.3 9.3a1.5 1.5 0 0 0 2.1 0l7-7a1.5 1.5 0 0 0 0-2.1L12 2z"/><circle cx="8" cy="7" r="1" fill="currentColor" stroke="none"/></svg>
+        <p class="mt-2 font-display text-3xl font-medium text-ink">$0</p>
+        <p class="mt-1 text-sm text-muted">ずっと自分のものにできる</p>
+      </li>
+      <li class="bg-surface-card px-4 py-6 text-center sm:px-6">
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="mx-auto text-clay-lav"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
+        <p class="mt-2 font-display text-3xl font-medium text-ink">100%</p>
+        <p class="mt-1 text-sm text-muted">オープンソース、MIT</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- How it works: 3 numbered clay steps (alternating pastel tiles, ink/soft
+     text tokens) + exactly ONE screenshot, lazy-loaded in a hairline frame.
+     scroll-mt-24 sits on the section (the anchor target, clears the 4rem
+     sticky header) and on the heading wrapper as instructed. -->
+<section id="how-it-works" class="section scroll-mt-24">
+  <div class="container-prose">
+    <div class="max-w-2xl scroll-mt-24">
+      <p class="eyebrow">01 &mdash; 使い方</p>
+      <h2 class="h-section mt-3">スワイプを、説明します。</h2>
+      <p class="lede mt-4">1枚のカード。1つの判断。コーヒーが冷める前に、何年分もの写真を整理できます。</p>
+    </div>
+
+    <ol role="list" class="mt-12 grid gap-6 md:grid-cols-3" data-reveal-group>
+      <li class="rounded-2xl bg-clay-pink p-6" data-reveal>
+        <div class="flex items-center gap-3">
+          <svg aria-hidden="true" focusable="false" width="40" height="40" viewBox="0 0 40 40" fill="none" class="text-clay-pink-ink"><rect x="6" y="5" width="19" height="26" rx="4" fill="currentColor" opacity=".3"/><rect x="15" y="9" width="19" height="26" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="24.5" cy="17" r="3" fill="currentColor"/><path d="M18 28h13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <p aria-hidden="true" class="font-display text-5xl font-semibold leading-none text-clay-pink-ink">1</p>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-pink-ink">はじめるところを選ぶ</h3>
+        <p class="mt-1.5 text-sm text-clay-pink-soft">スクリーンショット、重複、ぶれ、ライブラリ全体。どのツールもフォトカードのデッキを開きます。</p>
+      </li>
+      <li class="rounded-2xl bg-clay-lav p-6" data-reveal>
+        <div class="flex items-center gap-3">
+          <svg aria-hidden="true" focusable="false" width="40" height="40" viewBox="0 0 40 40" fill="none" class="text-clay-lav-ink"><rect x="13" y="7" width="14" height="26" rx="3.5" fill="currentColor" opacity=".3"/><rect x="13" y="7" width="14" height="26" rx="3.5" stroke="currentColor" stroke-width="2"/><path d="M9 14l-4 4m0 0l4 4M5 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 14l4 4m0 0l-4 4m4-4h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p aria-hidden="true" class="font-display text-5xl font-semibold leading-none text-clay-lav-ink">2</p>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-lav-ink">スワイプで決める</h3>
+        <p class="mt-1.5 text-sm text-clay-lav-soft">左で削除、右でキープ。選んだ内容はすべて確認リストに入り、実際に削除する前に見直せます。</p>
+      </li>
+      <li class="rounded-2xl bg-clay-mint p-6" data-reveal>
+        <div class="flex items-center gap-3">
+          <svg aria-hidden="true" focusable="false" width="40" height="40" viewBox="0 0 40 40" fill="none" class="text-clay-mint-ink"><path d="M26 4l2.2 5.3L33.5 11.5l-5.3 2.2L26 19l-2.2-5.3L18.5 11.5l5.3-2.2L26 4z" fill="currentColor" opacity=".3"/><path d="M11 24l5 5 11-12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p aria-hidden="true" class="font-display text-5xl font-semibold leading-none text-clay-mint-ink">3</p>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-mint-ink">まとめて一掃</h3>
+        <p class="mt-1.5 text-sm text-clay-mint-soft">一度確認すれば容量が戻ります。削除した写真は「最近削除した項目」に30日間残ります。</p>
+      </li>
+    </ol>
+
+    <!-- The single screenshot for this section -->
+    <figure class="mt-12 flex flex-col items-center">
+      <div class="w-52 max-w-full overflow-hidden rounded-2xl border border-hairline bg-surface-card shadow-card">
+        <picture>
+          <source srcset="/assets/img/screenshots/05-swipe-session-768.avif" type="image/avif">
+          <img src="/assets/img/screenshots/05-swipe-session-768.webp" alt="フォトカードが1枚表示され、下に削除とキープのボタンがある TidyByte のスワイプ画面。" width="387" height="839" loading="lazy" decoding="async" class="block h-auto w-full">
+        </picture>
+      </div>
+      <figcaption class="muted mt-3 text-center text-xs">進行中のスワイプ &mdash; 1枚の写真、1つの判断。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 02 · Cleanup toolkit -->
+<section id="features" class="section scroll-mt-24 pt-0 sm:pt-0">
+  <div class="container-prose">
+    <div class="grid items-center gap-10 lg:grid-cols-[1fr_auto]" data-reveal>
+      <div class="max-w-2xl">
+        <p class="eyebrow">02 &mdash; 整理ツール</p>
+        <h2 class="h-section mt-3">あらゆるムダを、ひとつずつ。</h2>
+        <p class="lede mt-4">12 の整理ツールに、容量の内訳、整理履歴、端末内 AI 検索 &mdash; すべて端末上で動きます。どれか1つをタップすると使い方がわかります。</p>
+      </div>
+      <svg aria-hidden="true" focusable="false" width="320" height="240" viewBox="0 0 320 240" fill="none" class="hidden w-full max-w-[320px] lg:block">
+        <rect x="88" y="118" width="46" height="32" rx="6" fill="#a4d4c5" transform="rotate(-8 111 134)"/>
+        <rect x="128" y="112" width="46" height="32" rx="6" fill="#fffaf0" transform="rotate(5 151 128)"/>
+        <rect x="60" y="30" width="40" height="52" rx="8" fill="#b8a4ed" transform="rotate(-14 80 56)"/>
+        <rect x="130" y="20" width="40" height="52" rx="8" fill="#ffb084" transform="rotate(6 150 46)"/>
+        <rect x="196" y="34" width="40" height="52" rx="8" fill="#a4d4c5" transform="rotate(14 216 60)"/>
+        <path d="M124 158a36 20 0 0 1 72 0" stroke="#4a1425" stroke-width="7" stroke-linecap="round"/>
+        <rect x="86" y="112" width="148" height="42" rx="11" fill="#ff7aa2" transform="rotate(-18 160 133)"/>
+        <rect x="90" y="150" width="140" height="58" rx="13" fill="#ff4d8b"/>
+        <rect x="146" y="142" width="28" height="16" rx="4" fill="#fffaf0"/>
+        <path d="M262 78l-24 90" stroke="#b8a4ed" stroke-width="7" stroke-linecap="round"/>
+        <ellipse cx="232" cy="184" rx="25" ry="15" fill="#e8b94a"/>
+        <rect x="213" y="170" width="38" height="11" rx="5.5" fill="#fffaf0" opacity=".85"/>
+        <path d="M52 178l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#ffb084"/>
+        <path d="M286 118l2 4.8 4.8 2-4.8 2-2 4.8-2-4.8-4.8-2 4.8-2z" fill="#a4d4c5"/>
+        <circle cx="205" cy="222" r="3" fill="#e8b94a" opacity=".7"/>
+        <circle cx="222" cy="230" r="2.2" fill="#ff7aa2" opacity=".7"/>
+        <circle cx="243" cy="224" r="2.6" fill="#a4d4c5" opacity=".7"/>
+      </svg>
+    </div>
+
+    <ul class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-reveal-group>
+      <li data-reveal>
+        <a href="/duplicate-photo-cleaner" class="group block h-full rounded-3xl bg-clay-pink p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-pink"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-pink-ink">重複写真</h3>
+        <p class="mt-1 text-sm text-clay-pink-soft">完全なコピーを1バイト単位で検出。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/similar-photo-cleaner" class="group block h-full rounded-3xl bg-clay-teal p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-teal"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="9" height="9" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="12" y="3" width="9" height="9" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="7.5" y="12" width="9" height="9" rx="2"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-cream">似た写真</h3>
+        <p class="mt-1 text-sm text-clay-mint">ほぼ同じ写真をまとめる。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/screenshot-cleaner" class="group block h-full rounded-3xl bg-clay-lav p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-lav"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="currentColor" opacity=".25" stroke="none"/><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M9 18h6"/><circle cx="12" cy="7" r="2"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-lav-ink">スクリーンショット</h3>
+        <p class="mt-1 text-sm text-clay-lav-soft">まとめて集めて、一気に一掃。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/blurry-photo-cleaner" class="group block h-full rounded-3xl bg-clay-peach p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-peach"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="6" fill="currentColor" opacity=".25" stroke="none"/><path d="M12 3c-3.5 4-6 6.5-6 10a6 6 0 0 0 12 0c0-3.5-2.5-6-6-10Z"/><path d="M4 4l16 16"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-peach-ink">ぶれた写真</h3>
+        <p class="mt-1 text-sm text-clay-peach-soft">ピントの甘い写真や手ぶれ写真を見つける。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/large-file-cleaner" class="group block h-full rounded-3xl bg-clay-ochre p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-ochre"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" fill="currentColor" opacity=".25" stroke="none"/><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-ochre-ink">大きいファイル</h3>
+        <p class="mt-1 text-sm text-clay-ochre-soft">容量を最も食うファイルを表示。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/burst-photo-cleaner" class="group block h-full rounded-3xl bg-clay-mint p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-mint"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="15" height="18" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="3" y="5" width="14" height="4" rx="1.5"/><rect x="5" y="11" width="14" height="4" rx="1.5"/><rect x="7" y="17" width="14" height="4" rx="1.5"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-mint-ink">連写写真</h3>
+        <p class="mt-1 text-sm text-clay-mint-soft">連写からベストな1枚を選ぶ。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/live-photo-converter" class="group block h-full rounded-3xl bg-clay-rose p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-rose"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5" fill="currentColor" opacity=".25" stroke="none"/><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-rose-ink">Live Photos</h3>
+        <p class="mt-1 text-sm text-clay-rose-soft">静止画に変換して容量を節約。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/video-compression" class="group block h-full rounded-3xl bg-clay-teal p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-teal"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16"/><path d="M17 4v16"/><path d="M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-cream">動画圧縮</h3>
+        <p class="mt-1 text-sm text-clay-mint">動画を小さく、見られる画質のまま。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/image-compression" class="group block h-full rounded-3xl bg-clay-lav p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-lav"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="1.5"/><path d="M3 17l5-5 4 4 3-3 6 6"/><path d="M14 8l3-3M17 5h-3M17 5v3"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-lav-ink">写真圧縮</h3>
+        <p class="mt-1 text-sm text-clay-lav-soft">写真を再エンコードして容量を取り戻す。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/photo-organizer" class="group block h-full rounded-3xl bg-clay-peach p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-peach"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5" fill="currentColor" opacity=".25" stroke="none"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5" fill="currentColor" opacity=".25" stroke="none"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-peach-ink">スマートカテゴリ</h3>
+        <p class="mt-1 text-sm text-clay-peach-soft">内容の種類で並べ替えて、すばやく見る。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/storage-cleaner" class="group block h-full rounded-3xl bg-clay-ochre p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-ochre"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12V3a9 9 0 0 1 8.6 11.6L12 12z" fill="currentColor" opacity=".25" stroke="none"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-ochre-ink">容量の内訳</h3>
+        <p class="mt-1 text-sm text-clay-ochre-soft">ライブラリを種類別に示したドーナツグラフと、大きいファイルの一覧。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/storage-cleaner" class="group block h-full rounded-3xl bg-clay-mint p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-mint"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8" fill="currentColor" opacity=".25" stroke="none"/><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-mint-ink">整理履歴</h3>
+        <p class="mt-1 text-sm text-clay-mint-soft">すべての削除と圧縮の判断を端末内に記録し、あとから確認できます。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/screen-recording-cleaner" class="group block h-full rounded-3xl bg-clay-rose p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-rose"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2" fill="currentColor" opacity=".25" stroke="none"/><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M10 8.5l4.5 2.5L10 13.5z" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-rose-ink">画面収録</h3>
+        <p class="mt-1 text-sm text-clay-rose-soft">誰も撮ったことを覚えていない、いちばん大きいファイル。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/chat-media-cleaner" class="group block h-full rounded-3xl bg-clay-teal p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-teal"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" fill="currentColor" opacity=".25" stroke="none"/><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/><circle cx="11" cy="11" r="1.5"/><path d="M7.5 16l3-3.5 2.5 3 2-2.5 2.5 3"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-cream">チャットメディア</h3>
+        <p class="mt-1 text-sm text-clay-mint">WhatsApp と Telegram が保存したデータを一掃。</p>
+        </a>
+      </li>
+      <li data-reveal>
+        <a href="/on-device-ai-photo-search" class="group block h-full rounded-3xl bg-clay-pink p-6 transition hover:-translate-y-0.5 hover:shadow-pop">
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-clay-pink"><svg aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6z" fill="currentColor" opacity=".3" stroke="none"/><path d="M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6z"/><path d="M18 14l.9 2.4L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.6z"/></svg></span>
+        <h3 class="mt-4 font-display text-lg font-semibold text-clay-pink-ink">AI 写真検索</h3>
+        <p class="mt-1 text-sm text-clay-pink-soft">ふつうの言葉で写真を説明すれば、端末内で見つかります。</p>
+        </a>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 03 · Storage dashboard -->
+<section id="storage" class="section scroll-mt-24 pt-0">
+  <div class="container-prose grid items-center gap-12 md:grid-cols-2">
+    <div data-reveal>
+      <p class="eyebrow">03 &mdash; ストレージダッシュボード</p>
+      <h2 class="h-section mt-3">何が容量を使っているかを、正確に。</h2>
+      <p class="lede mt-4">容量の内訳をリアルタイムで示すドーナツグラフ &mdash; 写真、動画、スクリーンショット、Live Photos、その他。スライスをタップすると、解放できる項目まで掘り下げられます。</p>
+      <div class="mt-8 flex flex-wrap items-center gap-8" data-reveal>
+        <div class="relative w-40 flex-none">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 120 120" fill="none" class="block w-full -rotate-90">
+            <circle cx="60" cy="60" r="40" stroke="#e5e5e5" stroke-width="20" class="dark:stroke-[#2a2a2a]" opacity=".35"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#0A84FF" stroke-width="20" style="--seg-len: 103.6"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#AF52DE" stroke-width="20" style="--seg-len: 58.3" stroke-dashoffset="-105.6"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#FFCC00" stroke-width="20" style="--seg-len: 38.2" stroke-dashoffset="-165.9"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#30B0C7" stroke-width="20" style="--seg-len: 25.6" stroke-dashoffset="-206.1"/>
+            <circle class="donut-seg" cx="60" cy="60" r="40" stroke="#8E8E93" stroke-width="20" style="--seg-len: 15.6" stroke-dashoffset="-233.7"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <p class="font-display text-xl font-medium text-ink">64 GB</p>
+            <p class="text-[11px] text-muted">写真ライブラリ</p>
+          </div>
+        </div>
+        <ul class="space-y-2 text-sm text-body" role="list">
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-photo"></span>Photos</li>
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-video"></span>動画</li>
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-screenshot"></span>スクリーンショット</li>
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-live"></span>Live Photos</li>
+          <li class="flex items-center gap-3"><span aria-hidden="true" class="h-2.5 w-2.5 rounded-full bg-brand-other"></span>その他</li>
+        </ul>
+      </div>
+      <p class="mt-6 text-sm text-body"><strong>アクティビティ &amp; 削減量</strong> すべてを記録します：整理した内容、30日間のグラフ、解放した合計容量。ホーム画面ウィジェットと Siri ショートカットから、そのまま整理を始められます。</p>
+    </div>
+    <div class="relative mx-auto w-full max-w-[340px]" data-reveal>
+      <div aria-hidden="true" class="absolute -inset-6 -z-10 rounded-[2.5rem] bg-clay-peach/25 blur-2xl"></div>
+      <div class="overflow-hidden rounded-[2rem] border-[6px] border-white bg-white shadow-pop">
+        <picture>
+          <source srcset="/assets/img/screenshots/03-storage-dashboard-768.avif 768w, /assets/img/screenshots/03-storage-dashboard.avif 1206w" sizes="(max-width: 768px) 90vw, 340px" type="image/avif">
+          <img src="/assets/img/screenshots/03-storage-dashboard-768.webp" srcset="/assets/img/screenshots/03-storage-dashboard-768.webp 768w, /assets/img/screenshots/03-storage-dashboard.webp 1206w" sizes="(max-width: 768px) 90vw, 340px" alt="写真、動画、スクリーンショット、Live Photos、その他のドーナツグラフを表示した TidyByte のストレージダッシュボード。" width="387" height="839" loading="lazy" decoding="async" class="block w-full">
+        </picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 · Privacy -->
+<section class="section pt-0">
+  <div class="container-prose">
+    <div class="relative overflow-hidden rounded-[2rem] bg-clay-teal p-8 sm:p-12" data-reveal>
+      <div class="grid items-center gap-10 md:grid-cols-[1.05fr_0.95fr]">
+        <div>
+          <p class="eyebrow-on-dark">04 &mdash; プライバシー</p>
+          <h2 class="h-section-on-dark mt-3">写真は端末から出ていきません。</h2>
+          <ul class="mt-6 space-y-4 text-sm sm:text-base text-clay-cream/90">
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-clay-mint text-clay-teal">
+                <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+              </span>
+              処理はすべて Apple の Vision と Photos フレームワークを使い、端末内で行われます。
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-clay-mint text-clay-teal">
+                <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+              </span>
+              解析 SDK もバックエンドも第三者スクリプトもトラッキングもありません &mdash; どこにも。
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-clay-mint text-clay-teal">
+                <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg>
+              </span>
+              私たちはあなたの写真を見られません。見たいとも思いません。
+            </li>
+          </ul>
+          <p class="mt-7">
+            <a href="/privacy" class="btn-on-color">プライバシーポリシーを読む</a>
+          </p>
+        </div>
+        <div class="relative mx-auto w-full max-w-[360px]">
+          <picture>
+            <source srcset="/assets/img/illustrations/privacy-vault.avif" type="image/avif">
+            <img src="/assets/img/illustrations/privacy-vault.webp" alt="笑顔のフォトカードを守る、ティール色の金庫のクレイ風イラスト。" width="1152" height="864" loading="lazy" decoding="async" class="block h-auto w-full">
+          </picture>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 · Open source -->
+<section id="open-source" class="section scroll-mt-24 pt-0">
+  <div class="container-prose">
+    <div class="rounded-[2rem] border border-hairline bg-surface-dark p-8 text-center sm:p-12" data-reveal>
+      <p class="eyebrow-on-dark">05 &mdash; オープンソース</p>
+      <h2 class="h-section-on-dark mx-auto mt-3 max-w-2xl">写真に触れるコードを、すべて読めます。</h2>
+      <p class="mx-auto mt-4 max-w-xl text-base text-clay-cream/70 sm:text-lg">TidyByte は MIT ライセンスです。ソースを読み、説明を検証し、issue を立ててください。</p>
+      <p class="mt-7">
+        <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="btn-on-color">
+          <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.74 5.49.74 11.76c0 4.96 3.22 9.16 7.68 10.65.56.1.77-.24.77-.55v-1.93c-3.12.68-3.78-1.5-3.78-1.5-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.23.71-1.51-2.49-.28-5.12-1.25-5.12-5.55 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15.9-.25 1.86-.38 2.82-.39.96.01 1.92.14 2.82.39 2.15-1.45 3.1-1.15 3.1-1.15.61 1.55.23 2.7.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.31-2.64 5.27-5.15 5.54.4.34.76 1.02.76 2.06v3.05c0 .31.2.66.78.55 4.46-1.49 7.67-5.69 7.67-10.65C23.26 5.49 18.27.5 12 .5Z"/></svg>
+          GitHub で見る &rarr;
+        </a>
+      </p>
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 360 200" fill="none" class="mx-auto mt-10 w-full max-w-sm">
+        <g transform="rotate(-9 116 120)">
+          <rect x="70" y="62" width="88" height="114" rx="12" fill="#fffaf0" opacity=".92"/>
+          <rect x="82" y="74" width="64" height="48" rx="8" fill="#a4d4c5"/>
+          <circle cx="95" cy="87" r="5" fill="#ff4d8b"/>
+          <rect x="82" y="132" width="48" height="7" rx="3.5" fill="#1a3a3a" opacity=".18"/>
+          <rect x="82" y="146" width="34" height="7" rx="3.5" fill="#1a3a3a" opacity=".12"/>
+        </g>
+        <g transform="rotate(6 226 120)">
+          <rect x="182" y="58" width="88" height="114" rx="12" fill="#fffaf0"/>
+          <rect x="194" y="70" width="64" height="48" rx="8" fill="#ffb084"/>
+          <circle cx="207" cy="83" r="5" fill="#1a3a3a"/>
+          <rect x="194" y="128" width="48" height="7" rx="3.5" fill="#1a3a3a" opacity=".18"/>
+          <rect x="194" y="142" width="34" height="7" rx="3.5" fill="#1a3a3a" opacity=".12"/>
+        </g>
+        <circle cx="204" cy="102" r="42" fill="#a4d4c5" opacity=".14"/>
+        <circle cx="204" cy="102" r="42" stroke="#a4d4c5" stroke-width="9"/>
+        <path d="M234 134l24 24" stroke="#a4d4c5" stroke-width="12" stroke-linecap="round"/>
+        <path d="M296 52l-14 12 14 12M322 52l14 12-14 12M313 46l-9 36" stroke="#fffaf0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+        <path d="M56 34l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#ff7aa2"/>
+        <path d="M330 150l2 4.8 4.8 2-4.8 2-2 4.8-2-4.8-4.8-2 4.8-2z" fill="#a4d4c5"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 06 · FAQ -->
+<section id="faq" class="section scroll-mt-24 pt-0">
+  <div class="container-prose">
+    <div class="max-w-2xl" data-reveal>
+      <p class="eyebrow">06 &mdash; よくある質問</p>
+      <h2 class="h-section mt-3">よくある質問。</h2>
+    </div>
+
+    <div data-faq-accordion class="mx-auto mt-10 max-w-3xl space-y-3" data-reveal>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>TidyByte は写真をアップロードしますか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">いいえ。処理はすべてお使いの iPhone 上で、Apple の Photos と Vision フレームワークを使ってローカルに行われます &mdash; 解析 SDK もバックエンドもトラッキングもありません。</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>iCloud にしかない写真はどうなりますか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">TidyByte は iCloud にしかない項目も含めて、ライブラリ全体を扱えます。必要に応じてシステムがダウンロードしますし、待たずに次へスワイプしてもかまいません。</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>削除した写真はすぐに消えますか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">iOS の「最近削除した項目」に入り、30日間そのまま残ってから完全に削除されます &mdash; Photos アプリから削除したときとまったく同じです。</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>写真の画質は落ちますか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">写真の元データに手を触れる整理ツールはありません。再エンコードするのは、自分で選んだ動画圧縮と写真圧縮だけです。プリセットも自分で決められます。</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>重複はどうやって検出しますか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">完全な重複はファイルデータの SHA-256 ハッシュで照合します。似た写真は Apple Vision の特徴量プリントで、見た目の近い写真を探します。</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>無料トライアルやサブスクはありますか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">TidyByte は無料で、アプリ内課金もペイウォールもありません。すべての機能を誰でも使えます。詳しくは <a href="/free-photo-cleaner-no-subscription" class="link">サブスク型の写真整理アプリとの比較をご覧ください</a>.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>TidyByte は iPad に対応していますか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">はい。TidyByte は iPhone と iPad でネイティブに動くユニバーサルアプリです。どの整理ツールも両方で使え、スワイプ画面は iPad の広い画面に合わせて表示され、iPad はすべての向きに対応します。</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>TidyByte は iPhone Duo で使えますか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">はい。同じアプリが iPhone、iPad、iPhone Duo で動作し、スワイプ画面は設定なしで iPhone Duo の外側と内側のディスプレイに合わせて表示されます。どの整理ツールも両方のディスプレイ向けに作られています。</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>不具合の報告や機能の要望はどうすればいいですか？</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">不具合や要望は <a href="https://github.com/360ghar/snap-clean-ios" target="_blank" rel="noopener" class="link">GitHub</a> で Issue を作成するか、 <a href="/support" class="link">サポート</a> ページのお問い合わせフォームをご利用ください。</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- TidyByte for Mac. No section number: it is the second product, not a
+     step of this one. The window bleeds off the panel's end and bottom edges
+     on purpose; the text sits clear of that cut. -->
+<section class="section-tight pt-0" aria-labelledby="home-mac">
+  <div class="container-prose">
+    <div class="overflow-hidden rounded-[2rem] border border-hairline bg-surface-dark">
+      <div class="px-8 pt-8 sm:px-12 sm:pt-12">
+        <h2 id="home-mac" class="h-section-on-dark max-w-xl">TidyByte が Mac に登場しました。</h2>
+        <p class="mt-4 max-w-xl text-base text-clay-cream/75 sm:text-lg">キャッシュ、開発用ファイル、重複ファイル、アプリの残りを見つけます。iPhone と同じく、承認するまで何も移動しません。</p>
+        <p class="mt-7"><a href="/mac" class="btn-on-color">TidyByte for Mac を見る</a></p>
+      </div>
+      <div class="mt-10 ps-8 sm:mt-12 sm:ps-24 lg:ps-44">
+        <picture>
+          <source srcset="/assets/img/mac/01-overview-1200.avif 1200w, /assets/img/mac/01-overview.avif 2400w" sizes="(max-width: 1120px) 100vw, 1000px" type="image/avif">
+          <img src="/assets/img/mac/01-overview-1200.webp" srcset="/assets/img/mac/01-overview-1200.webp 1200w, /assets/img/mac/01-overview.webp 2400w" sizes="(max-width: 1120px) 100vw, 1000px" alt="TidyByte for Mac の概要画面。起動ディスクの使用量とゴミ箱を表示しています。" width="1200" height="800" loading="lazy" decoding="async" class="-mb-16 block w-[118%] max-w-none sm:-mb-24">
+        </picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA -->
+<section class="section-tight">
+  <div class="container-prose">
+    <div class="relative overflow-hidden rounded-[2rem] bg-surface-soft p-8 text-center sm:p-12" data-reveal>
+      <div class="relative z-10 mx-auto max-w-xl">
+        <p class="eyebrow">07 &mdash; アプリを入手</p>
+        <h2 class="h-display mt-3">数分でライブラリを整理。</h2>
+        <p class="lede mt-4">作るアカウントも、管理するサブスクもありません。スワイプを1回ずつ進めるだけ。</p>
+        <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+          <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary" target="_blank" rel="noopener">
+            <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+            TidyByte を無料でダウンロード
+          </a>
+          <a href="/#how-it-works" class="btn-ghost">使い方を見る</a>
+        </div>
+      </div>
+      <svg aria-hidden="true" focusable="false" width="120" height="72" viewBox="0 0 120 72" fill="none" class="absolute end-8 top-8 hidden sm:block">
+        <path d="M24 14l3.5 8.5L36 26l-8.5 3.5L24 38l-3.5-8.5L12 26l8.5-3.5z" fill="#ff7aa2" opacity=".9"/>
+        <path d="M78 8l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#a4d4c5" opacity=".9"/>
+        <path d="M96 44l2 4.8 4.8 2-4.8 2-2 4.8-2-4.8-4.8-2 4.8-2z" fill="#e8b94a" opacity=".9"/>
+      </svg>
+      <picture aria-hidden="true">
+        <source srcset="/assets/img/illustrations/cta-hills.avif" type="image/avif">
+        <img src="/assets/img/illustrations/cta-hills.webp" alt="" width="1400" height="600" loading="lazy" decoding="async" class="pointer-events-none mt-10 block w-full select-none opacity-90">
+      </picture>
+    </div>
+  </div>
+</section>
+  </main>

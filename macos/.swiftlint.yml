@@ -1,0 +1,90 @@
+# SwiftLint configuration for Tidybyte. CI runs --strict against
+# .swiftlint-baseline.json, so only new violations fail the build.
+
+# Rules
+disabled_rules:
+  - trailing_whitespace
+  - todo
+  # NOTE (2026-10-31 review): force_try/force_cast are disabled because the
+  # codebase contains a small number of deliberate forces on compile-time
+  # constants. force_unwrap stays ENFORCED (a default rule), and new code must
+  # still avoid all three per AGENTS.md; the Mac CI lint job (macos.yml)
+  # enforces everything else against the baseline.
+  - force_try
+  - force_cast
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - contains_over_first_not_nil
+  - fatal_error_message
+  - first_where
+  - implicitly_unwrapped_optional
+  - modifier_order
+  - overridden_super_call
+  - prohibited_super_call
+  - redundant_nil_coalescing
+  - sorted_first_last
+  - unowned_variable_capture
+  - vertical_parameter_alignment_on_call
+  - yoda_condition
+
+# Included paths — tests are linted too
+included:
+  - Sources
+  - Tests
+
+# Excluded paths
+excluded:
+  - Sources/MacOSCleanerAppKit/Resources
+
+# Line length
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+# Type body length
+type_body_length:
+  warning: 300
+  error: 500
+
+# File length
+file_length:
+  warning: 500
+  error: 1000
+  ignore_comment_only_lines: true
+
+# Function body length
+function_body_length:
+  warning: 50
+  error: 100
+
+# Type name
+type_name:
+  min_length: 3
+  max_length: 50
+
+# Variable name
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 60
+    error: 80
+  excluded:
+    - id
+    - i
+    - x
+    - y
+    - z
+
+# Nesting
+nesting:
+  type_level: 3
+  function_level: 5
+
+# Reporter
+reporter: "xcode"

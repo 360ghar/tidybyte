@@ -13,10 +13,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The iOS app lives in ios/. Both jobs here are required checks on main, so
+  # they run on every pull request, including Mac-only ones; the Mac app has its
+  # own workflow, macos.yml.
   build-and-test:
     runs-on: macos-15
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    defaults:
+      run:
+        working-directory: ios
     steps:
       - uses: actions/checkout@v4
 
@@ -127,22 +133,6 @@ jobs:
       - name: Validate App Store listings
         run: node scripts/localization/check-listings.mjs --strict
 
-      # The localized landing pages are generated from the English page, so a
-      # translation edit that nobody rebuilt is a page still showing English
-      # under a `lang` attribute that claims otherwise. Regenerating and
-      # diffing catches it the same way the catalog gate does.
-      #
-      # The builder also fails outright when an English string has no
-      # translation, which is the stronger check of the two.
-      - name: Verify localized landing pages are current
-        run: |
-          node scripts/localization/site/extract-site-strings.mjs
-          node scripts/localization/site/build-site-translations.mjs
-          git diff --exit-code -- \
-            src/content/pages/ \
-            scripts/localization/site/site-strings.json \
-            scripts/localization/site/site-meta.json
-
       - name: Test
         run: |
           xcrun simctl bootstatus "$SIMULATOR_ID" -b
@@ -157,8 +147,12 @@ jobs:
       # growth.yml, which runs only when their inputs change. Here they added
       # about 6 minutes to every run.
 
+  # The marketing site lives in website/.
   site:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
     steps:
       - uses: actions/checkout@v4
 
@@ -166,8 +160,25 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: website/package-lock.json
 
       - run: npm ci
+
+      # The localized landing pages are generated from the English page, so a
+      # translation edit that nobody rebuilt is a page still showing English
+      # under a `lang` attribute that claims otherwise. Regenerating and
+      # diffing catches it the same way the iOS catalog gate does.
+      #
+      # The builder also fails outright when an English string has no
+      # translation, which is the stronger check of the two.
+      - name: Verify localized landing pages are current
+        run: |
+          node scripts/localization/site/extract-site-strings.mjs
+          node scripts/localization/site/build-site-translations.mjs
+          git diff --exit-code -- \
+            src/content/pages/ \
+            scripts/localization/site/site-strings.json \
+            scripts/localization/site/site-meta.json
 
       # Builds all 87 pages, then audits them: title and description budgets,
       # duplicate titles, hreflang parity, per-page `lang` and `dir`, sitemap
@@ -184,6 +195,8 @@ jobs:
       # device — screen size, idiom, orientation — instead of the window looks
       # fine in one pose and breaks in the next. The compiler says nothing about
       # that, so this static scan fails the build on the banned patterns. It reads
-      # Swift sources only and has no macOS dependencies, so it runs here.
+      # Swift sources only and has no macOS dependencies, so it runs here, on the
+      # cheaper Linux runner. It needs no npm packages.
       - name: Guard against non-resizable layout patterns
+        working-directory: ios
         run: npm run check:duo

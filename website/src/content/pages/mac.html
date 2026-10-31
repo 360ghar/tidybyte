@@ -1,0 +1,247 @@
+  <main id="main">
+<!-- Hero. One action, then the real app. The screen switcher is radio inputs
+     and CSS only (see .mac-views in src/input.css). Only the overview image
+     exists, so there are no tabs yet. Add the radios, tabs and figures back
+     with the 02-04 images. -->
+<section class="pb-12 pt-14 sm:pb-16 sm:pt-20">
+  <div class="container-prose">
+    <header class="mx-auto max-w-4xl text-center">
+      <h1 class="h-display">A Mac cleaner that asks first.</h1>
+      <p class="lede mx-auto mt-5 max-w-2xl">TidyByte for Mac finds caches, developer files, duplicates, old downloads, and app leftovers. You see each item and why it matched. Nothing moves until you approve it.</p>
+      <div class="mt-8 flex flex-col items-center gap-3">
+        <a href="https://github.com/360ghar/tidybyte/releases/download/mac-v1.0.0/Tidybyte-1.0.0.dmg" class="btn-primary px-6 py-3 text-base">
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+          Download for Mac
+        </a>
+        <p class="text-sm text-muted">Free &middot; macOS 26 or later &middot; Apple silicon &middot; Version 1.0.0</p>
+      </div>
+    </header>
+
+    <fieldset class="mac-views mt-14 sm:mt-16">
+      <legend class="sr-only">Screen</legend>
+      <input type="radio" name="mac-view" id="mac-view-overview" class="sr-only" checked>
+
+      <div class="mac-views__panels">
+        <figure data-view="overview">
+          <picture>
+            <source srcset="/assets/img/mac/01-overview-1200.avif 1200w, /assets/img/mac/01-overview.avif 2400w" sizes="(max-width: 1120px) 94vw, 1060px" type="image/avif">
+            <img src="/assets/img/mac/01-overview-1200.webp" srcset="/assets/img/mac/01-overview-1200.webp 1200w, /assets/img/mac/01-overview.webp 2400w" sizes="(max-width: 1120px) 94vw, 1060px" alt="TidyByte for Mac Overview: startup disk use, Trash size, and what each area can free." width="1200" height="800" loading="eager" fetchpriority="high" decoding="async">
+          </picture>
+          <figcaption>Overview shows the startup disk, the Trash, and what each area can free.</figcaption>
+        </figure>
+      </div>
+    </fieldset>
+
+    <div class="mx-auto max-w-3xl">
+      <!-- quick-answer -->
+    </div>
+  </div>
+</section>
+
+<!-- What it checks: the app's own sidebar groups, in the app's order. -->
+<section class="section pt-4 sm:pt-8" aria-labelledby="mac-areas">
+  <div class="container-prose">
+    <h2 id="mac-areas" class="h-section max-w-2xl">What it checks</h2>
+    <p class="lede mt-4 max-w-2xl">Every area is a list you can review. Each item shows its size, why it matched, and how sure the match is.</p>
+
+    <div class="mt-12 grid gap-12 lg:grid-cols-3 lg:gap-10">
+      <div>
+        <h3 class="font-display text-xl font-medium text-ink">Clean</h3>
+        <dl class="mt-5 space-y-6">
+          <div>
+            <dt class="font-semibold text-ink">System Junk</dt>
+            <dd class="muted mt-1">Caches, logs, and browser data that apps rebuild.</dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-ink">Developer</dt>
+            <dd class="muted mt-1"><code>node_modules</code>, build folders, Xcode DerivedData, old Device Support, and unused simulators. Homebrew, npm, pip, pnpm, and Docker are cleaned with each tool&rsquo;s own command.</dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-ink">Large &amp; Old Files</dt>
+            <dd class="muted mt-1">Large files, old downloads, and installers (<code>.dmg</code>, <code>.pkg</code>, <code>.xip</code>, <code>.iso</code>) older than 30 days.</dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-ink">Duplicates</dt>
+            <dd class="muted mt-1">Exact copies, checked with SHA-256. Merge them into APFS clones to save space with no delete, or move the extras to the Trash.</dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-ink">Photos &amp; Media</dt>
+            <dd class="muted mt-1">Similar shots, blurry photos, bursts, screenshots, and large videos in your folders and your Photos library. Review them one at a time with Swipe Review.</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div>
+        <h3 class="font-display text-xl font-medium text-ink">Apps</h3>
+        <dl class="mt-5 space-y-6">
+          <div>
+            <dt class="font-semibold text-ink">Applications</dt>
+            <dd class="muted mt-1">Remove an app with its settings, caches, containers, launch agents, and helpers.</dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-ink">Leftovers</dt>
+            <dd class="muted mt-1">Data from apps you already deleted. An item counts only if no installed app from the same developer owns it and nothing in it changed for 30 days.</dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-ink">Login Items</dt>
+            <dd class="muted mt-1">Agents and daemons that start with your Mac. Items whose program is missing are marked.</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div>
+        <h3 class="font-display text-xl font-medium text-ink">Insights</h3>
+        <dl class="mt-5 space-y-6">
+          <div>
+            <dt class="font-semibold text-ink">Space Explorer</dt>
+            <dd class="muted mt-1">Nine views of your files: list, folders, sunburst, flame, bubbles, mind map, top sizes, age map, and treemap.</dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-ink">Changes</dt>
+            <dd class="muted mt-1">A storage forecast, a comparison of two scans, and the Photos &amp; Media trend.</dd>
+          </div>
+          <div>
+            <dt class="font-semibold text-ink">History</dt>
+            <dd class="muted mt-1">Every change, with Restore where the operation supports it.</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Safety model -->
+<section class="section pt-0" aria-labelledby="mac-safety">
+  <div class="container-prose">
+    <div class="rounded-[2rem] bg-surface-dark p-8 sm:p-12">
+      <h2 id="mac-safety" class="h-section-on-dark max-w-2xl">Seven rules it never breaks</h2>
+      <dl class="mt-10 grid gap-x-12 gap-y-8 md:grid-cols-2">
+        <div>
+          <dt class="font-display text-lg font-medium text-clay-cream">Approval is its own step.</dt>
+          <dd class="mt-1.5 text-clay-cream/75">Selecting a row does not approve it. Every run goes through one confirmation sheet that lists the count for each area.</dd>
+        </div>
+        <div>
+          <dt class="font-display text-lg font-medium text-clay-cream">The Trash comes first.</dt>
+          <dd class="mt-1.5 text-clay-cream/75">Files go to the Trash, and Photos items go to Recently Deleted. Empty Trash is the only permanent command, and it asks first.</dd>
+        </div>
+        <div>
+          <dt class="font-display text-lg font-medium text-clay-cream">Each file is checked twice.</dt>
+          <dd class="mt-1.5 text-clay-cream/75">Just before a file changes, TidyByte checks its device, inode, size, and modification time again.</dd>
+        </div>
+        <div>
+          <dt class="font-display text-lg font-medium text-clay-cream">Some paths are never touched.</dt>
+          <dd class="mt-1.5 text-clay-cream/75">Keychains, certificates and keys, provisioning profiles, <code>.ssh</code>, <code>.gnupg</code>, source code, system paths, Xcode UserData, and simulator devices.</dd>
+        </div>
+        <div>
+          <dt class="font-display text-lg font-medium text-clay-cream">Sizes are honest.</dt>
+          <dd class="mt-1.5 text-clay-cream/75">A hard link or an APFS clone that shares its blocks frees nothing alone, and the estimate says so.</dd>
+        </div>
+        <div>
+          <dt class="font-display text-lg font-medium text-clay-cream">Tool cleanups say they are final.</dt>
+          <dd class="mt-1.5 text-clay-cream/75">Package-manager and simulator cleanups run the tool&rsquo;s own command and cannot be undone. Simulator cleanup waits until Simulator and Xcode quit.</dd>
+        </div>
+        <div>
+          <dt class="font-display text-lg font-medium text-clay-cream">Unattended runs never delete.</dt>
+          <dd class="mt-1.5 text-clay-cream/75">Automatic maintenance only merges exact duplicates into clones.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- Permissions -->
+<section class="section pt-0" aria-labelledby="mac-permissions">
+  <div class="container-prose">
+    <h2 id="mac-permissions" class="h-section max-w-2xl">What it asks for</h2>
+    <p class="lede mt-4 max-w-2xl">Every permission is optional. Without one, TidyByte skips that area and says so.</p>
+    <div class="mt-10 overflow-x-auto">
+      <table class="w-full min-w-[36rem] text-start text-sm sm:text-base">
+        <thead>
+          <tr class="border-b border-hairline-strong text-ink">
+            <th scope="col" class="py-3 pe-6 text-start font-semibold">Permission</th>
+            <th scope="col" class="py-3 pe-6 text-start font-semibold">Why</th>
+            <th scope="col" class="py-3 text-start font-semibold">Without it</th>
+          </tr>
+        </thead>
+        <tbody class="text-body">
+          <tr class="border-b border-hairline">
+            <th scope="row" class="py-4 pe-6 text-start align-top font-semibold text-ink">Full Disk Access</th>
+            <td class="py-4 pe-6 align-top">Read Mail, Safari, and other apps&rsquo; caches and containers.</td>
+            <td class="py-4 align-top">Those areas are skipped, and their sizes show as Unknown.</td>
+          </tr>
+          <tr class="border-b border-hairline">
+            <th scope="row" class="py-4 pe-6 text-start align-top font-semibold text-ink">Photos</th>
+            <td class="py-4 pe-6 align-top">Find similar, blurry, and large items in the Photos library.</td>
+            <td class="py-4 align-top">Photos &amp; Media covers your folders only.</td>
+          </tr>
+          <tr>
+            <th scope="row" class="py-4 pe-6 text-start align-top font-semibold text-ink">Notifications</th>
+            <td class="py-4 pe-6 align-top">Scan reminders, and an offer to clean up after you delete an app.</td>
+            <td class="py-4 align-top">No notifications.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="questions" class="section scroll-mt-24 pt-0" aria-labelledby="mac-faq">
+  <div class="container-prose">
+    <h2 id="mac-faq" class="h-section max-w-2xl">Questions</h2>
+    <div data-faq-accordion class="mt-10 max-w-3xl space-y-3">
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>Is TidyByte for Mac free?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">Yes. It is free and open source under the MIT license, with no ads, accounts, or subscriptions.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>Is anything sent over the network?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">No, unless you turn on an AI provider in Settings, under AI &amp; Privacy. The default is local only. Update checks contact the update feed.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>Why is there no button to free up RAM?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">macOS manages memory better than an app can. TidyByte shows memory use and pressure in the menu bar, and it does not purge memory.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>Why do some sizes say Unknown?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">TidyByte could not read that location, usually because Full Disk Access is off. It does not guess.</p>
+      </details>
+      <details class="clay-card group p-5 sm:p-6">
+        <summary class="faq-summary">
+          <span>How do I install and update it?</span>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="faq-chev"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <p class="muted mt-4">Open the disk image and drag TidyByte to Applications. The app is signed and notarized by Apple. It updates itself, and Check for Updates in the app menu checks now.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- Closing: the other platform and the source. -->
+<section class="section-tight pt-0">
+  <div class="container-prose">
+    <div class="flex flex-col items-start gap-5 rounded-[2rem] bg-surface-soft p-8 sm:flex-row sm:items-center sm:justify-between sm:p-10">
+      <div class="max-w-xl">
+        <h2 class="font-display text-2xl font-medium text-ink sm:text-3xl">Also on iPhone and iPad.</h2>
+        <p class="muted mt-2">Swipe through your photo library to keep or delete. Same rule: nothing goes until you say so. The source for both apps is on <a href="https://github.com/360ghar/tidybyte" target="_blank" rel="noopener" class="link">GitHub</a>.</p>
+      </div>
+      <a href="https://apps.apple.com/in/app/tidybyte/id6775769763" class="btn-primary shrink-0" target="_blank" rel="noopener">
+        <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.05-.81.87-2.14 1.55-3.23 1.46-.14-1.1.4-2.25 1.16-3.04.85-.89 2.29-1.55 3.28-1.47Zm3.61 16.04c-.6 1.39-1.31 2.62-2.18 3.66-1.13 1.39-2.46 3.05-4.25 3.07-1.7.02-2.14-.99-4.46-.99-2.32 0-2.8 1.01-4.5.99-1.79-.02-3.15-1.6-4.28-2.99-2.6-3.2-4.59-9.05-1.92-12.99 1.32-1.95 3.69-3.18 6.25-3.22 1.78-.04 3.46 1.05 4.55 1.05 1.08 0 3.13-1.3 5.28-1.11.9.04 3.43.36 5.05 2.71-.13.08-3.02 1.76-2.99 5.25.04 4.17 3.66 5.55 3.45 5.57Z"/></svg>
+        Get it on the App Store
+      </a>
+    </div>
+  </div>
+</section>
+  </main>

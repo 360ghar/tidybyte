@@ -1,124 +1,28 @@
 # TidyByte
 
 [![CI](https://github.com/360ghar/tidybyte/actions/workflows/ci.yml/badge.svg)](https://github.com/360ghar/tidybyte/actions/workflows/ci.yml)
+[![Mac app](https://github.com/360ghar/tidybyte/actions/workflows/macos.yml/badge.svg)](https://github.com/360ghar/tidybyte/actions/workflows/macos.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/in/app/tidybyte/id6775769763)
 
-A native iOS app that helps users clean up their photo library. Core UX is a Tinder-style swipe interface for reviewing media.
+TidyByte finds space you can reclaim and removes it only after you approve.
+Everything runs on your device. This repository holds every part of it.
 
-- **Swift/SwiftUI**, iOS 17+, iPhone (portrait) + iPad + iPhone Duo
-- **No backend** — all processing on-device
-- **No third-party dependencies** — Apple frameworks only
-- MVVM + Actors + SwiftData architecture
-- **21 languages** (including RTL) across the app, the App Store listing, the
-  site, and the Siri phrases
+| Folder | Product | Built with | Get it |
+|---|---|---|---|
+| [`ios/`](ios/) | TidyByte for iPhone and iPad. Swipe through the photo library to keep or delete, and clean duplicates, screenshots, and large videos. | Swift, SwiftUI, iOS 17+ | [App Store](https://apps.apple.com/in/app/tidybyte/id6775769763) |
+| [`macos/`](macos/) | Tidybyte for Mac. Caches, developer files, large and old files, duplicates, and apps with their leftovers. Files go to the Trash, and History can restore them. | Swift 6, SwiftPM, macOS 26+ | [Download the DMG](https://github.com/360ghar/tidybyte/releases/download/mac-v1.0.0/Tidybyte-1.0.0.dmg) |
+| [`website/`](website/) | The marketing site, in 21 languages. | Astro, Tailwind | [tidybyte.360ghar.com](https://tidybyte.360ghar.com) |
 
-## Screenshots
-
-Captured by `npm run screenshots`, which drives the simulator and writes both
-required App Store device classes with alpha stripped.
-
-<p align="center">
-  <img src="docs/screenshots/iphone/01-swipe-home.png" width="19%" />
-  <img src="docs/screenshots/iphone/02-cleanup-tools.png" width="19%" />
-  <img src="docs/screenshots/iphone/06-storage-dashboard.png" width="19%" />
-  <img src="docs/screenshots/ipad/01-swipe-home.png" width="19%" />
-  <img src="docs/screenshots/ipad/06-storage-dashboard.png" width="19%" />
-</p>
-
-The flat `docs/screenshots/*.png` files are legacy, carry an alpha channel that
-App Store Connect rejects, and must not be uploaded.
-
-## Features
-
-- Swipe-based photo review (keep/delete)
-- Duplicate & similar photo detection (SHA-256 + Vision feature prints)
-- Blurry photo detection
-- Screenshot, burst, and Live Photo cleanup
-- Large file finder
-- Video compression
-- Storage dashboard
-- Activity & savings history (lifetime space freed, 30-day chart, per-tool breakdown)
-- Home Screen widget with interactive Swipe / Screenshots buttons, plus Siri and Shortcuts intents
-
-## Requirements
-
-- Xcode 26+ (required for App Store builds; runtime supports iOS 17+)
-- iOS 17+ device (photo library operations require a physical device)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-
-## Build & Run
+Each folder builds on its own. Run its commands from inside it:
 
 ```bash
-# Generate Xcode project from project.yml
-xcodegen generate
-
-# Build and test on any installed iPhone simulator
-# (list them with: xcrun simctl list devices available)
-xcodebuild build -project Tidybyte.xcodeproj -scheme Tidybyte \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO
-xcodebuild test -project Tidybyte.xcodeproj -scheme Tidybyte \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO
+(cd ios && xcodegen generate && npm ci)      # then see ios/README.md
+(cd macos && swift build && swift test)      # see macos/README.md
+(cd website && npm ci && npm run dev)        # http://localhost:4321
 ```
 
-To run on your own iPhone, see
-[Run on your own iPhone](CONTRIBUTING.md#run-on-your-own-iphone).
-
-## Project Structure
-
-```
-Tidybyte/
-├── App/           # @main entry + RootView (TabView)
-├── Models/        # SwiftData models + DTOs
-├── Services/      # Actor-based services
-├── Features/      # Feature modules (Swipe, Cleanup, Storage, Settings)
-└── Shared/        # Reusable components, extensions, utilities
-```
-
-Configuration lives in `project.yml` (XcodeGen). The `.xcodeproj` is generated and not checked into version control.
-
-## Localization
-
-The app, the App Store listing, the marketing site, and the Siri phrases are all
-translated into 21 languages. Two String Catalogs, and they are not
-interchangeable:
-
-| Catalog | Serves |
-|---|---|
-| `Tidybyte/Resources/Localizable.xcstrings` | everything the app draws |
-| `Tidybyte/Resources/AppShortcuts.xcstrings` | the Siri phrases, which App Intents looks up in a table named `AppShortcuts` |
-
-A Siri phrase put in the app catalog instead is never read, and the app catalog
-still reports 100% coverage. That mistake shipped once.
-
-```bash
-./scripts/localization/refresh.sh        # rebuild both catalogs from source
-node scripts/localization/extract.mjs --check   # find text that never reaches a catalog
-node scripts/localization/check.mjs --strict    # coverage, placeholders, plural categories
-```
-
-`refresh.sh` is deterministic — running it twice produces byte-identical files,
-which is what makes the CI gate a `git diff --exit-code`. See
-[`scripts/localization/README.md`](scripts/localization/README.md) for the
-pipeline and the bug classes each scan exists to catch.
-
-## Growth & marketing assets
-
-App Store creatives for In-App Events, Custom Product Pages, the Asset Library,
-Product Page Optimization, and the header/search surfaces — 357 images across 21
-languages.
-
-```bash
-npm run growth          # render every asset for every language
-npm run check:growth    # validate sizes, alpha, coverage, blank renders
-npm run screenshots     # capture iPhone + iPad screenshots
-```
-
-Background art is generated with AI and is deliberately text-free; the text layer
-is rendered by Chromium from the app's own translated strings, because Apple
-requires asset text localized for every supported language and a diffusion model
-cannot render 20 scripts reliably. See
-[`docs/growth/README.md`](docs/growth/README.md).
+Releases: iOS tags are `v*` (for example `v1.1.3`), and Mac tags are `mac-v*`
+(for example `mac-v1.0.0`).
 
 ## Contributing
 
@@ -146,4 +50,5 @@ space, you can support its development:
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file
+for details.

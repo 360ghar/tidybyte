@@ -1,0 +1,171 @@
+import AVFoundation
+import AppKit
+import CryptoKit
+import Foundation
+import os
+import ImageIO
+@preconcurrency import Vision
+
+/// Stateless fingerprinting. All methods are `nonisolated` (the type is a
+/// stateless enum-style namespace) so callers can run many hashes concurrently
+/// without serializing through an actor — hashing is the scan's hot path.
+public enum FingerprintService {
+    private static let chunkSize = 64 * 1024
+
+    public static func quickHash(for url: URL, sizeBytes: Int64) throws -> String {
+        guard sizeBytes > 0 else {
+            return "empty"
+        }
+        let handle = try FileHandle(forReadingFrom: url)
+        defer {
+            try? handle.close()
+        }
+
+        var hasher = SHA256()
+        let offsets = offsetsForQuickHash(sizeBytes: sizeBytes)
+        for offset in offsets {
+            try handle.seek(toOffset: UInt64(offset))
+            // FileHandle autoreleases what it reads. Hash workers run many files with no
+            // suspension point, so without a pool per chunk the buffers piled up: 3.4 GB
+            // of them during one full-home scan.
+            try autoreleasepool {
+                let data = try handle.read(upToCount: chunkSize) ?? Data()
+                hasher.update(data: data)
+            }
+        }
+        hasher.update(data: Data(String(sizeBytes).utf8))
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    public static func fullHash(for url: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer {
+            try? handle.close()
+        }
+
+        var hasher = SHA256()
+        while true {
+            // Cooperative cancellation: stop reading promptly when the scan is cancelled.
+            if Task.isCancelled {
+                throw CancellationError()
+            }
+            // One pool per 1 MB chunk: a 2 GB file otherwise held all 2 GB until the end.
+            let done = try autoreleasepool {
+                let data = try handle.read(upToCount: 1024 * 1024) ?? Data()
+                hasher.update(data: data)
+                return data.isEmpty
+            }
+            if done {
+                break
+            }
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func offsetsForQuickHash(sizeBytes: Int64) -> [Int64] {
+        if sizeBytes <= Int64(chunkSize * 3) {
+            return [0]
+        }
+        let middle = max(0, (sizeBytes / 2) - Int64(chunkSize / 2))
+        let end = max(0, sizeBytes - Int64(chunkSize))
+        return [0, middle, end]
+    }
+
+    public static func perceptualHash(for url: URL) async -> String? {
+        guard let cgImage = await decodeCGImage(from: url) else {
+            return nil
+        }
+
+        return await withCheckedContinuation { continuation in
+            // Resume exactly once: a Vision failure can surface both through
+            // the request completion and through perform() throwing, and a
+            // double resume of a CheckedContinuation traps at runtime.
+            let resumed = OSAllocatedUnfairLock(initialState: false)
+            func resumeOnce(_ value: String?) {
+                let first = resumed.withLock { flag -> Bool in
+                    let wasFirst = !flag
+                    flag = true
+                    return wasFirst
+                }
+                if first {
+                    continuation.resume(returning: value)
+                }
+            }
+            let request = VNGenerateImageFeaturePrintRequest { request, error in
+                guard error == nil,
+                      let result = request.results?.first as? VNFeaturePrintObservation else {
+                    resumeOnce(nil)
+                    return
+                }
+                // Use the raw feature print data, not the NSKeyedArchiver encoding.
+                // The archiver output includes a variable-length plist header, making the
+                // first N bytes depend on encoding metadata rather than the image content.
+                let data = result.data
+                let hash = SHA256.hash(data: data)
+                resumeOnce(hash.map { String(format: "%02x", $0) }.joined())
+            }
+
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            do {
+                try handler.perform([request])
+            } catch {
+                resumeOnce(nil)
+            }
+        }
+    }
+
+    /// Decodes a CGImage from a file URL on the cooperative thread pool
+    /// (CGImageSource operations are thread-safe).
+    private static func decodeCGImage(from url: URL) async -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return nil
+        }
+        // Feature prints are resolution-tolerant, so cap the decode at 2048px:
+        // a 100MP photo decoded at full resolution materializes ~400MB of RGBA
+        // per worker, and the near-duplicate pass decodes 4 images at a time
+        // over whole photo libraries.
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 2048,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    }
+
+    /// Feature print of an image, for DISTANCE comparison between two images
+    /// (near-duplicate detection). `nil` when the image cannot be decoded or
+    /// Vision cannot produce a print.
+    public static func featurePrint(for url: URL) async -> ImageFeaturePrint? {
+        guard let cgImage = await decodeCGImage(from: url) else {
+            return nil
+        }
+        return await withCheckedContinuation { continuation in
+            // Resume exactly once (see perceptualHash).
+            let resumed = OSAllocatedUnfairLock(initialState: false)
+            func resumeOnce(_ value: ImageFeaturePrint?) {
+                let first = resumed.withLock { flag -> Bool in
+                    let wasFirst = !flag
+                    flag = true
+                    return wasFirst
+                }
+                if first {
+                    continuation.resume(returning: value)
+                }
+            }
+            let request = VNGenerateImageFeaturePrintRequest { request, error in
+                guard error == nil,
+                      let result = request.results?.first as? VNFeaturePrintObservation else {
+                    resumeOnce(nil)
+                    return
+                }
+                resumeOnce(ImageFeaturePrint(observation: result))
+            }
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            do {
+                try handler.perform([request])
+            } catch {
+                resumeOnce(nil)
+            }
+        }
+    }
+}

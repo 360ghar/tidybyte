@@ -1,0 +1,79 @@
+project: Tidybyte for Mac
+imagemagick: true
+environments:
+  local:
+    url: local
+    restrictions: []
+
+default_target: local
+
+auth:
+  method: none
+  provider: none
+
+personas:
+  - name: local_user
+    description: 'Single local macOS user running the desktop app with default settings'
+    email: null
+    credentials_source: none
+    test_focus:
+      - onboarding
+      - scanning
+      - action review
+      - execution
+      - undo
+      - natural language commands
+      - settings
+      - report generation
+      - menu bar
+      - dashboard/visualizations
+      - keyboard shortcuts
+      - execute variants
+      - empty states
+      - scan cancellation
+      - filters
+      - NL edge cases
+      - settings data
+      - sidebar
+      - onboarding provider
+      - notifications
+      - cross-flow regression
+      - package managers
+      - undo details
+      - error paths
+    cannot_do: []
+
+apps:
+  desktop:
+    path_patterns:
+      - macos/Sources/MacOSCleanerAppKit/**
+      - macos/Sources/MacOSCleanerCore/**
+      - macos/Package.swift
+      - macos/Tests/**
+    skill: qa-desktop
+    test_tool: agent-browser
+    build_command: 'cd macos && swift build'
+
+feature_flags:
+  provider: none
+  dashboard_url: null
+  how_to_override: null
+
+integrations:
+  ai_provider:
+    provider: openai-compatible
+    note: 'Optional BYOK AI key stored in macOS Keychain. Not required for QA (local-only mode works without it).'
+
+cleanup:
+  auto_cleanup: false
+  strategy: manual_teardown
+  instructions: >-
+    Several flows run REAL, irreversible actions on the machine: package-manager
+    cleanup (brew/docker/pnpm/simctl) executes the actual tool commands, file
+    flows trash real user files, and Clear All Data permanently deletes the app
+    database. Run QA only on a disposable test machine (or a dedicated test
+    user account), and after the run empty the Trash, reinstall any removed
+    tools' caches, and relaunch a fresh app copy. Do not run these flows on a
+    machine with data you cannot lose.
+
+failure_learning: suggest_in_report

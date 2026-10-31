@@ -18,5 +18,6 @@
 
 - [ ] New user-facing text goes through a String Catalog, and the CI localization checks pass.
 - [ ] No new third-party dependency, network call, or analytics.
-- [ ] Layout changes checked on iPad, or on iPhone Duo if the change touches window size.
+- [ ] iOS: layout changes checked on iPad, or on iPhone Duo if the change touches window size.
+- [ ] Mac: `swift test` and `swiftlint lint --strict --baseline .swiftlint-baseline.json` pass in `macos/`.
 - [ ] Tests added or updated for logic changes.

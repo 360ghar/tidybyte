@@ -1,0 +1,29 @@
+phase: complete
+categories:
+  default_target:
+    answer: Local build (swift build, test the app locally)
+  personas:
+    answer: No roles needed -- test as single local user
+  critical_flows:
+    answer: All 9 flows confirmed (onboarding, scan, review, approve/reject, execute, undo, NL command, settings, report)
+    flows:
+      - onboarding
+      - scan
+      - review_actions_why_panel
+      - approve_reject_always_never
+      - execute_actions
+      - undo
+      - natural_language_command
+      - settings
+      - report_generation
+  external_services:
+    answer: Only optional BYOK OpenAI-compatible API
+  cleanup:
+    answer: Not applicable (tests use temp directories)
+  imagemagick:
+    answer: true (detected at /opt/homebrew/bin/magick)
+  github_actions:
+    answer: Yes, generate QA workflow
+    enforcement: Optional (informational only)
+  failure_learning:
+    answer: suggest_in_report
