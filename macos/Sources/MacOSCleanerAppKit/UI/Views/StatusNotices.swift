@@ -9,6 +9,7 @@ struct StatusNotices: View {
     private var hasNotice: Bool {
         model.errorMessage != nil || model.fullDiskAccessHint != nil || model.isUsingTempDatabase
             || model.cleanup.error != nil || model.cleanup.notice != nil
+            || !model.activeScanNotices.isEmpty
     }
 
     var body: some View {
@@ -28,6 +29,14 @@ struct StatusNotices: View {
                     notice(hint, symbol: "lock.shield", tint: SemanticScale.warning) {
                         Button(String(localized: "Open Privacy Settings")) { PermissionLinks.openFullDiskAccess() }
                         Button(String(localized: "Dismiss")) { model.dismissFullDiskAccessHint() }
+                    }
+                }
+                // Scan diagnostics: locations the scan could not read, sections
+                // it had to skip. An empty review must be distinguishable from
+                // a scan that could not see everything.
+                ForEach(model.activeScanNotices) { scanNotice in
+                    notice(scanNotice.message, symbol: "eye.trianglebadge.exclamationmark", tint: SemanticScale.warning) {
+                        Button(String(localized: "Dismiss")) { model.dismissScanNotice(scanNotice.id) }
                     }
                 }
                 if let notice = model.cleanup.notice {

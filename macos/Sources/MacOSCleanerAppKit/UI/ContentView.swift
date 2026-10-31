@@ -25,6 +25,20 @@ struct ContentView: View {
                 .inspector(isPresented: $model.showsInspector) {
                     inspectorContent.inspectorColumnWidth(min: 280, ideal: Spacing.detailPanelWidth, max: 400)
                 }
+                .overlay(alignment: .bottom) {
+                    // The model computes a scan summary (duration, candidates,
+                    // errors) and retires it after 6 seconds; this renders it.
+                    if model.showScanSummaryToast, let summary = model.activeScanSummary {
+                        Text(summary)
+                            .font(.callout)
+                            .padding(.horizontal, Spacing.elementNormal)
+                            .padding(.vertical, Spacing.elementTight)
+                            .background(.regularMaterial, in: Capsule())
+                            .overlay(Capsule().strokeBorder(.separator))
+                            .padding(.bottom, Spacing.elementNormal)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
         }
         .toolbar { toolbar }
         .sheet(isPresented: $model.showsScanSetup) { ScanSetupView(model: model) }

@@ -41,11 +41,12 @@ public actor ReportGenerator {
             .joined(separator: "\n")
 
         let riskyRejected = plan.actions.filter { $0.risk >= .high }.count
+        let status = reportStatusLines(outcome: outcome)
         return String(localized: """
         Tidybyte Cleanup Session Report
 
         Scan started: \(outcome.session.startedAt.formatted())
-        Scan completed: \(outcome.session.completedAt?.formatted() ?? String(localized: "Not completed", comment: "Placeholder for missing completion time"))
+        \(status.completion)
         Files reviewed: \(outcome.session.totalFilesSeen)
         Bytes scanned: \(outcome.session.totalBytesSeen.formattedByteCount)
         Proposed actions: \(plan.actions.count)
@@ -53,9 +54,12 @@ public actor ReportGenerator {
         Duplicate findings: \(outcome.findings.filter { $0.category == .duplicate }.count)
         Developer artifact findings: \(outcome.findings.filter { $0.category == .developerArtifact }.count)
         High-risk recommendations (require explicit confirmation before execution): \(riskyRejected)
+        \(status.unreadable)
 
         Top categories
         \(topCategories)
+
+        \(status.notices)
 
         Summary
         \(plan.summary)
@@ -63,6 +67,40 @@ public actor ReportGenerator {
         Safety posture
         Files are moved to Trash or organized with reversible records where possible. Package-manager and Docker actions are marked not fully undoable.
         """, comment: "Cleanup session report body")
+    }
+
+    /// Report header lines: completion state, unreadable count, and notices.
+    private struct ReportStatus {
+        let completion: String
+        let unreadable: String
+        let notices: String
+    }
+
+    /// Completion state and diagnostics for the report. Split out of
+    /// `reportText` to keep its body under the function-length limit.
+    private func reportStatusLines(outcome: ScanOutcome) -> ReportStatus {
+        let completedAt = outcome.session.completedAt?.formatted()
+            ?? String(localized: "Not completed", comment: "Placeholder for missing completion time")
+        let completion = outcome.wasCancelled || outcome.session.status == .cancelled
+            ? String(
+                localized: "Scan stopped early: \(completedAt). These results cover only the locations scanned before the stop.",
+                comment: "Report line for a scan the person stopped before it finished")
+            : String(
+                localized: "Scan completed: \(completedAt)",
+                comment: "Report line for a completed scan")
+        // An empty report section reads as "clean"; say what the scan could not
+        // see instead, matching the notices the app shows in Review.
+        let unreadable = outcome.session.errorsCount > 0
+            ? String(
+                localized: "Locations that could not be read: \(outcome.session.errorsCount)",
+                comment: "Report line counting locations the scan could not read")
+            : ""
+        let notices = outcome.notices.isEmpty
+            ? ""
+            : String(
+                localized: "Scan notices\n\(outcome.notices.map(\.message).joined(separator: "\n"))",
+                comment: "Report section listing diagnostics for a scan")
+        return ReportStatus(completion: completion, unreadable: unreadable, notices: notices)
     }
 
     private func writePDF(text: String, to url: URL) throws {

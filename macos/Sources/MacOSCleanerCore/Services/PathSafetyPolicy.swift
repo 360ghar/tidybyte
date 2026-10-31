@@ -146,6 +146,19 @@ public struct PathSafetyPolicy: Sendable {
         !record.riskFlags.intersection(Self.allProtectionFlags).isEmpty
     }
 
+    /// Analyze-time gate for records the crawler already flagged. Same rules
+    /// as `decide(target:)` without the filesystem round-trips: the crawler
+    /// computed `riskFlags` for the standardized path, and the never-delete
+    /// containment check is plain string work. `decide` still guards every
+    /// execution (`SafetyAuditor`) with full symlink resolution, so a path
+    /// that reaches a protected location only through a symlink ancestor is
+    /// stopped before anything is deleted.
+    public func allowsCleanupTarget(_ record: FileRecord) -> Bool {
+        guard !isProtectedFromCleanup(record) else { return false }
+        let folder = record.url.standardizedFileURL.path.lowercased() + "/"
+        return !Self.protectedFolders.contains { $0.hasPrefix(folder) }
+    }
+
     public func isProtectedFromCleanup(url: URL, isDirectory: Bool) -> Bool {
         let flags = riskFlags(for: url, isDirectory: isDirectory)
         return !flags.intersection(Self.allProtectionFlags).isEmpty

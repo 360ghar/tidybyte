@@ -195,8 +195,20 @@ struct OverviewView: View {
             LabeledContent(
                 String(localized: "Size checked"),
                 value: outcome.session.totalBytesSeen.formattedByteCount)
+            if outcome.session.errorsCount > 0 {
+                LabeledContent(
+                    String(localized: "Could not read"),
+                    value: outcome.session.errorsCount.formatted())
+            }
             if let completed = outcome.session.completedAt {
                 LabeledContent(String(localized: "Finished"), value: completed.formatted(.relative(presentation: .named)))
+            }
+            if outcome.wasCancelled {
+                Label(
+                    String(localized: "Scan stopped early — results cover only what was scanned so far.",
+                           comment: "Latest Scan note for a cancelled scan kept as partial results"),
+                    systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(SemanticScale.warning)
             }
             HStack {
                 Button(String(localized: "Export Report…")) { Task { await model.generateReport() } }

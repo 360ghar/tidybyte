@@ -8,6 +8,11 @@ import os
 /// with an extension. Finder tags, owners, and type names are read later,
 /// only for the items a person inspects.
 ///
+/// A `Library` folder among the work units is expanded: its direct children
+/// become the parallel work units. Crawled as one folder it would be a single
+/// synchronous job at the end of the scan, and it is the largest tree on most
+/// Macs.
+///
 /// Memory stays bounded. Bulk folders that no review lists file by file
 /// (version control, dependency, build, and tool-cache trees) become one
 /// record each that carries the total size of their contents, and after
@@ -15,6 +20,17 @@ import os
 /// every further loose file is folded into the size of its folder. Only files
 /// of `largeFileBytes` or more keep a record past the budget.
 public actor FileCrawler {
+    /// Crawl progress snapshot relayed to the orchestrator while the crawl runs.
+    public struct CrawlProgress: Sendable, Equatable {
+        public var itemsSeen: Int
+        public var currentFolderName: String?
+
+        public init(itemsSeen: Int, currentFolderName: String? = nil) {
+            self.itemsSeen = itemsSeen
+            self.currentFolderName = currentFolderName
+        }
+    }
+
     private let fileManager: FileManager
     private let policy: PathSafetyPolicy
     private let maxRecords: Int
@@ -24,6 +40,9 @@ public actor FileCrawler {
     /// Files this large always get a record of their own, even past the record
     /// budget and inside summarized folders, so the large-file review sees them.
     public static let largeFileBytes: Int64 = 1_000_000_000
+    /// How often a parallel folder task flushes its item count to the shared
+    /// progress counter, keeping the lock off the per-item hot path.
+    static let progressBatchSize = 64
     private static let logger = Logger(subsystem: AppIdentity.bundleIdentifier, category: "FileCrawler")
 
     public init(
@@ -36,29 +55,63 @@ public actor FileCrawler {
         self.maxRecords = maxRecords
     }
 
-    public func crawl(rootURLs: [URL], sessionID: String) async -> ([FileRecord], Int) {
+    public func crawl(
+        rootURLs: [URL],
+        sessionID: String,
+        progress: (@Sendable (CrawlProgress) async -> Void)? = nil
+    ) async -> ([FileRecord], Int) {
         var records: [FileRecord] = []
         var errors = 0
-        var folders: [URL] = []
+        var folders: [(url: URL, tier: Int)] = []
         let closed = FullDiskAccess.closedAppDataFolders()
-        for root in rootURLs {
+        let policy = policy
+        // Expanding a Library folder records its direct children, so the
+        // recursion is bounded: a Library inside a Library is expanded once
+        // more at most, and deeper ones stay ordinary work units.
+        func expand(_ root: URL, depth: Int, childTier: Int?) {
             let expansion = Self.expandRoot(root, sessionID: sessionID, policy: policy, closed: closed)
             records += expansion.records
             errors += expansion.errors
-            folders += expansion.folders
+            for folder in expansion.folders {
+                let tier = childTier ?? Self.crawlOrder(folder)
+                if tier == Self.lastCrawlTier, depth < 2 {
+                    expand(folder, depth: depth + 1, childTier: tier)
+                } else {
+                    folders.append((folder, tier))
+                }
+            }
+        }
+        for root in rootURLs {
+            expand(root, depth: 0, childTier: nil)
         }
         // Personal folders first, then dot-folders, then ~/Library. Each tier
         // finishes before the next starts, so if the record budget runs out, it
-        // runs out where per-file detail matters least.
-        let policy = policy
+        // runs out where per-file detail matters least. Work units carry the
+        // tier they were created with: a Library's children keep tier 2 even
+        // though their own names would sort them earlier.
         let budget = RecordBudget(limit: maxRecords, used: records.count)
+        let counter = CrawlCounter()
+        // The crawl loop is synchronous, so a watcher relays the shared
+        // counter to the async sink on a fixed interval instead.
+        let watcher = progress.map { notify in
+            Task.detached(priority: .utility) {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    if Task.isCancelled { break }
+                    await notify(counter.snapshot())
+                }
+            }
+        }
+        defer { watcher?.cancel() }
         for tier in 0...Self.lastCrawlTier {
             await withTaskGroup(of: ([FileRecord], Int).self) { group in
-                var pending = folders.filter { Self.crawlOrder($0) == tier }[...]
+                var pending = folders.filter { $0.tier == tier }[...]
                 func addNext() {
                     guard let folder = pending.popFirst() else { return }
                     group.addTask {
-                        Self.crawlFolder(folder, sessionID: sessionID, policy: policy, closed: closed, budget: budget)
+                        Self.crawlFolder(
+                            folder.url, sessionID: sessionID, policy: policy, closed: closed,
+                            budget: budget, counter: counter)
                     }
                 }
                 for _ in 0..<Self.maxParallelFolders { addNext() }
@@ -72,6 +125,9 @@ public actor FileCrawler {
         if budget.isSpent {
             Self.logger.warning("Crawl reached \(self.maxRecords) records; later folders are summarized as one record each.")
         }
+        // One final snapshot so the sink ends on the crawl's true totals even
+        // when the whole crawl finished inside the watcher's interval.
+        await progress?(counter.snapshot())
         // Sorted in place: a sorted copy would hold every record twice at the peak.
         records.sort { $0.displayPath < $1.displayPath }
         return (records, errors)
@@ -111,6 +167,31 @@ public actor FileCrawler {
         }
 
         var isSpent: Bool { state.withLock { $0 >= limit } }
+    }
+
+    /// Progress shared by the parallel folder tasks. Each task batches its
+    /// increments (`progressBatchSize`), so the lock is touched a few hundred
+    /// times per folder instead of once per item.
+    final class CrawlCounter: Sendable {
+        private let state: OSAllocatedUnfairLock<(items: Int, folder: String?)>
+
+        init() {
+            state = OSAllocatedUnfairLock(initialState: (0, nil))
+        }
+
+        /// Adds `count` items and, when non-nil, updates the folder the crawl
+        /// is currently inside. A zero count updates only the folder.
+        func add(_ count: Int, folderName: String?) {
+            state.withLock { value in
+                value.items += count
+                if let folderName { value.folder = folderName }
+            }
+        }
+
+        func snapshot() -> CrawlProgress {
+            let (items, folder) = state.withLock { ($0.items, $0.folder) }
+            return CrawlProgress(itemsSeen: items, currentFolderName: folder)
+        }
     }
 
     /// Records the root and its direct non-folder children; returns the child
@@ -160,10 +241,13 @@ public actor FileCrawler {
 
     /// The folder itself plus everything below it, packages not descended.
     private static func crawlFolder(
-        _ folder: URL, sessionID: String, policy: PathSafetyPolicy, closed: Set<String>, budget: RecordBudget
+        _ folder: URL, sessionID: String, policy: PathSafetyPolicy, closed: Set<String>,
+        budget: RecordBudget, counter: CrawlCounter
     ) -> ([FileRecord], Int) {
         var output: [FileRecord] = []
         var errors = 0
+        let folderName = folder.lastPathComponent
+        counter.add(0, folderName: folderName)
         if let record = makeRecord(for: folder, sessionID: sessionID, policy: policy) {
             // The budget may be spent before this folder starts; it then costs one record.
             guard budget.take(), !rollsUp(folder) else {
@@ -185,12 +269,19 @@ public actor FileCrawler {
         // Loose files past the budget: their bytes and count, by parent folder.
         var overflow: [String: (bytes: Int64, items: Int)] = [:]
         var finished = false
+        var batch = 0
         while !finished {
             autoreleasepool {
-                // Cooperative cancellation: the orchestrator discards partial results.
+                // Cooperative cancellation: stop enumerating here; the caller
+                // keeps the records collected so far.
                 guard !Task.isCancelled, let url = enumerator.nextObject() as? URL else {
                     finished = true
                     return
+                }
+                batch += 1
+                if batch >= progressBatchSize {
+                    counter.add(batch, folderName: nil)
+                    batch = 0
                 }
                 let skipped = policy.shouldSkipTraversal(of: url) || closed.contains(url.path)
                 if skipped { enumerator.skipDescendants() }
@@ -207,6 +298,7 @@ public actor FileCrawler {
                     let summary = rolledUp(record, sessionID: sessionID, policy: policy, closed: closed)
                     output += summary.records
                     errors += summary.errors
+                    counter.add(1 + (summary.records.first?.rolledUpItemCount ?? 0), folderName: nil)
                     return
                 }
                 if record.kind == .directory, !skipped, !withinBudget || rollsUp(url) {
@@ -214,6 +306,7 @@ public actor FileCrawler {
                     let summary = rolledUp(record, sessionID: sessionID, policy: policy, closed: closed)
                     output += summary.records
                     errors += summary.errors
+                    counter.add(1 + (summary.records.first?.rolledUpItemCount ?? 0), folderName: nil)
                 } else if withinBudget || record.kind == .directory
                     || (record.kind == .regularFile && record.sizeBytes >= largeFileBytes) {
                     output.append(record)
@@ -224,6 +317,7 @@ public actor FileCrawler {
                 }
             }
         }
+        if batch > 0 { counter.add(batch, folderName: nil) }
         foldOverflow(overflow, into: &output)
         return (output, errors)
     }

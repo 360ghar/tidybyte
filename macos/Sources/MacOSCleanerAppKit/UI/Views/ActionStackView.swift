@@ -21,10 +21,23 @@ struct ActionStackView: View {
                             ? String(localized: "Not scanned yet") : String(localized: "Nothing to clean here"),
                         systemImage: model.destination.icon)
                 } description: {
-                    Text(
-                        model.outcome == nil
-                            ? String(localized: "Scan to find cleanup opportunities.")
-                            : String(localized: "The latest scan found nothing in this area."))
+                    VStack(spacing: Spacing.elementTight) {
+                        Text(
+                            model.outcome == nil
+                                ? String(localized: "Scan to find cleanup opportunities.")
+                                : String(localized: "The latest scan found nothing in this area."))
+                        // An empty area is only "clean" if the scan could see
+                        // everything; unreadable locations say so here.
+                        if let errors = model.outcome?.session.errorsCount, errors > 0 {
+                            Text(errors == 1
+                                ? String(localized: "1 location could not be read during the scan.",
+                                         comment: "Empty-state crawl-error note, singular")
+                                : String(localized: "\(errors) locations could not be read during the scan.",
+                                         comment: "Empty-state crawl-error note, plural"))
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 } actions: {
                     if model.outcome == nil {
                         Button(String(localized: "Scan My Mac")) { model.scanAll() }

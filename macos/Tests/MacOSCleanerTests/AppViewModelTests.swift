@@ -379,7 +379,13 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertTrue(model.statusMessage.contains("Cancelling"))
         _ = await waitUntil(timeout: 10) { !model.isScanning && !model.statusMessage.contains("Cancelling") || !model.isScanning }
         XCTAssertFalse(model.isScanning)
-        XCTAssertEqual(model.statusMessage, "Scan cancelled.")
+        // A stopped scan keeps what it found so far instead of discarding it:
+        // ~/Library is crawled last, so a discarded cancelled scan always
+        // looked like an empty Mac.
+        XCTAssertEqual(model.statusMessage, "Scan stopped early — showing what was found so far.")
+        XCTAssertNotNil(model.outcome)
+        XCTAssertTrue(model.outcome?.wasCancelled == true)
+        XCTAssertNotNil(model.plan)
 
         // When the user starts a new scan after cancelling (SP-29/H-01 regression:
         // a cancelled scan's stale task must not repaint or clobber the new scan)

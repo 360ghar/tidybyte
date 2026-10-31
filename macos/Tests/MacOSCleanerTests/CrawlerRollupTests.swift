@@ -90,6 +90,53 @@ final class CrawlerRollupTests: XCTestCase {
         XCTAssertEqual(ExploreSubtreeIndex.totals(files: files)[root.appendingPathComponent("Library/Caches").path], 540)
     }
 
+    /// A `Library` work unit is expanded so its direct children crawl in
+    /// parallel (it used to be one synchronous job at the end of the scan).
+    /// Coverage and sizes must be identical to the single-job crawl.
+    func testLibraryFolderIsExpandedWithTheSameCoverageAndSizes() async throws {
+        try write("Library/Preview/one.pdf", bytes: 100)
+        try write("Library/Caches/com.example.client/entry.bin", bytes: 200)
+        try write("Library/Caches/com.example.client/nested/deep.bin", bytes: 40)
+        try write("Library/Application Support/SomeApp/data.db", bytes: 50)
+        try write("Documents/note.txt", bytes: 10)
+
+        let files = await crawl()
+
+        XCTAssertNotNil(record(files, at: "Library"))
+        XCTAssertNotNil(record(files, at: "Library/Preview"))
+        XCTAssertNotNil(record(files, at: "Library/Preview/one.pdf"))
+        let entry = try XCTUnwrap(record(files, at: "Library/Caches/com.example.client"))
+        XCTAssertEqual(entry.rolledUpItemCount, 3, "entry.bin, nested, and deep.bin — one record per cache entry")
+        XCTAssertEqual(entry.sizeBytes, 240)
+        XCTAssertNil(record(files, at: "Library/Caches/com.example.client/entry.bin"))
+        XCTAssertNotNil(record(files, at: "Library/Application Support/SomeApp/data.db"))
+        XCTAssertNotNil(record(files, at: "Documents/note.txt"))
+    }
+
+    /// The crawl reports a final progress snapshot with the true item total.
+    func testCrawlReportsFinalProgressSnapshot() async throws {
+        try write("Bulk/one.bin", bytes: 10)
+        try write("Bulk/two.bin", bytes: 20)
+
+        // The sink is @Sendable, so the last snapshot crosses concurrency
+        // domains through a locked box.
+        final class ProgressBox: @unchecked Sendable {
+            private let lock = NSLock()
+            private var stored: FileCrawler.CrawlProgress?
+            var value: FileCrawler.CrawlProgress? {
+                get { lock.lock(); defer { lock.unlock() }; return stored }
+                set { lock.lock(); defer { lock.unlock() }; stored = newValue }
+            }
+        }
+        let box = ProgressBox()
+        _ = await FileCrawler().crawl(rootURLs: [root], sessionID: "progress") { progress in
+            box.value = progress
+        }
+
+        let seen = try XCTUnwrap(box.value, "The crawl must emit at least its final snapshot")
+        XCTAssertGreaterThanOrEqual(seen.itemsSeen, 2, "both loose files were crawled")
+    }
+
     func testSummarizedFolderCarriesTheNewestChangeInside() async throws {
         try write("Project/node_modules/old.js", bytes: 1, daysAgo: 90)
         try write("Project/node_modules/new.js", bytes: 1)

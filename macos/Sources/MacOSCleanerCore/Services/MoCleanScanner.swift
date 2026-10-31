@@ -245,12 +245,20 @@ public actor MoCleanScanner {
         /// Crawl errors (unreadable paths) encountered while scanning known
         /// paths, so sessions report permission gaps instead of hiding them.
         public var crawlErrors: Int
+        /// Diagnostics for results that are empty for a reason the person
+        /// cannot see (Spotlight off), so an empty section is not mistaken
+        /// for a verified-clean one.
+        public var notices: [ScanNotice]
 
-        public init(files: [FileRecord], findings: [Finding], recommendations: [Recommendation], crawlErrors: Int = 0) {
+        public init(
+            files: [FileRecord], findings: [Finding], recommendations: [Recommendation],
+            crawlErrors: Int = 0, notices: [ScanNotice] = []
+        ) {
             self.files = files
             self.findings = findings
             self.recommendations = recommendations
             self.crawlErrors = crawlErrors
+            self.notices = notices
         }
     }
 
@@ -503,7 +511,11 @@ public actor MoCleanScanner {
         if let installedApps { inventory = await installedApps() } else { inventory = await InstalledAppIndex.live(home: home) }
         guard let inventory else {
             logger.info("Spotlight inventory unavailable; orphan detection skipped.")
-            return ScanResult(files: [], findings: [], recommendations: [])
+            return ScanResult(
+                files: [], findings: [], recommendations: [],
+                notices: [ScanNotice(message: String(
+                    localized: "App leftovers were not checked because Spotlight indexing is off. Turn Spotlight on to scan this section.",
+                    comment: "Scan notice when Spotlight is unavailable"))])
         }
         var orphanIDs: [URL: String] = [:]
         let cutoff = Date().addingTimeInterval(-30 * 86_400)

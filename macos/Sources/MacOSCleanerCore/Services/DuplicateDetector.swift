@@ -134,18 +134,33 @@ public actor DuplicateDetector {
         for sizeGroup in sizeGroups {
             // Cooperative cancellation between groups.
             try Task.checkCancellation()
+            // Quick-hash the group with bounded workers. This used to run
+            // sequentially on the actor: one core reading three 64 KB samples
+            // per file while the rest idled — minutes on a large first scan.
             var quickGroups: [String: [FileRecord]] = [:]
             var quickHashFailures: [FileRecord] = []
-            for file in sizeGroup {
-                do {
-                    let quick = try FingerprintService.quickHash(for: file.url, sizeBytes: file.sizeBytes)
-                    quickGroups[quick, default: []].append(file)
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    logger.warning("Quick hash failed for \(file.url.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                    quickHashFailures.append(file)
+            var quickIterator = sizeGroup.makeIterator()
+            await withTaskGroup(of: (FileRecord, String?).self) { group in
+                for _ in 0..<Self.hashWorkerCount {
+                    guard let file = quickIterator.next() else { break }
+                    group.addTask { Self.quickHashTask(for: file) }
                 }
+                while let (file, quick) = await group.next() {
+                    if let quick {
+                        quickGroups[quick, default: []].append(file)
+                    } else {
+                        quickHashFailures.append(file)
+                    }
+                    if let next = quickIterator.next() {
+                        group.addTask { Self.quickHashTask(for: next) }
+                    }
+                }
+            }
+            // A cancelled worker surfaces as a nil hash; stop before any
+            // survivor is sent to full hashing.
+            try Task.checkCancellation()
+            if !quickHashFailures.isEmpty {
+                logger.warning("Quick hash failed for \(quickHashFailures.count) files; they fall through to full hashing.")
             }
             // Quick hashing is cheap (≤3 chunks); only files sharing a quick
             // hash proceed to expensive full hashing.
@@ -288,6 +303,17 @@ public actor DuplicateDetector {
         } catch {
             return (file, nil)
         }
+    }
+
+    /// Quick-hashes one file off the actor; `nil` means the file could not be
+    /// read. Hashing itself does not observe cancellation — the caller checks
+    /// it after the worker group drains, so a stopped scan never reaches full
+    /// hashing.
+    private static func quickHashTask(for file: FileRecord) -> (FileRecord, String?) {
+        guard let quick = try? FingerprintService.quickHash(for: file.url, sizeBytes: file.sizeBytes) else {
+            return (file, nil)
+        }
+        return (file, quick)
     }
 
     /// Keeper selection rule shared by scan emission and plan-time rebuilds:
@@ -451,6 +477,7 @@ public actor DuplicateDetector {
                 group.addTask { (file, await FingerprintService.featurePrint(for: file.url)) }
             }
             while let (file, print) = await group.next() {
+                if Task.isCancelled { break }
                 if let print {
                     prints.append((file, print))
                 }
@@ -459,6 +486,7 @@ public actor DuplicateDetector {
                 }
             }
         }
+        try Task.checkCancellation()
         guard prints.count > 1 else { return }
         prints.sort { ($0.file.modifiedAt ?? .distantPast) < ($1.file.modifiedAt ?? .distantPast) }
 

@@ -782,6 +782,20 @@ public struct PackageCleanupCandidate: Codable, Sendable {
     }
 }
 
+/// One diagnostic surfaced with a scan's results: a location that could not
+/// be read, a section that was skipped (Spotlight off), or a truncated scan.
+/// Rendered in the status strip so an empty review reads as "clean" or
+/// "could not see" — never silently as "clean".
+public struct ScanNotice: Codable, Sendable, Equatable, Identifiable {
+    public var id: String
+    public var message: String
+
+    public init(id: String = UUID().uuidString, message: String) {
+        self.id = id
+        self.message = message
+    }
+}
+
 /// Immutable scan results. The mutable `Plan` is stored separately to avoid
 /// copying the entire file array on every plan mutation (approve/reject/NL command).
 public struct ScanOutcome: Codable, Sendable {
@@ -795,6 +809,12 @@ public struct ScanOutcome: Codable, Sendable {
     public var recommendations: [Recommendation]
     public var snapshot: StorageSnapshot
     public var packageCandidates: [PackageCleanupCandidate]
+    /// True when the scan was stopped early and these results cover only the
+    /// locations crawled so far. Defaulted for in-memory construction; the
+    /// synthesized decoder does not apply this default.
+    public var wasCancelled: Bool = false
+    /// Diagnostics for locations the scan could not read or sections it skipped.
+    public var notices: [ScanNotice] = []
 
     /// An empty outcome for work that starts without a scan (an uninstall
     /// from the Applications list). Staged files and findings are appended.

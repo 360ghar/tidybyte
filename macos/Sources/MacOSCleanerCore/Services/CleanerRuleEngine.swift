@@ -30,12 +30,14 @@ public actor CleanerRuleEngine {
         self.policy = policy
     }
 
-    /// True when the policy permits `record` as a cleanup candidate.
+    /// True when the policy permits `record` as a cleanup candidate. Uses the
+    /// policy's analyze-time gate: the crawler already recorded each record's
+    /// risk flags, so no filesystem round-trips happen here (`decide` resolves
+    /// symlink ancestors with one syscall per record — seconds per million
+    /// records, three times over in this engine). `SafetyAuditor` re-decides
+    /// with full symlink resolution before anything is deleted.
     private func isAllowed(_ record: FileRecord) -> Bool {
-        if case .allow = policy.decide(target: record.url, isDirectory: record.kind == .directory) {
-            return true
-        }
-        return false
+        policy.allowsCleanupTarget(record)
     }
 
     public func analyze(
@@ -48,11 +50,16 @@ public actor CleanerRuleEngine {
         var recommendations: [Recommendation] = []
         let directorySizes = subtreeSizes(for: files)
 
-        // One autorelease pool per record: the policy and path checks autorelease URL
-        // objects, and a pass over a million records otherwise keeps them all alive.
-        for record in files {
-            // A million-record pass takes seconds; check cancellation
-            // periodically so cancelScan() does not wait for the whole pass.
+        // One policy pass for every rule below. The crawler already recorded
+        // each record's risk flags, so filtering is string work; the allowed
+        // set feeds the findings loop and the per-rule passes alike, instead
+        // of being recomputed up to three times per record.
+        let allowedFiles = files.filter { record in autoreleasepool { isAllowed(record) } }
+        // One autorelease pool per record: the path checks autorelease URL
+        // objects, and a pass over a million records otherwise keeps them all
+        // alive. A million-record pass takes seconds; check cancellation
+        // periodically so cancelScan() does not wait for the whole pass.
+        for record in allowedFiles {
             if record.id.hashValue % 2048 == 0 {
                 try Task.checkCancellation()
             }
@@ -63,10 +70,6 @@ public actor CleanerRuleEngine {
                 recommendations.append(result.recommendation)
             }
         }
-
-        // One policy pass for the rules below. Each isAllowed call autoreleases
-        // URLs, so the pool keeps a 1M-record pass from holding them all.
-        let allowedFiles = files.filter { record in autoreleasepool { isAllowed(record) } }
         let screenshots = screenshotFindings(in: allowedFiles, sessionID: sessionID)
         findings.append(contentsOf: screenshots)
         for screenshot in screenshots {
@@ -432,10 +435,10 @@ public actor CleanerRuleEngine {
         // Only flag DIRECT children of "Application Support" — nested subdirectories
         // (e.g. AppName/Caches, AppName/Data) would cause false positives if flagged
         // individually because their names won't match any installed app.
+        // `files` arrives pre-filtered by the engine's one policy pass.
         let supportDirectories = files.filter { record in
             record.kind == .directory
                 && record.url.deletingLastPathComponent().lastPathComponent == "Application Support"
-                && isAllowed(record)
         }
         return supportDirectories.compactMap { record in
             let normalizedName = normalizeAppName(record.fileName)
@@ -489,7 +492,8 @@ public actor CleanerRuleEngine {
     private func firstFinding(
         for record: FileRecord, sessionID: String, directorySizes: [String: Int64], projects: [ProjectUnit]
     ) -> (finding: Finding, recommendation: Recommendation)? {
-        guard isAllowed(record) else { return nil }
+        // The caller loops over the engine's one policy pass, so `record` is
+        // already policy-allowed.
         return developerArtifactFinding(record, sessionID: sessionID, directorySizes: directorySizes, projects: projects)
             ?? xcarchiveFinding(record, sessionID: sessionID, directorySizes: directorySizes)
             ?? cacheOrLogFinding(record, sessionID: sessionID, directorySizes: directorySizes, projects: projects)

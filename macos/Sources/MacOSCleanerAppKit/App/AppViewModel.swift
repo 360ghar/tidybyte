@@ -123,6 +123,9 @@ final class AppViewModel {
     /// Non-nil when a completed broad scan returned suspiciously few files —
     /// likely truncated by missing Full Disk Access. Shown as a dismissible banner.
     private(set) var fullDiskAccessHint: String?
+    /// Scan notices the person already dismissed, by `ScanNotice.id`.
+    /// The underlying outcome keeps them; only the strip hides them.
+    var dismissedScanNoticeIDs: Set<String> = []
     var selectedRegretReason: String?
     private(set) var spaceForecast: SpaceForecaster.Forecast?
     // MARK: - Top-level tabs (Agent 6; state lives here, behavior in AppViewModel+Tabs.swift)
@@ -200,6 +203,9 @@ final class AppViewModel {
     private var scanTask: Task<Void, Never>?
     private var scanToastTask: Task<Void, Never>?
     private var activeScanID = UUID()
+    /// The scan a cancelScan() stopped. Its partial results may still paint
+    /// once the orchestrator finalizes them; a newer scan clears this.
+    private var cancelledScanID: UUID?
     let cleanup: CleanupModel
     internal let store: SQLiteStore
     private let keychain: KeychainStore
@@ -537,6 +543,7 @@ final class AppViewModel {
         }
         let scanID = UUID()
         activeScanID = scanID
+        cancelledScanID = nil
         scanTask?.cancel()
         // Bump the generation so an unwinding older task knows it no longer
         // owns the busy-state flags.
@@ -557,13 +564,16 @@ final class AppViewModel {
         statusMessage = String(localized: "Scan \(scanCurrentStep)/\(scanTotalSteps): \(scanPhaseText).")
         scanTask = Task { @MainActor in
             let startedAt = Date()
+            var showedPartialResults = false
             // Every exit path clears the busy flag when this task actually
             // unwinds (cancellation included) — as long as no newer scan took
             // ownership in the meantime.
             defer {
                 if generation == scanGeneration {
                     isScanning = false
-                    if Task.isCancelled { statusMessage = String(localized: "Scan cancelled.") }
+                    if Task.isCancelled, !showedPartialResults {
+                        statusMessage = String(localized: "Scan cancelled.")
+                    }
                 }
             }
             do {
@@ -577,10 +587,32 @@ final class AppViewModel {
                     duplicateStrategy: duplicateStrategy,
                     progress: progressSink
                 )
+                // A stopped scan still owns its ID (cancelScan records it in
+                // cancelledScanID), so its partial results may paint below even
+                // though the task is cancelled. Any other cancelled or stale
+                // task must not repaint a newer scan's state (H-01).
+                let ownsWorkspace = activeScanID == scanID
+                    || (scanOutcome.wasCancelled && cancelledScanID == scanID)
+                guard ownsWorkspace else { return }
+                if scanOutcome.wasCancelled {
+                    // The scan was stopped early: keep what it found instead of
+                    // showing an empty review that reads as "clean".
+                    outcome = scanOutcome
+                    plan = scanPlan
+                    reviewRiskFilter = nil
+                    stagedUninstallAppIDs = []
+                    selectedActionID = scanPlan.actions.first?.id
+                    showOnboarding = false
+                    clearScanProgress()
+                    evaluateFullDiskAccessHint(scanOutcome: scanOutcome, mode: selectedMode)
+                    statusMessage = String(
+                        localized: "Scan stopped early — showing what was found so far.",
+                        comment: "Status after a scan was cancelled but kept partial results")
+                    showedPartialResults = true
+                    cancelledScanID = nil
+                    return
+                }
                 guard !Task.isCancelled else {
-                    // Only a cancelled scan may report the cancellation; a stale cancelled
-                    // task must not repaint a newer scan's state (H-01).
-                    guard activeScanID == scanID else { return }
                     statusMessage = String(localized: "Scan cancelled.")
                     return
                 }
@@ -655,6 +687,11 @@ final class AppViewModel {
         // Nothing in flight: flipping the copy would strand "Cancelling…"
         // forever, since no task exists to unwind and clear it.
         guard isScanning else { return }
+        // Record the dying scan's ID: the orchestrator finalizes what it found
+        // so far, and those partial results may still paint (they belong to
+        // this scan). The activeScanID bump below keeps the in-flight progress
+        // sink from repainting while the unwind is under way.
+        cancelledScanID = activeScanID
         scanTask?.cancel()
         scanTask = nil
         // Invalidate the current scan ID so a cancelled scan's stale progress sink or
@@ -688,8 +725,23 @@ final class AppViewModel {
                 guard self.activeScanID == scanID else { return }
                 self.scanCurrentStep = progress.currentStep
                 self.scanTotalSteps = progress.totalSteps
-                self.scanPhaseText = progress.phase
-                self.statusMessage = String(localized: "Scan \(progress.currentStep)/\(progress.totalSteps): \(progress.phase).")
+                // The crawl is the longest step; show what it is doing instead
+                // of a bare phase name for minutes.
+                if let seen = progress.filesSeen {
+                    if let folder = progress.currentPath, !folder.isEmpty {
+                        self.scanPhaseText = String(
+                            localized: "Crawling… \(seen) items · \(folder)",
+                            comment: "Live crawl progress with the folder being read")
+                    } else {
+                        self.scanPhaseText = String(
+                            localized: "Crawling… \(seen) items",
+                            comment: "Live crawl progress")
+                    }
+                    self.statusMessage = String(localized: "Scan 2/5: \(self.scanPhaseText).")
+                } else {
+                    self.scanPhaseText = progress.phase
+                    self.statusMessage = String(localized: "Scan \(progress.currentStep)/\(progress.totalSteps): \(progress.phase).")
+                }
             }
         }
     }
@@ -1077,9 +1129,17 @@ final class AppViewModel {
     /// Broad scan modes should see thousands of files on a normal Mac. A tiny
     /// result usually means Full Disk Access is missing and whole subtrees were
     /// silently skipped — surface the distinction instead of a false "clean".
+    /// The hint is result-driven: a broad scan that completed with unreadable
+    /// locations or nothing found while Full Disk Access is off gets the
+    /// banner, per the doc comment this function has always carried.
     private func evaluateFullDiskAccessHint(scanOutcome: ScanOutcome, mode: ScanMode) {
         let broadModes: Set<ScanMode> = [.homeFolder, .developerCleanup]
         guard broadModes.contains(mode), !FullDiskAccess.isGranted() else {
+            fullDiskAccessHint = nil
+            return
+        }
+        let suspiciouslyEmpty = scanOutcome.findings.isEmpty && scanOutcome.files.count < 1_000
+        guard suspiciouslyEmpty || scanOutcome.session.errorsCount > 0 else {
             fullDiskAccessHint = nil
             return
         }
@@ -1091,6 +1151,16 @@ final class AppViewModel {
 
     func dismissFullDiskAccessHint() {
         fullDiskAccessHint = nil
+    }
+
+    func dismissScanNotice(_ id: String) {
+        dismissedScanNoticeIDs.insert(id)
+    }
+
+    /// Notices of the current outcome the strip should still show.
+    var activeScanNotices: [ScanNotice] {
+        guard let outcome else { return [] }
+        return outcome.notices.filter { !dismissedScanNoticeIDs.contains($0.id) }
     }
 
     func generateReport(to directory: URL? = nil) async {

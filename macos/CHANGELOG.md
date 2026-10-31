@@ -22,6 +22,9 @@ First public release, as Tidybyte for Mac.
 
 - The app is now Tidybyte (`com.sakshammittal.tidybyte`).
 - Scanning is about twice as fast, with identical results.
+- `~/Library` — the largest tree on most Macs — now crawls in parallel instead of as one job at the end of the scan, duplicate pre-hashing uses the same worker pool as full hashing, and package-manager probes overlap the crawl.
+- While the crawl runs, the subtitle shows a live item count and the folder being read, and each stage's duration is logged.
+- Stopping a scan keeps what it found so far. The review shows the partial results with a "stopped early" note instead of an empty workspace that reads as clean.
 - Reclaimable sizes count hard links and APFS clones honestly.
 - Liquid Glass bars for approved changes and tool actions; native inspector, toolbar, and sheets.
 - Bulk Approve and Reject act only on the rows in the current area.
@@ -29,6 +32,7 @@ First public release, as Tidybyte for Mac.
 
 ### Fixed
 
+- An empty review is no longer silent. The scan now says when app data was skipped for lack of Full Disk Access, when locations could not be read, and when a section could not be checked (Spotlight off), in the status strip and in Overview's Latest Scan.
 - A full scan of a large home folder no longer runs out of memory. Folders that no review lists file by file (`node_modules`, `.git`, build output beside a build manifest, each cache entry, each simulator device) are now one item with the total size of their contents. The detailed-record budget is capped at one million records; folders past the budget are still summarized as one record each, and only files of 1 GB or more keep a record of their own. On a Mac with 7.9 million files in the home folder, the scan used 42 GB before this fix.
 - Xcode archives, Xcode UserData, simulator devices, keychains, and provisioning profiles can no longer be proposed for deletion.
 - Duplicate folding no longer reaches into `~/Library`.
